@@ -12,7 +12,7 @@ import structlog
 from contextlib import asynccontextmanager
 
 from ..core.config import Settings
-from ..core.database import Database
+from ..core.database import get_db_session, get_engine, create_tables
 from ..services.memory_service import MemoryService
 from ..services.task_service import TaskService
 from ..services.workflow_service import WorkflowService
@@ -29,7 +29,7 @@ class TMWSDaemon:
     def __init__(self, settings: Optional[Settings] = None):
         """Initialize the daemon server."""
         self.settings = settings or Settings()
-        self.database: Optional[Database] = None
+        self.engine = None
         self.memory_service: Optional[MemoryService] = None
         self.task_service: Optional[TaskService] = None
         self.workflow_service: Optional[WorkflowService] = None
@@ -44,13 +44,15 @@ class TMWSDaemon:
     async def initialize_services(self):
         """Initialize all required services."""
         try:
-            # Initialize database
-            self.database = Database(self.settings.database_url)
-            await self.database.initialize()
+            # Initialize database engine
+            self.engine = get_engine()
+            
+            # Ensure tables exist
+            await create_tables()
             logger.info("Database initialized")
             
             # Initialize services
-            async with self.database.get_session() as session:
+            async with get_db_session() as session:
                 self.memory_service = MemoryService(session)
                 self.task_service = TaskService(session)
                 self.workflow_service = WorkflowService(session)
@@ -94,8 +96,8 @@ class TMWSDaemon:
             await self.disconnect_client(client_id)
         
         # Close database connections
-        if self.database:
-            await self.database.close()
+        if self.engine:
+            await self.engine.dispose()
         
         logger.info("TMWS daemon server shutdown complete")
     
@@ -131,7 +133,7 @@ class TMWSDaemon:
         return {
             "running": self.running,
             "clients": len(self.clients),
-            "database": "connected" if self.database else "disconnected",
+            "database": "connected" if self.engine else "disconnected",
             "services": {
                 "memory": self.memory_service is not None,
                 "task": self.task_service is not None,
