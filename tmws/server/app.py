@@ -14,7 +14,6 @@ from .daemon import TMWSDaemon
 from .handlers.websocket_handler import WebSocketHandler
 from .handlers.mcp_bridge import MCPBridge
 from ..core.config import Settings
-from ..core.security import verify_token
 
 logger = structlog.get_logger()
 

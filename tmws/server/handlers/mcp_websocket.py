@@ -10,7 +10,15 @@ from fastapi import WebSocket
 import structlog
 
 from ..daemon import TMWSDaemon
-from ...mcp_server import get_mcp_tools, AgentContext
+from dataclasses import dataclass
+from typing import List, Optional
+
+@dataclass
+class AgentContext:
+    """Agent context for MCP connections."""
+    agent_id: Optional[str] = None
+    namespace: str = "default"
+    capabilities: List[str] = None
 
 logger = structlog.get_logger()
 
@@ -165,17 +173,49 @@ class MCPWebSocketHandler:
     
     async def handle_tools_list(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """List available MCP tools."""
-        # Get tools from MCP server
-        tools = get_mcp_tools()
-        
-        # Convert to MCP format
-        tool_list = []
-        for tool in tools:
-            tool_list.append({
-                "name": tool.name,
-                "description": tool.description,
-                "inputSchema": tool.parameters
-            })
+        # Define available tools
+        tool_list = [
+            {
+                "name": "create_memory",
+                "description": "Create a new memory",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "content": {"type": "string"},
+                        "importance": {"type": "number"},
+                        "tags": {"type": "array", "items": {"type": "string"}}
+                    },
+                    "required": ["content"]
+                }
+            },
+            {
+                "name": "search_memories",
+                "description": "Search memories using semantic search",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {"type": "string"},
+                        "limit": {"type": "integer"},
+                        "min_importance": {"type": "number"}
+                    },
+                    "required": ["query"]
+                }
+            },
+            {
+                "name": "create_task",
+                "description": "Create a new task",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "title": {"type": "string"},
+                        "description": {"type": "string"},
+                        "priority": {"type": "string"},
+                        "assigned_persona": {"type": "string"}
+                    },
+                    "required": ["title"]
+                }
+            }
+        ]
         
         return {"tools": tool_list}
     
