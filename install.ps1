@@ -63,7 +63,7 @@ Write-Host ""
 
 # コピー対象のディレクトリリスト
 $directories = @(
-    "agetns",
+    "agents",
     "commands",
     "hooks"
 )
