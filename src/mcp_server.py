@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-TMWS MCP Server v2.1.0 - Unified Agent Memory System
+TMWS MCP Server v2.2.0 - Unified Agent Memory System
 Simplified and production-ready implementation for individual developers.
 """
 
@@ -270,9 +270,9 @@ async def get_agent_statistics() -> Dict[str, Any]:
 
 def run_server():
     """Run the MCP server."""
-    logger.info(f"Starting TMWS MCP Server v{settings.version}")
+    logger.info(f"Starting TMWS MCP Server v{settings.api_version}")
     logger.info(f"Agent detection: {bool(os.getenv('TMWS_AGENT_ID'))}")
-    
+
     try:
         mcp.run()
     except KeyboardInterrupt:
@@ -282,5 +282,10 @@ def run_server():
         raise
 
 
-if __name__ == "__main__":
+def main():
+    """Main entry point for uvx."""
     run_server()
+
+
+if __name__ == "__main__":
+    main()

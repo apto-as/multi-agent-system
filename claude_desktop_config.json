@@ -1,0 +1,21 @@
+{
+  "mcpServers": {
+    "tmws": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/apto-as/tmws.git@v2.2.0",
+        "tmws"
+      ],
+      "env": {
+        "TMWS_DATABASE_URL": "postgresql://tmws_user:tmws_password@localhost:5432/tmws",
+        "TMWS_ENVIRONMENT": "development",
+        "TMWS_SECRET_KEY": "development_secret_key_at_least_32_characters_long",
+        "TMWS_AUTH_ENABLED": "false",
+        "TMWS_AGENT_ID": "athena-conductor",
+        "TMWS_AGENT_NAMESPACE": "trinitas",
+        "TMWS_ALLOW_DEFAULT_AGENT": "true"
+      }
+    }
+  }
+}

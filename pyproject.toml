@@ -1,6 +1,6 @@
 [project]
 name = "tmws"
-version = "2.1.0"
+version = "2.2.0"
 description = "Trinitas Memory & Workflow Service - PostgreSQL-based backend for Trinitas agents"
 authors = [
     {name = "Trinitas Development Team", email = "dev@trinitas.ai"}
@@ -82,6 +82,10 @@ monitoring = [
     "opentelemetry-sdk>=1.22.0",
     "opentelemetry-instrumentation-fastapi>=0.43b0",
 ]
+
+[project.scripts]
+tmws = "src.mcp_server:main"
+tmws-server = "src.main:main"
 
 [build-system]
 requires = ["setuptools>=68", "wheel"]
