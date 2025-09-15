@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, delete, func, and_, or_
 
 from ...core.database import get_db_session_dependency
-from ...models.memory import Memory, MemoryVector
+from ...models.memory import Memory
 from ...services.vectorization_service import VectorizationService
 from ..security import get_current_user, sanitize_input
 

@@ -1,46 +1,40 @@
 """
-Database models for TMWS v2.0 - Universal Multi-Agent Platform.
+Database models for TMWS v2.2.0.
 """
 
 # Base classes
 from .base import TMWSBase, UUIDMixin, TimestampMixin, MetadataMixin
 
-# V1 Models (Legacy - for backward compatibility)
-from .memory import Memory as MemoryV1
-from .persona import Persona, PersonaType, PersonaRole
-from .task import Task as TaskV1, TaskStatus as TaskStatusV1, TaskPriority as TaskPriorityV1
-from .workflow import Workflow, WorkflowStatus, WorkflowType
-from .learning_pattern import LearningPattern as LearningPatternV1
-
-# V2 Models (Universal Multi-Agent Platform)
+# Core Models
 from .agent import Agent, AgentTeam, AgentNamespace
-from .memory_v2 import Memory, MemoryType, RetentionPolicy
-from .task_v2 import Task, TaskStatus, TaskPriority
-from .learning_pattern_v2 import LearningPattern, PatternUsageHistory
+from .memory import Memory, MemorySharing, MemoryPattern, MemoryConsolidation
+from .persona import Persona, PersonaType, PersonaRole
+from .task import Task, TaskStatus, TaskPriority
+from .workflow import Workflow, WorkflowStatus, WorkflowType
+from .learning_pattern import LearningPattern
+from .user import User
+from .workflow_history import WorkflowExecution, WorkflowStepExecution, WorkflowExecutionLog, WorkflowSchedule
 
 # API audit logging
-from .api_audit_log import APIAuditLog, RequestMethod, ResponseStatus
+from .api_audit_log import APIAuditLog
 
 __all__ = [
     # Base classes
     "TMWSBase",
-    "UUIDMixin", 
+    "UUIDMixin",
     "TimestampMixin",
     "MetadataMixin",
-    
-    # V1 Models (Legacy)
-    "MemoryV1",
-    "Persona", "PersonaType", "PersonaRole",
-    "TaskV1", "TaskStatusV1", "TaskPriorityV1",
-    "Workflow", "WorkflowStatus", "WorkflowType",
-    "LearningPatternV1",
-    
-    # V2 Models (Universal Multi-Agent Platform)
+
+    # Core Models
     "Agent", "AgentTeam", "AgentNamespace",
-    "Memory", "MemoryType", "RetentionPolicy",
+    "Memory", "MemorySharing", "MemoryPattern", "MemoryConsolidation",
+    "Persona", "PersonaType", "PersonaRole",
     "Task", "TaskStatus", "TaskPriority",
-    "LearningPattern", "PatternUsageHistory",
-    
+    "Workflow", "WorkflowStatus", "WorkflowType",
+    "LearningPattern",
+    "User",
+    "WorkflowExecution", "WorkflowStepExecution", "WorkflowExecutionLog", "WorkflowSchedule",
+
     # API audit logging
-    "APIAuditLog", "RequestMethod", "ResponseStatus",
+    "APIAuditLog",
 ]

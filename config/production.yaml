@@ -1,0 +1,189 @@
+# TMWS Production Configuration
+# Simple, secure configuration for production deployment
+
+# Database Configuration
+database:
+  host: localhost
+  port: 5432
+  name: tmws
+  user: tmws_user
+  # Password should be set via environment variable TMWS_DB_PASSWORD
+  pool_size: 20
+  max_overflow: 40
+  pool_recycle: 3600
+  pool_pre_ping: true
+  echo: false
+  
+  # Connection settings
+  connect_args:
+    connect_timeout: 10
+    options: "-c statement_timeout=30000"  # 30 seconds
+    
+# Redis Configuration  
+redis:
+  host: localhost
+  port: 6379
+  db: 0
+  # Password should be set via environment variable TMWS_REDIS_PASSWORD
+  decode_responses: true
+  max_connections: 50
+  socket_keepalive: true
+  socket_keepalive_options:
+    TCP_KEEPIDLE: 120
+    TCP_KEEPINTVL: 30
+    TCP_KEEPCNT: 3
+
+# API Server Configuration
+server:
+  host: 127.0.0.1
+  port: 8000
+  workers: 4  # Adjust based on CPU cores
+  worker_class: uvicorn.workers.UvicornWorker
+  worker_connections: 1000
+  keepalive: 5
+  
+  # Graceful shutdown
+  graceful_timeout: 30
+  timeout: 60
+  
+# Security Configuration
+security:
+  # JWT Settings
+  jwt:
+    algorithm: HS256
+    access_token_expire_minutes: 30
+    refresh_token_expire_days: 30
+    
+  # Password Policy
+  password:
+    min_length: 12
+    require_uppercase: true
+    require_lowercase: true
+    require_numbers: true
+    require_special: true
+    
+  # Rate Limiting
+  rate_limit:
+    enabled: true
+    default_limit: "100/minute"
+    burst: 20
+    
+    # Endpoint-specific limits
+    endpoints:
+      "/api/v1/auth/login": "5/minute"
+      "/api/v1/auth/register": "3/minute"
+      "/api/v1/memory/search": "30/minute"
+      
+  # CORS Settings
+  cors:
+    allow_origins:
+      - "http://localhost:3000"  # Frontend dev
+      - "https://yourdomain.com"  # Production frontend
+    allow_credentials: true
+    allow_methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    allow_headers: ["*"]
+    
+# Embedding Configuration
+embedding:
+  model: "sentence-transformers/all-MiniLM-L6-v2"
+  dimension: 384
+  batch_size: 32
+  cache_enabled: true
+  cache_ttl: 3600  # 1 hour
+  
+  # CPU optimization
+  cpu_optimization:
+    num_threads: 4  # Adjust based on CPU
+    use_multiprocessing: false  # Keep false for stability
+    
+# Logging Configuration
+logging:
+  level: INFO
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  
+  # File logging
+  file:
+    enabled: true
+    path: "/var/log/tmws/tmws.log"
+    max_bytes: 10485760  # 10MB
+    backup_count: 10
+    
+  # Structured logging
+  structured:
+    enabled: true
+    include_context: true
+    
+  # Audit logging
+  audit:
+    enabled: true
+    path: "/var/log/tmws/audit.log"
+    include_request_body: false  # Privacy
+    include_response_body: false  # Privacy
+    
+# Monitoring Configuration
+monitoring:
+  # Health check
+  health_check:
+    enabled: true
+    path: "/health"
+    include_details: false  # Don't expose internal details
+    
+  # Metrics
+  metrics:
+    enabled: true
+    path: "/metrics"
+    include_process_metrics: true
+    include_database_metrics: true
+    include_cache_metrics: true
+    
+# Backup Configuration
+backup:
+  enabled: true
+  path: "/var/backups/tmws"
+  
+  # Database backup
+  database:
+    enabled: true
+    schedule: "0 2 * * *"  # Daily at 2 AM
+    retention_days: 30
+    compression: true
+    
+  # Memory vectors backup
+  vectors:
+    enabled: true
+    schedule: "0 3 * * 0"  # Weekly on Sunday at 3 AM
+    retention_days: 90
+    
+# Performance Tuning
+performance:
+  # Query optimization
+  query:
+    default_limit: 100
+    max_limit: 1000
+    timeout: 30000  # 30 seconds
+    
+  # Cache settings
+  cache:
+    memory_cache_size: 1000  # LRU cache size
+    redis_ttl: 300  # 5 minutes
+    
+  # Connection pooling
+  connection_pool:
+    min_size: 5
+    max_size: 20
+    
+# Feature Flags
+features:
+  semantic_search: true
+  workflow_execution: true
+  task_management: true
+  audit_logging: true
+  rate_limiting: true
+  
+# Maintenance Mode
+maintenance:
+  enabled: false
+  message: "TMWS is currently under maintenance. Please try again later."
+  allowed_ips:
+    - "127.0.0.1"
+    - "::1"

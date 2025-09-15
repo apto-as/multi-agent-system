@@ -3,7 +3,7 @@ TMWS - Trinitas Memory & Workflow Service
 Enhanced with Bellona's Tactical Coordination System
 """
 
-__version__ = "1.0.0"
+__version__ = "2.1.0"
 
 # Core tactical coordination exports
 from .core.tactical_coordinator import TacticalCoordinator, create_tactical_coordinator

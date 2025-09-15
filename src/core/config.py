@@ -58,7 +58,7 @@ class Settings(BaseSettings):
     api_port: int = Field(default=8000, ge=1024, le=65535)
     api_reload: bool = Field(default=False)  # Never auto-reload in production
     api_title: str = Field(default="TMWS - Trinitas Memory & Workflow Service")
-    api_version: str = Field(default="1.0.0")
+    api_version: str = Field(default="2.2.0")
     api_description: str = Field(default="Backend service for Trinitas AI agents")
     
     # ==== JWT & AUTHENTICATION ====
@@ -236,22 +236,52 @@ class Settings(BaseSettings):
     
     @validator("auth_enabled")
     def validate_auth_enabled_security(cls, v, values):
-        """404 Security: Authentication must be enabled in production."""
+        """404 Security: Authentication must be enabled in production.
+
+        v2.2.0 Enhancement: Automatic enforcement, no bypass possible.
+        """
         environment = values.get("environment", "development")
-        
-        if environment == "production" and not v:
-            raise ValueError("Authentication MUST be enabled in production environment")
-        
+
+        if environment == "production":
+            if not v:
+                # Auto-enable authentication in production, log critical warning
+                logger.critical("SECURITY: Authentication was disabled in production - AUTO-ENABLED for safety")
+                return True  # Force enable
+            return v
+
         if environment == "staging" and not v:
             logger.warning("Authentication disabled in staging - consider enabling for realistic testing")
-        
+
         return v
     
     @model_validator(mode='after')
     def validate_production_security(self):
-        """404 Security: Final validation for production mode."""
+        """404 Security: Final validation for production mode.
+
+        v2.2.0: Multiple security validations with clear error messages.
+        """
+        errors = []
+
+        # Authentication is mandatory
         if self.environment == "production" and not self.auth_enabled:
-            raise ValueError("CRITICAL: Authentication MUST be enabled in production environment (TMWS_AUTH_ENABLED=true)")
+            # This should never happen due to auto-enable, but double-check
+            errors.append("Authentication MUST be enabled (TMWS_AUTH_ENABLED=true)")
+
+        # Rate limiting is mandatory
+        if self.environment == "production" and not self.rate_limit_enabled:
+            errors.append("Rate limiting MUST be enabled (TMWS_RATE_LIMIT_ENABLED=true)")
+
+        # Security headers are mandatory
+        if self.environment == "production" and not self.security_headers_enabled:
+            errors.append("Security headers MUST be enabled (TMWS_SECURITY_HEADERS_ENABLED=true)")
+
+        # Audit logging is mandatory
+        if self.environment == "production" and not self.audit_log_enabled:
+            errors.append("Audit logging MUST be enabled (TMWS_AUDIT_LOG_ENABLED=true)")
+
+        if errors:
+            raise ValueError(f"CRITICAL PRODUCTION SECURITY VIOLATIONS:\n" + "\n".join(f"  - {e}" for e in errors))
+
         return self
 
     @property

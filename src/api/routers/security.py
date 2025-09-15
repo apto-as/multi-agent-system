@@ -21,7 +21,8 @@ from ..dependencies_agent import (
     CurrentAgent, SystemAccess, TrinitasAccess,
     get_agent_authenticator, get_access_control, get_encryption_service
 )
-from ...security.agent_auth import AgentAuthenticator, AgentAccessLevel, AgentPermission
+from ...security.agent_auth import AgentAuthService
+from ...models.agent import AgentAccessLevel, AgentPermission
 from ...security.access_control import AccessControlManager, ResourceType, ActionType, AccessPolicy
 from ...security.data_encryption import EncryptionService, DataClassification
 

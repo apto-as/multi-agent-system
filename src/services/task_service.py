@@ -4,9 +4,10 @@ Handles task management and execution tracking
 """
 
 import logging
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Set
 from uuid import UUID
 from datetime import datetime
+from collections import deque
 
 from sqlalchemy import select, func, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,12 +35,12 @@ class TaskService:
         dependencies: List[str] = None,
         metadata: Dict[str, Any] = None
     ) -> Task:
-        """Create a new task."""
+        """Create a new task with circular dependency checking."""
         # Validate priority
         valid_priorities = ["low", "medium", "high", "critical"]
         if priority not in valid_priorities:
             raise ValidationError(f"Invalid priority: {priority}. Must be one of {valid_priorities}")
-        
+
         # Validate persona if assigned
         if assigned_persona_id:
             persona_result = await self.session.execute(
@@ -47,6 +48,13 @@ class TaskService:
             )
             if not persona_result.scalar_one_or_none():
                 raise NotFoundError(f"Persona {assigned_persona_id} not found")
+
+        # Check for circular dependencies before creating
+        if dependencies:
+            # Create temporary task ID for validation
+            temp_task_id = UUID('00000000-0000-0000-0000-000000000000')
+            if await self._would_create_circular_dependency(temp_task_id, dependencies):
+                raise ValidationError("Cannot create task: would create circular dependency")
         
         task = Task(
             title=title,
@@ -92,11 +100,15 @@ class TaskService:
             'progress', 'assigned_persona_id', 'dependencies', 'result',
             'metadata_json', 'started_at', 'completed_at'
         ]
-        
+
         for key, value in updates.items():
             if key in allowed_fields:
+                # Special handling for dependencies to check circular refs
+                if key == 'dependencies' and value:
+                    if await self._would_create_circular_dependency(task_id, value):
+                        raise ValidationError("Cannot update task: would create circular dependency")
                 # Special handling for status changes
-                if key == 'status':
+                elif key == 'status':
                     await self._handle_status_change(task, value)
                 else:
                     setattr(task, key, value)
@@ -276,4 +288,149 @@ class TaskService:
             "completed_tasks": status_counts.get("completed", 0),
             "failed_tasks": status_counts.get("failed", 0),
             "avg_completion_time_seconds": float(avg_completion_seconds) if avg_completion_seconds else None
+        }
+
+    async def _would_create_circular_dependency(
+        self,
+        task_id: UUID,
+        new_dependencies: List[str]
+    ) -> bool:
+        """Check if adding dependencies would create a circular dependency."""
+        # Build dependency graph
+        graph = await self._build_dependency_graph()
+
+        # Add the proposed dependencies temporarily
+        graph[str(task_id)] = [str(dep) for dep in new_dependencies]
+
+        # Check for cycles using DFS
+        return self._has_cycle(graph)
+
+    async def _build_dependency_graph(self) -> Dict[str, List[str]]:
+        """Build a graph of task dependencies."""
+        stmt = select(Task.id, Task.dependencies)
+        result = await self.session.execute(stmt)
+
+        graph = {}
+        for task_id, deps in result:
+            if deps:
+                graph[str(task_id)] = [str(dep) for dep in deps]
+            else:
+                graph[str(task_id)] = []
+
+        return graph
+
+    def _has_cycle(self, graph: Dict[str, List[str]]) -> bool:
+        """Detect cycles in dependency graph using DFS."""
+        WHITE, GRAY, BLACK = 0, 1, 2
+        color = {node: WHITE for node in graph}
+
+        def visit(node: str) -> bool:
+            if color[node] == GRAY:
+                return True  # Back edge found, cycle detected
+            if color[node] == BLACK:
+                return False  # Already processed
+
+            color[node] = GRAY
+            for neighbor in graph.get(node, []):
+                if neighbor in color and visit(neighbor):
+                    return True
+            color[node] = BLACK
+            return False
+
+        # Check each component
+        for node in graph:
+            if color[node] == WHITE:
+                if visit(node):
+                    return True
+        return False
+
+    async def get_task_execution_order(self) -> List[UUID]:
+        """Get topologically sorted task execution order."""
+        graph = await self._build_dependency_graph()
+
+        # Kahn's algorithm for topological sort
+        in_degree = {node: 0 for node in graph}
+
+        for node in graph:
+            for neighbor in graph[node]:
+                if neighbor in in_degree:
+                    in_degree[neighbor] += 1
+
+        queue = deque([node for node in in_degree if in_degree[node] == 0])
+        result = []
+
+        while queue:
+            node = queue.popleft()
+            result.append(UUID(node))
+
+            for neighbor in graph.get(node, []):
+                if neighbor in in_degree:
+                    in_degree[neighbor] -= 1
+                    if in_degree[neighbor] == 0:
+                        queue.append(neighbor)
+
+        # If we couldn't process all nodes, there's a cycle
+        if len(result) != len(graph):
+            logger.warning("Circular dependency detected in task graph")
+            return []
+
+        return result
+
+    async def validate_task_graph(self) -> Dict[str, Any]:
+        """Validate the entire task dependency graph."""
+        graph = await self._build_dependency_graph()
+        has_cycle = self._has_cycle(graph)
+
+        # Find orphaned tasks (tasks with dependencies that don't exist)
+        all_task_ids = set(graph.keys())
+        orphaned = []
+
+        for task_id, deps in graph.items():
+            for dep in deps:
+                if dep not in all_task_ids:
+                    orphaned.append({
+                        "task_id": task_id,
+                        "missing_dependency": dep
+                    })
+
+        # Calculate dependency depth for each task
+        depths = {}
+
+        def calculate_depth(node: str, visited: Set[str] = None) -> int:
+            if visited is None:
+                visited = set()
+
+            if node in depths:
+                return depths[node]
+
+            if node in visited:
+                return -1  # Cycle detected
+
+            visited.add(node)
+
+            if not graph.get(node):
+                depths[node] = 0
+            else:
+                max_dep_depth = 0
+                for dep in graph[node]:
+                    if dep in graph:
+                        dep_depth = calculate_depth(dep, visited.copy())
+                        if dep_depth == -1:
+                            depths[node] = -1
+                            return -1
+                        max_dep_depth = max(max_dep_depth, dep_depth)
+                depths[node] = max_dep_depth + 1
+
+            return depths[node]
+
+        for task_id in graph:
+            calculate_depth(task_id)
+
+        return {
+            "has_circular_dependencies": has_cycle,
+            "orphaned_dependencies": orphaned,
+            "task_count": len(graph),
+            "max_dependency_depth": max(depths.values()) if depths else 0,
+            "dependency_depths": depths,
+            "is_valid": not has_cycle and len(orphaned) == 0
         }

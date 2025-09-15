@@ -1,6 +1,6 @@
 [project]
 name = "tmws"
-version = "1.0.0"
+version = "2.1.0"
 description = "Trinitas Memory & Workflow Service - PostgreSQL-based backend for Trinitas agents"
 authors = [
     {name = "Trinitas Development Team", email = "dev@trinitas.ai"}
@@ -52,14 +52,16 @@ dependencies = [
     "psutil>=7.0.0",
     "geoip2>=5.1.0",
     "maxminddb>=2.8.2",
+    # Optional but recommended
+    "bleach>=6.0.0",
 ]
 
 [project.scripts]
-tmws = "tmws.mcp_server:run"
-tmws-mcp = "tmws.mcp_server:run"
-tmws-api = "main:main"
-tmws-server = "tmws.server.run_server:main"
-tmws-ws-client = "tmws.mcp_ws_client:main"
+tmws = "src.mcp_server:run_server"
+tmws-mcp = "src.mcp_server:run_server"
+tmws-api = "src.main:main"
+tmws-server = "src.server:main"
+tmws-ws-client = "src.mcp_ws_client:main"
 
 [project.optional-dependencies]
 dev = [
@@ -87,7 +89,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["tmws*"]
+include = ["src*", "tmws*"]
 
 [tool.pytest.ini_options]
 minversion = "7.0"

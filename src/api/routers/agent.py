@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ...core.exceptions import NotFoundError, ValidationError
 from ...services.agent_service import AgentService
 from ..dependencies import get_db_session_dependency, get_current_user
-from ..security import require_permissions
+# from ..security import require_permissions  # TODO: Implement permissions system
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 

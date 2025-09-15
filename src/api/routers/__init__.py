@@ -1,13 +1,15 @@
 """
-API routers for TMWS.
+API routers for TMWS v2.2.0.
 """
 
-from . import health, memory, persona, task, workflow
+from . import agent, health, memory, persona, security, task, workflow
 
 __all__ = [
+    "agent",
     "health",
-    "memory", 
+    "memory",
     "persona",
+    "security",
     "task",
     "workflow",
 ]
