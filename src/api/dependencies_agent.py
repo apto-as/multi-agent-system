@@ -16,15 +16,15 @@ from datetime import datetime
 from fastapi import Depends, HTTPException, status, Request, Header
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-from ..security.agent_auth import AgentAuthenticator, create_agent_authenticator
+from ..security.agent_auth import AgentAuthService
 from ..security.access_control import AccessControlManager, create_access_control_manager, ResourceType, ActionType
 from ..security.data_encryption import EncryptionService, create_encryption_service
-from ..core.config_loader import get_settings
+from ..core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
 # Global security service instances
-_agent_authenticator: Optional[AgentAuthenticator] = None
+_agent_authenticator: Optional[AgentAuthService] = None
 _access_control: Optional[AccessControlManager] = None
 _encryption_service: Optional[EncryptionService] = None
 
@@ -36,7 +36,7 @@ agent_security = HTTPBearer(
 )
 
 
-def get_agent_authenticator() -> AgentAuthenticator:
+def get_agent_authenticator() -> AgentAuthService:
     """Get global agent authenticator instance."""
     global _agent_authenticator
     if _agent_authenticator is None:
@@ -119,7 +119,7 @@ class AgentContext:
 async def authenticate_agent(
     request: Request,
     credentials: Annotated[Optional[HTTPAuthorizationCredentials], Depends(agent_security)],
-    authenticator: Annotated[AgentAuthenticator, Depends(get_agent_authenticator)]
+    authenticator: Annotated[AgentAuthService, Depends(get_agent_authenticator)]
 ) -> AgentContext:
     """
     Authenticate agent from Bearer token.

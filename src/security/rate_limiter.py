@@ -59,42 +59,87 @@ class RateLimiter:
             'unique_clients': set(),
         }
         
-        # Default rate limits
-        self.rate_limits = {
-            'global': RateLimit(1000, 60),  # 1000 requests per minute globally
-            'per_ip': RateLimit(60, 60, burst=10),  # 60 requests per minute per IP
-            'per_user': RateLimit(120, 60, burst=20),  # 120 requests per minute per user
-            'login': RateLimit(5, 60, block_duration=900),  # 5 login attempts per minute
-            'register': RateLimit(2, 60, block_duration=300),  # 2 registrations per minute
-            'search': RateLimit(30, 60),  # 30 searches per minute
-            'embedding': RateLimit(10, 60),  # 10 embedding requests per minute
-        }
+        # Default rate limits (production-grade strict limits)
+        env = self.settings.environment
+        if env == 'production':
+            # Stricter limits in production
+            self.rate_limits = {
+                'global': RateLimit(500, 60),  # 500 requests per minute globally
+                'per_ip': RateLimit(30, 60, burst=5),  # 30 requests per minute per IP
+                'per_user': RateLimit(60, 60, burst=10),  # 60 requests per minute per user
+                'login': RateLimit(3, 60, block_duration=1800),  # 3 login attempts per minute, 30min block
+                'register': RateLimit(1, 60, block_duration=600),  # 1 registration per minute, 10min block
+                'search': RateLimit(20, 60),  # 20 searches per minute
+                'embedding': RateLimit(5, 60),  # 5 embedding requests per minute
+            }
+        else:
+            # More lenient limits for development
+            self.rate_limits = {
+                'global': RateLimit(1000, 60),  # 1000 requests per minute globally
+                'per_ip': RateLimit(60, 60, burst=10),  # 60 requests per minute per IP
+                'per_user': RateLimit(120, 60, burst=20),  # 120 requests per minute per user
+                'login': RateLimit(5, 60, block_duration=900),  # 5 login attempts per minute
+                'register': RateLimit(2, 60, block_duration=300),  # 2 registrations per minute
+                'search': RateLimit(30, 60),  # 30 searches per minute
+                'embedding': RateLimit(10, 60),  # 10 embedding requests per minute
+            }
         
         # Suspicious patterns that indicate attacks
         self.suspicious_patterns = [
             'admin', 'wp-admin', 'phpmyadmin', 'sql', '.env', 'config',
-            'backup', 'test', 'dev', 'api/v1/../../', '../../../etc/passwd'
+            'backup', 'test', 'dev', 'api/v1/../../', '../../../etc/passwd',
+            '.git', '.svn', '.DS_Store', 'web.config', '.htaccess',
+            'eval(', 'exec(', 'system(', 'shell_exec(', '<script',
+            'javascript:', 'onerror=', 'onload=', 'onclick='
         ]
+
+        # Permanent ban list (IPs that repeatedly violate)
+        self.permanent_bans: set = set()
+        self.ban_threshold = 10  # Violations before permanent ban
     
     async def check_rate_limit(
-        self, 
+        self,
         request: Request,
         endpoint_type: str = 'default',
         user_id: Optional[str] = None
     ) -> bool:
         """
         Check if request is within rate limits.
-        
+        Implements fail-secure principle: Any error = deny access.
+
         Args:
             request: FastAPI request object
             endpoint_type: Type of endpoint (login, search, etc.)
             user_id: User ID for authenticated requests
-            
+
         Returns:
             True if allowed, False if rate limited
-            
+
         Raises:
-            HTTPException: If rate limit exceeded
+            HTTPException: If rate limit exceeded or any error occurs
+        """
+        try:
+            return await self._check_rate_limit_internal(request, endpoint_type, user_id)
+        except HTTPException:
+            # Re-raise HTTP exceptions
+            raise
+        except Exception as e:
+            # Fail-secure: Any unexpected error = deny access
+            logger.error(f"Rate limiter error (fail-secure triggered): {e}")
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Service temporarily unavailable",
+                headers={"Retry-After": "60"}
+            )
+
+    async def _check_rate_limit_internal(
+        self,
+        request: Request,
+        endpoint_type: str = 'default',
+        user_id: Optional[str] = None
+    ) -> bool:
+        """
+        Internal rate limit check implementation.
         """
         client_ip = self._get_client_ip(request)
         now = datetime.utcnow()
@@ -103,6 +148,14 @@ class RateLimiter:
         self.global_stats['total_requests'] += 1
         self.global_stats['unique_clients'].add(client_ip)
         
+        # Check permanent ban list first
+        if client_ip in self.permanent_bans:
+            logger.critical(f"Permanently banned IP attempted access: {client_ip}")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access permanently denied"
+            )
+
         # Get or create client stats
         client_stats = self._get_client_stats(client_ip, request)
         client_stats.last_seen = now
@@ -197,8 +250,13 @@ class RateLimiter:
                 # Immediately block suspicious clients
                 client_stats = self.local_storage.get(client_ip)
                 if client_stats:
-                    client_stats.blocked_until = datetime.utcnow() + timedelta(hours=1)
-                    client_stats.violations += 1
+                    client_stats.violations += 5  # Heavy penalty for suspicious patterns
+                    if client_stats.violations >= self.ban_threshold:
+                        # Permanent ban for repeat offenders
+                        self.permanent_bans.add(client_ip)
+                        logger.critical(f"PERMANENT BAN: {client_ip} - repeated violations")
+                    else:
+                        client_stats.blocked_until = datetime.utcnow() + timedelta(hours=24)
                 
                 await self._log_security_event(
                     'suspicious_pattern_detected',
@@ -264,9 +322,8 @@ class RateLimiter:
                 return current_count <= limit.requests
             except Exception as e:
                 logger.error(f"Redis error in global rate limit: {e}")
-        
-        # Fallback to in-memory (less accurate for distributed systems)
-        return self.global_stats['total_requests'] < limit.requests * 10  # Rough approximation
+                # Fail-secure: Redis failure = use stricter fallback limits
+                return self.global_stats['total_requests'] < limit.requests // 2  # 50% stricter limit
     
     async def _check_ip_limit(self, client_stats: ClientStats, endpoint_type: str) -> bool:
         """Check IP-based rate limit."""
@@ -336,7 +393,12 @@ class RateLimiter:
             
         except Exception as e:
             logger.error(f"Redis error in user rate limit: {e}")
-            return True  # Allow on error
+            # Fail-secure: Redis failure = deny access for safety
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Service temporarily unavailable",
+                headers={"Retry-After": "30"}
+            )
     
     async def _check_endpoint_limit(
         self, 
@@ -389,7 +451,13 @@ class RateLimiter:
                 
             except Exception as e:
                 logger.error(f"Redis error in endpoint rate limit: {e}")
-                return True
+                # Fail-secure: Redis failure = apply strict local limits
+                client_stats.blocked_until = datetime.utcnow() + timedelta(seconds=60)
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="Service temporarily unavailable",
+                    headers={"Retry-After": "60"}
+                )
         
         return True
     

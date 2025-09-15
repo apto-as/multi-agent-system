@@ -9,7 +9,7 @@ from sqlalchemy.orm import relationship
 import uuid
 from datetime import datetime
 
-from . import Base
+from .base import TMWSBase as Base
 
 
 class WorkflowExecution(Base):

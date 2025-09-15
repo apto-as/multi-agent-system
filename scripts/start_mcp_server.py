@@ -20,7 +20,7 @@ import os
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root / "src"))
 
-from src.mcp_server_v2 import TMWSFastMCPServer, create_server
+from src.mcp_server import TMWSFastMCPServer, create_server
 from src.integration.fastapi_mcp_bridge import create_tmws_app
 from src.core.exceptions import TMWSException
 

@@ -80,19 +80,19 @@ class AccessPolicy:
     policy_id: str
     name: str
     description: str
-    
+    created_by: str  # Non-default field moved before default fields
+
     # Target criteria
     resource_types: Set[ResourceType]
     actions: Set[ActionType]
     agent_patterns: List[str]  # Regex patterns for agent IDs
-    
+
     # Policy logic
     conditions: List[Dict[str, Any]]  # Conditions for policy activation
     decision: AccessDecision
+
+    # Fields with defaults
     priority: int = 100  # Higher number = higher priority
-    
-    # Metadata
-    created_by: str
     created_at: datetime = field(default_factory=datetime.utcnow)
     expires_at: Optional[datetime] = None
     is_active: bool = True

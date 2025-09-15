@@ -20,6 +20,11 @@ class DatabaseException(TMWSException):
     pass
 
 
+class DatabaseError(DatabaseException):
+    """Alias for DatabaseException for backward compatibility."""
+    pass
+
+
 class MemoryException(TMWSException):
     """Memory operation errors."""
 
