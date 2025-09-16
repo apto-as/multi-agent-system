@@ -67,6 +67,10 @@ logs/
 # Temporary files
 tmp/
 temp/
+backups/
+archive/
+data/
+ssl/
 
 # Vector data
 chromadb_data/
@@ -88,4 +92,7 @@ site/
 dmypy.json
 
 # Ruff
-.ruff_cache/htmlcov/
+.ruff_cache/
+
+# UV
+uv.lock
