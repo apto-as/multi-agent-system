@@ -57,7 +57,7 @@ dependencies = [
 ]
 
 [project.scripts]
-tmws = "src.mcp_server:run_server"
+tmws = "src.mcp_server:main"
 tmws-mcp = "src.mcp_server:run_server"
 tmws-api = "src.main:main"
 tmws-server = "src.server:main"
@@ -69,12 +69,17 @@ dev = [
     "pytest-asyncio>=0.21.0",
     "pytest-cov>=4.1.0",
     "pytest-env>=1.1.0",
+    "pytest-html>=4.0.0",
+    "pytest-timeout>=2.2.0",
+    "pytest-mock>=3.12.0",
+    "pytest-benchmark>=4.0.0",
     "black>=23.0.0",
     "isort>=5.12.0",
     "flake8>=6.0.0",
     "mypy>=1.6.0",
     "ruff>=0.1.9",
     "pre-commit>=3.6.0",
+    "aiosqlite>=0.19.0",
 ]
 
 monitoring = [
@@ -82,10 +87,6 @@ monitoring = [
     "opentelemetry-sdk>=1.22.0",
     "opentelemetry-instrumentation-fastapi>=0.43b0",
 ]
-
-[project.scripts]
-tmws = "src.mcp_server:main"
-tmws-server = "src.main:main"
 
 [build-system]
 requires = ["setuptools>=68", "wheel"]
