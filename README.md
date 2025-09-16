@@ -1,10 +1,31 @@
-# TMWS - Universal Agent Memory System
+# TMWS - Trinitas Memory & Workflow Service
 
-Version: 2.0.0
+[![Version](https://img.shields.io/badge/version-2.2.0-blue)](https://github.com/apto-as/tmws)
+[![Python](https://img.shields.io/badge/python-3.11%2B-green)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-MIT-purple)](LICENSE)
+[![MCP Compatible](https://img.shields.io/badge/MCP-compatible-orange)](https://modelcontextprotocol.io)
 
-## Overview
+A unified memory and workflow service for AI agents, providing both REST API and MCP (Model Context Protocol) interfaces.
 
-TMWS (Trinitas Memory & Workflow Service) is a universal multi-agent memory management system with MCP (Model Context Protocol) support. It provides persistent memory, semantic search, and agent context management for AI agents.
+## 🚀 Quick Start
+
+### One-Command Setup (Recommended)
+
+```bash
+# Install and run directly with uvx
+uvx --from git+https://github.com/apto-as/tmws.git@v2.2.0 tmws
+```
+
+### Database Setup
+
+```bash
+# Quick setup for development
+./scripts/setup_db_quick.sh
+
+# Or manual setup
+createdb tmws
+psql tmws -c "CREATE EXTENSION IF NOT EXISTS vector;"
+```
 
 ## Features
 
@@ -13,9 +34,9 @@ TMWS (Trinitas Memory & Workflow Service) is a universal multi-agent memory mana
 - 🔄 **Dynamic Agent Switching**: Runtime agent context switching via MCP tools
 - 📋 **Task Management**: Workflow orchestration and task tracking
 - 🔌 **MCP Protocol**: Full Model Context Protocol support
-- 🔒 **Security**: Agent authentication, access control, and audit logging
-- 🌐 **Multi-Client Support** (v2.0): WebSocket-based server for multiple concurrent connections
-- 🚀 **Shared Server Model** (v2.0): Single server instance handles all Claude Code terminals
+- 🔒 **Security**: JWT authentication, rate limiting, audit logging
+- 🌐 **Unified Server**: Single instance handles both REST API and MCP connections
+- 🚀 **Performance**: Sub-100ms vector search with IVFFlat indexing
 
 ## Prerequisites
 
