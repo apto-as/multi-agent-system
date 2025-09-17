@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 from ..core.config import get_settings
 from ..core.database import create_tables, close_db_connections, DatabaseHealthCheck
 from .middleware_unified import setup_middleware
-from .routers import health, memory, persona, task, workflow
+from .routers import health, memory, persona, task, workflow, websocket_mcp
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -121,7 +121,14 @@ def create_app() -> FastAPI:
         prefix="/api/v1/workflows",
         tags=["workflows"]
     )
-    
+
+    # WebSocket MCP endpoint - Elite real-time communication
+    app.include_router(
+        websocket_mcp.router,
+        prefix="/ws",
+        tags=["websocket", "mcp"]
+    )
+
     # Root endpoint
     @app.get("/")
     async def root() -> Dict[str, Any]:

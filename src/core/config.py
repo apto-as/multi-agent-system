@@ -60,6 +60,19 @@ class Settings(BaseSettings):
     api_title: str = Field(default="TMWS - Trinitas Memory & Workflow Service")
     api_version: str = Field(default="2.2.0")
     api_description: str = Field(default="Backend service for Trinitas AI agents")
+
+    # ==== WEBSOCKET MCP CONFIGURATION ====
+    ws_enabled: bool = Field(default=True, description="Enable WebSocket MCP server")
+    ws_host: str = Field(default="127.0.0.1", description="WebSocket server host")
+    ws_port: int = Field(default=8001, ge=1024, le=65535, description="WebSocket server port")
+    ws_max_connections: int = Field(default=100, ge=1, le=1000, description="Max concurrent WebSocket connections")
+    ws_ping_interval: int = Field(default=20, ge=5, le=300, description="WebSocket ping interval in seconds")
+    ws_ping_timeout: int = Field(default=10, ge=1, le=60, description="WebSocket ping timeout in seconds")
+    ws_max_message_size: int = Field(default=1048576, ge=1024, le=10485760, description="Max WebSocket message size in bytes (1MB default)")
+
+    # ==== STDIO MCP CONFIGURATION ====
+    stdio_enabled: bool = Field(default=True, description="Enable stdio MCP bridge")
+    stdio_fallback: bool = Field(default=True, description="Enable stdio fallback when WebSocket unavailable")
     
     # ==== JWT & AUTHENTICATION ====
     jwt_algorithm: str = Field(default="HS256", pattern="^HS256|RS256|ES256$")

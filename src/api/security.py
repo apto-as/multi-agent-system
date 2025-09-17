@@ -12,6 +12,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from passlib.context import CryptContext
 
 from ..core.config import get_settings
+from ..models.agent import Agent
 
 logger = logging.getLogger(__name__)
 
@@ -251,6 +252,94 @@ async def get_current_user(
         "token_data": payload,
         "auth_mode": "production"
     }
+
+# WebSocket Security Functions
+async def verify_agent_token_ws(websocket) -> Optional[str]:
+    """
+    Verify agent token from WebSocket headers.
+    Optimized for WebSocket authentication with minimal latency.
+    """
+    try:
+        # Extract token from headers
+        token = None
+        
+        # Try Authorization header first
+        auth_header = websocket.headers.get("authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header[7:]
+        
+        # Try X-Agent-Token header as fallback
+        if not token:
+            token = websocket.headers.get("x-agent-token")
+        
+        # Try query parameters for development
+        if not token and not settings.is_production:
+            # This would need WebSocket query parameter extraction
+            pass
+        
+        if not token:
+            return None
+        
+        # Verify token
+        payload = verify_token(token)
+        if payload:
+            return payload.get("sub")  # Return agent_id
+        
+        return None
+        
+    except Exception as e:
+        logger.error(f"WebSocket token verification failed: {e}")
+        return None
+
+
+async def get_current_agent_ws(websocket) -> Agent:
+    """
+    Get current agent from WebSocket connection.
+    Artemis-optimized for elite performance and security.
+    """
+    try:
+        # In development, allow bypassing authentication
+        if not settings.auth_enabled:
+            # Extract agent_id from headers or use default
+            agent_id = websocket.headers.get("x-agent-id", "default-agent")
+            namespace = websocket.headers.get("x-agent-namespace", "default")
+            
+            # Create mock agent for development
+            return Agent(
+                agent_id=agent_id,
+                namespace=namespace,
+                display_name=f"Dev Agent ({agent_id})",
+                capabilities=["memory", "task", "workflow"],
+                access_level="team"
+            )
+        
+        # Production authentication
+        agent_id = await verify_agent_token_ws(websocket)
+        if not agent_id:
+            from fastapi import HTTPException, status
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or missing authentication token"
+            )
+        
+        # Load agent from service
+        # This would typically involve database lookup
+        # For now, create agent from verified token data
+        return Agent(
+            agent_id=agent_id,
+            namespace="authenticated",
+            display_name=f"Agent {agent_id}",
+            capabilities=["memory", "task", "workflow"],
+            access_level="team"
+        )
+        
+    except Exception as e:
+        logger.error(f"WebSocket agent authentication failed: {e}")
+        from fastapi import HTTPException, status
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Authentication failed"
+        )
 
 
 def require_permission(permission: str):

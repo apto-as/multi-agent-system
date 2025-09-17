@@ -58,6 +58,7 @@ dependencies = [
 
 [project.scripts]
 tmws = "src.mcp_server:main"
+tmws-unified = "src.unified_server:run"
 tmws-mcp = "src.mcp_server:run_server"
 tmws-api = "src.main:main"
 tmws-server = "src.server:main"
