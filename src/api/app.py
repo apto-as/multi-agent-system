@@ -4,15 +4,15 @@ Main FastAPI application for TMWS.
 
 import logging
 from contextlib import asynccontextmanager
-from typing import Any, Dict
+from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 
 from ..core.config import get_settings
-from ..core.database import create_tables, close_db_connections, DatabaseHealthCheck
+from ..core.database import DatabaseHealthCheck, close_db_connections, create_tables
 from .middleware_unified import setup_middleware
-from .routers import health, memory, persona, task, workflow, websocket_mcp
+from .routers import health, memory, persona, task, websocket_mcp, workflow
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -26,36 +26,36 @@ async def lifespan(app: FastAPI):
     """
     # Startup
     logger.info("TMWS starting up...")
-    
+
     try:
         # Initialize database
         await create_tables()
         logger.info("Database tables created/verified")
-        
+
         # Verify database connection
         if not await DatabaseHealthCheck.check_connection():
             logger.error("Database health check failed during startup")
             raise Exception("Database connection failed")
-        
+
         logger.info("TMWS startup completed successfully")
-        
+
         # Application is ready
         yield
-        
+
     except Exception as e:
         logger.error(f"Startup failed: {e}")
         raise
-    
+
     # Shutdown
     logger.info("TMWS shutting down...")
-    
+
     try:
         # Close database connections
         await close_db_connections()
         logger.info("Database connections closed")
-        
+
         logger.info("TMWS shutdown completed successfully")
-        
+
     except Exception as e:
         logger.error(f"Shutdown error: {e}")
 
@@ -63,23 +63,23 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     """
     Create and configure FastAPI application.
-    
+
     Returns:
         Configured FastAPI application
     """
-    
+
     # Create FastAPI app with security-focused configuration
     app = FastAPI(
         title=settings.api_title,
         version=settings.api_version,
         description=settings.api_description,
         lifespan=lifespan,
-        
+
         # Security configurations
         docs_url="/docs" if not settings.is_production else None,
         redoc_url="/redoc" if not settings.is_production else None,
         openapi_url="/openapi.json" if not settings.is_production else None,
-        
+
         # Additional security settings
         swagger_ui_parameters={
             "persistAuthorization": False,
@@ -87,35 +87,35 @@ def create_app() -> FastAPI:
             "tryItOutEnabled": not settings.is_production,
         } if not settings.is_production else None,
     )
-    
+
     # Setup unified middleware
     setup_middleware(app)
-    
+
     # Include routers
     app.include_router(
         health.router,
         prefix="/health",
         tags=["health"]
     )
-    
+
     app.include_router(
         memory.router,
         prefix="/api/v1/memory",
         tags=["memory"]
     )
-    
+
     app.include_router(
         persona.router,
         prefix="/api/v1/personas",
         tags=["personas"]
     )
-    
+
     app.include_router(
         task.router,
         prefix="/api/v1/tasks",
         tags=["tasks"]
     )
-    
+
     app.include_router(
         workflow.router,
         prefix="/api/v1/workflows",
@@ -131,7 +131,7 @@ def create_app() -> FastAPI:
 
     # Root endpoint
     @app.get("/")
-    async def root() -> Dict[str, Any]:
+    async def root() -> dict[str, Any]:
         """Root endpoint with basic API information."""
         return {
             "message": "TMWS - Trinitas Memory & Workflow Service",
@@ -140,7 +140,7 @@ def create_app() -> FastAPI:
             "status": "running",
             "docs_url": "/docs" if not settings.is_production else None,
         }
-    
+
     # Global exception handlers
     @app.exception_handler(404)
     async def not_found_handler(request: Request, exc: HTTPException):
@@ -154,13 +154,13 @@ def create_app() -> FastAPI:
                 "request_id": getattr(request.state, 'request_id', None)
             }
         )
-    
+
     @app.exception_handler(500)
     async def internal_error_handler(request: Request, exc: Exception):
         """Handle 500 errors."""
         request_id = getattr(request.state, 'request_id', None)
         logger.error(f"Internal server error {request_id}: {str(exc)}", exc_info=True)
-        
+
         return JSONResponse(
             status_code=500,
             content={
@@ -169,7 +169,7 @@ def create_app() -> FastAPI:
                 "request_id": request_id
             }
         )
-    
+
     @app.exception_handler(HTTPException)
     async def http_exception_handler(request: Request, exc: HTTPException):
         """Handle HTTP exceptions."""
@@ -181,11 +181,11 @@ def create_app() -> FastAPI:
                 "request_id": getattr(request.state, 'request_id', None)
             }
         )
-    
+
     # Validation error handler
     from fastapi.exceptions import RequestValidationError
     from pydantic import ValidationError
-    
+
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(request: Request, exc: RequestValidationError):
         """Handle request validation errors."""
@@ -198,7 +198,7 @@ def create_app() -> FastAPI:
                 "request_id": getattr(request.state, 'request_id', None)
             }
         )
-    
+
     @app.exception_handler(ValidationError)
     async def pydantic_validation_exception_handler(request: Request, exc: ValidationError):
         """Handle Pydantic validation errors."""
@@ -211,24 +211,24 @@ def create_app() -> FastAPI:
                 "request_id": getattr(request.state, 'request_id', None)
             }
         )
-    
+
     # Add custom headers
     @app.middleware("http")
     async def add_api_headers(request: Request, call_next):
         """Add custom API headers."""
         response = await call_next(request)
-        
+
         # API version header
         response.headers["X-API-Version"] = settings.api_version
-        
+
         # Environment header (only in development)
         if settings.is_development:
             response.headers["X-Environment"] = settings.environment
-        
+
         return response
-    
+
     logger.info(f"FastAPI application created for {settings.environment} environment")
-    
+
     return app
 
 
@@ -245,11 +245,11 @@ if settings.is_production:
         if "server" in response.headers:
             del response.headers["server"]
         return response
-    
+
     logger.info("Production security configurations applied")
 
 
-def get_app_info() -> Dict[str, Any]:
+def get_app_info() -> dict[str, Any]:
     """Get application information."""
     return {
         "name": settings.api_title,

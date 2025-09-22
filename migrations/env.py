@@ -1,20 +1,16 @@
-import os
 import sys
 from logging.config import fileConfig
 from pathlib import Path
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
-
 from alembic import context
+from sqlalchemy import engine_from_config, pool
 
 # Add src to path for imports
 sys.path.append(str(Path(__file__).parent.parent))
 
 # Import TMWS models and config
-from src.models.base import Base
-from src.models import Memory, Persona, Task, Workflow
 from src.core.config import get_settings
+from src.models.base import Base
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

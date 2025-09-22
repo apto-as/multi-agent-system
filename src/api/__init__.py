@@ -3,12 +3,12 @@ API package for TMWS.
 """
 
 from .app import create_app
-from .middleware import setup_middleware
-from .security import get_current_user, create_access_token
+from .middleware_unified import setup_middleware
+from .security import create_access_token, get_current_user
 
 __all__ = [
     "create_app",
-    "setup_middleware", 
+    "setup_middleware",
     "get_current_user",
     "create_access_token",
 ]

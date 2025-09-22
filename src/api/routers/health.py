@@ -4,13 +4,14 @@ Health check endpoints for TMWS.
 
 import logging
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.config import get_settings
-from ...core.database import get_db_session_dependency, DatabaseHealthCheck
+from ...core.database import DatabaseHealthCheck, get_db_session_dependency
+
 # Middleware stats removed - integrated into unified middleware
 
 logger = logging.getLogger(__name__)
@@ -19,10 +20,10 @@ settings = get_settings()
 
 
 @router.get("/")
-async def health_check() -> Dict[str, Any]:
+async def health_check() -> dict[str, Any]:
     """
     Basic health check endpoint.
-    
+
     Returns basic service status without database dependency.
     """
     return {
@@ -37,10 +38,10 @@ async def health_check() -> Dict[str, Any]:
 @router.get("/detailed")
 async def detailed_health_check(
     db: AsyncSession = Depends(get_db_session_dependency)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Detailed health check endpoint with database and service status.
-    
+
     Checks:
     - Database connectivity
     - Application configuration
@@ -52,21 +53,21 @@ async def detailed_health_check(
         "timestamp": datetime.utcnow().isoformat(),
         "checks": {}
     }
-    
+
     # Database health check
     try:
         db_healthy = await DatabaseHealthCheck.check_connection()
         pool_status = await DatabaseHealthCheck.get_pool_status()
-        
+
         health_status["checks"]["database"] = {
             "status": "healthy" if db_healthy else "unhealthy",
             "connection": db_healthy,
             "pool": pool_status
         }
-        
+
         if not db_healthy:
             health_status["status"] = "degraded"
-            
+
     except Exception as e:
         logger.error(f"Database health check failed: {e}")
         health_status["checks"]["database"] = {
@@ -74,7 +75,7 @@ async def detailed_health_check(
             "error": str(e)
         }
         health_status["status"] = "unhealthy"
-    
+
     # Application info
     try:
         app_info = {
@@ -93,7 +94,7 @@ async def detailed_health_check(
             "error": str(e)
         }
         health_status["status"] = "unhealthy"
-    
+
     # Middleware status
     try:
         middleware_stats = {"status": "unified_middleware_active"}
@@ -107,48 +108,48 @@ async def detailed_health_check(
             "status": "unhealthy",
             "error": str(e)
         }
-    
+
     # Configuration validation
     try:
         config_issues = []
-        
+
         # Check critical configuration
         if settings.is_production:
             if settings.secret_key == "change-this-in-production-to-a-secure-random-key":
                 config_issues.append("Insecure secret key in production")
-            
+
             if settings.api_host == "0.0.0.0":
                 config_issues.append("API host 0.0.0.0 in production")
-            
+
             if not settings.cors_origins:
                 config_issues.append("CORS origins not configured in production")
-        
+
         health_status["checks"]["configuration"] = {
             "status": "healthy" if not config_issues else "degraded",
             "issues": config_issues,
             "environment": settings.environment
         }
-        
+
         if config_issues and settings.is_production:
             health_status["status"] = "degraded"
-            
+
     except Exception as e:
         logger.error(f"Configuration check failed: {e}")
         health_status["checks"]["configuration"] = {
             "status": "unhealthy",
             "error": str(e)
         }
-    
+
     return health_status
 
 
 @router.get("/ready")
 async def readiness_check(
     db: AsyncSession = Depends(get_db_session_dependency)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Kubernetes/Docker readiness probe endpoint.
-    
+
     Returns 200 if service is ready to accept requests.
     Returns 503 if service is not ready.
     """
@@ -159,7 +160,7 @@ async def readiness_check(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Database not ready"
             )
-        
+
         # Check critical configuration in production
         if settings.is_production:
             if settings.secret_key == "change-this-in-production-to-a-secure-random-key":
@@ -167,12 +168,12 @@ async def readiness_check(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                     detail="Insecure configuration detected"
                 )
-        
+
         return {
             "status": "ready",
             "timestamp": datetime.utcnow().isoformat()
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -184,10 +185,10 @@ async def readiness_check(
 
 
 @router.get("/live")
-async def liveness_check() -> Dict[str, Any]:
+async def liveness_check() -> dict[str, Any]:
     """
     Kubernetes/Docker liveness probe endpoint.
-    
+
     Returns 200 if service is alive and responsive.
     This should be a lightweight check.
     """
@@ -203,24 +204,19 @@ async def liveness_check() -> Dict[str, Any]:
 @router.get("/metrics")
 async def metrics_endpoint(
     db: AsyncSession = Depends(get_db_session_dependency)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Basic metrics endpoint for monitoring.
-    
+
     Returns application and database metrics.
     """
     try:
         # Database metrics
         pool_status = await DatabaseHealthCheck.get_pool_status()
-        
+
         # Application metrics
-        app_info = {
-            "name": settings.api_title,
-            "version": settings.api_version,
-            "environment": settings.environment,
-        }
         middleware_stats = {"status": "unified_middleware_active"}
-        
+
         return {
             "timestamp": datetime.utcnow().isoformat(),
             "service": {
@@ -242,7 +238,7 @@ async def metrics_endpoint(
                 "debug_mode": settings.is_development
             }
         }
-        
+
     except Exception as e:
         logger.error(f"Metrics collection failed: {e}")
         raise HTTPException(
@@ -252,10 +248,10 @@ async def metrics_endpoint(
 
 
 @router.get("/version")
-async def version_info() -> Dict[str, Any]:
+async def version_info() -> dict[str, Any]:
     """
     Version information endpoint.
-    
+
     Returns detailed version and build information.
     """
     return {

@@ -5,24 +5,23 @@ Enables multiple Claude Code instances to share a single server
 """
 
 import json
-import asyncio
 import logging
-import uuid
 import time
-from typing import Dict, Set, Optional, Any
+import uuid
 from datetime import datetime, timezone
+from typing import Any
 
-from fastapi import WebSocket, WebSocketDisconnect, Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel, Field, validator
 import jwt
+from fastapi import Depends, WebSocket, WebSocketDisconnect, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from pydantic import BaseModel, Field, validator
 
 from src.core.config import get_settings
-from src.core.database import get_db
+from src.core.database import get_db_session_dependency as get_db
 from src.services.memory_service import MemoryService
+from src.services.persona_service import PersonaService
 from src.services.task_service import TaskService
 from src.services.workflow_service import WorkflowService
-from src.services.persona_service import PersonaService
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -33,11 +32,11 @@ security = HTTPBearer(auto_error=False)
 class MCPMessage(BaseModel):
     """MCP Protocol Message"""
     jsonrpc: str = Field(default="2.0", pattern="^2\\.0$")
-    id: Optional[str] = Field(None, max_length=36, pattern="^[a-zA-Z0-9-_]+$")
-    method: Optional[str] = Field(None, max_length=50, pattern="^[a-zA-Z_][a-zA-Z0-9_/]*$")
-    params: Optional[Dict[str, Any]] = Field(default_factory=dict)
-    result: Optional[Any] = None
-    error: Optional[Dict[str, Any]] = None
+    id: str | None = Field(None, max_length=36, pattern="^[a-zA-Z0-9-_]+$")
+    method: str | None = Field(None, max_length=50, pattern="^[a-zA-Z_][a-zA-Z0-9_/]*$")
+    params: dict[str, Any] | None = Field(default_factory=dict)
+    result: Any | None = None
+    error: dict[str, Any] | None = None
 
     @validator('params')
     def validate_params_size(cls, v):
@@ -67,11 +66,11 @@ class ConnectionManager:
 
     def __init__(self):
         # Active connections: session_id -> WebSocketSession
-        self.active_connections: Dict[str, WebSocketSession] = {}
+        self.active_connections: dict[str, WebSocketSession] = {}
         # Agent connections: agent_id -> Set[session_id]
-        self.agent_sessions: Dict[str, Set[str]] = {}
+        self.agent_sessions: dict[str, set[str]] = {}
         # Rate limiting: ip -> List[timestamp]
-        self.rate_limits: Dict[str, list] = {}
+        self.rate_limits: dict[str, list] = {}
 
     async def connect(self, websocket: WebSocket, agent_id: str) -> str:
         """Accept new WebSocket connection"""
@@ -385,7 +384,7 @@ class MCPHandler:
         }
 
 
-async def verify_token(credentials: Optional[HTTPAuthorizationCredentials] = None) -> Optional[str]:
+async def verify_token(credentials: HTTPAuthorizationCredentials | None = None) -> str | None:
     """Verify JWT token for WebSocket authentication"""
     if settings.environment == "development" and not settings.auth_enabled:
         return "dev-agent"  # Development mode bypass
@@ -407,7 +406,7 @@ async def verify_token(credentials: Optional[HTTPAuthorizationCredentials] = Non
 async def websocket_endpoint(
     websocket: WebSocket,
     db=Depends(get_db),
-    agent_id: Optional[str] = None
+    agent_id: str | None = None
 ):
     """WebSocket endpoint for MCP protocol"""
 
@@ -426,7 +425,7 @@ async def websocket_endpoint(
     session = manager.active_connections[session_id]
 
     # Create handler
-    async with db as db_session:
+    async with get_db() as db_session:
         handler = MCPHandler(db_session)
 
         try:

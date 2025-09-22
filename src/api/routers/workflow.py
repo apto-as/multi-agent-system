@@ -5,21 +5,20 @@ Complete implementation with execution and monitoring.
 
 import logging
 from datetime import datetime
-from typing import List, Optional, Dict, Any
+from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
+from sqlalchemy import and_, delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update, delete, and_
-from sqlalchemy.exc import IntegrityError
 
 from ...core.config import get_settings
 from ...core.database import get_db_session_dependency
-from ...models.workflow import Workflow, WorkflowStatus, WorkflowPriority
-from ...services.workflow_service import WorkflowService
-from ...services.workflow_history_service import WorkflowHistoryService
-from ..dependencies import get_current_user, get_workflow_service
+from ...models.workflow import Workflow, WorkflowStatus
 from ...security.validators import InputValidator
+from ...services.workflow_history_service import WorkflowHistoryService
+from ...services.workflow_service import WorkflowService
+from ..dependencies import get_current_user, get_workflow_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -31,42 +30,42 @@ input_validator = InputValidator()
 async def list_workflows(
     skip: int = Query(0, ge=0, description="Number of items to skip"),
     limit: int = Query(20, ge=1, le=100, description="Number of items to return"),
-    status: Optional[WorkflowStatus] = Query(None, description="Filter by status"),
-    workflow_type: Optional[str] = Query(None, description="Filter by workflow type"),
+    status: WorkflowStatus | None = Query(None, description="Filter by status"),
+    workflow_type: str | None = Query(None, description="Filter by workflow type"),
     db: AsyncSession = Depends(get_db_session_dependency),
     current_user: dict = Depends(get_current_user)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Get list of workflows with optional filtering.
     """
     try:
         # Build query
         query = select(Workflow)
-        
+
         # Apply filters
         conditions = []
         if status:
             conditions.append(Workflow.status == status)
         if workflow_type:
             conditions.append(Workflow.workflow_type == workflow_type)
-        
+
         if conditions:
             query = query.where(and_(*conditions))
-        
+
         # Apply pagination
         query = query.offset(skip).limit(limit).order_by(Workflow.created_at.desc())
-        
+
         # Execute query
         result = await db.execute(query)
         workflows = result.scalars().all()
-        
+
         # Get total count
         count_query = select(Workflow)
         if conditions:
             count_query = count_query.where(and_(*conditions))
         total_result = await db.execute(count_query)
         total = len(total_result.scalars().all())
-        
+
         return {
             "workflows": [workflow.to_dict() for workflow in workflows],
             "total": total,
@@ -77,7 +76,7 @@ async def list_workflows(
                 "workflow_type": workflow_type
             }
         }
-        
+
     except Exception as e:
         logger.error(f"Failed to list workflows: {e}")
         raise HTTPException(
@@ -90,14 +89,13 @@ async def list_workflows(
 async def create_workflow(
     name: str,
     workflow_type: str,
-    description: Optional[str] = None,
-    config: Optional[Dict[str, Any]] = None,
-    priority: WorkflowPriority = WorkflowPriority.MEDIUM,
-    metadata: Optional[Dict[str, Any]] = None,
+    description: str | None = None,
+    config: dict[str, Any] | None = None,
+    metadata: dict[str, Any] | None = None,
     db: AsyncSession = Depends(get_db_session_dependency),
     current_user: dict = Depends(get_current_user),
     workflow_service: WorkflowService = Depends(get_workflow_service)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Create a new workflow.
     """
@@ -108,25 +106,24 @@ async def create_workflow(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid workflow name"
             )
-        
+
         # Create workflow
         workflow = await workflow_service.create_workflow(
             name=name,
             workflow_type=workflow_type,
             description=description,
             config=config or {},
-            priority=priority,
             metadata=metadata or {},
             db_session=db
         )
-        
+
         logger.info(f"Workflow created: {workflow.id}")
-        
+
         return {
             "message": "Workflow created successfully",
             "workflow": workflow.to_dict()
         }
-        
+
     except Exception as e:
         logger.error(f"Failed to create workflow: {e}")
         raise HTTPException(
@@ -142,7 +139,7 @@ async def get_workflow(
     db: AsyncSession = Depends(get_db_session_dependency),
     current_user: dict = Depends(get_current_user),
     history_service: WorkflowHistoryService = Depends(lambda: WorkflowHistoryService())
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Get a specific workflow by ID.
     """
@@ -151,17 +148,17 @@ async def get_workflow(
             select(Workflow).where(Workflow.id == workflow_id)
         )
         workflow = result.scalar_one_or_none()
-        
+
         if not workflow:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Workflow {workflow_id} not found"
             )
-        
+
         response = {
             "workflow": workflow.to_dict()
         }
-        
+
         # Include execution history if requested
         if include_history:
             history = await history_service.get_workflow_history(
@@ -170,9 +167,9 @@ async def get_workflow(
                 db_session=db
             )
             response["execution_history"] = [h.to_dict() for h in history]
-        
+
         return response
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -186,14 +183,13 @@ async def get_workflow(
 @router.put("/{workflow_id}")
 async def update_workflow(
     workflow_id: UUID,
-    name: Optional[str] = None,
-    description: Optional[str] = None,
-    config: Optional[Dict[str, Any]] = None,
-    priority: Optional[WorkflowPriority] = None,
-    metadata: Optional[Dict[str, Any]] = None,
+    name: str | None = None,
+    description: str | None = None,
+    config: dict[str, Any] | None = None,
+    metadata: dict[str, Any] | None = None,
     db: AsyncSession = Depends(get_db_session_dependency),
     current_user: dict = Depends(get_current_user)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Update an existing workflow.
     """
@@ -203,20 +199,20 @@ async def update_workflow(
             select(Workflow).where(Workflow.id == workflow_id)
         )
         workflow = result.scalar_one_or_none()
-        
+
         if not workflow:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Workflow {workflow_id} not found"
             )
-        
+
         # Check if workflow is running
         if workflow.status == WorkflowStatus.RUNNING:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Cannot update a running workflow"
             )
-        
+
         # Update fields
         if name is not None:
             if not input_validator.validate_workflow_name(name):
@@ -225,29 +221,27 @@ async def update_workflow(
                     detail="Invalid workflow name"
                 )
             workflow.name = name
-        
+
         if description is not None:
             workflow.description = description
         if config is not None:
             workflow.config = config
-        if priority is not None:
-            workflow.priority = priority
         if metadata is not None:
             workflow.metadata = metadata
-        
+
         workflow.updated_at = datetime.utcnow()
-        
+
         # Save changes
         await db.commit()
         await db.refresh(workflow)
-        
+
         logger.info(f"Workflow updated: {workflow_id}")
-        
+
         return {
             "message": "Workflow updated successfully",
             "workflow": workflow.to_dict()
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -264,7 +258,7 @@ async def delete_workflow(
     workflow_id: UUID,
     db: AsyncSession = Depends(get_db_session_dependency),
     current_user: dict = Depends(get_current_user)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Delete a workflow.
     """
@@ -274,33 +268,33 @@ async def delete_workflow(
             select(Workflow).where(Workflow.id == workflow_id)
         )
         workflow = result.scalar_one_or_none()
-        
+
         if not workflow:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Workflow {workflow_id} not found"
             )
-        
+
         # Check if workflow is running
         if workflow.status == WorkflowStatus.RUNNING:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Cannot delete a running workflow"
             )
-        
+
         # Delete workflow
         await db.execute(
             delete(Workflow).where(Workflow.id == workflow_id)
         )
         await db.commit()
-        
+
         logger.info(f"Workflow deleted: {workflow_id}")
-        
+
         return {
             "message": "Workflow deleted successfully",
             "workflow_id": str(workflow_id)
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -315,12 +309,12 @@ async def delete_workflow(
 @router.post("/{workflow_id}/execute")
 async def execute_workflow(
     workflow_id: UUID,
-    parameters: Optional[Dict[str, Any]] = None,
+    parameters: dict[str, Any] | None = None,
     background_tasks: BackgroundTasks = BackgroundTasks(),
     db: AsyncSession = Depends(get_db_session_dependency),
     current_user: dict = Depends(get_current_user),
     workflow_service: WorkflowService = Depends(get_workflow_service)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Execute a workflow asynchronously.
     """
@@ -330,25 +324,25 @@ async def execute_workflow(
             select(Workflow).where(Workflow.id == workflow_id)
         )
         workflow = result.scalar_one_or_none()
-        
+
         if not workflow:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Workflow {workflow_id} not found"
             )
-        
+
         # Check if workflow is already running
         if workflow.status == WorkflowStatus.RUNNING:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Workflow is already running"
             )
-        
+
         # Update workflow status to running
         workflow.status = WorkflowStatus.RUNNING
         workflow.started_at = datetime.utcnow()
         await db.commit()
-        
+
         # Schedule background execution
         background_tasks.add_task(
             workflow_service.execute_workflow,
@@ -356,16 +350,16 @@ async def execute_workflow(
             parameters=parameters or {},
             db_session=db
         )
-        
+
         logger.info(f"Workflow execution started: {workflow_id}")
-        
+
         return {
             "message": "Workflow execution started",
             "workflow_id": str(workflow_id),
             "status": WorkflowStatus.RUNNING.value,
             "started_at": workflow.started_at.isoformat()
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -381,7 +375,7 @@ async def get_workflow_status(
     workflow_id: UUID,
     db: AsyncSession = Depends(get_db_session_dependency),
     current_user: dict = Depends(get_current_user)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Get the current status of a workflow.
     """
@@ -390,13 +384,13 @@ async def get_workflow_status(
             select(Workflow).where(Workflow.id == workflow_id)
         )
         workflow = result.scalar_one_or_none()
-        
+
         if not workflow:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Workflow {workflow_id} not found"
             )
-        
+
         return {
             "workflow_id": str(workflow_id),
             "status": workflow.status.value,
@@ -405,7 +399,7 @@ async def get_workflow_status(
             "error": workflow.error,
             "result": workflow.result
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -421,7 +415,7 @@ async def cancel_workflow(
     workflow_id: UUID,
     db: AsyncSession = Depends(get_db_session_dependency),
     current_user: dict = Depends(get_current_user)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Cancel a running workflow.
     """
@@ -431,35 +425,35 @@ async def cancel_workflow(
             select(Workflow).where(Workflow.id == workflow_id)
         )
         workflow = result.scalar_one_or_none()
-        
+
         if not workflow:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Workflow {workflow_id} not found"
             )
-        
+
         # Check if workflow is running
         if workflow.status != WorkflowStatus.RUNNING:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Workflow is not running"
             )
-        
+
         # Update status to cancelled
         workflow.status = WorkflowStatus.CANCELLED
         workflow.completed_at = datetime.utcnow()
         workflow.error = "Cancelled by user"
-        
+
         await db.commit()
-        
+
         logger.info(f"Workflow cancelled: {workflow_id}")
-        
+
         return {
             "message": "Workflow cancelled successfully",
             "workflow_id": str(workflow_id),
             "status": WorkflowStatus.CANCELLED.value
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -475,7 +469,7 @@ async def cancel_workflow(
 async def get_workflow_statistics(
     db: AsyncSession = Depends(get_db_session_dependency),
     current_user: dict = Depends(get_current_user)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Get workflow statistics summary.
     """
@@ -487,11 +481,11 @@ async def get_workflow_statistics(
                 select(Workflow).where(Workflow.status == status)
             )
             status_counts[status.value] = len(result.scalars().all())
-        
+
         # Get total count
         total_result = await db.execute(select(Workflow))
         total = len(total_result.scalars().all())
-        
+
         # Get workflow type counts
         type_counts_result = await db.execute(select(Workflow))
         workflows = type_counts_result.scalars().all()
@@ -499,14 +493,14 @@ async def get_workflow_statistics(
         for workflow in workflows:
             wf_type = workflow.workflow_type
             type_counts[wf_type] = type_counts.get(wf_type, 0) + 1
-        
+
         return {
             "total_workflows": total,
             "by_status": status_counts,
             "by_type": type_counts,
             "timestamp": datetime.utcnow().isoformat()
         }
-        
+
     except Exception as e:
         logger.error(f"Failed to get workflow statistics: {e}")
         raise HTTPException(

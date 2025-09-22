@@ -3,17 +3,18 @@ Base Tool Class for TMWS MCP Tools
 Provides common functionality and database session management
 """
 
-from typing import Any, Dict, Optional, Type, TypeVar
 from abc import ABC, abstractmethod
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Any, TypeVar
+
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.database import async_session_maker
 from ..services.memory_service import MemoryService
 from ..services.persona_service import PersonaService
 from ..services.task_service import TaskService
-from ..services.workflow_service import WorkflowService
 from ..services.vectorization_service import VectorizationService
+from ..services.workflow_service import WorkflowService
 
 T = TypeVar('T', bound=BaseModel)
 
@@ -21,7 +22,7 @@ T = TypeVar('T', bound=BaseModel)
 class BaseTool(ABC):
     """
     Base class for all TMWS MCP tools.
-    
+
     Provides:
     - Database session management
     - Service initialization
@@ -29,16 +30,16 @@ class BaseTool(ABC):
     - Response formatting
     - Type validation
     """
-    
+
     def __init__(self):
         """Initialize base tool with service references."""
-        self._memory_service: Optional[MemoryService] = None
-        self._persona_service: Optional[PersonaService] = None
-        self._task_service: Optional[TaskService] = None
-        self._workflow_service: Optional[WorkflowService] = None
-        self._vectorization_service: Optional[VectorizationService] = None
+        self._memory_service: MemoryService | None = None
+        self._persona_service: PersonaService | None = None
+        self._task_service: TaskService | None = None
+        self._workflow_service: WorkflowService | None = None
+        self._vectorization_service: VectorizationService | None = None
 
-    async def get_services(self, session: AsyncSession) -> Dict[str, Any]:
+    async def get_services(self, session: AsyncSession) -> dict[str, Any]:
         """Initialize and return all services with session."""
         return {
             'memory_service': MemoryService(session),
@@ -48,15 +49,15 @@ class BaseTool(ABC):
             'vectorization_service': VectorizationService()
         }
 
-    async def execute_with_session(self, func, *args, **kwargs) -> Dict[str, Any]:
+    async def execute_with_session(self, func, *args, **kwargs) -> dict[str, Any]:
         """
         Execute a function with database session management.
-        
+
         Args:
             func: Async function to execute
             *args: Positional arguments for func
             **kwargs: Keyword arguments for func
-            
+
         Returns:
             Dict containing execution result or error
         """
@@ -67,7 +68,7 @@ class BaseTool(ABC):
         except Exception as e:
             return self.format_error(str(e))
 
-    def format_success(self, data: Any, message: str = "Operation completed successfully") -> Dict[str, Any]:
+    def format_success(self, data: Any, message: str = "Operation completed successfully") -> dict[str, Any]:
         """Format successful response."""
         return {
             "success": True,
@@ -75,7 +76,7 @@ class BaseTool(ABC):
             "data": data
         }
 
-    def format_error(self, error: str, error_type: str = "general") -> Dict[str, Any]:
+    def format_error(self, error: str, error_type: str = "general") -> dict[str, Any]:
         """Format error response."""
         return {
             "success": False,
@@ -83,17 +84,17 @@ class BaseTool(ABC):
             "error_type": error_type
         }
 
-    def validate_input(self, data: Dict[str, Any], model_class: Type[T]) -> T:
+    def validate_input(self, data: dict[str, Any], model_class: type[T]) -> T:
         """
         Validate input data against Pydantic model.
-        
+
         Args:
             data: Input data to validate
             model_class: Pydantic model class for validation
-            
+
         Returns:
             Validated model instance
-            
+
         Raises:
             ValueError: If validation fails
         """

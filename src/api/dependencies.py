@@ -4,17 +4,16 @@ Provides dependency injection for FastAPI routes
 """
 
 import logging
-from typing import Optional, Dict, Any
-from fastapi import Depends, HTTPException, status, Request
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Any
+
+from fastapi import Depends, HTTPException, Request, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from ..core.config import get_settings
-from ..core.database import get_db_session_dependency
-from ..services.task_service import TaskService
-from ..services.workflow_service import WorkflowService
 from ..services.memory_service import MemoryService
 from ..services.persona_service import PersonaService
+from ..services.task_service import TaskService
+from ..services.workflow_service import WorkflowService
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -24,8 +23,8 @@ security = HTTPBearer(auto_error=False)
 
 
 async def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
-) -> Dict[str, Any]:
+    credentials: HTTPAuthorizationCredentials | None = Depends(security)
+) -> dict[str, Any]:
     """
     Get current user from JWT token.
     In development mode with auth disabled, returns a mock user.
@@ -38,14 +37,14 @@ async def get_current_user(
             "roles": ["admin"],
             "is_authenticated": True
         }
-    
+
     if not credentials:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required",
             headers={"WWW-Authenticate": "Bearer"}
         )
-    
+
     # TODO: Implement JWT validation when auth is enabled
     # For now, just return a mock authenticated user
     return {
@@ -78,21 +77,21 @@ def get_persona_service() -> PersonaService:
 
 async def verify_api_key(
     request: Request,
-    api_key: Optional[str] = None
+    api_key: str | None = None
 ) -> bool:
     """
     Verify API key for service-to-service authentication.
     """
     if not settings.auth_enabled:
         return True
-    
+
     # Check header for API key
     if not api_key:
         api_key = request.headers.get("X-API-Key")
-    
+
     if not api_key:
         return False
-    
+
     # TODO: Implement actual API key validation
     # For now, just check if key is present
     return bool(api_key)
@@ -100,7 +99,7 @@ async def verify_api_key(
 
 async def check_rate_limit(
     request: Request,
-    user: Dict[str, Any] = Depends(get_current_user)
+    user: dict[str, Any] = Depends(get_current_user)
 ) -> None:
     """
     Check rate limiting for the current user.
@@ -112,8 +111,8 @@ async def check_rate_limit(
 
 
 async def require_admin(
-    user: Dict[str, Any] = Depends(get_current_user)
-) -> Dict[str, Any]:
+    user: dict[str, Any] = Depends(get_current_user)
+) -> dict[str, Any]:
     """
     Require admin role for access.
     """
@@ -127,8 +126,8 @@ async def require_admin(
 
 async def get_request_metadata(
     request: Request,
-    user: Dict[str, Any] = Depends(get_current_user)
-) -> Dict[str, Any]:
+    user: dict[str, Any] = Depends(get_current_user)
+) -> dict[str, Any]:
     """
     Extract metadata from request for auditing.
     """
@@ -148,7 +147,7 @@ __all__ = [
     "get_current_user",
     "get_task_service",
     "get_workflow_service",
-    "get_memory_service", 
+    "get_memory_service",
     "get_persona_service",
     "verify_api_key",
     "check_rate_limit",

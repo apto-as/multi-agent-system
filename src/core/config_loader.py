@@ -3,12 +3,13 @@ Configuration Loader for TMWS Unified Server
 Loads and merges configuration from YAML files and environment variables
 """
 
-import os
 import logging
+import os
 from pathlib import Path
-from typing import Dict, Any, Optional
-import yaml
 from string import Template
+from typing import Any
+
+import yaml
 
 logger = logging.getLogger(__name__)
 
@@ -18,15 +19,15 @@ class ConfigLoader:
     Configuration loader with environment variable substitution
     Supports hierarchical configuration with overrides
     """
-    
+
     @staticmethod
-    def load_config(config_path: Optional[str] = None) -> Dict[str, Any]:
+    def load_config(config_path: str | None = None) -> dict[str, Any]:
         """
         Load configuration from YAML file with environment variable substitution
-        
+
         Args:
             config_path: Path to configuration file (optional)
-        
+
         Returns:
             Merged configuration dictionary
         """
@@ -34,11 +35,11 @@ class ConfigLoader:
         if not config_path:
             config_path = os.environ.get(
                 'TMWS_CONFIG_PATH',
-                './config/unified_server.yaml'
+                './config/tmws.yaml'
             )
-        
+
         config_file = Path(config_path)
-        
+
         # Load base configuration
         if config_file.exists():
             logger.info(f"Loading configuration from {config_file}")
@@ -46,28 +47,28 @@ class ConfigLoader:
         else:
             logger.warning(f"Configuration file not found: {config_file}")
             config = ConfigLoader._get_default_config()
-        
+
         # Apply environment-specific overrides
         environment = os.environ.get('TMWS_ENVIRONMENT', 'development')
         config = ConfigLoader._apply_environment_overrides(config, environment)
-        
+
         # Apply direct environment variable overrides
         config = ConfigLoader._apply_env_overrides(config)
-        
+
         return config
-    
+
     @staticmethod
-    def _load_yaml_with_env(file_path: Path) -> Dict[str, Any]:
+    def _load_yaml_with_env(file_path: Path) -> dict[str, Any]:
         """Load YAML file with environment variable substitution"""
-        with open(file_path, 'r') as f:
+        with open(file_path) as f:
             content = f.read()
-        
+
         # Substitute environment variables using Template
         template = Template(content)
-        
+
         # Get all environment variables
         env_vars = os.environ.copy()
-        
+
         # Provide defaults for common variables
         defaults = {
             'TMWS_ENVIRONMENT': 'development',
@@ -83,18 +84,18 @@ class ConfigLoader:
             'LOCAL_LLM_ENDPOINT': 'http://localhost:1234/v1',
             'LOCAL_LLM_MODEL': 'auto'
         }
-        
+
         # Merge defaults with actual environment variables
         substitutions = {**defaults, **env_vars}
-        
+
         # Perform substitution
         substituted_content = template.safe_substitute(substitutions)
-        
+
         # Parse YAML
         return yaml.safe_load(substituted_content)
-    
+
     @staticmethod
-    def _get_default_config() -> Dict[str, Any]:
+    def _get_default_config() -> dict[str, Any]:
         """Get default configuration when no config file is found"""
         return {
             "server": {
@@ -126,7 +127,7 @@ class ConfigLoader:
                 "encryption_master_key": os.environ.get("TMWS_ENCRYPTION_KEY", "dev-encryption-key-change-in-production"),
                 "jwt_algorithm": "HS256",
                 "jwt_expire_minutes": 480,  # 8 hours
-                "rate_limit_per_minute": 60,
+                "rate_limit_period": 60,
                 "max_failed_attempts": 5,
                 "lockout_duration_minutes": 15
             },
@@ -139,9 +140,9 @@ class ConfigLoader:
                 "mode": "peacetime"
             }
         }
-    
+
     @staticmethod
-    def _apply_environment_overrides(config: Dict[str, Any], environment: str) -> Dict[str, Any]:
+    def _apply_environment_overrides(config: dict[str, Any], environment: str) -> dict[str, Any]:
         """Apply environment-specific configuration overrides"""
         if environment == "production":
             # Production overrides
@@ -149,92 +150,92 @@ class ConfigLoader:
             config.setdefault("logging", {})["level"] = "WARNING"
             config.setdefault("protocols", {}).setdefault("fastapi", {})["auto_reload"] = False
             config.setdefault("development", {})["debug"] = False
-            
+
         elif environment == "development":
             # Development overrides
             config.setdefault("security", {})["auth_enabled"] = False
             config.setdefault("logging", {})["level"] = "INFO"
             config.setdefault("protocols", {}).setdefault("fastapi", {})["auto_reload"] = True
             config.setdefault("development", {})["debug"] = True
-        
+
         return config
-    
+
     @staticmethod
-    def _apply_env_overrides(config: Dict[str, Any]) -> Dict[str, Any]:
+    def _apply_env_overrides(config: dict[str, Any]) -> dict[str, Any]:
         """Apply direct environment variable overrides"""
         # FastAPI port override
         if "TMWS_API_PORT" in os.environ:
             config.setdefault("protocols", {}).setdefault("fastapi", {})["port"] = int(os.environ["TMWS_API_PORT"])
-        
+
         # Auth override
         if "TMWS_AUTH_ENABLED" in os.environ:
             auth_value = os.environ["TMWS_AUTH_ENABLED"].lower()
             config.setdefault("security", {})["auth_enabled"] = auth_value in ("true", "1", "yes", "on")
-        
+
         # Security configuration overrides
         if "TMWS_SECRET_KEY" in os.environ:
             config.setdefault("security", {})["secret_key"] = os.environ["TMWS_SECRET_KEY"]
-        
+
         if "TMWS_ENCRYPTION_KEY" in os.environ:
             config.setdefault("security", {})["encryption_master_key"] = os.environ["TMWS_ENCRYPTION_KEY"]
-        
+
         if "TMWS_RATE_LIMIT" in os.environ:
             try:
                 rate_limit = int(os.environ["TMWS_RATE_LIMIT"])
-                config.setdefault("security", {})["rate_limit_per_minute"] = rate_limit
+                config.setdefault("security", {})["rate_limit_period"] = rate_limit
             except ValueError:
                 pass  # Use default value
-        
+
         # MCP enable/disable
         if "TMWS_MCP_ENABLED" in os.environ:
             mcp_value = os.environ["TMWS_MCP_ENABLED"].lower()
             config.setdefault("protocols", {}).setdefault("mcp", {})["enabled"] = mcp_value in ("true", "1", "yes", "on")
-        
+
         # Tactical mode
         if "TMWS_TACTICAL_MODE" in os.environ:
             config.setdefault("tactical", {})["mode"] = os.environ["TMWS_TACTICAL_MODE"]
-        
+
         return config
-    
+
     @staticmethod
-    def merge_configs(*configs: Dict[str, Any]) -> Dict[str, Any]:
+    def merge_configs(*configs: dict[str, Any]) -> dict[str, Any]:
         """
         Deep merge multiple configuration dictionaries
         Later configs override earlier ones
         """
         result = {}
-        
+
         for config in configs:
             result = ConfigLoader._deep_merge(result, config)
-        
+
         return result
-    
+
     @staticmethod
-    def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+    def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
         """Deep merge two dictionaries"""
         result = base.copy()
-        
+
         for key, value in override.items():
             if key in result and isinstance(result[key], dict) and isinstance(value, dict):
                 result[key] = ConfigLoader._deep_merge(result[key], value)
             else:
                 result[key] = value
-        
+
         return result
-    
+
     @staticmethod
-    def save_config(config: Dict[str, Any], path: str):
+    def save_config(config: dict[str, Any], path: str):
         """Save configuration to YAML file"""
         config_path = Path(path)
         config_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         with open(config_path, 'w') as f:
             yaml.dump(config, f, default_flow_style=False, sort_keys=False)
-        
+
         logger.info(f"Configuration saved to {config_path}")
-    
+
     @staticmethod
-    def validate_config(config: Dict[str, Any]) -> bool:
+    def validate_config(config: dict[str, Any]) -> bool:
         """Validate configuration for required fields"""
         required_fields = [
             ("server", "name"),
@@ -242,7 +243,7 @@ class ConfigLoader:
             ("protocols", "fastapi", "enabled"),
             ("database", "primary")
         ]
-        
+
         for field_path in required_fields:
             current = config
             for field in field_path:
@@ -250,10 +251,10 @@ class ConfigLoader:
                     logger.error(f"Missing required configuration: {'.'.join(field_path)}")
                     return False
                 current = current[field]
-        
+
         # At least one protocol must be enabled
         if not (config["protocols"]["mcp"]["enabled"] or config["protocols"]["fastapi"]["enabled"]):
             logger.error("At least one protocol (MCP or FastAPI) must be enabled")
             return False
-        
+
         return True

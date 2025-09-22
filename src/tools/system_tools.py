@@ -3,12 +3,13 @@ System Management Tools for TMWS MCP Server
 Handles system status, optimization, and administrative functions
 """
 
-from typing import Dict, Any, List, Optional
-from datetime import datetime, timedelta
-from pydantic import BaseModel, Field
-from fastmcp import FastMCP
-import psutil
 import asyncio
+from datetime import datetime, timedelta
+from typing import Any
+
+import psutil
+from fastmcp import FastMCP
+from pydantic import BaseModel, Field
 
 from .base_tool import BaseTool
 
@@ -35,13 +36,13 @@ class SystemTools(BaseTool):
         """Register system tools with FastMCP instance."""
 
         @mcp.tool()
-        async def get_system_status() -> Dict[str, Any]:
+        async def get_system_status() -> dict[str, Any]:
             """
             Get TMWS system status and statistics.
-            
+
             Returns comprehensive system information including database status,
             memory usage, performance metrics, and feature availability.
-            
+
             Returns:
                 Dict containing complete system status information
             """
@@ -51,18 +52,18 @@ class SystemTools(BaseTool):
                 persona_service = services['persona_service']
                 task_service = services['task_service']
                 workflow_service = services['workflow_service']
-                
+
                 # Gather basic statistics
                 memory_count = await memory_service.count_memories()
                 persona_count = await persona_service.count_personas()
                 active_tasks = await task_service.count_active_tasks()
                 workflow_count = await workflow_service.count_workflows()
-                
+
                 # System resource usage
                 memory_info = psutil.virtual_memory()
                 cpu_percent = psutil.cpu_percent(interval=1)
                 disk_info = psutil.disk_usage('/')
-                
+
                 # Database connection test
                 db_connected = True
                 db_response_time = None
@@ -73,13 +74,13 @@ class SystemTools(BaseTool):
                     db_response_time = (end_time - start_time).total_seconds() * 1000  # ms
                 except Exception:
                     db_connected = False
-                
+
                 # Get recent activity
                 recent_memories = await memory_service.get_recent_memories(limit=1)
                 last_memory_created = None
                 if recent_memories:
                     last_memory_created = recent_memories[0].created_at.isoformat()
-                
+
                 return {
                     "status": "operational" if db_connected else "degraded",
                     "version": "1.0.0",
@@ -114,7 +115,7 @@ class SystemTools(BaseTool):
                         "performance_optimization": True
                     }
                 }
-            
+
             result = await self.execute_with_session(_get_system_status)
             return self.format_success(result, "System status retrieved")
 
@@ -123,18 +124,18 @@ class SystemTools(BaseTool):
             include_detailed_metrics: bool = False,
             check_external_services: bool = True,
             performance_test: bool = False
-        ) -> Dict[str, Any]:
+        ) -> dict[str, Any]:
             """
             Perform comprehensive health check.
-            
+
             Validates system components, connectivity, and performance characteristics.
             Can include detailed metrics and performance testing.
-            
+
             Args:
                 include_detailed_metrics: Include detailed system metrics
                 check_external_services: Check external service connectivity
                 performance_test: Run performance validation tests
-                
+
             Returns:
                 Dict containing health check results and recommendations
             """
@@ -143,14 +144,14 @@ class SystemTools(BaseTool):
                 check_external_services=check_external_services,
                 performance_test=performance_test
             )
-            
+
             async def _health_check(session, services):
                 health_results = {
                     "overall_status": "healthy",
                     "timestamp": datetime.utcnow().isoformat(),
                     "checks": {}
                 }
-                
+
                 # Database connectivity check
                 try:
                     start_time = datetime.utcnow()
@@ -168,7 +169,7 @@ class SystemTools(BaseTool):
                         "details": "Database connection failed"
                     }
                     health_results["overall_status"] = "unhealthy"
-                
+
                 # Memory service check
                 try:
                     memory_service = services['memory_service']
@@ -184,7 +185,7 @@ class SystemTools(BaseTool):
                         "error": str(e)
                     }
                     health_results["overall_status"] = "unhealthy"
-                
+
                 # Vectorization service check
                 try:
                     vectorization_service = services['vectorization_service']
@@ -200,11 +201,11 @@ class SystemTools(BaseTool):
                         "error": str(e)
                     }
                     health_results["overall_status"] = "degraded"
-                
+
                 # System resources check
                 memory_info = psutil.virtual_memory()
                 cpu_percent = psutil.cpu_percent(interval=1)
-                
+
                 resource_status = "healthy"
                 if memory_info.percent > 90:
                     resource_status = "warning"
@@ -212,14 +213,14 @@ class SystemTools(BaseTool):
                 if cpu_percent > 90:
                     resource_status = "warning"
                     health_results["overall_status"] = "degraded"
-                
+
                 health_results["checks"]["system_resources"] = {
                     "status": resource_status,
                     "memory_usage_percent": memory_info.percent,
                     "cpu_usage_percent": cpu_percent,
                     "details": f"Memory: {memory_info.percent:.1f}%, CPU: {cpu_percent:.1f}%"
                 }
-                
+
                 # Performance test (optional)
                 if request.performance_test:
                     try:
@@ -227,7 +228,7 @@ class SystemTools(BaseTool):
                         # Simple database performance test
                         await session.execute("SELECT COUNT(*) FROM memories")
                         perf_time = (datetime.utcnow() - perf_start).total_seconds() * 1000
-                        
+
                         perf_status = "healthy" if perf_time < 100 else "warning"
                         health_results["checks"]["performance_test"] = {
                             "status": perf_status,
@@ -239,18 +240,18 @@ class SystemTools(BaseTool):
                             "status": "failed",
                             "error": str(e)
                         }
-                
+
                 # Generate recommendations
                 recommendations = []
                 if memory_info.percent > 80:
                     recommendations.append("Consider increasing available memory")
                 if cpu_percent > 80:
                     recommendations.append("High CPU usage detected - consider optimization")
-                
+
                 health_results["recommendations"] = recommendations
-                
+
                 return health_results
-            
+
             result = await self.execute_with_session(_health_check)
             return self.format_success(result, f"Health check completed - Status: {result.get('overall_status', 'unknown')}")
 
@@ -260,19 +261,19 @@ class SystemTools(BaseTool):
             cleanup_logs: bool = True,
             analyze_performance: bool = True,
             vacuum_database: bool = False
-        ) -> Dict[str, Any]:
+        ) -> dict[str, Any]:
             """
             Perform system optimization operations.
-            
+
             Runs various optimization procedures to improve system performance
             and clean up unnecessary data.
-            
+
             Args:
                 optimize_vectors: Rebuild and optimize vector indices
                 cleanup_logs: Remove old log entries
                 analyze_performance: Analyze and report performance metrics
                 vacuum_database: Run VACUUM on database tables
-                
+
             Returns:
                 Dict containing optimization results and performance improvements
             """
@@ -282,35 +283,35 @@ class SystemTools(BaseTool):
                 analyze_performance=analyze_performance,
                 vacuum_database=vacuum_database
             )
-            
+
             async def _optimize_system(session, services):
                 optimization_results = {
                     "started_at": datetime.utcnow().isoformat(),
                     "operations": {}
                 }
-                
+
                 # Vector optimization
                 if request.optimize_vectors:
                     try:
                         vector_start = datetime.utcnow()
-                        
+
                         # Get vector statistics before optimization
                         vector_stats_before = await session.execute("""
-                            SELECT 
+                            SELECT
                                 COUNT(*) as total_vectors,
                                 AVG(array_length(embedding, 1)) as avg_dimensions
-                            FROM memories 
+                            FROM memories
                             WHERE embedding IS NOT NULL
                         """)
                         before_stats = vector_stats_before.fetchone()
-                        
+
                         # Run optimization
                         await session.execute("VACUUM ANALYZE memories;")
                         await session.execute("REINDEX INDEX ix_memories_embedding;")
                         await session.commit()
-                        
+
                         vector_time = (datetime.utcnow() - vector_start).total_seconds()
-                        
+
                         optimization_results["operations"]["vector_optimization"] = {
                             "status": "completed",
                             "duration_seconds": vector_time,
@@ -322,23 +323,23 @@ class SystemTools(BaseTool):
                             "status": "failed",
                             "error": str(e)
                         }
-                
+
                 # Log cleanup
                 if request.cleanup_logs:
                     try:
                         cleanup_start = datetime.utcnow()
-                        
+
                         # Clean logs older than 30 days (example)
                         cutoff_date = datetime.utcnow() - timedelta(days=30)
-                        
+
                         # This would need to be adapted based on actual log table structure
                         cleanup_result = await session.execute("""
-                            DELETE FROM system_logs 
+                            DELETE FROM system_logs
                             WHERE created_at < :cutoff_date
                         """, {"cutoff_date": cutoff_date})
-                        
+
                         cleanup_time = (datetime.utcnow() - cleanup_start).total_seconds()
-                        
+
                         optimization_results["operations"]["log_cleanup"] = {
                             "status": "completed",
                             "duration_seconds": cleanup_time,
@@ -351,19 +352,19 @@ class SystemTools(BaseTool):
                             "reason": "No log table found or cleanup not needed",
                             "details": str(e)
                         }
-                
+
                 # Performance analysis
                 if request.analyze_performance:
                     try:
                         analysis_start = datetime.utcnow()
-                        
+
                         # Analyze query performance
                         perf_queries = [
                             ("memory_count", "SELECT COUNT(*) FROM memories"),
                             ("recent_memories", "SELECT * FROM memories ORDER BY created_at DESC LIMIT 10"),
                             ("persona_count", "SELECT COUNT(*) FROM personas")
                         ]
-                        
+
                         query_performance = {}
                         for query_name, query_sql in perf_queries:
                             query_start = datetime.utcnow()
@@ -373,9 +374,9 @@ class SystemTools(BaseTool):
                                 "duration_ms": query_time,
                                 "status": "optimal" if query_time < 100 else "slow" if query_time < 1000 else "very_slow"
                             }
-                        
+
                         analysis_time = (datetime.utcnow() - analysis_start).total_seconds()
-                        
+
                         optimization_results["operations"]["performance_analysis"] = {
                             "status": "completed",
                             "duration_seconds": analysis_time,
@@ -386,18 +387,18 @@ class SystemTools(BaseTool):
                             "status": "failed",
                             "error": str(e)
                         }
-                
+
                 # Database vacuum
                 if request.vacuum_database:
                     try:
                         vacuum_start = datetime.utcnow()
-                        
+
                         # Full vacuum analyze (use with caution in production)
                         await session.execute("VACUUM ANALYZE;")
                         await session.commit()
-                        
+
                         vacuum_time = (datetime.utcnow() - vacuum_start).total_seconds()
-                        
+
                         optimization_results["operations"]["database_vacuum"] = {
                             "status": "completed",
                             "duration_seconds": vacuum_time,
@@ -408,15 +409,15 @@ class SystemTools(BaseTool):
                             "status": "failed",
                             "error": str(e)
                         }
-                
+
                 optimization_results["completed_at"] = datetime.utcnow().isoformat()
                 optimization_results["total_duration"] = (
-                    datetime.fromisoformat(optimization_results["completed_at"]) - 
+                    datetime.fromisoformat(optimization_results["completed_at"]) -
                     datetime.fromisoformat(optimization_results["started_at"])
                 ).total_seconds()
-                
+
                 return optimization_results
-            
+
             result = await self.execute_with_session(_optimize_system)
             return self.format_success(result, "System optimization completed")
 
@@ -424,28 +425,28 @@ class SystemTools(BaseTool):
         async def get_performance_metrics(
             time_window_hours: int = 24,
             include_query_stats: bool = True
-        ) -> Dict[str, Any]:
+        ) -> dict[str, Any]:
             """
             Get detailed system performance metrics.
-            
+
             Analyzes system performance over specified time window with
             detailed breakdowns of component performance.
-            
+
             Args:
                 time_window_hours: Time window for metrics analysis
                 include_query_stats: Include database query statistics
-                
+
             Returns:
                 Dict containing comprehensive performance metrics
             """
             async def _get_performance_metrics(session, services):
                 cutoff_time = datetime.utcnow() - timedelta(hours=time_window_hours)
-                
+
                 # System resource metrics
                 memory_info = psutil.virtual_memory()
                 cpu_percent = psutil.cpu_percent(interval=1)
                 disk_info = psutil.disk_usage('/')
-                
+
                 metrics = {
                     "time_window": {
                         "hours": time_window_hours,
@@ -471,20 +472,20 @@ class SystemTools(BaseTool):
                         }
                     }
                 }
-                
+
                 # Database activity metrics
                 try:
                     # Get recent memory creation rate
                     memory_activity = await session.execute("""
-                        SELECT 
+                        SELECT
                             COUNT(*) as recent_memories,
                             AVG(EXTRACT(epoch FROM (NOW() - created_at))/3600) as avg_age_hours
-                        FROM memories 
+                        FROM memories
                         WHERE created_at >= :cutoff_time
                     """, {"cutoff_time": cutoff_time})
-                    
+
                     memory_stats = memory_activity.fetchone()
-                    
+
                     metrics["database_activity"] = {
                         "memories_created": memory_stats.recent_memories if memory_stats else 0,
                         "avg_memory_age_hours": float(memory_stats.avg_age_hours) if memory_stats and memory_stats.avg_age_hours else 0,
@@ -492,31 +493,31 @@ class SystemTools(BaseTool):
                     }
                 except Exception as e:
                     metrics["database_activity"] = {"error": str(e)}
-                
+
                 # Query performance metrics
                 if include_query_stats:
                     try:
                         test_queries = [
                             ("simple_count", "SELECT COUNT(*) FROM memories"),
                             ("complex_join", """
-                                SELECT m.*, p.name as persona_name 
-                                FROM memories m 
-                                LEFT JOIN personas p ON m.persona_id = p.id 
+                                SELECT m.*, p.name as persona_name
+                                FROM memories m
+                                LEFT JOIN personas p ON m.persona_id = p.id
                                 LIMIT 10
                             """),
                             ("vector_similarity", """
-                                SELECT COUNT(*) FROM memories 
+                                SELECT COUNT(*) FROM memories
                                 WHERE embedding IS NOT NULL
                             """)
                         ]
-                        
+
                         query_metrics = {}
                         for query_name, query_sql in test_queries:
                             start_time = datetime.utcnow()
                             await session.execute(query_sql)
                             end_time = datetime.utcnow()
                             duration_ms = (end_time - start_time).total_seconds() * 1000
-                            
+
                             query_metrics[query_name] = {
                                 "duration_ms": duration_ms,
                                 "performance": (
@@ -526,11 +527,11 @@ class SystemTools(BaseTool):
                                     "slow"
                                 )
                             }
-                        
+
                         metrics["query_performance"] = query_metrics
                     except Exception as e:
                         metrics["query_performance"] = {"error": str(e)}
-                
+
                 # Service health metrics
                 services_health = {}
                 for service_name in ['memory_service', 'persona_service', 'task_service', 'workflow_service']:
@@ -550,30 +551,30 @@ class SystemTools(BaseTool):
                             elif 'workflow' in service_name:
                                 await service.count_workflows()
                             health_result = {"status": "healthy"}
-                        
+
                         services_health[service_name] = health_result
                     except Exception as e:
                         services_health[service_name] = {
                             "status": "unhealthy",
                             "error": str(e)
                         }
-                
+
                 metrics["services_health"] = services_health
                 metrics["generated_at"] = datetime.utcnow().isoformat()
-                
+
                 return metrics
-            
+
             result = await self.execute_with_session(_get_performance_metrics)
             return self.format_success(result, "Performance metrics generated")
 
         @mcp.tool()
-        async def get_system_configuration() -> Dict[str, Any]:
+        async def get_system_configuration() -> dict[str, Any]:
             """
             Get current system configuration and settings.
-            
+
             Returns system configuration, feature flags, and environment settings
             without exposing sensitive information.
-            
+
             Returns:
                 Dict containing system configuration details
             """
@@ -607,46 +608,46 @@ class SystemTools(BaseTool):
                         "max_concurrent_executions": 10  # This would come from actual settings
                     }
                 }
-                
+
                 return config_info
-            
+
             result = await self.execute_with_session(_get_system_config)
             return self.format_success(result, "System configuration retrieved")
 
         @mcp.tool()
         async def restart_services(
-            service_names: Optional[List[str]] = None
-        ) -> Dict[str, Any]:
+            service_names: list[str] | None = None
+        ) -> dict[str, Any]:
             """
             Restart specified services or all services.
-            
+
             Gracefully restarts system services with minimal downtime.
             Use with caution in production environments.
-            
+
             Args:
                 service_names: List of specific services to restart (optional)
-                
+
             Returns:
                 Dict containing restart results for each service
             """
             async def _restart_services(session, services):
                 # This is a placeholder implementation
                 # In a real system, this would need proper service management
-                
+
                 restart_results = {
                     "restart_requested_at": datetime.utcnow().isoformat(),
                     "services": {}
                 }
-                
+
                 available_services = ['memory_service', 'persona_service', 'task_service', 'workflow_service']
                 services_to_restart = service_names if service_names else available_services
-                
+
                 for service_name in services_to_restart:
                     if service_name in available_services:
                         try:
                             # Simulate service restart
                             await asyncio.sleep(0.1)  # Simulate restart time
-                            
+
                             restart_results["services"][service_name] = {
                                 "status": "restarted",
                                 "restart_time": datetime.utcnow().isoformat(),
@@ -662,10 +663,10 @@ class SystemTools(BaseTool):
                             "status": "not_found",
                             "error": f"Service {service_name} not available"
                         }
-                
+
                 restart_results["completed_at"] = datetime.utcnow().isoformat()
-                
+
                 return restart_results
-            
+
             result = await self.execute_with_session(_restart_services)
             return self.format_success(result, "Service restart operations completed")

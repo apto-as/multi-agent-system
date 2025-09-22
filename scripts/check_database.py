@@ -6,25 +6,22 @@ This script performs comprehensive health checks on the TMWS database
 including connection, performance, and data integrity checks
 """
 
+import argparse
+import asyncio
+import json
+import logging
 import os
 import sys
-import asyncio
-import argparse
-import json
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any, List, Optional
-import logging
+from typing import Any
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from sqlalchemy import create_engine, text
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
-import asyncpg
-import psutil
 import numpy as np
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
 
 # Configure logging
 logging.basicConfig(
@@ -37,7 +34,7 @@ logger = logging.getLogger(__name__)
 class DatabaseHealthChecker:
     """Comprehensive database health checker for TMWS."""
 
-    def __init__(self, database_url: Optional[str] = None):
+    def __init__(self, database_url: str | None = None):
         """Initialize health checker."""
         self.database_url = database_url or os.getenv(
             'TMWS_DATABASE_URL',
@@ -51,7 +48,7 @@ class DatabaseHealthChecker:
         else:
             self.async_database_url = self.database_url
 
-    async def check_connection(self) -> Dict[str, Any]:
+    async def check_connection(self) -> dict[str, Any]:
         """Check basic database connection."""
         result = {
             'status': 'unknown',
@@ -78,7 +75,7 @@ class DatabaseHealthChecker:
 
         return result
 
-    async def check_extensions(self) -> Dict[str, Any]:
+    async def check_extensions(self) -> dict[str, Any]:
         """Check required PostgreSQL extensions."""
         required_extensions = ['vector', 'pgcrypto', 'pg_trgm', 'uuid-ossp']
         result = {
@@ -111,7 +108,7 @@ class DatabaseHealthChecker:
 
         return result
 
-    async def check_table_health(self) -> Dict[str, Any]:
+    async def check_table_health(self) -> dict[str, Any]:
         """Check health of database tables."""
         result = {
             'tables': {},
@@ -194,7 +191,7 @@ class DatabaseHealthChecker:
 
         return result
 
-    async def check_performance_metrics(self) -> Dict[str, Any]:
+    async def check_performance_metrics(self) -> dict[str, Any]:
         """Check database performance metrics."""
         result = {
             'cache_hit_ratio': 0,
@@ -279,7 +276,7 @@ class DatabaseHealthChecker:
 
         return result
 
-    async def check_vector_performance(self) -> Dict[str, Any]:
+    async def check_vector_performance(self) -> dict[str, Any]:
         """Check pgvector performance and indexes."""
         result = {
             'vector_tables': [],
@@ -358,7 +355,7 @@ class DatabaseHealthChecker:
 
         return result
 
-    async def check_data_integrity(self) -> Dict[str, Any]:
+    async def check_data_integrity(self) -> dict[str, Any]:
         """Check data integrity and consistency."""
         result = {
             'orphaned_records': {},
@@ -410,7 +407,7 @@ class DatabaseHealthChecker:
 
         return result
 
-    async def run_full_health_check(self) -> Dict[str, Any]:
+    async def run_full_health_check(self) -> dict[str, Any]:
         """Run comprehensive health check."""
         logger.info("Starting comprehensive database health check...")
 
@@ -451,7 +448,7 @@ class DatabaseHealthChecker:
             bytes_value /= 1024.0
         return f"{bytes_value:.2f} PB"
 
-    def _calculate_health_score(self, checks: Dict[str, Any]) -> int:
+    def _calculate_health_score(self, checks: dict[str, Any]) -> int:
         """Calculate overall health score (0-100)."""
         score = 100
 
@@ -498,7 +495,7 @@ class DatabaseHealthChecker:
             return 'critical'
 
 
-def print_health_report(results: Dict[str, Any]):
+def print_health_report(results: dict[str, Any]):
     """Print formatted health report."""
     print("\n" + "=" * 60)
     print("   TMWS Database Health Report")
@@ -517,7 +514,7 @@ def print_health_report(results: Dict[str, Any]):
 
     # Extensions
     ext = results['checks'].get('extensions', {})
-    print(f"\n🔧 Extensions:")
+    print("\n🔧 Extensions:")
     print(f"   Installed: {', '.join(ext.get('installed', []))}")
     if ext.get('missing'):
         print(f"   ⚠️  Missing: {', '.join(ext['missing'])}")
@@ -530,7 +527,7 @@ def print_health_report(results: Dict[str, Any]):
 
     # Performance
     perf = results['checks'].get('performance', {})
-    print(f"\n⚡ Performance Metrics:")
+    print("\n⚡ Performance Metrics:")
     print(f"   Cache Hit Ratio: {perf.get('cache_hit_ratio', 0)}%")
     print(f"   Active Connections: {perf.get('connection_count', 0)}")
     print(f"   Active Queries: {perf.get('active_queries', 0)}")
@@ -540,7 +537,7 @@ def print_health_report(results: Dict[str, Any]):
     # Vector performance
     vector = results['checks'].get('vector_performance', {})
     if vector.get('vector_tables'):
-        print(f"\n🔍 Vector Search:")
+        print("\n🔍 Vector Search:")
         print(f"   Vector Tables: {len(vector['vector_tables'])}")
         print(f"   Vector Indexes: {len(vector.get('vector_indexes', []))}")
         if vector.get('sample_search_time_ms'):
@@ -549,7 +546,7 @@ def print_health_report(results: Dict[str, Any]):
     # Data integrity
     integrity = results['checks'].get('data_integrity', {})
     if integrity.get('orphaned_records') or integrity.get('invalid_foreign_keys'):
-        print(f"\n⚠️  Data Integrity Issues:")
+        print("\n⚠️  Data Integrity Issues:")
         if integrity.get('orphaned_records'):
             for table, count in integrity['orphaned_records'].items():
                 print(f"   Orphaned records in {table}: {count}")

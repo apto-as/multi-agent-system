@@ -2,13 +2,13 @@
 Custom exceptions for TMWS.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 class TMWSException(Exception):
     """Base exception for TMWS."""
 
-    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+    def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(message)
         self.message = message
         self.details = details or {}

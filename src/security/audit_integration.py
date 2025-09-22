@@ -4,19 +4,18 @@ Bridges async audit logger with existing API audit log
 """
 
 import logging
-from typing import Optional, Dict, Any
-from datetime import datetime
-from fastapi import Request
+from typing import Any
 
-from ..core.database import get_db_session_dependency
-from ..models.api_audit_log import APIAuditLog
-from .audit_logger_async import AsyncSecurityAuditLogger, SecurityEventType, SecurityEventSeverity
+from fastapi import Request
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from ..models.api_audit_log import APIAuditLog
+from .audit_logger_async import AsyncSecurityAuditLogger, SecurityEventSeverity, SecurityEventType
 
 logger = logging.getLogger(__name__)
 
 # Global instance
-_audit_logger: Optional[AsyncSecurityAuditLogger] = None
+_audit_logger: AsyncSecurityAuditLogger | None = None
 
 
 async def initialize_audit_logger():
@@ -40,12 +39,12 @@ async def log_security_event(
     event_type: SecurityEventType,
     request: Request,
     severity: SecurityEventSeverity = SecurityEventSeverity.MEDIUM,
-    details: Optional[Dict[str, Any]] = None,
-    db_session: Optional[AsyncSession] = None
+    details: dict[str, Any] | None = None,
+    db_session: AsyncSession | None = None
 ):
     """
     Log a security event to both async logger and database.
-    
+
     Args:
         event_type: Type of security event
         request: FastAPI request object
@@ -58,7 +57,7 @@ async def log_security_event(
         client_ip = request.client.host if request.client else "unknown"
         user_agent = request.headers.get("user-agent", "")
         request_id = getattr(request.state, 'request_id', None)
-        
+
         # Log to async security logger
         audit_logger = await initialize_audit_logger()
         if audit_logger:
@@ -74,7 +73,7 @@ async def log_security_event(
                 details=details,
                 request=request
             )
-        
+
         # Also log to database if session provided
         if db_session and event_type in [
             SecurityEventType.LOGIN_FAILED,
@@ -92,7 +91,7 @@ async def log_security_event(
             )
             db_session.add(audit_log)
             await db_session.commit()
-            
+
     except Exception as e:
         logger.error(f"Failed to log security event: {e}")
 
