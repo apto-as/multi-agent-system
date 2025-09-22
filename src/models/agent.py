@@ -3,17 +3,20 @@ Agent models for TMWS v2.0 - Universal Multi-Agent Memory System.
 Replaces the persona-specific implementation with a generic agent architecture.
 """
 
+from __future__ import annotations
+
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
-from uuid import UUID, uuid4
+from typing import TYPE_CHECKING, Any
 
 import sqlalchemy as sa
-from sqlalchemy import JSON, Text, DateTime, Boolean, Index, Float, Integer
-from sqlalchemy.dialects.postgresql import UUID as PGUUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import JSON, Boolean, DateTime, Float, Index, Integer, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from .base import TMWSBase, MetadataMixin
+from .base import MetadataMixin, TMWSBase
+
+if TYPE_CHECKING:
+    from .task import Task
 
 
 class AccessLevel(str, Enum):
@@ -35,61 +38,61 @@ class AgentStatus(str, Enum):
 
 class Agent(TMWSBase, MetadataMixin):
     """Universal agent model for any AI system."""
-    
+
     __tablename__ = "agents"
-    
+
     # Core identification
     agent_id: Mapped[str] = mapped_column(
-        Text, 
-        nullable=False, 
-        unique=True, 
+        Text,
+        nullable=False,
+        unique=True,
         index=True,
         comment="Unique identifier for the agent (e.g., 'claude-3', 'gpt-4', 'athena-conductor')"
     )
-    
+
     display_name: Mapped[str] = mapped_column(
-        Text, 
+        Text,
         nullable=False,
         comment="Human-readable name for the agent"
     )
-    
+
     # Organization and namespace
-    organization_id: Mapped[Optional[str]] = mapped_column(
-        Text, 
-        nullable=True, 
+    organization_id: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
         index=True,
         comment="Organization or project identifier"
     )
-    
+
     namespace: Mapped[str] = mapped_column(
-        Text, 
-        nullable=False, 
+        Text,
+        nullable=False,
         default="default",
         index=True,
         comment="Namespace for memory isolation"
     )
-    
+
     # Agent metadata
-    agent_type: Mapped[Optional[str]] = mapped_column(
-        Text, 
+    agent_type: Mapped[str | None] = mapped_column(
+        Text,
         nullable=True,
         comment="Type of agent (e.g., 'language_model', 'task_executor', 'coordinator')"
     )
-    
-    capabilities: Mapped[Dict[str, Any]] = mapped_column(
-        JSON, 
-        nullable=False, 
+
+    capabilities: Mapped[dict[str, Any]] = mapped_column(
+        JSON,
+        nullable=False,
         default=dict,
         comment="Dynamic capabilities and features"
     )
-    
-    config: Mapped[Dict[str, Any]] = mapped_column(
-        JSON, 
-        nullable=False, 
+
+    config: Mapped[dict[str, Any]] = mapped_column(
+        JSON,
+        nullable=False,
         default=dict,
         comment="Agent-specific configuration"
     )
-    
+
     # Access control
     default_access_level: Mapped[AccessLevel] = mapped_column(
         sa.Enum(AccessLevel, values_callable=lambda obj: [e.value for e in obj]),
@@ -97,7 +100,7 @@ class Agent(TMWSBase, MetadataMixin):
         default=AccessLevel.PRIVATE,
         comment="Default access level for agent's memories"
     )
-    
+
     # Status and health
     status: Mapped[AgentStatus] = mapped_column(
         sa.Enum(AgentStatus, values_callable=lambda obj: [e.value for e in obj]),
@@ -105,58 +108,67 @@ class Agent(TMWSBase, MetadataMixin):
         default=AgentStatus.ACTIVE,
         index=True
     )
-    
+
     health_score: Mapped[float] = mapped_column(
-        Float, 
-        nullable=False, 
+        Float,
+        nullable=False,
         default=1.0,
         comment="Health score (0.0 - 1.0)"
     )
-    
+
     # Performance metrics
     total_memories: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     total_tasks: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     successful_tasks: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    average_response_time_ms: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    
+    average_response_time_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
+
     # Authentication
-    api_key_hash: Mapped[Optional[str]] = mapped_column(
-        Text, 
+    api_key_hash: Mapped[str | None] = mapped_column(
+        Text,
         nullable=True,
         comment="Hashed API key for agent authentication"
     )
-    
+
     # Timestamps
-    last_active_at: Mapped[Optional[datetime]] = mapped_column(
+    last_active_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
         index=True
     )
-    
+
+    # Relationships
+    tasks: Mapped[list[Task]] = relationship(
+        "Task",
+        back_populates="assigned_agent",
+        cascade="all, delete-orphan",
+        foreign_keys="[Task.assigned_agent_id]",
+        primaryjoin="Agent.agent_id == Task.assigned_agent_id"
+    )
+
     # Indexes for performance
     __table_args__ = (
         Index('ix_agent_org_namespace', 'organization_id', 'namespace'),
         Index('ix_agent_status_active', 'status', 'last_active_at'),
         Index('ix_agent_type_status', 'agent_type', 'status'),
     )
-    
+
     def __repr__(self) -> str:
         return f"<Agent(agent_id='{self.agent_id}', namespace='{self.namespace}')>"
-    
+
     @property
     def success_rate(self) -> float:
         """Calculate task success rate."""
         if self.total_tasks == 0:
             return 0.0
         return self.successful_tasks / self.total_tasks
-    
+
     def update_activity(self) -> None:
         """Update last activity timestamp."""
         self.last_active_at = datetime.utcnow()
-    
+
     def update_metrics(
-        self, 
-        success: bool, 
+        self,
+        success: bool,
         response_time_ms: float,
         memory_count_delta: int = 0
     ) -> None:
@@ -164,7 +176,7 @@ class Agent(TMWSBase, MetadataMixin):
         self.total_tasks += 1
         if success:
             self.successful_tasks += 1
-        
+
         # Update average response time (exponential moving average)
         if self.average_response_time_ms is None:
             self.average_response_time_ms = response_time_ms
@@ -172,16 +184,16 @@ class Agent(TMWSBase, MetadataMixin):
             self.average_response_time_ms = (
                 0.9 * self.average_response_time_ms + 0.1 * response_time_ms
             )
-        
+
         # Update memory count
         self.total_memories += memory_count_delta
-        
+
         # Update health score based on success rate
         self.health_score = min(1.0, self.success_rate + 0.1)
-        
+
         self.update_activity()
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert agent to dictionary."""
         return {
             "id": str(self.id),
@@ -203,9 +215,9 @@ class Agent(TMWSBase, MetadataMixin):
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             "last_active_at": self.last_active_at.isoformat() if self.last_active_at else None,
         }
-    
+
     @classmethod
-    def create_trinitas_agents(cls) -> List[Dict[str, Any]]:
+    def create_trinitas_agents(cls) -> list[dict[str, Any]]:
         """Create Trinitas-compatible agents for backward compatibility."""
         return [
             {
@@ -261,7 +273,7 @@ class Agent(TMWSBase, MetadataMixin):
             },
             {
                 "agent_id": "eris-coordinator",
-                "display_name": "Eris - Tactical Coordinator", 
+                "display_name": "Eris - Tactical Coordinator",
                 "namespace": "trinitas",
                 "agent_type": "coordinator",
                 "capabilities": {
@@ -279,7 +291,7 @@ class Agent(TMWSBase, MetadataMixin):
             {
                 "agent_id": "hera-strategist",
                 "display_name": "Hera - Strategic Commander",
-                "namespace": "trinitas", 
+                "namespace": "trinitas",
                 "agent_type": "strategist",
                 "capabilities": {
                     "strategy": "expert",
@@ -315,43 +327,43 @@ class Agent(TMWSBase, MetadataMixin):
 
 class AgentTeam(TMWSBase, MetadataMixin):
     """Team structure for agent collaboration."""
-    
+
     __tablename__ = "agent_teams"
-    
+
     team_id: Mapped[str] = mapped_column(Text, nullable=False, unique=True, index=True)
     team_name: Mapped[str] = mapped_column(Text, nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     # Team members (agent_ids)
-    members: Mapped[List[str]] = mapped_column(JSON, nullable=False, default=list)
-    leader_agent_id: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    
+    members: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    leader_agent_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     # Team configuration
-    config: Mapped[Dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    config: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     shared_namespace: Mapped[str] = mapped_column(Text, nullable=False)
-    
+
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)
 
 
 class AgentNamespace(TMWSBase, MetadataMixin):
     """Namespace configuration for memory isolation."""
-    
+
     __tablename__ = "agent_namespaces"
-    
+
     namespace: Mapped[str] = mapped_column(Text, nullable=False, unique=True, index=True)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     # Access control
-    owner_agent_id: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    admin_agents: Mapped[List[str]] = mapped_column(JSON, nullable=False, default=list)
-    member_agents: Mapped[List[str]] = mapped_column(JSON, nullable=False, default=list)
-    
+    owner_agent_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    admin_agents: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    member_agents: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+
     # Namespace settings
     default_access_level: Mapped[AccessLevel] = mapped_column(
         sa.Enum(AccessLevel, values_callable=lambda obj: [e.value for e in obj]),
         nullable=False,
         default=AccessLevel.PRIVATE
     )
-    
-    config: Mapped[Dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+
+    config: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)

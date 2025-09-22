@@ -4,16 +4,15 @@ Persona management endpoints for TMWS.
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
-from uuid import UUID
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.database import get_db_session_dependency
-from ...models.persona import Persona, PersonaType, PersonaRole
+from ...models.persona import Persona
 from ..security import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -29,48 +28,48 @@ class PersonaResponse(BaseModel):
     role: str
     display_name: str
     description: str
-    specialties: List[str]
-    capabilities: List[str]
+    specialties: list[str]
+    capabilities: list[str]
     is_active: bool
     total_tasks: int
     successful_tasks: int
     success_rate: float
-    average_response_time: Optional[float]
+    average_response_time: float | None
     created_at: datetime
     updated_at: datetime
-    last_active_at: Optional[datetime]
-    
+    last_active_at: datetime | None
+
     class Config:
         from_attributes = True
 
 
-@router.get("/", response_model=List[PersonaResponse])
+@router.get("/", response_model=list[PersonaResponse])
 async def list_personas(
     active_only: bool = True,
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: Dict[str, Any] = Depends(get_current_user)
-) -> List[PersonaResponse]:
+    current_user: dict[str, Any] = Depends(get_current_user)
+) -> list[PersonaResponse]:
     """
     List all available personas.
-    
+
     Args:
         active_only: Only return active personas
         db: Database session
         current_user: Current authenticated user
-        
+
     Returns:
         List of personas
     """
     try:
         query = select(Persona)
         if active_only:
-            query = query.where(Persona.is_active == True)
-        
+            query = query.where(Persona.is_active)
+
         query = query.order_by(Persona.name)
-        
+
         result = await db.execute(query)
         personas = result.scalars().all()
-        
+
         return [
             PersonaResponse(
                 id=str(persona.id),
@@ -92,7 +91,7 @@ async def list_personas(
             )
             for persona in personas
         ]
-        
+
     except Exception as e:
         logger.error(f"Failed to list personas: {e}")
         raise HTTPException(
@@ -105,16 +104,16 @@ async def list_personas(
 async def get_persona(
     persona_name: str,
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: Dict[str, Any] = Depends(get_current_user)
+    current_user: dict[str, Any] = Depends(get_current_user)
 ) -> PersonaResponse:
     """
     Get a specific persona by name.
-    
+
     Args:
         persona_name: Persona name
         db: Database session
         current_user: Current authenticated user
-        
+
     Returns:
         Persona data
     """
@@ -123,15 +122,15 @@ async def get_persona(
             select(Persona).where(Persona.name == persona_name)
         )
         persona = result.scalar_one_or_none()
-        
+
         if not persona:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Persona '{persona_name}' not found"
             )
-        
+
         return PersonaResponse.from_orm(persona)
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -145,15 +144,15 @@ async def get_persona(
 @router.post("/initialize", status_code=status.HTTP_201_CREATED)
 async def initialize_default_personas(
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: Dict[str, Any] = Depends(get_current_user)
-) -> Dict[str, Any]:
+    current_user: dict[str, Any] = Depends(get_current_user)
+) -> dict[str, Any]:
     """
     Initialize default Trinitas personas.
-    
+
     Args:
         db: Database session
         current_user: Current authenticated user
-        
+
     Returns:
         Initialization result
     """
@@ -161,33 +160,33 @@ async def initialize_default_personas(
         # Check if personas already exist
         result = await db.execute(select(Persona))
         existing_personas = result.scalars().all()
-        
+
         if existing_personas:
             return {
                 "message": "Personas already initialized",
                 "count": len(existing_personas),
                 "personas": [p.name for p in existing_personas]
             }
-        
+
         # Create default personas
         default_personas = Persona.get_default_personas()
         created_personas = []
-        
+
         for persona_data in default_personas:
             persona = Persona(**persona_data)
             db.add(persona)
             created_personas.append(persona.name)
-        
+
         await db.commit()
-        
+
         logger.info(f"Default personas initialized by user {current_user.get('id')}")
-        
+
         return {
             "message": "Default personas initialized successfully",
             "count": len(created_personas),
             "personas": created_personas
         }
-        
+
     except Exception as e:
         await db.rollback()
         logger.error(f"Failed to initialize personas: {e}")
@@ -201,16 +200,16 @@ async def initialize_default_personas(
 async def get_persona_stats(
     persona_name: str,
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: Dict[str, Any] = Depends(get_current_user)
-) -> Dict[str, Any]:
+    current_user: dict[str, Any] = Depends(get_current_user)
+) -> dict[str, Any]:
     """
     Get detailed statistics for a specific persona.
-    
+
     Args:
         persona_name: Persona name
         db: Database session
         current_user: Current authenticated user
-        
+
     Returns:
         Persona statistics
     """
@@ -219,13 +218,13 @@ async def get_persona_stats(
             select(Persona).where(Persona.name == persona_name)
         )
         persona = result.scalar_one_or_none()
-        
+
         if not persona:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Persona '{persona_name}' not found"
             )
-        
+
         return {
             "name": persona.name,
             "display_name": persona.display_name,
@@ -250,7 +249,7 @@ async def get_persona_stats(
             },
             "timestamp": datetime.utcnow().isoformat()
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:

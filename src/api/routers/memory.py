@@ -4,13 +4,13 @@ Memory management endpoints for TMWS.
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field, validator
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update, delete, func, and_, or_
 
 from ...core.database import get_db_session_dependency
 from ...models.memory import Memory
@@ -25,13 +25,13 @@ router = APIRouter()
 class MemoryCreate(BaseModel):
     """Memory creation request."""
     content: str = Field(..., min_length=1, max_length=10000)
-    persona: Optional[str] = Field(None, max_length=50)
-    category: Optional[str] = Field(None, max_length=100)
+    persona: str | None = Field(None, max_length=50)
+    category: str | None = Field(None, max_length=100)
     importance: float = Field(0.5, ge=0.0, le=1.0)
     is_shared: bool = Field(False)
     is_learned: bool = Field(False)
-    metadata: Optional[Dict[str, Any]] = Field(default_factory=dict)
-    
+    metadata: dict[str, Any] | None = Field(default_factory=dict)
+
     @validator('content', 'persona', 'category', pre=True)
     def sanitize_strings(cls, v):
         if isinstance(v, str):
@@ -41,14 +41,14 @@ class MemoryCreate(BaseModel):
 
 class MemoryUpdate(BaseModel):
     """Memory update request."""
-    content: Optional[str] = Field(None, min_length=1, max_length=10000)
-    persona: Optional[str] = Field(None, max_length=50)
-    category: Optional[str] = Field(None, max_length=100)
-    importance: Optional[float] = Field(None, ge=0.0, le=1.0)
-    is_shared: Optional[bool] = None
-    is_learned: Optional[bool] = None
-    metadata: Optional[Dict[str, Any]] = None
-    
+    content: str | None = Field(None, min_length=1, max_length=10000)
+    persona: str | None = Field(None, max_length=50)
+    category: str | None = Field(None, max_length=100)
+    importance: float | None = Field(None, ge=0.0, le=1.0)
+    is_shared: bool | None = None
+    is_learned: bool | None = None
+    metadata: dict[str, Any] | None = None
+
     @validator('content', 'persona', 'category', pre=True)
     def sanitize_strings(cls, v):
         if isinstance(v, str):
@@ -58,18 +58,18 @@ class MemoryUpdate(BaseModel):
 
 class MemorySearch(BaseModel):
     """Memory search request."""
-    query: Optional[str] = Field(None, max_length=1000)
-    persona: Optional[str] = Field(None, max_length=50)
-    category: Optional[str] = Field(None, max_length=100)
-    is_shared: Optional[bool] = None
-    is_learned: Optional[bool] = None
-    min_importance: Optional[float] = Field(None, ge=0.0, le=1.0)
-    max_importance: Optional[float] = Field(None, ge=0.0, le=1.0)
+    query: str | None = Field(None, max_length=1000)
+    persona: str | None = Field(None, max_length=50)
+    category: str | None = Field(None, max_length=100)
+    is_shared: bool | None = None
+    is_learned: bool | None = None
+    min_importance: float | None = Field(None, ge=0.0, le=1.0)
+    max_importance: float | None = Field(None, ge=0.0, le=1.0)
     limit: int = Field(10, ge=1, le=100)
     offset: int = Field(0, ge=0)
     semantic_search: bool = Field(False, description="Enable semantic search")
     min_similarity: float = Field(0.7, ge=0.0, le=1.0, description="Minimum similarity for semantic search")
-    
+
     @validator('query', 'persona', 'category', pre=True)
     def sanitize_strings(cls, v):
         if isinstance(v, str):
@@ -81,17 +81,17 @@ class MemoryResponse(BaseModel):
     """Memory response model."""
     id: str
     content: str
-    persona: Optional[str]
-    category: Optional[str]
+    persona: str | None
+    category: str | None
     importance: float
     is_shared: bool
     is_learned: bool
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
     access_count: int
     created_at: datetime
     updated_at: datetime
     accessed_at: datetime
-    
+
     class Config:
         from_attributes = True
 
@@ -101,7 +101,7 @@ class SemanticMemoryResponse(MemoryResponse):
 
 class MemoryListResponse(BaseModel):
     """Memory list response."""
-    memories: List[Union[MemoryResponse, SemanticMemoryResponse]]
+    memories: list[MemoryResponse | SemanticMemoryResponse]
     total: int
     offset: int
     limit: int
@@ -113,16 +113,16 @@ class MemoryListResponse(BaseModel):
 async def create_memory(
     memory_data: MemoryCreate,
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: Dict[str, Any] = Depends(get_current_user)
+    current_user: dict[str, Any] = Depends(get_current_user)
 ) -> MemoryResponse:
     """
     Create a new memory.
-    
+
     Args:
         memory_data: Memory creation data
         db: Database session
         current_user: Current authenticated user
-        
+
     Returns:
         Created memory
     """
@@ -140,20 +140,20 @@ async def create_memory(
         metadata['importance'] = memory_data.importance
         metadata['is_shared'] = memory_data.is_shared
         metadata['is_learned'] = memory_data.is_learned
-        
+
         # Create memory
         memory = Memory(
             content=memory_data.content,
             embedding=embedding.tolist(),
             metadata=metadata,
         )
-        
+
         db.add(memory)
         await db.commit()
         await db.refresh(memory)
-        
+
         logger.info(f"Memory created: {memory.id} by user {current_user.get('username')}")
-        
+
         return MemoryResponse(
             id=str(memory.id),
             content=memory.content,
@@ -168,7 +168,7 @@ async def create_memory(
             updated_at=memory.updated_at,
             accessed_at=memory.accessed_at
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -184,32 +184,32 @@ async def create_memory(
 async def get_memory(
     memory_id: UUID,
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: Dict[str, Any] = Depends(get_current_user)
+    current_user: dict[str, Any] = Depends(get_current_user)
 ) -> MemoryResponse:
     """
     Get a specific memory by ID.
-    
+
     Args:
         memory_id: Memory ID
         db: Database session
         current_user: Current authenticated user
-        
+
     Returns:
         Memory data
     """
     try:
         memory = await db.get(Memory, memory_id)
-        
+
         if not memory:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Memory not found"
             )
-        
+
         # Update access tracking
         memory.update_access()
         await db.commit()
-        
+
         return MemoryResponse(
             id=str(memory.id),
             content=memory.content,
@@ -224,7 +224,7 @@ async def get_memory(
             updated_at=memory.updated_at,
             accessed_at=memory.accessed_at
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -240,29 +240,29 @@ async def update_memory(
     memory_id: UUID,
     memory_data: MemoryUpdate,
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: Dict[str, Any] = Depends(get_current_user)
+    current_user: dict[str, Any] = Depends(get_current_user)
 ) -> MemoryResponse:
     """
     Update a specific memory.
-    
+
     Args:
         memory_id: Memory ID
         memory_data: Memory update data
         db: Database session
         current_user: Current authenticated user
-        
+
     Returns:
         Updated memory
     """
     try:
         memory = await db.get(Memory, memory_id)
-        
+
         if not memory:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Memory not found"
             )
-        
+
         # Update fields
         update_data = memory_data.dict(exclude_unset=True)
         if 'content' in update_data:
@@ -273,14 +273,14 @@ async def update_memory(
 
         for field, value in update_data.items():
             setattr(memory, field, value)
-        
+
         memory.updated_at = datetime.utcnow()
-        
+
         await db.commit()
         await db.refresh(memory)
-        
+
         logger.info(f"Memory updated: {memory.key} by user {current_user.get('id')}")
-        
+
         return MemoryResponse(
             id=str(memory.id),
             content=memory.content,
@@ -295,7 +295,7 @@ async def update_memory(
             updated_at=memory.updated_at,
             accessed_at=memory.accessed_at
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -311,36 +311,36 @@ async def update_memory(
 async def delete_memory(
     memory_id: UUID,
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: Dict[str, Any] = Depends(get_current_user)
-) -> Dict[str, str]:
+    current_user: dict[str, Any] = Depends(get_current_user)
+) -> dict[str, str]:
     """
     Delete a specific memory.
-    
+
     Args:
         memory_id: Memory ID
         db: Database session
         current_user: Current authenticated user
-        
+
     Returns:
         Deletion confirmation
     """
     try:
         memory = await db.get(Memory, memory_id)
-        
+
         if not memory:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Memory not found"
             )
-        
+
         memory_key = memory.key
         await db.delete(memory)
         await db.commit()
-        
+
         logger.info(f"Memory deleted: {memory_key} by user {current_user.get('id')}")
-        
+
         return {"message": f"Memory '{memory_key}' deleted successfully"}
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -356,16 +356,16 @@ async def delete_memory(
 async def search_memories(
     search_data: MemorySearch,
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: Dict[str, Any] = Depends(get_current_user)
+    current_user: dict[str, Any] = Depends(get_current_user)
 ) -> MemoryListResponse:
     """
     Search memories with various filters.
-    
+
     Args:
         search_data: Search criteria
         db: Database session
         current_user: Current authenticated user
-        
+
     Returns:
         List of matching memories
     """
@@ -373,12 +373,12 @@ async def search_memories(
         # Build query
         query = select(Memory)
         conditions = []
-        
+
         # Semantic search
         if search_data.semantic_search and search_data.query:
             vectorization_service = VectorizationService()
             query_embedding = await vectorization_service.vectorize_text(search_data.query)
-            
+
             query = query.add_columns(Memory.embedding.l2_distance(query_embedding).label("similarity"))
             conditions.append(Memory.embedding.l2_distance(query_embedding) < (1 - search_data.min_similarity))
             order_by = "similarity"
@@ -397,35 +397,35 @@ async def search_memories(
         # Filter by persona
         if search_data.persona:
             conditions.append(Memory.persona == search_data.persona)
-        
+
         # Filter by category
         if search_data.category:
             conditions.append(Memory.category == search_data.category)
-        
+
         # Filter by shared status
         if search_data.is_shared is not None:
             conditions.append(Memory.is_shared == search_data.is_shared)
-        
+
         # Filter by learned status
         if search_data.is_learned is not None:
             conditions.append(Memory.is_learned == search_data.is_learned)
-        
+
         # Filter by importance range
         if search_data.min_importance is not None:
             conditions.append(Memory.importance >= search_data.min_importance)
-        
+
         if search_data.max_importance is not None:
             conditions.append(Memory.importance <= search_data.max_importance)
-        
+
         # Apply conditions
         if conditions:
             query = query.where(and_(*conditions))
-        
+
         # Count total results
         count_query = select(func.count()).select_from(query.subquery())
         total_result = await db.execute(count_query)
         total = total_result.scalar()
-        
+
         # Apply ordering, offset, and limit
         if order_by == "similarity":
             query = query.order_by("similarity")
@@ -433,10 +433,10 @@ async def search_memories(
             query = query.order_by(Memory.importance.desc(), Memory.updated_at.desc())
 
         query = query.offset(search_data.offset).limit(search_data.limit)
-        
+
         # Execute query
         result = await db.execute(query)
-        
+
         memories = []
         if search_data.semantic_search and search_data.query:
             for row in result.all():
@@ -455,7 +455,7 @@ async def search_memories(
             limit=search_data.limit,
             has_more=search_data.offset + len(memories) < total
         )
-        
+
     except Exception as e:
         logger.error(f"Failed to search memories: {e}")
         raise HTTPException(
@@ -466,18 +466,18 @@ async def search_memories(
 
 @router.get("/", response_model=MemoryListResponse)
 async def list_memories(
-    persona: Optional[str] = Query(None, max_length=50),
-    category: Optional[str] = Query(None, max_length=100),
-    is_shared: Optional[bool] = Query(None),
-    is_learned: Optional[bool] = Query(None),
+    persona: str | None = Query(None, max_length=50),
+    category: str | None = Query(None, max_length=100),
+    is_shared: bool | None = Query(None),
+    is_learned: bool | None = Query(None),
     limit: int = Query(10, ge=1, le=100),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: Dict[str, Any] = Depends(get_current_user)
+    current_user: dict[str, Any] = Depends(get_current_user)
 ) -> MemoryListResponse:
     """
     List memories with optional filters.
-    
+
     Args:
         persona: Filter by persona
         category: Filter by category
@@ -487,7 +487,7 @@ async def list_memories(
         offset: Number of results to skip
         db: Database session
         current_user: Current authenticated user
-        
+
     Returns:
         List of memories
     """
@@ -499,22 +499,22 @@ async def list_memories(
         limit=limit,
         offset=offset
     )
-    
+
     return await search_memories(search_data, db, current_user)
 
 
 @router.get("/stats/summary")
 async def get_memory_stats(
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: Dict[str, Any] = Depends(get_current_user)
-) -> Dict[str, Any]:
+    current_user: dict[str, Any] = Depends(get_current_user)
+) -> dict[str, Any]:
     """
     Get memory statistics summary.
-    
+
     Args:
         db: Database session
         current_user: Current authenticated user
-        
+
     Returns:
         Memory statistics
     """
@@ -522,40 +522,40 @@ async def get_memory_stats(
         # Total memories
         total_result = await db.execute(select(func.count(Memory.id)))
         total_memories = total_result.scalar()
-        
+
         # Memories by persona
         persona_stats = await db.execute(
             select(Memory.persona, func.count(Memory.id))
             .group_by(Memory.persona)
         )
-        persona_counts = {persona: count for persona, count in persona_stats.all()}
-        
+        persona_counts = dict(persona_stats.all())
+
         # Memories by category
         category_stats = await db.execute(
             select(Memory.category, func.count(Memory.id))
             .group_by(Memory.category)
         )
-        category_counts = {category: count for category, count in category_stats.all()}
-        
+        category_counts = dict(category_stats.all())
+
         # Shared vs private
         shared_stats = await db.execute(
             select(Memory.is_shared, func.count(Memory.id))
             .group_by(Memory.is_shared)
         )
-        shared_counts = {shared: count for shared, count in shared_stats.all()}
-        
+        shared_counts = dict(shared_stats.all())
+
         # Learned memories
         learned_result = await db.execute(
-            select(func.count(Memory.id)).where(Memory.is_learned == True)
+            select(func.count(Memory.id)).where(Memory.is_learned)
         )
         learned_memories = learned_result.scalar()
-        
+
         # Average importance
         avg_importance_result = await db.execute(
             select(func.avg(Memory.importance))
         )
         avg_importance = avg_importance_result.scalar() or 0.0
-        
+
         return {
             "total_memories": total_memories,
             "learned_memories": learned_memories,
@@ -568,7 +568,7 @@ async def get_memory_stats(
             },
             "timestamp": datetime.utcnow().isoformat()
         }
-        
+
     except Exception as e:
         logger.error(f"Failed to get memory stats: {e}")
         raise HTTPException(

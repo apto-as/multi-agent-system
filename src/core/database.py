@@ -3,15 +3,13 @@ Database configuration and session management for TMWS.
 """
 
 import logging
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator, Optional
 
 import sqlalchemy as sa
 from sqlalchemy import event, pool, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import Session
-from sqlalchemy.pool import AsyncAdaptedQueuePool
 
 from .config import get_settings
 
@@ -21,8 +19,8 @@ logger = logging.getLogger(__name__)
 Base = declarative_base()
 
 # Global variables for database engine and session maker
-_engine: Optional[object] = None
-_session_maker: Optional[async_sessionmaker] = None
+_engine: object | None = None
+_session_maker: async_sessionmaker | None = None
 
 
 def _setup_connection_events(engine) -> None:
@@ -41,14 +39,14 @@ def _setup_connection_events(engine) -> None:
     def receive_checkout(dbapi_connection, connection_record, connection_proxy):
         """Monitor connection checkout and detect slow queries."""
         connection_record.info['checkout_time'] = sa.func.now()
-        logger.debug(f"Connection checked out from pool (pool size: {engine.pool.size()})")
+        logger.debug(f"Connection checked out from pool (pool size: {engine.pool.size() if hasattr(engine.pool, 'size') else 'N/A'})")
 
     @event.listens_for(engine.sync_engine, "checkin")
     def receive_checkin(dbapi_connection, connection_record):
         """Monitor connection checkin and track connection lifetime."""
         if 'checkout_time' in connection_record.info:
             # Track connection usage time for performance monitoring
-            logger.debug(f"Connection checked in to pool (pool size: {engine.pool.size()})")
+            logger.debug(f"Connection checked in to pool (pool size: {engine.pool.size() if hasattr(engine.pool, 'size') else 'N/A'})")
             del connection_record.info['checkout_time']
 
 
@@ -70,15 +68,13 @@ def get_engine():
             pool_size = 5
             max_overflow = 10
 
-        # Engine configuration with security and performance optimizations
-        engine_config = {
-            "echo": settings.db_echo_sql and not settings.is_production,
-            "echo_pool": False,  # Disable pool logging in production
-            "pool_recycle": settings.db_pool_recycle,
-            "pool_pre_ping": settings.db_pool_pre_ping,
-            "pool_size": pool_size,
-            "max_overflow": max_overflow,
-        }
+        engine_config = {}
+
+        if settings.database_url_async.startswith("postgresql"):
+            engine_config.update({
+                "pool_size": pool_size,
+                "max_overflow": max_overflow,
+            })
 
         # Add connection arguments for PostgreSQL with performance tuning
         if settings.database_url_async.startswith("postgresql"):
@@ -98,21 +94,21 @@ def get_engine():
                 "connect_args": connect_args,
                 "poolclass": pool.AsyncAdaptedQueuePool,  # Better for async operations
             })
-        
+
         _engine = create_async_engine(settings.database_url_async, **engine_config)
-        
+
         # Setup connection monitoring
         _setup_connection_events(_engine)
-        
+
         logger.info(f"Database engine created for {settings.environment} environment")
-    
+
     return _engine
 
 
 def get_session_maker():
     """Get session maker singleton."""
     global _session_maker
-    
+
     if _session_maker is None:
         engine = get_engine()
         _session_maker = async_sessionmaker(
@@ -123,7 +119,7 @@ def get_session_maker():
             autocommit=False,
         )
         logger.info("Database session maker created")
-    
+
     return _session_maker
 
 
@@ -131,7 +127,7 @@ def get_session_maker():
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     """
     Get database session with automatic cleanup.
-    
+
     Usage:
         async with get_db_session() as session:
             # Use session here
@@ -152,7 +148,7 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
 async def get_db_session_dependency() -> AsyncGenerator[AsyncSession, None]:
     """
     FastAPI dependency for database session.
-    
+
     Usage in FastAPI routes:
         @app.get("/items")
         async def get_items(db: AsyncSession = Depends(get_db_session_dependency)):
@@ -164,7 +160,7 @@ async def get_db_session_dependency() -> AsyncGenerator[AsyncSession, None]:
 
 class DatabaseHealthCheck:
     """Database health check utilities."""
-    
+
     @staticmethod
     async def check_connection() -> bool:
         """Check if database connection is healthy."""
@@ -175,7 +171,7 @@ class DatabaseHealthCheck:
         except Exception as e:
             logger.error(f"Database health check failed: {e}")
             return False
-    
+
     @staticmethod
     async def get_pool_status() -> dict:
         """Get detailed connection pool status for monitoring."""

@@ -9,19 +9,17 @@ import logging
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from sqlalchemy import create_engine, text
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from core.config import get_settings
-from models.agent import Agent, AgentNamespace
-from models.memory import Memory
-from models.task import Task
+from models.agent import Agent
 from services.agent_service import AgentService
 
 logging.basicConfig(level=logging.INFO)
@@ -30,17 +28,17 @@ logger = logging.getLogger(__name__)
 
 class PersonaToAgentMigrator:
     """Handles the migration from Persona-based system to Agent-based system."""
-    
+
     def __init__(self, async_engine, sync_engine):
         self.async_engine = async_engine
         self.sync_engine = sync_engine
         self.async_session_maker = async_sessionmaker(async_engine, class_=AsyncSession)
         self.sync_session_maker = sessionmaker(sync_engine)
-        
+
         self.migration_log = []
         self.errors = []
-    
-    def log_action(self, action: str, details: Dict[str, Any] = None):
+
+    def log_action(self, action: str, details: dict[str, Any] = None):
         """Log migration actions for audit trail."""
         entry = {
             "timestamp": datetime.utcnow().isoformat(),
@@ -49,8 +47,8 @@ class PersonaToAgentMigrator:
         }
         self.migration_log.append(entry)
         logger.info(f"Migration: {action} - {details}")
-    
-    def log_error(self, error: str, details: Dict[str, Any] = None):
+
+    def log_error(self, error: str, details: dict[str, Any] = None):
         """Log migration errors."""
         entry = {
             "timestamp": datetime.utcnow().isoformat(),
@@ -59,7 +57,7 @@ class PersonaToAgentMigrator:
         }
         self.errors.append(entry)
         logger.error(f"Migration Error: {error} - {details}")
-    
+
     async def pre_migration_validation(self) -> bool:
         """Validate system state before migration."""
         async with self.async_session_maker() as session:
@@ -72,36 +70,36 @@ class PersonaToAgentMigrator:
                     );
                 """))
                 personas_table_exists = result.scalar()
-                
+
                 if not personas_table_exists:
                     self.log_action("pre_validation", {"status": "no_personas_table"})
                     logger.warning("Personas table does not exist - creating default agents only")
                     return True
-                
+
                 # Count existing personas
                 persona_count = await session.execute(text("SELECT COUNT(*) FROM personas"))
                 persona_count = persona_count.scalar()
-                
+
                 # Check if agents table is empty
                 agent_count = await session.execute(text("SELECT COUNT(*) FROM agents"))
                 agent_count = agent_count.scalar()
-                
+
                 self.log_action("pre_validation", {
                     "personas_count": persona_count,
                     "agents_count": agent_count,
                     "status": "ready" if agent_count == 0 else "agents_exist"
                 })
-                
+
                 if agent_count > 0:
                     logger.warning(f"Agents table already contains {agent_count} entries")
                     return input("Continue migration anyway? (y/N): ").lower() == 'y'
-                
+
                 return True
-                
+
             except Exception as e:
                 self.log_error("pre_validation_failed", {"error": str(e)})
                 return False
-    
+
     async def create_database_schema(self):
         """Create new database tables for agent system."""
         async with self.async_session_maker() as session:
@@ -137,7 +135,7 @@ class PersonaToAgentMigrator:
                         CONSTRAINT adaptation_rate_bounds CHECK (adaptation_rate >= 0.0 AND adaptation_rate <= 1.0)
                     );
                 """))
-                
+
                 # Create agent_namespaces table
                 await session.execute(text("""
                     CREATE TABLE IF NOT EXISTS agent_namespaces (
@@ -158,7 +156,7 @@ class PersonaToAgentMigrator:
                         CONSTRAINT max_agents_positive CHECK (max_agents IS NULL OR max_agents > 0)
                     );
                 """))
-                
+
                 # Create agent_teams table
                 await session.execute(text("""
                     CREATE TABLE IF NOT EXISTS agent_teams (
@@ -180,7 +178,7 @@ class PersonaToAgentMigrator:
                         CONSTRAINT max_members_positive CHECK (max_members IS NULL OR max_members > 0)
                     );
                 """))
-                
+
                 # Create indexes
                 indexes = [
                     "CREATE INDEX IF NOT EXISTS idx_agents_agent_id ON agents(agent_id);",
@@ -193,23 +191,23 @@ class PersonaToAgentMigrator:
                     "CREATE INDEX IF NOT EXISTS idx_teams_team_id ON agent_teams(team_id);",
                     "CREATE INDEX IF NOT EXISTS idx_teams_namespace ON agent_teams(namespace, is_active);"
                 ]
-                
+
                 for index_sql in indexes:
                     await session.execute(text(index_sql))
-                
+
                 await session.commit()
                 self.log_action("schema_created", {"tables": ["agents", "agent_namespaces", "agent_teams"]})
-                
+
             except Exception as e:
                 await session.rollback()
                 self.log_error("schema_creation_failed", {"error": str(e)})
                 raise
-    
+
     async def migrate_personas_to_agents(self):
         """Migrate existing personas to agents."""
         async with self.async_session_maker() as session:
             agent_service = AgentService(session)
-            
+
             try:
                 # First check if personas table exists
                 result = await session.execute(text("""
@@ -219,12 +217,12 @@ class PersonaToAgentMigrator:
                     );
                 """))
                 personas_exist = result.scalar()
-                
+
                 if not personas_exist:
                     self.log_action("persona_migration", {"status": "no_personas_table"})
                     # Create default Trinitas agents
                     return await self.create_default_agents(agent_service)
-                
+
                 # Get all personas
                 personas_result = await session.execute(text("""
                     SELECT id, name, type, role, display_name, description, 
@@ -233,37 +231,37 @@ class PersonaToAgentMigrator:
                     FROM personas
                 """))
                 personas = personas_result.fetchall()
-                
+
                 migrated_count = 0
                 for persona in personas:
                     try:
                         # Map persona to agent
                         agent_id = f"{persona.name.lower().replace('_', '-')}-{persona.role.lower()}"
-                        
+
                         # Map persona type/role to agent type
                         type_mapping = {
                             "athena": "system_orchestrator",
-                            "artemis": "technical_optimizer", 
+                            "artemis": "technical_optimizer",
                             "hestia": "security_auditor",
                             "bellona": "tactical_coordinator",
                             "hera": "strategic_planner",
                             "seshat": "knowledge_architect"
                         }
-                        
+
                         agent_type = type_mapping.get(persona.type, "general_agent")
-                        
+
                         # Convert capabilities
                         capabilities = {}
                         if persona.capabilities:
                             capabilities = persona.capabilities
                         if persona.specialties:
                             capabilities["specialties"] = persona.specialties
-                        
+
                         # Convert configuration
                         configuration = persona.personality_traits or {}
                         if persona.metadata:
                             configuration.update(persona.metadata)
-                        
+
                         # Create agent
                         agent = await agent_service.create_agent(
                             agent_id=agent_id,
@@ -275,7 +273,7 @@ class PersonaToAgentMigrator:
                             namespace="trinitas",
                             access_level="standard" if persona.role != "strategist" else "admin"
                         )
-                        
+
                         migrated_count += 1
                         self.log_action("persona_migrated", {
                             "old_id": str(persona.id),
@@ -283,7 +281,7 @@ class PersonaToAgentMigrator:
                             "name": persona.name,
                             "type": agent_type
                         })
-                        
+
                     except Exception as e:
                         self.log_error("persona_migration_failed", {
                             "persona_id": str(persona.id),
@@ -291,24 +289,24 @@ class PersonaToAgentMigrator:
                             "error": str(e)
                         })
                         continue
-                
+
                 self.log_action("persona_migration_complete", {
                     "total_personas": len(personas),
                     "migrated_count": migrated_count,
                     "failed_count": len(personas) - migrated_count
                 })
-                
+
                 return migrated_count
-                
+
             except Exception as e:
                 self.log_error("persona_migration_failed", {"error": str(e)})
                 raise
-    
+
     async def create_default_agents(self, agent_service: AgentService) -> int:
         """Create default Trinitas agents."""
         default_agents = Agent.create_default_agents()
         created_count = 0
-        
+
         for agent_data in default_agents:
             try:
                 agent = await agent_service.create_agent(**agent_data)
@@ -323,9 +321,9 @@ class PersonaToAgentMigrator:
                     "agent_id": agent_data["agent_id"],
                     "error": str(e)
                 })
-        
+
         return created_count
-    
+
     async def update_memory_schema(self):
         """Update memory table to use agent_id instead of persona_id."""
         async with self.async_session_maker() as session:
@@ -338,11 +336,11 @@ class PersonaToAgentMigrator:
                     );
                 """))
                 persona_id_exists = result.scalar()
-                
+
                 if not persona_id_exists:
                     self.log_action("memory_schema_update", {"status": "already_updated"})
                     return
-                
+
                 # Add new agent-centric columns
                 await session.execute(text("""
                     ALTER TABLE memories 
@@ -361,7 +359,7 @@ class PersonaToAgentMigrator:
                     ADD COLUMN IF NOT EXISTS external_references JSONB DEFAULT '{}',
                     ADD COLUMN IF NOT EXISTS similarity_threshold FLOAT DEFAULT 0.7;
                 """))
-                
+
                 # Migrate persona_id data to agent_id
                 await session.execute(text("""
                     UPDATE memories 
@@ -376,7 +374,7 @@ class PersonaToAgentMigrator:
                     END
                     WHERE persona_id IS NOT NULL;
                 """))
-                
+
                 # Add constraints and indexes
                 await session.execute(text("""
                     ALTER TABLE memories 
@@ -389,7 +387,7 @@ class PersonaToAgentMigrator:
                     ADD CONSTRAINT IF NOT EXISTS similarity_threshold_bounds 
                         CHECK (similarity_threshold >= 0.0 AND similarity_threshold <= 1.0);
                 """))
-                
+
                 # Create new indexes
                 memory_indexes = [
                     "CREATE INDEX IF NOT EXISTS idx_memories_agent_namespace ON memories(agent_id, namespace);",
@@ -400,18 +398,18 @@ class PersonaToAgentMigrator:
                     "CREATE INDEX IF NOT EXISTS idx_memories_hierarchy ON memories(parent_memory_id, memory_category);",
                     "CREATE INDEX IF NOT EXISTS idx_memories_context_tags ON memories USING gin(context_tags);"
                 ]
-                
+
                 for index_sql in memory_indexes:
                     await session.execute(text(index_sql))
-                
+
                 await session.commit()
                 self.log_action("memory_schema_updated", {"status": "success"})
-                
+
             except Exception as e:
                 await session.rollback()
                 self.log_error("memory_schema_update_failed", {"error": str(e)})
                 raise
-    
+
     async def update_task_schema(self):
         """Update task table to use agent_id instead of assigned_persona_id."""
         async with self.async_session_maker() as session:
@@ -424,11 +422,11 @@ class PersonaToAgentMigrator:
                     );
                 """))
                 persona_id_exists = result.scalar()
-                
+
                 if not persona_id_exists:
                     self.log_action("task_schema_update", {"status": "already_updated"})
                     return
-                
+
                 # Add new agent-centric columns
                 await session.execute(text("""
                     ALTER TABLE tasks
@@ -454,7 +452,7 @@ class PersonaToAgentMigrator:
                     ADD COLUMN IF NOT EXISTS quality_score FLOAT,
                     ADD COLUMN IF NOT EXISTS success_criteria JSONB DEFAULT '{}';
                 """))
-                
+
                 # Migrate assigned_persona_id data to assigned_agent_id
                 await session.execute(text("""
                     UPDATE tasks 
@@ -469,7 +467,7 @@ class PersonaToAgentMigrator:
                     END
                     WHERE assigned_persona_id IS NOT NULL;
                 """))
-                
+
                 # Add constraints
                 await session.execute(text("""
                     ALTER TABLE tasks 
@@ -488,7 +486,7 @@ class PersonaToAgentMigrator:
                     ADD CONSTRAINT IF NOT EXISTS quality_score_bounds 
                         CHECK (quality_score IS NULL OR (quality_score >= 0.0 AND quality_score <= 10.0));
                 """))
-                
+
                 # Create new indexes
                 task_indexes = [
                     "CREATE INDEX IF NOT EXISTS idx_tasks_agent_status ON tasks(assigned_agent_id, status);",
@@ -498,23 +496,23 @@ class PersonaToAgentMigrator:
                     "CREATE INDEX IF NOT EXISTS idx_tasks_performance ON tasks(quality_score, actual_duration);",
                     "CREATE INDEX IF NOT EXISTS idx_tasks_context_tags ON tasks USING gin(context_tags);"
                 ]
-                
+
                 for index_sql in task_indexes:
                     await session.execute(text(index_sql))
-                
+
                 await session.commit()
                 self.log_action("task_schema_updated", {"status": "success"})
-                
+
             except Exception as e:
                 await session.rollback()
                 self.log_error("task_schema_update_failed", {"error": str(e)})
                 raise
-    
+
     async def create_default_namespaces(self):
         """Create default namespaces."""
         async with self.async_session_maker() as session:
             agent_service = AgentService(session)
-            
+
             default_namespaces = [
                 {
                     "namespace": "default",
@@ -530,7 +528,7 @@ class PersonaToAgentMigrator:
                 },
                 {
                     "namespace": "public",
-                    "display_name": "Public Namespace", 
+                    "display_name": "Public Namespace",
                     "description": "Public namespace accessible to all agents",
                     "access_policy": "public"
                 },
@@ -541,7 +539,7 @@ class PersonaToAgentMigrator:
                     "access_policy": "restricted"
                 }
             ]
-            
+
             created_count = 0
             for ns_data in default_namespaces:
                 try:
@@ -553,9 +551,9 @@ class PersonaToAgentMigrator:
                         "namespace": ns_data["namespace"],
                         "error": str(e)
                     })
-            
+
             return created_count
-    
+
     async def post_migration_validation(self) -> bool:
         """Validate migration results."""
         async with self.async_session_maker() as session:
@@ -563,23 +561,23 @@ class PersonaToAgentMigrator:
                 # Count agents
                 agent_count = await session.execute(text("SELECT COUNT(*) FROM agents"))
                 agent_count = agent_count.scalar()
-                
+
                 # Count namespaces
                 namespace_count = await session.execute(text("SELECT COUNT(*) FROM agent_namespaces"))
                 namespace_count = namespace_count.scalar()
-                
+
                 # Count memories with agent_id
                 memory_agent_count = await session.execute(text("""
                     SELECT COUNT(*) FROM memories WHERE agent_id IS NOT NULL
                 """))
                 memory_agent_count = memory_agent_count.scalar()
-                
+
                 # Count tasks with assigned_agent_id
                 task_agent_count = await session.execute(text("""
                     SELECT COUNT(*) FROM tasks WHERE assigned_agent_id IS NOT NULL
                 """))
                 task_agent_count = task_agent_count.scalar()
-                
+
                 validation_results = {
                     "agents_created": agent_count,
                     "namespaces_created": namespace_count,
@@ -587,53 +585,53 @@ class PersonaToAgentMigrator:
                     "tasks_with_agents": task_agent_count,
                     "migration_errors": len(self.errors)
                 }
-                
+
                 self.log_action("post_migration_validation", validation_results)
-                
+
                 # Basic validation checks
                 success = (
-                    agent_count > 0 and 
+                    agent_count > 0 and
                     namespace_count > 0 and
                     len(self.errors) == 0
                 )
-                
+
                 return success
-                
+
             except Exception as e:
                 self.log_error("post_validation_failed", {"error": str(e)})
                 return False
-    
-    async def run_migration(self) -> Dict[str, Any]:
+
+    async def run_migration(self) -> dict[str, Any]:
         """Run the complete migration process."""
         start_time = datetime.utcnow()
         self.log_action("migration_started", {"start_time": start_time.isoformat()})
-        
+
         try:
             # Pre-migration validation
             if not await self.pre_migration_validation():
                 raise Exception("Pre-migration validation failed")
-            
+
             # Create new schema
             await self.create_database_schema()
-            
+
             # Create default namespaces
             namespace_count = await self.create_default_namespaces()
-            
+
             # Migrate personas to agents
             agent_count = await self.migrate_personas_to_agents()
-            
+
             # Update memory schema
             await self.update_memory_schema()
-            
-            # Update task schema  
+
+            # Update task schema
             await self.update_task_schema()
-            
+
             # Post-migration validation
             validation_success = await self.post_migration_validation()
-            
+
             end_time = datetime.utcnow()
             duration = (end_time - start_time).total_seconds()
-            
+
             results = {
                 "success": validation_success,
                 "duration_seconds": duration,
@@ -642,10 +640,10 @@ class PersonaToAgentMigrator:
                 "errors": len(self.errors),
                 "migration_log_entries": len(self.migration_log)
             }
-            
+
             self.log_action("migration_completed", results)
             return results
-            
+
         except Exception as e:
             self.log_error("migration_failed", {"error": str(e)})
             return {
@@ -654,22 +652,22 @@ class PersonaToAgentMigrator:
                 "errors": len(self.errors),
                 "migration_log_entries": len(self.migration_log)
             }
-    
-    def save_migration_report(self, results: Dict[str, Any]):
+
+    def save_migration_report(self, results: dict[str, Any]):
         """Save migration report to file."""
         import json
-        
+
         report = {
             "migration_summary": results,
             "migration_log": self.migration_log,
             "errors": self.errors,
             "timestamp": datetime.utcnow().isoformat()
         }
-        
+
         report_file = Path(__file__).parent / f"migration_report_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
         with open(report_file, 'w') as f:
             json.dump(report, f, indent=2)
-        
+
         logger.info(f"Migration report saved to: {report_file}")
         return report_file
 
@@ -677,23 +675,23 @@ class PersonaToAgentMigrator:
 async def main():
     """Main migration function."""
     settings = get_settings()
-    
+
     # Create engines
     async_engine = create_async_engine(settings.async_database_url)
     sync_engine = create_engine(settings.database_url)
-    
+
     # Create migrator
     migrator = PersonaToAgentMigrator(async_engine, sync_engine)
-    
+
     logger.info("🚀 Starting TMWS Persona → Agent Migration")
     logger.info("=" * 60)
-    
+
     # Run migration
     results = await migrator.run_migration()
-    
+
     # Save report
     report_file = migrator.save_migration_report(results)
-    
+
     # Print summary
     logger.info("=" * 60)
     logger.info("🎯 Migration Summary:")
@@ -703,7 +701,7 @@ async def main():
     logger.info(f"   Namespaces Created: {results.get('namespaces_created', 0)}")
     logger.info(f"   Errors: {results.get('errors', 0)}")
     logger.info(f"   Report: {report_file}")
-    
+
     if results.get('success'):
         logger.info("✅ Migration completed successfully!")
         logger.info("🔄 Next steps:")
@@ -715,11 +713,11 @@ async def main():
         logger.error("🔍 Check the migration report for detailed error information")
         if 'error' in results:
             logger.error(f"   Primary error: {results['error']}")
-    
+
     # Cleanup
     await async_engine.dispose()
     sync_engine.dispose()
-    
+
     return results.get('success', False)
 
 

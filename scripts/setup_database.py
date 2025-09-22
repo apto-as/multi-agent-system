@@ -19,12 +19,12 @@ async def main():
     print("=" * 60)
     print("TMWS Database Setup")
     print("=" * 60)
-    
+
     try:
         print("\n🔄 Creating database tables...")
         await create_tables()
         print("✅ All tables created successfully!")
-        
+
         print("\n📊 Created tables:")
         print("  - agents (Agent registry)")
         print("  - agent_namespaces (Namespace management)")
@@ -33,11 +33,11 @@ async def main():
         print("  - personas (Persona definitions)")
         print("  - tasks (Task management)")
         print("  - workflows (Workflow orchestration)")
-        
+
         print("\n✨ Database setup complete!")
         print("\nYou can now run TMWS with:")
         print("  uvx --from git+https://github.com/apto-as/tmws.git tmws")
-        
+
     except Exception as e:
         print(f"\n❌ Error during setup: {e}")
         print("\nPlease ensure:")

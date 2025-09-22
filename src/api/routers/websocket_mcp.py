@@ -2,12 +2,9 @@
 WebSocket MCP Router for TMWS v2.2.0
 """
 
-from fastapi import APIRouter, WebSocket, Depends, status
-from src.api.websocket_mcp import (
-    websocket_endpoint,
-    get_websocket_stats,
-    list_active_sessions
-)
+from fastapi import APIRouter
+
+from src.api.websocket_mcp import get_websocket_stats, list_active_sessions, websocket_endpoint
 
 router = APIRouter()
 

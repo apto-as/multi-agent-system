@@ -11,16 +11,16 @@ This package contains modularized MCP tools for:
 - Learning and pattern recognition
 """
 
+from .learning_tools import LearningTools
 from .memory_tools import MemoryTools
 from .persona_tools import PersonaTools
+from .system_tools import SystemTools
 from .task_tools import TaskTools
 from .workflow_tools import WorkflowTools
-from .system_tools import SystemTools
-from .learning_tools import LearningTools
 
 __all__ = [
     "MemoryTools",
-    "PersonaTools", 
+    "PersonaTools",
     "TaskTools",
     "WorkflowTools",
     "SystemTools",

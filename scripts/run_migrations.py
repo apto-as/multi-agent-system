@@ -6,25 +6,23 @@ This script handles database migrations for TMWS
 including automatic backup and rollback capabilities
 """
 
-import os
-import sys
 import argparse
-import subprocess
 import logging
+import os
+import subprocess
+import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, List, Dict, Any
-import asyncio
-import json
+from typing import Any
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from alembic.config import Config
 from alembic import command
-from alembic.script import ScriptDirectory
+from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
-from sqlalchemy import create_engine, text
+from alembic.script import ScriptDirectory
+from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 
 # Configure logging
@@ -38,7 +36,7 @@ logger = logging.getLogger(__name__)
 class MigrationRunner:
     """Handles database migrations with safety features."""
 
-    def __init__(self, database_url: Optional[str] = None):
+    def __init__(self, database_url: str | None = None):
         """Initialize migration runner."""
         self.database_url = database_url or os.getenv(
             'TMWS_DATABASE_URL',
@@ -52,7 +50,7 @@ class MigrationRunner:
         """Create database engine."""
         return create_engine(self.database_url)
 
-    def get_current_revision(self) -> Optional[str]:
+    def get_current_revision(self) -> str | None:
         """Get current database revision."""
         try:
             engine = self.get_engine()
@@ -63,7 +61,7 @@ class MigrationRunner:
             logger.error(f"Failed to get current revision: {e}")
             return None
 
-    def get_pending_migrations(self) -> List[str]:
+    def get_pending_migrations(self) -> list[str]:
         """Get list of pending migrations."""
         config = Config(str(self.alembic_ini))
         script_dir = ScriptDirectory.from_config(config)
@@ -81,7 +79,7 @@ class MigrationRunner:
 
         return list(reversed(pending))
 
-    def backup_database(self, prefix: str = "migration") -> Optional[Path]:
+    def backup_database(self, prefix: str = "migration") -> Path | None:
         """Create database backup before migration."""
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         backup_file = self.backup_dir / f"{prefix}_backup_{timestamp}.sql"
@@ -248,7 +246,7 @@ class MigrationRunner:
             logger.error(f"Failed to run downgrade: {e}")
             return False
 
-    def check_migration_status(self) -> Dict[str, Any]:
+    def check_migration_status(self) -> dict[str, Any]:
         """Check migration status and return info."""
         try:
             config = Config(str(self.alembic_ini))

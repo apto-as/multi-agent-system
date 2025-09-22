@@ -2,15 +2,15 @@
 Shared pytest fixtures and configuration for TMWS test suite.
 """
 
-import os
 import asyncio
+import os
+from collections.abc import AsyncGenerator
+from unittest.mock import AsyncMock
+
 import pytest
 import pytest_asyncio
-from typing import AsyncGenerator, Generator
-from unittest.mock import AsyncMock, MagicMock
 from fastapi.testclient import TestClient
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
 # Set test environment
@@ -19,12 +19,24 @@ os.environ["TMWS_AUTH_ENABLED"] = "false"
 os.environ["TMWS_DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 os.environ["TMWS_SECRET_KEY"] = "test_secret_key_for_testing_only_32_chars"
 
+from src.api.app import create_app
 from src.core.config import get_settings
-from src.core.database import Base, get_db
-from src.main import app
+from src.core.database import Base, get_db_session_dependency
+
+# Import all models to ensure Base.metadata discovers them
+from src.models.user import User, UserRole, APIKey, RefreshToken
+from src.models.agent import Agent, AgentTeam, AgentNamespace
+from src.models.task import Task, TaskTemplate
+from src.models.workflow import Workflow, WorkflowType, WorkflowStatus
+from src.models.workflow_history import WorkflowExecution, WorkflowStepExecution, WorkflowExecutionLog, WorkflowSchedule
+from src.models.learning_pattern import LearningPattern
+from src.models.memory import Memory
+from src.models.persona import Persona
+from src.models.api_audit_log import APIAuditLog
 
 # Get test settings
 settings = get_settings()
+app = create_app()
 
 @pytest.fixture(scope="session")
 def event_loop():
@@ -42,7 +54,19 @@ async def test_engine():
         echo=False
     )
 
+    # Import all models to ensure Base.metadata discovers them within the fixture scope
+    from src.models.user import User, UserRole, APIKey, RefreshToken
+    from src.models.agent import Agent, AgentTeam, AgentNamespace
+    from src.models.task import Task, TaskTemplate
+    from src.models.workflow import Workflow, WorkflowType, WorkflowStatus
+    from src.models.workflow_history import WorkflowExecution, WorkflowStepExecution, WorkflowExecutionLog, WorkflowSchedule
+    from src.models.learning_pattern import LearningPattern
+    from src.models.memory import Memory
+    from src.models.persona import Persona
+    from src.models.api_audit_log import APIAuditLog
+
     async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all) # Drop all tables for a clean slate
         await conn.run_sync(Base.metadata.create_all)
 
     yield engine
@@ -61,10 +85,12 @@ async def test_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
     async with async_session() as session:
         yield session
 
-@pytest.fixture
-def client(test_session):
+@pytest_asyncio.fixture
+async def client(test_session):
     """Create test client."""
-    app.dependency_overrides[get_db] = lambda: test_session
+    from src.api.app import create_app
+    app = create_app()
+    app.dependency_overrides[get_db_session_dependency] = lambda: test_session
 
     with TestClient(app) as test_client:
         yield test_client
@@ -75,26 +101,43 @@ def client(test_session):
 async def authenticated_client(client, test_session):
     """Create authenticated test client."""
     # Create test user and get token
-    from src.models.user import User
+    from src.models.user import UserRole
     from src.services.auth_service import AuthService
 
-    auth_service = AuthService(test_session)
+    auth_service = AuthService()
 
     # Create test user
     user = await auth_service.create_user(
         username="testuser",
         email="test@example.com",
         password="TestPassword123!",
-        role="user"
+        roles=[UserRole.USER]
     )
 
     # Generate token
-    token = auth_service.create_access_token({"sub": user.username})
+    user, token, _ = await auth_service.authenticate_user(
+        username="testuser",
+        password="TestPassword123!"
+    )
+
 
     # Add auth header to client
     client.headers["Authorization"] = f"Bearer {token}"
 
     yield client
+
+@pytest_asyncio.fixture
+async def test_user(test_session, test_user_data):
+    """Create a test user in the database."""
+    from src.services.auth_service import AuthService
+    auth_service = AuthService()
+    user = await auth_service.create_user(
+        username=test_user_data["username"],
+        email=test_user_data["email"],
+        password=test_user_data["password"],
+        roles=test_user_data["roles"]
+    )
+    return user
 
 @pytest.fixture
 def mock_redis():
@@ -177,4 +220,14 @@ def sample_memory_data():
         "importance": 0.8,
         "tags": ["test", "sample"],
         "metadata": {"source": "test"}
+    }
+
+@pytest.fixture
+def test_user_data():
+    """Sample user data for testing."""
+    return {
+        "username": "testuser",
+        "email": "test@example.com",
+        "password": "TestPassword123!",
+        "roles": [UserRole.USER]
     }

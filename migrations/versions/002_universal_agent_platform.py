@@ -8,11 +8,11 @@ This migration transforms TMWS from a persona-specific system to a universal
 multi-agent memory management platform.
 """
 
-from alembic import op
+
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
+from alembic import op
 from pgvector.sqlalchemy import Vector
-import json
+from sqlalchemy.dialects import postgresql
 
 # revision identifiers
 revision = '002'
@@ -23,11 +23,11 @@ depends_on = None
 
 def upgrade():
     """Upgrade to universal agent platform."""
-    
+
     # Create AccessLevel enum
     op.execute("CREATE TYPE accesslevel AS ENUM ('private', 'team', 'shared', 'public', 'system')")
     op.execute("CREATE TYPE agentstatus AS ENUM ('active', 'inactive', 'suspended', 'deprecated')")
-    
+
     # 1. Create new agent tables
     op.create_table('agents',
         sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False),
@@ -53,14 +53,14 @@ def upgrade():
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('agent_id')
     )
-    
+
     op.create_index('ix_agents_agent_id', 'agents', ['agent_id'])
     op.create_index('ix_agents_organization_id', 'agents', ['organization_id'])
     op.create_index('ix_agents_namespace', 'agents', ['namespace'])
     op.create_index('ix_agent_org_namespace', 'agents', ['organization_id', 'namespace'])
     op.create_index('ix_agent_status_active', 'agents', ['status', 'last_active_at'])
     op.create_index('ix_agent_type_status', 'agents', ['agent_type', 'status'])
-    
+
     # 2. Create agent teams table
     op.create_table('agent_teams',
         sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False),
@@ -78,10 +78,10 @@ def upgrade():
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('team_id')
     )
-    
+
     op.create_index('ix_agent_teams_team_id', 'agent_teams', ['team_id'])
     op.create_index('ix_agent_teams_is_active', 'agent_teams', ['is_active'])
-    
+
     # 3. Create agent namespaces table
     op.create_table('agent_namespaces',
         sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False),
@@ -99,10 +99,10 @@ def upgrade():
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('namespace')
     )
-    
+
     op.create_index('ix_agent_namespaces_namespace', 'agent_namespaces', ['namespace'])
     op.create_index('ix_agent_namespaces_is_active', 'agent_namespaces', ['is_active'])
-    
+
     # 4. Create new memories_v2 table
     op.create_table('memories_v2',
         sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False),
@@ -131,20 +131,20 @@ def upgrade():
         sa.ForeignKeyConstraint(['parent_memory_id'], ['memories_v2.id'], ),
         sa.PrimaryKeyConstraint('id')
     )
-    
+
     op.create_index('ix_memory_agent_namespace', 'memories_v2', ['agent_id', 'namespace'])
     op.create_index('ix_memory_access_level', 'memories_v2', ['access_level', 'agent_id'])
     op.create_index('ix_memory_importance', 'memories_v2', ['importance_score', 'relevance_score'])
     op.create_index('ix_memory_accessed', 'memories_v2', ['accessed_at', 'access_count'])
     op.create_index('ix_memory_expires', 'memories_v2', ['expires_at'])
-    
+
     # Create vector index for semantic search
     op.execute("CREATE INDEX ix_memory_embedding ON memories_v2 USING ivfflat (embedding vector_cosine_ops)")
-    
+
     # Create GIN indexes for JSON fields
     op.execute("CREATE INDEX ix_memory_tags ON memories_v2 USING gin (tags)")
     op.execute("CREATE INDEX ix_memory_context ON memories_v2 USING gin (context)")
-    
+
     # 5. Create memory sharing table
     op.create_table('memory_sharing',
         sa.Column('memory_id', postgresql.UUID(as_uuid=True), nullable=False),
@@ -156,10 +156,10 @@ def upgrade():
         sa.ForeignKeyConstraint(['memory_id'], ['memories_v2.id'], ),
         sa.PrimaryKeyConstraint('memory_id', 'shared_with_agent_id')
     )
-    
+
     op.create_index('ix_sharing_agent', 'memory_sharing', ['shared_with_agent_id', 'shared_at'])
     op.create_index('ix_sharing_expires', 'memory_sharing', ['expires_at'])
-    
+
     # 6. Create memory patterns table
     op.create_table('memory_patterns',
         sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False),
@@ -177,13 +177,13 @@ def upgrade():
         sa.Column('metadata', postgresql.JSON(astext_type=sa.Text()), nullable=True),
         sa.PrimaryKeyConstraint('id')
     )
-    
+
     op.create_index('ix_pattern_agent_type', 'memory_patterns', ['agent_id', 'pattern_type'])
     op.create_index('ix_pattern_confidence', 'memory_patterns', ['confidence', 'frequency'])
     op.create_index('ix_memory_patterns_is_active', 'memory_patterns', ['is_active'])
     op.create_index('ix_memory_patterns_agent_id', 'memory_patterns', ['agent_id'])
     op.create_index('ix_memory_patterns_namespace', 'memory_patterns', ['namespace'])
-    
+
     # 7. Create memory consolidations table
     op.create_table('memory_consolidations',
         sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False),
@@ -196,9 +196,9 @@ def upgrade():
         sa.ForeignKeyConstraint(['consolidated_memory_id'], ['memories_v2.id'], ),
         sa.PrimaryKeyConstraint('id')
     )
-    
+
     op.create_index('ix_memory_consolidations_agent_id', 'memory_consolidations', ['agent_id'])
-    
+
     # 8. Migrate existing personas to agents
     op.execute("""
         INSERT INTO agents (id, agent_id, display_name, namespace, agent_type, capabilities, config, status)
@@ -227,7 +227,7 @@ def upgrade():
         FROM personas
         WHERE EXISTS (SELECT 1 FROM personas)
     """)
-    
+
     # 9. Migrate existing memories
     op.execute("""
         INSERT INTO memories_v2 (
@@ -250,7 +250,7 @@ def upgrade():
         LEFT JOIN personas p ON m.persona_id = p.id
         WHERE EXISTS (SELECT 1 FROM memories)
     """)
-    
+
     print("✅ Migration completed successfully!")
     print("✅ Existing personas have been migrated to agents")
     print("✅ Existing memories have been migrated to memories_v2")
@@ -258,7 +258,7 @@ def upgrade():
 
 def downgrade():
     """Downgrade from universal agent platform."""
-    
+
     # Drop new tables
     op.drop_table('memory_consolidations')
     op.drop_table('memory_patterns')
@@ -267,7 +267,7 @@ def downgrade():
     op.drop_table('agent_namespaces')
     op.drop_table('agent_teams')
     op.drop_table('agents')
-    
+
     # Drop enum types
     op.execute("DROP TYPE IF EXISTS accesslevel")
     op.execute("DROP TYPE IF EXISTS agentstatus")

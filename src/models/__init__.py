@@ -3,20 +3,25 @@ Database models for TMWS v2.2.0.
 """
 
 # Base classes
-from .base import TMWSBase, UUIDMixin, TimestampMixin, MetadataMixin
-
 # Core Models
-from .agent import Agent, AgentTeam, AgentNamespace
-from .memory import Memory, MemorySharing, MemoryPattern, MemoryConsolidation
-from .persona import Persona, PersonaType, PersonaRole
-from .task import Task, TaskStatus, TaskPriority
-from .workflow import Workflow, WorkflowStatus, WorkflowType
-from .learning_pattern import LearningPattern
-from .user import User
-from .workflow_history import WorkflowExecution, WorkflowStepExecution, WorkflowExecutionLog, WorkflowSchedule
+from .agent import Agent, AgentNamespace, AgentTeam
 
 # API audit logging
 from .api_audit_log import APIAuditLog
+from .audit_log import SecurityAuditLog, SecurityEventSeverity, SecurityEventType
+from .base import MetadataMixin, TimestampMixin, TMWSBase, UUIDMixin
+from .learning_pattern import LearningPattern
+from .memory import Memory, MemoryConsolidation, MemoryPattern, MemorySharing
+from .persona import Persona, PersonaRole, PersonaType
+from .task import Task, TaskPriority, TaskStatus
+from .user import User
+from .workflow import Workflow, WorkflowStatus, WorkflowType
+from .workflow_history import (
+    WorkflowExecution,
+    WorkflowExecutionLog,
+    WorkflowSchedule,
+    WorkflowStepExecution,
+)
 
 __all__ = [
     # Base classes
@@ -37,4 +42,7 @@ __all__ = [
 
     # API audit logging
     "APIAuditLog",
+    "SecurityAuditLog",
+    "SecurityEventType",
+    "SecurityEventSeverity",
 ]

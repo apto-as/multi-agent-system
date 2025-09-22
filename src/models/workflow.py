@@ -2,16 +2,20 @@
 Workflow models for TMWS.
 """
 
+from __future__ import annotations
+
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
-from uuid import UUID
+from typing import TYPE_CHECKING, Any
 
 import sqlalchemy as sa
-from sqlalchemy import JSON, Text, DateTime, Integer, Index
+from sqlalchemy import JSON, DateTime, Index, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from .base import TMWSBase, MetadataMixin
+from .base import MetadataMixin, TMWSBase
+
+if TYPE_CHECKING:
+    from .workflow_history import WorkflowExecution, WorkflowSchedule
 
 
 class WorkflowStatus(str, Enum):
@@ -36,13 +40,13 @@ class WorkflowType(str, Enum):
 
 class Workflow(TMWSBase, MetadataMixin):
     """Workflow model for complex task orchestration."""
-    
+
     __tablename__ = "workflows"
-    
+
     # Workflow identification
     name: Mapped[str] = mapped_column(Text, nullable=False, index=True)
     description: Mapped[str] = mapped_column(Text, nullable=False)
-    
+
     # Workflow configuration
     workflow_type: Mapped[WorkflowType] = mapped_column(
         sa.Enum(WorkflowType),
@@ -50,7 +54,7 @@ class Workflow(TMWSBase, MetadataMixin):
         default=WorkflowType.SEQUENTIAL,
         index=True
     )
-    
+
     # Workflow status
     status: Mapped[WorkflowStatus] = mapped_column(
         sa.Enum(WorkflowStatus),
@@ -58,7 +62,7 @@ class Workflow(TMWSBase, MetadataMixin):
         default=WorkflowStatus.DRAFT,
         index=True
     )
-    
+
     # Workflow definition
     steps: Mapped[list[dict]] = mapped_column(
         JSON,
@@ -66,7 +70,7 @@ class Workflow(TMWSBase, MetadataMixin):
         default=list,
         server_default=sa.text("'[]'::jsonb")
     )
-    
+
     # Execution tracking
     current_step_index: Mapped[int] = mapped_column(
         Integer,
@@ -74,42 +78,42 @@ class Workflow(TMWSBase, MetadataMixin):
         default=0,
         server_default=sa.text("0")
     )
-    
+
     execution_count: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
         default=0,
         server_default=sa.text("0")
     )
-    
+
     # Execution timestamps
-    started_at: Mapped[Optional[datetime]] = mapped_column(
+    started_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
         index=True
     )
-    completed_at: Mapped[Optional[datetime]] = mapped_column(
+    completed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
         index=True
     )
-    last_executed_at: Mapped[Optional[datetime]] = mapped_column(
+    last_executed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
         index=True
     )
-    
+
     # Error tracking
-    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    failed_step_index: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    failed_step_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
     # Creator information
-    created_by: Mapped[Optional[str]] = mapped_column(
+    created_by: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
         index=True
     )
-    
+
     # Tags for categorization
     tags: Mapped[list[str]] = mapped_column(
         JSON,
@@ -117,7 +121,7 @@ class Workflow(TMWSBase, MetadataMixin):
         default=list,
         server_default=sa.text("'[]'::jsonb")
     )
-    
+
     # Execution configuration
     config: Mapped[dict] = mapped_column(
         JSON,
@@ -125,61 +129,73 @@ class Workflow(TMWSBase, MetadataMixin):
         default=dict,
         server_default=sa.text("'{}'::jsonb")
     )
-    
+
+    # Relationships
+    executions: Mapped[list[WorkflowExecution]] = relationship(
+        "WorkflowExecution",
+        back_populates="workflow",
+        cascade="all, delete-orphan"
+    )
+    schedules: Mapped[list[WorkflowSchedule]] = relationship(
+        "WorkflowSchedule",
+        back_populates="workflow",
+        cascade="all, delete-orphan"
+    )
+
     # Indexes for performance
     __table_args__ = (
         Index('ix_workflow_status_type', 'status', 'workflow_type'),
         Index('ix_workflow_created_by_status', 'created_by', 'status'),
         Index('ix_workflow_last_executed', 'last_executed_at'),
     )
-    
+
     def __repr__(self) -> str:
         return f"<Workflow(name='{self.name}', type='{self.workflow_type}', status='{self.status}')>"
-    
+
     @property
     def is_active(self) -> bool:
         """Check if workflow is active."""
         return self.status == WorkflowStatus.ACTIVE
-    
+
     @property
     def is_running(self) -> bool:
         """Check if workflow is currently running."""
         return self.status == WorkflowStatus.RUNNING
-    
+
     @property
     def is_completed(self) -> bool:
         """Check if workflow is completed."""
         return self.status == WorkflowStatus.COMPLETED
-    
+
     @property
     def is_failed(self) -> bool:
         """Check if workflow has failed."""
         return self.status == WorkflowStatus.FAILED
-    
+
     @property
     def can_execute(self) -> bool:
         """Check if workflow can be executed."""
         return self.status in [WorkflowStatus.ACTIVE, WorkflowStatus.PAUSED]
-    
+
     @property
     def total_steps(self) -> int:
         """Get total number of steps."""
         return len(self.steps)
-    
+
     @property
     def progress(self) -> float:
         """Calculate workflow progress."""
         if self.total_steps == 0:
             return 0.0
         return self.current_step_index / self.total_steps
-    
+
     @property
-    def duration(self) -> Optional[float]:
+    def duration(self) -> float | None:
         """Calculate workflow duration in seconds."""
         if self.started_at and self.completed_at:
             return (self.completed_at - self.started_at).total_seconds()
         return None
-    
+
     def start(self) -> None:
         """Start workflow execution."""
         self.status = WorkflowStatus.RUNNING
@@ -189,45 +205,45 @@ class Workflow(TMWSBase, MetadataMixin):
         self.current_step_index = 0
         self.error_message = None
         self.failed_step_index = None
-    
+
     def pause(self) -> None:
         """Pause workflow execution."""
         self.status = WorkflowStatus.PAUSED
-    
+
     def resume(self) -> None:
         """Resume workflow execution."""
         self.status = WorkflowStatus.RUNNING
-    
+
     def complete(self) -> None:
         """Mark workflow as completed."""
         self.status = WorkflowStatus.COMPLETED
         self.completed_at = datetime.utcnow()
         self.current_step_index = self.total_steps
-    
-    def fail(self, error_message: str, step_index: Optional[int] = None) -> None:
+
+    def fail(self, error_message: str, step_index: int | None = None) -> None:
         """Mark workflow as failed."""
         self.status = WorkflowStatus.FAILED
         self.completed_at = datetime.utcnow()
         self.error_message = error_message
         self.failed_step_index = step_index or self.current_step_index
-    
+
     def cancel(self) -> None:
         """Cancel workflow execution."""
         self.status = WorkflowStatus.CANCELLED
         self.completed_at = datetime.utcnow()
-    
+
     def activate(self) -> None:
         """Activate workflow for execution."""
         self.status = WorkflowStatus.ACTIVE
-    
+
     def deactivate(self) -> None:
         """Deactivate workflow."""
         self.status = WorkflowStatus.INACTIVE
-    
+
     def advance_step(self) -> None:
         """Advance to next step."""
         self.current_step_index = min(self.current_step_index + 1, self.total_steps)
-    
+
     def reset(self) -> None:
         """Reset workflow execution state."""
         self.current_step_index = 0
@@ -235,26 +251,26 @@ class Workflow(TMWSBase, MetadataMixin):
         self.completed_at = None
         self.error_message = None
         self.failed_step_index = None
-        if self.status in [WorkflowStatus.RUNNING, WorkflowStatus.PAUSED, 
+        if self.status in [WorkflowStatus.RUNNING, WorkflowStatus.PAUSED,
                            WorkflowStatus.COMPLETED, WorkflowStatus.FAILED]:
             self.status = WorkflowStatus.ACTIVE
-    
+
     def add_step(self, step: dict) -> None:
         """Add a step to the workflow."""
         if not self.steps:
             self.steps = []
         self.steps.append(step)
-    
+
     def remove_step(self, index: int) -> None:
         """Remove a step from the workflow."""
         if 0 <= index < len(self.steps):
             self.steps.pop(index)
-    
+
     def update_step(self, index: int, step: dict) -> None:
         """Update a specific step."""
         if 0 <= index < len(self.steps):
             self.steps[index] = step
-    
+
     def to_dict(self) -> dict[str, Any]:
         """Convert workflow to dictionary."""
         return {

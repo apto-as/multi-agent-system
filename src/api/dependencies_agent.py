@@ -10,23 +10,28 @@ This module provides FastAPI dependency injection for secure agent operations:
 """
 
 import logging
-from typing import Optional, Dict, Any, Annotated
 from datetime import datetime
+from typing import Annotated, Any
 
-from fastapi import Depends, HTTPException, status, Request, Header
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import Depends, HTTPException, Request, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from ..security.agent_auth import AgentAuthService
-from ..security.access_control import AccessControlManager, create_access_control_manager, ResourceType, ActionType
-from ..security.data_encryption import EncryptionService, create_encryption_service
 from ..core.config import get_settings
+from ..security.access_control import (
+    AccessControlManager,
+    ActionType,
+    ResourceType,
+    create_access_control_manager,
+)
+from ..security.agent_auth import AgentAuthService, create_agent_authenticator
+from ..security.data_encryption import EncryptionService, create_encryption_service
 
 logger = logging.getLogger(__name__)
 
 # Global security service instances
-_agent_authenticator: Optional[AgentAuthService] = None
-_access_control: Optional[AccessControlManager] = None
-_encryption_service: Optional[EncryptionService] = None
+_agent_authenticator: AgentAuthService | None = None
+_access_control: AccessControlManager | None = None
+_encryption_service: EncryptionService | None = None
 
 # FastAPI security scheme for agent tokens
 agent_security = HTTPBearer(
@@ -64,14 +69,14 @@ def get_encryption_service() -> EncryptionService:
 
 class AgentContext:
     """Agent request context with security information."""
-    
+
     def __init__(
         self,
         agent_id: str,
         namespace: str,
-        session_data: Dict[str, Any],
+        session_data: dict[str, Any],
         request: Request,
-        permissions: Optional[Dict[str, Any]] = None
+        permissions: dict[str, Any] | None = None
     ):
         self.agent_id = agent_id
         self.namespace = namespace
@@ -79,34 +84,34 @@ class AgentContext:
         self.request = request
         self.permissions = permissions or {}
         self.authenticated_at = datetime.utcnow()
-        
+
         # Security context
         self.client_ip = self._get_client_ip()
         self.user_agent = request.headers.get("user-agent", "unknown")
         self.request_id = request.headers.get("x-request-id", "unknown")
-    
+
     def _get_client_ip(self) -> str:
         """Extract client IP from request."""
         # Check for forwarded IP headers
         forwarded_for = self.request.headers.get("x-forwarded-for")
         if forwarded_for:
             return forwarded_for.split(",")[0].strip()
-        
+
         real_ip = self.request.headers.get("x-real-ip")
         if real_ip:
             return real_ip
-        
+
         return getattr(self.request.client, "host", "unknown")
-    
+
     def has_permission(self, resource_type: ResourceType, action: ActionType) -> bool:
         """Check if agent has specific permission (cached result)."""
         permission_key = f"{resource_type.value}:{action.value}"
         return self.permissions.get(permission_key, False)
-    
+
     def is_system_agent(self) -> bool:
         """Check if this is a system-level agent."""
         return self.namespace == "system" or self.agent_id.startswith("system-")
-    
+
     def is_trinitas_agent(self) -> bool:
         """Check if this is a Trinitas core agent."""
         trinitas_agents = [
@@ -118,20 +123,20 @@ class AgentContext:
 
 async def authenticate_agent(
     request: Request,
-    credentials: Annotated[Optional[HTTPAuthorizationCredentials], Depends(agent_security)],
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(agent_security)],
     authenticator: Annotated[AgentAuthService, Depends(get_agent_authenticator)]
 ) -> AgentContext:
     """
     Authenticate agent from Bearer token.
-    
+
     Args:
         request: FastAPI request object
         credentials: Bearer token credentials
         authenticator: Agent authentication service
-        
+
     Returns:
         AgentContext: Authenticated agent context
-        
+
     Raises:
         HTTPException: If authentication fails
     """
@@ -141,16 +146,16 @@ async def authenticate_agent(
         # Development mode - create mock context
         mock_agent_id = request.headers.get("x-agent-id", "dev-agent")
         mock_namespace = request.headers.get("x-agent-namespace", "development")
-        
+
         logger.debug(f"Development mode: bypassing auth for {mock_agent_id}")
-        
+
         return AgentContext(
             agent_id=mock_agent_id,
             namespace=mock_namespace,
             session_data={"dev_mode": True},
             request=request
         )
-    
+
     # Production mode - require authentication
     if not credentials:
         raise HTTPException(
@@ -158,27 +163,27 @@ async def authenticate_agent(
             detail="Agent authentication required",
             headers={"WWW-Authenticate": "Bearer"}
         )
-    
+
     try:
         # Verify token
         token_payload = await authenticator.verify_agent_token(credentials.credentials)
-        
+
         agent_id = token_payload["sub"]
         namespace = token_payload["namespace"]
         session_id = token_payload["session_id"]
-        
+
         # Get session data
         session_data = authenticator.agent_sessions.get(agent_id, {})
-        
+
         logger.info(f"Agent authenticated: {agent_id} (session: {session_id})")
-        
+
         return AgentContext(
             agent_id=agent_id,
             namespace=namespace,
             session_data=session_data,
             request=request
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -192,11 +197,11 @@ async def authenticate_agent(
 async def require_agent_access(
     resource_type: ResourceType,
     action: ActionType,
-    resource_id: Optional[str] = None
+    resource_id: str | None = None
 ):
     """
     Dependency factory for resource access control.
-    
+
     Usage:
         @app.get("/memories/{memory_id}")
         async def get_memory(
@@ -214,12 +219,12 @@ async def require_agent_access(
         """Check agent access to resource."""
         # Use resource_id from path if not provided
         target_resource = resource_id or "unknown"
-        
+
         # For system agents, allow broader access
         if agent.is_system_agent():
             logger.debug(f"System agent {agent.agent_id} granted access to {resource_type.value}:{action.value}")
             return
-        
+
         # Check access control
         try:
             has_access = await access_control.check_access(
@@ -229,13 +234,13 @@ async def require_agent_access(
                 action=action,
                 resource_metadata={"namespace": agent.namespace}
             )
-            
+
             if not has_access:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail=f"Access denied: {action.value} on {resource_type.value}"
                 )
-                
+
         except HTTPException:
             raise
         except Exception as e:
@@ -244,7 +249,7 @@ async def require_agent_access(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Access control system error"
             )
-    
+
     return check_access
 
 
@@ -257,7 +262,7 @@ def require_trinitas_agent():
                 detail="Access restricted to Trinitas core agents"
             )
         return agent
-    
+
     return check_trinitas_agent
 
 
@@ -270,7 +275,7 @@ def require_system_agent():
                 detail="System-level access required"
             )
         return agent
-    
+
     return check_system_agent
 
 
@@ -283,7 +288,7 @@ def require_namespace(required_namespace: str):
                 detail=f"Access restricted to {required_namespace} namespace"
             )
         return agent
-    
+
     return check_namespace
 
 
@@ -296,31 +301,31 @@ async def get_encrypted_data_handler(
         def __init__(self, agent_context: AgentContext, encryption_service: EncryptionService):
             self.agent = agent_context
             self.encryption = encryption_service
-        
+
         async def encrypt_data(
             self,
-            data: Dict[str, Any],
+            data: dict[str, Any],
             data_type: str,
             classification: str = "confidential"
-        ) -> Dict[str, Any]:
+        ) -> dict[str, Any]:
             """Encrypt data for the current agent."""
             from ..security.data_encryption import DataClassification
-            
+
             classification_enum = DataClassification(classification.lower())
             return await self.encryption.encrypt_agent_data(
                 data, data_type, self.agent.agent_id, classification_enum
             )
-        
+
         async def decrypt_data(
             self,
-            encrypted_data: Dict[str, Any],
+            encrypted_data: dict[str, Any],
             data_type: str
-        ) -> Dict[str, Any]:
+        ) -> dict[str, Any]:
             """Decrypt data for the current agent."""
             return await self.encryption.decrypt_agent_data(
                 encrypted_data, data_type, self.agent.agent_id
             )
-    
+
     return EncryptedDataHandler(agent, encryption)
 
 
@@ -337,7 +342,7 @@ EncryptedDataHandler = Annotated[object, Depends(get_encrypted_data_handler)]
 
 __all__ = [
     "AgentContext",
-    "authenticate_agent", 
+    "authenticate_agent",
     "require_agent_access",
     "require_trinitas_agent",
     "require_system_agent",
@@ -345,7 +350,7 @@ __all__ = [
     "get_encrypted_data_handler",
     "CurrentAgent",
     "MemoryReadAccess",
-    "MemoryWriteAccess", 
+    "MemoryWriteAccess",
     "MemoryCreateAccess",
     "TaskExecuteAccess",
     "SystemAccess",

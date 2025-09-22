@@ -15,32 +15,26 @@ import json
 import logging
 import os
 import sys
-from typing import Dict, Any, Optional, List, Callable, Awaitable
-from dataclasses import dataclass
+from collections.abc import Callable
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
+from typing import Any
 
 import websockets
 from fastmcp import FastMCP
 from pydantic import BaseModel
 
 from src.core.config import get_settings
-from src.services.memory_service import MemoryService
-from src.services.agent_service import AgentService
+from src.tools.agent_memory_tools import get_current_agent, register_agent, switch_agent
 from src.tools.memory_tools import (
-    semantic_search, store_memory, recall_memory, optimize_memory_vectors
+    optimize_memory_vectors,
+    recall_memory,
+    semantic_search,
+    store_memory,
 )
-from src.tools.agent_memory_tools import (
-    register_agent, switch_agent, get_current_agent
-)
-from src.tools.task_tools import (
-    manage_task, list_tasks
-)
-from src.tools.workflow_tools import (
-    execute_workflow, get_workflow_status
-)
-from src.tools.system_tools import (
-    health_check, get_system_stats
-)
+from src.tools.system_tools import get_system_stats, health_check
+from src.tools.task_tools import list_tasks, manage_task
+from src.tools.workflow_tools import execute_workflow, get_workflow_status
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -49,21 +43,21 @@ settings = get_settings()
 class MCPBridgeMessage(BaseModel):
     """Standardized MCP message format for bridge"""
     jsonrpc: str = "2.0"
-    id: Optional[str] = None
-    method: Optional[str] = None
-    params: Optional[Dict[str, Any]] = None
-    result: Optional[Any] = None
-    error: Optional[Dict[str, Any]] = None
+    id: str | None = None
+    method: str | None = None
+    params: dict[str, Any] | None = None
+    result: Any | None = None
+    error: dict[str, Any] | None = None
 
 
 @dataclass
 class ToolRegistry:
     """Registry of MCP tools with harmonious organization"""
-    memory_tools: Dict[str, Callable] = None
-    agent_tools: Dict[str, Callable] = None
-    task_tools: Dict[str, Callable] = None
-    workflow_tools: Dict[str, Callable] = None
-    system_tools: Dict[str, Callable] = None
+    memory_tools: dict[str, Callable] = None
+    agent_tools: dict[str, Callable] = None
+    task_tools: dict[str, Callable] = None
+    workflow_tools: dict[str, Callable] = None
+    system_tools: dict[str, Callable] = None
 
     def __post_init__(self):
         """Initialize tool registries with warm categorization"""
@@ -95,7 +89,7 @@ class ToolRegistry:
             "get_system_stats": get_system_stats,
         }
 
-    def get_all_tools(self) -> Dict[str, Callable]:
+    def get_all_tools(self) -> dict[str, Callable]:
         """Get all tools in a harmonious collection"""
         all_tools = {}
         all_tools.update(self.memory_tools)
@@ -105,7 +99,7 @@ class ToolRegistry:
         all_tools.update(self.system_tools)
         return all_tools
 
-    def get_tool_info(self) -> Dict[str, Any]:
+    def get_tool_info(self) -> dict[str, Any]:
         """Get comprehensive tool information"""
         return {
             "categories": {
@@ -128,9 +122,9 @@ class MCPCompatibilityBridge:
 
     def __init__(self):
         self.tool_registry = ToolRegistry()
-        self.websocket_client: Optional[websockets.WebSocketClientProtocol] = None
+        self.websocket_client: websockets.WebSocketClientProtocol | None = None
         self.agent_context = {}
-        self.session_id: Optional[str] = None
+        self.session_id: str | None = None
         self.connection_established = False
 
         # Legacy MCP server for stdio fallback
@@ -269,7 +263,7 @@ class MCPCompatibilityBridge:
             if self.connection_established:
                 await self.disconnect_websocket()
 
-    async def test_compatibility(self) -> Dict[str, Any]:
+    async def test_compatibility(self) -> dict[str, Any]:
         """Test compatibility of all tools in both modes"""
         results = {
             "stdio_mode": {},
@@ -294,7 +288,7 @@ class MCPCompatibilityBridge:
         # Test WebSocket mode if available
         if self.connection_established:
             logger.info("🧪 Testing WebSocket compatibility...")
-            for tool_name in all_tools.keys():
+            for tool_name in all_tools:
                 try:
                     # Test if tool can be called via WebSocket
                     await self._call_via_websocket("get_system_stats", (), {})

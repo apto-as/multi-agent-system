@@ -36,7 +36,7 @@ security:
   secret_key: "${TMWS_SECRET_KEY}"
   jwt_secret: "${TMWS_JWT_SECRET}"
   jwt_expire_minutes: 30
-  rate_limit_per_minute: 100
+  rate_limit_period: 100
   cors_origins:
     - "http://localhost:3000"
     - "http://127.0.0.1:3000"
@@ -67,6 +67,6 @@ environments:
     server:
       workers: 8
     security:
-      rate_limit_per_minute: 1000
+      rate_limit_period: 1000
     logging:
       level: "WARNING"

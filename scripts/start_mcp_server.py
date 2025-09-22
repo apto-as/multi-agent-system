@@ -10,19 +10,17 @@ Usage:
 import argparse
 import asyncio
 import logging
+import signal
 import sys
 from pathlib import Path
-from typing import Optional
-import signal
-import os
 
 # Add src to Python path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root / "src"))
 
-from src.mcp_server import TMWSFastMCPServer, create_server
-from src.integration.fastapi_mcp_bridge import create_tmws_app
 from src.core.exceptions import TMWSException
+from src.integration.fastapi_mcp_bridge import create_tmws_app
+from src.mcp_server import TMWSFastMCPServer, create_server
 
 
 class TMWSServerManager:
@@ -34,13 +32,13 @@ class TMWSServerManager:
     - FastAPI mode (REST API with MCP integration) 
     - Hybrid mode (Both protocols simultaneously)
     """
-    
+
     def __init__(self):
         """Initialize server manager."""
-        self.mcp_server: Optional[TMWSFastMCPServer] = None
+        self.mcp_server: TMWSFastMCPServer | None = None
         self.fastapi_app = None
         self.shutdown_requested = False
-        
+
         # Setup logging
         logging.basicConfig(
             level=logging.INFO,
@@ -51,7 +49,7 @@ class TMWSServerManager:
             ]
         )
         self.logger = logging.getLogger(__name__)
-        
+
         # Setup signal handlers
         signal.signal(signal.SIGINT, self._signal_handler)
         signal.signal(signal.SIGTERM, self._signal_handler)
@@ -65,15 +63,15 @@ class TMWSServerManager:
         """Start pure FastMCP server."""
         try:
             self.logger.info("Starting TMWS FastMCP Server...")
-            
+
             self.mcp_server = create_server()
             await self.mcp_server.initialize_server()
-            
+
             self.logger.info("TMWS FastMCP Server ready for MCP connections")
-            
+
             # Run the MCP server
             self.mcp_server.run()
-            
+
         except Exception as e:
             self.logger.critical(f"FastMCP server failed to start: {str(e)}")
             raise TMWSException(f"MCP server startup failed: {str(e)}") from e
@@ -82,13 +80,13 @@ class TMWSServerManager:
         """Start FastAPI server with MCP integration."""
         try:
             import uvicorn
-            
+
             self.logger.info(f"Starting TMWS FastAPI Server on {host}:{port}...")
-            
+
             # Create FastAPI app with MCP integration
             app = create_tmws_app()
             self.fastapi_app = app
-            
+
             # Configure uvicorn
             config = uvicorn.Config(
                 app,
@@ -98,15 +96,15 @@ class TMWSServerManager:
                 access_log=True,
                 loop="asyncio"
             )
-            
+
             server = uvicorn.Server(config)
-            
+
             self.logger.info(f"TMWS FastAPI Server ready at http://{host}:{port}")
             self.logger.info(f"API Documentation available at http://{host}:{port}/docs")
-            
+
             # Start the server
             await server.serve()
-            
+
         except ImportError:
             self.logger.error("uvicorn not installed. Install with: pip install uvicorn")
             raise TMWSException("FastAPI server requires uvicorn")
@@ -118,19 +116,19 @@ class TMWSServerManager:
         """Start both MCP and FastAPI servers simultaneously."""
         try:
             self.logger.info("Starting TMWS Hybrid Server (MCP + FastAPI)...")
-            
+
             # Create tasks for both servers
             mcp_task = asyncio.create_task(self.start_mcp_server())
             fastapi_task = asyncio.create_task(self.start_fastapi_server(host, port))
-            
+
             self.logger.info("Both MCP and FastAPI servers starting...")
-            
+
             # Wait for either server to complete (or fail)
             done, pending = await asyncio.wait(
                 [mcp_task, fastapi_task],
                 return_when=asyncio.FIRST_COMPLETED
             )
-            
+
             # Cancel remaining tasks
             for task in pending:
                 task.cancel()
@@ -138,12 +136,12 @@ class TMWSServerManager:
                     await task
                 except asyncio.CancelledError:
                     pass
-            
+
             # Check for exceptions in completed tasks
             for task in done:
                 if task.exception():
                     raise task.exception()
-            
+
         except Exception as e:
             self.logger.critical(f"Hybrid server failed: {str(e)}")
             raise TMWSException(f"Hybrid server startup failed: {str(e)}") from e
@@ -155,13 +153,13 @@ class TMWSServerManager:
                 # Test MCP server health
                 # This would call the actual health check tool
                 self.logger.info("MCP server health check: OK")
-            
+
             if self.fastapi_app:
                 # Test FastAPI server health
                 self.logger.info("FastAPI server health check: OK")
-            
+
             return True
-            
+
         except Exception as e:
             self.logger.error(f"Health check failed: {str(e)}")
             return False
@@ -177,7 +175,7 @@ class TMWSServerManager:
         """
         try:
             self.logger.info(f"TMWS Server Manager starting in '{mode}' mode")
-            
+
             if mode == "mcp":
                 asyncio.run(self.start_mcp_server())
             elif mode == "fastapi":
@@ -186,7 +184,7 @@ class TMWSServerManager:
                 asyncio.run(self.start_hybrid_server(host, port))
             else:
                 raise ValueError(f"Invalid mode: {mode}. Use 'mcp', 'fastapi', or 'hybrid'")
-                
+
         except KeyboardInterrupt:
             self.logger.info("Server shutdown requested by user")
         except Exception as e:
@@ -211,48 +209,48 @@ Examples:
   python scripts/start_mcp_server.py --mode hybrid --host 127.0.0.1 --port 8080
         """
     )
-    
+
     parser.add_argument(
         "--mode",
         choices=["mcp", "fastapi", "hybrid"],
         default="mcp",
         help="Server mode (default: mcp)"
     )
-    
+
     parser.add_argument(
         "--host",
         default="0.0.0.0",
         help="Host address for FastAPI server (default: 0.0.0.0)"
     )
-    
+
     parser.add_argument(
         "--port",
         type=int,
         default=8000,
         help="Port for FastAPI server (default: 8000)"
     )
-    
+
     parser.add_argument(
         "--health-check",
         action="store_true",
         help="Perform health check and exit"
     )
-    
+
     parser.add_argument(
         "--log-level",
         choices=["DEBUG", "INFO", "WARNING", "ERROR"],
         default="INFO",
         help="Logging level (default: INFO)"
     )
-    
+
     args = parser.parse_args()
-    
+
     # Configure logging level
     logging.getLogger().setLevel(getattr(logging, args.log_level))
-    
+
     # Create server manager
     server_manager = TMWSServerManager()
-    
+
     if args.health_check:
         # Perform health check
         try:

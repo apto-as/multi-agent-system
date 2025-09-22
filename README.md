@@ -5,7 +5,8 @@
 [![License](https://img.shields.io/badge/license-MIT-purple)](LICENSE)
 [![MCP Compatible](https://img.shields.io/badge/MCP-compatible-orange)](https://modelcontextprotocol.io)
 
-A unified memory and workflow service for AI agents, providing both REST API and MCP (Model Context Protocol) interfaces.
+A unified memory and workflow service for AI agents, providing database-level sharing for multiple Claude Code instances.
+
 
 ## 🚀 Quick Start
 
@@ -33,9 +34,11 @@ psql tmws -c "CREATE EXTENSION IF NOT EXISTS vector;"
 - 🤖 **Multi-Agent Support**: Pre-configured with 6 Trinitas agents + custom agent registration
 - 🔄 **Dynamic Agent Switching**: Runtime agent context switching via MCP tools
 - 📋 **Task Management**: Workflow orchestration and task tracking
-- 🔌 **MCP Protocol**: Full Model Context Protocol support
+- 🔌 **MCP Protocol**: Full Model Context Protocol support via stdio
 - 🔒 **Security**: JWT authentication, rate limiting, audit logging
-- 🌐 **Unified Server**: Single instance handles both REST API and MCP connections
+- 💾 **Database-Level Sharing**: Multiple Claude Code instances share state via PostgreSQL
+- 🔄 **Real-time Sync**: LISTEN/NOTIFY for immediate updates across instances
+- ⚡ **Connection Pooling**: PgBouncer integration for efficient database access
 - 🚀 **Performance**: Sub-100ms vector search with IVFFlat indexing
 
 ## Prerequisites
@@ -80,19 +83,9 @@ cp .env.example .env
 
 ## Installation & Usage
 
-### Quick Start (v2.0 - Shared Server Model)
+Each Claude Code instance runs its own MCP server process, sharing state through PostgreSQL:
 
-#### Step 1: Start the TMWS Server
-
-```bash
-# Start the server (in a separate terminal)
-uvx --from git+https://github.com/apto-as/tmws.git tmws-server
-
-# Or with custom settings
-tmws-server --host 0.0.0.0 --port 8000 --log-level info
-```
-
-#### Step 2: Configure Claude Code
+### Configure Claude Code
 
 Add to your Claude Code config:
 
@@ -102,37 +95,29 @@ Add to your Claude Code config:
     "tmws": {
       "type": "stdio",
       "command": "uvx",
-      "args": [
-        "--from",
-        "git+https://github.com/apto-as/tmws.git",
-        "tmws-ws-client",
-        "--server",
-        "ws://localhost:8000/ws/mcp"
-      ]
+      "args": ["--from", "git+https://github.com/apto-as/tmws.git", "tmws"],
+      "env": {
+        "TMWS_DATABASE_URL": "postgresql://tmws_user:tmws_password@localhost:5432/tmws",
+        "TMWS_AGENT_ID": "athena-conductor-1"  // Unique per instance
+      }
     }
   }
 }
 ```
 
-Now you can open multiple Claude Code terminals and they will all connect to the same server!
+### Multiple Instances
 
-### Legacy Mode (v1.0 - Direct Connection)
+Each Claude Code terminal runs independently with a unique AGENT_ID. All instances automatically share memories, tasks, and workflows through the database.
 
-For single terminal use only:
+### How It Works
 
-```json
-{
-  "mcpServers": {
-    "tmws": {
-      "type": "stdio",
-      "command": "uvx",
-      "args": ["--from", "git+https://github.com/apto-as/tmws.git", "tmws"]
-    }
-  }
-}
-```
+1. **Each Claude Code instance** runs its own MCP server process (stdio requirement)
+2. **All MCP servers** connect to the same PostgreSQL database
+3. **Real-time synchronization** via PostgreSQL LISTEN/NOTIFY
+4. **Connection pooling** minimizes database overhead
+5. **Local caching** reduces database queries
+6. **Vector similarity search** enables semantic memory sharing
 
-Note: v1.0 mode does not support multiple concurrent connections.
 
 ## Default Agents
 
