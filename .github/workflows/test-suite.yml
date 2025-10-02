@@ -87,11 +87,30 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y postgresql-client
 
+      - name: Wait for PostgreSQL
+        run: |
+          until PGPASSWORD=postgres psql -h localhost -U postgres -d tmws_test -c '\q'; do
+            echo "Waiting for PostgreSQL..."
+            sleep 2
+          done
+          echo "PostgreSQL is ready!"
+
       - name: Setup PostgreSQL with pgvector
         run: |
+          # List available extensions
+          echo "Available extensions:"
+          PGPASSWORD=postgres psql -h localhost -U postgres -d tmws_test -c "SELECT name FROM pg_available_extensions WHERE name LIKE '%vector%';"
+
+          # Create extensions (try 'vector' first, fallback to 'pgvector')
+          PGPASSWORD=postgres psql -h localhost -U postgres -d tmws_test -c "CREATE EXTENSION IF NOT EXISTS vector;" || \
           PGPASSWORD=postgres psql -h localhost -U postgres -d tmws_test -c "CREATE EXTENSION IF NOT EXISTS pgvector;"
-          PGPASSWORD=postgres psql -h localhost -U postgres -d tmws_test -c "CREATE EXTENSION IF NOT EXISTS uuid-ossp;"
+
+          PGPASSWORD=postgres psql -h localhost -U postgres -d tmws_test -c "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";"
           PGPASSWORD=postgres psql -h localhost -U postgres -d tmws_test -c "CREATE EXTENSION IF NOT EXISTS pg_trgm;"
+
+          # Verify extensions are created
+          echo "Installed extensions:"
+          PGPASSWORD=postgres psql -h localhost -U postgres -d tmws_test -c "SELECT extname, extversion FROM pg_extension WHERE extname IN ('vector', 'pgvector', 'uuid-ossp', 'pg_trgm');"
 
       - name: Install Python dependencies
         run: |
