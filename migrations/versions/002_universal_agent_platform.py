@@ -202,7 +202,7 @@ def upgrade():
     # 8. Migrate existing personas to agents
     op.execute("""
         INSERT INTO agents (id, agent_id, display_name, namespace, agent_type, capabilities, config, status)
-        SELECT 
+        SELECT
             id,
             name as agent_id,
             display_name,
@@ -231,10 +231,10 @@ def upgrade():
     # 9. Migrate existing memories
     op.execute("""
         INSERT INTO memories_v2 (
-            id, content, agent_id, namespace, embedding, 
+            id, content, agent_id, namespace, embedding,
             importance_score, tags, context, created_at, updated_at, metadata
         )
-        SELECT 
+        SELECT
             m.id,
             m.content,
             COALESCE(p.name, 'system') as agent_id,
