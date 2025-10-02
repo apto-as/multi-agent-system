@@ -1,7 +1,7 @@
 """Fix vector dimension from 1536 to 384 for all-MiniLM-L6-v2
 
 Revision ID: 001_fix_vector_dimension
-Revises: 
+Revises:
 Create Date: 2024-01-01 10:00:00.000000
 
 """
@@ -10,7 +10,7 @@ from alembic import op
 from pgvector.sqlalchemy import Vector
 
 # revision identifiers, used by Alembic.
-revision = '001_fix_vector_dimension'
+revision = '001'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -34,8 +34,8 @@ def upgrade():
 
     # Recreate the vector index with proper dimension
     op.execute("""
-        CREATE INDEX idx_memories_embedding 
-        ON memories USING ivfflat (embedding vector_cosine_ops) 
+        CREATE INDEX idx_memories_embedding
+        ON memories USING ivfflat (embedding vector_cosine_ops)
         WITH (lists = 100);
     """)
 
@@ -58,7 +58,7 @@ def downgrade():
 
     # Recreate the vector index with old dimension
     op.execute("""
-        CREATE INDEX idx_memories_embedding 
-        ON memories USING ivfflat (embedding vector_cosine_ops) 
+        CREATE INDEX idx_memories_embedding
+        ON memories USING ivfflat (embedding vector_cosine_ops)
         WITH (lists = 100);
     """)

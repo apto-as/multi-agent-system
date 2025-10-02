@@ -177,20 +177,20 @@ def upgrade() -> None:
     """)
 
     op.execute("""
-        CREATE TRIGGER update_users_updated_at 
-        BEFORE UPDATE ON users 
+        CREATE TRIGGER update_users_updated_at
+        BEFORE UPDATE ON users
         FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
     """)
 
     op.execute("""
-        CREATE TRIGGER update_api_keys_updated_at 
-        BEFORE UPDATE ON api_keys 
+        CREATE TRIGGER update_api_keys_updated_at
+        BEFORE UPDATE ON api_keys
         FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
     """)
 
     op.execute("""
-        CREATE TRIGGER update_refresh_tokens_updated_at 
-        BEFORE UPDATE ON refresh_tokens 
+        CREATE TRIGGER update_refresh_tokens_updated_at
+        BEFORE UPDATE ON refresh_tokens
         FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
     """)
 
