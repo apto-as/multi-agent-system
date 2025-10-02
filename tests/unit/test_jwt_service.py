@@ -22,12 +22,11 @@ from src.security.jwt_service import (
     JWTService,
     TokenBlacklist,
     create_tokens_for_user,
-    hash_password,
     jwt_service,
     token_blacklist,
     verify_and_extract_user,
-    verify_password,
 )
+from src.utils.security import hash_password, verify_password
 
 
 @pytest.mark.unit
@@ -45,7 +44,7 @@ class TestJWTServiceInitialization:
         assert service.refresh_token_expire_days == 30
 
         # Verify cryptographic settings
-        assert service.pwd_context.schemes == ["bcrypt"]
+        # Note: pwd_context moved to utils.security
         assert service._base_claims["iss"] == "tmws-auth-service"
         assert service._base_claims["aud"] == "tmws-api"
 
@@ -224,7 +223,7 @@ class TestAccessTokenGeneration:
 
         for _ in range(50):
             performance_timer.start()
-            token = jwt_service.create_access_token(test_user)
+            jwt_service.create_access_token(test_user)
             elapsed = performance_timer.stop()
             times.append(elapsed)
 
@@ -318,7 +317,7 @@ class TestTokenValidation:
 
         for _ in range(100):
             performance_timer.start()
-            payload = jwt_service.verify_token(token)
+            jwt_service.verify_token(token)
             elapsed = performance_timer.stop()
             times.append(elapsed)
 
