@@ -19,6 +19,15 @@ depends_on = None
 def upgrade() -> None:
     """Add authentication system tables."""
 
+    # Check if tables already exist (backward compatibility)
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    tables = inspector.get_table_names()
+
+    # Skip if tables already exist
+    if 'users' in tables:
+        return
+
     # Create user status and role enums (skip if already exists)
     user_status_enum = postgresql.ENUM(
         'active', 'inactive', 'suspended', 'locked', 'pending',

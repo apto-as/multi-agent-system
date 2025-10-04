@@ -28,9 +28,30 @@ def upgrade():
     tables = inspector.get_table_names()
 
     if 'memories' not in tables:
-        # New installation - create tables using SQLAlchemy metadata
-        from src.models.base import Base
-        Base.metadata.create_all(bind=conn)
+        # New installation - create only the memories table
+        # (Other tables are created in subsequent migrations)
+        op.create_table('memories',
+            sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False, server_default=sa.text('gen_random_uuid()')),
+            sa.Column('content', sa.Text(), nullable=False),
+            sa.Column('summary', sa.Text(), nullable=True),
+            sa.Column('tags', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+            sa.Column('importance', sa.Float(), nullable=False, server_default='0.5'),
+            sa.Column('created_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.text('now()')),
+            sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.text('now()')),
+            sa.Column('embedding', Vector(384), nullable=True, comment="Vector embedding for semantic search (all-MiniLM-L6-v2 dimension)"),
+            sa.PrimaryKeyConstraint('id')
+        )
+
+        # Create vector index
+        op.execute("""
+            CREATE INDEX idx_memories_embedding
+            ON memories USING ivfflat (embedding vector_cosine_ops)
+            WITH (lists = 100);
+        """)
+
+        # Create additional indexes
+        op.create_index('ix_memories_created_at', 'memories', ['created_at'], postgresql_using='btree')
+        op.create_index('ix_memories_importance', 'memories', ['importance'], postgresql_using='btree')
     else:
         # Existing installation - update vector dimension
         # Drop existing vector index if it exists

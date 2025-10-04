@@ -24,7 +24,12 @@ depends_on = None
 def upgrade():
     """Upgrade to universal agent platform."""
 
-    # Create AccessLevel enum (skip if already exists from migration 001's create_all)
+    # Check if tables already exist (in case migration 001 used create_all in the past)
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    tables = inspector.get_table_names()
+
+    # Create AccessLevel enum (skip if already exists)
     op.execute("""
         DO $$ BEGIN
             CREATE TYPE accesslevel AS ENUM ('private', 'team', 'shared', 'public', 'system');
@@ -41,6 +46,12 @@ def upgrade():
             WHEN duplicate_object THEN null;
         END $$;
     """)
+
+    # Skip migration if tables already exist (backward compatibility)
+    if 'agents' in tables:
+        # Tables already created by old migration 001 with create_all()
+        # Skip this migration to avoid duplicate table errors
+        return
 
     # 1. Create new agent tables
     op.create_table('agents',
