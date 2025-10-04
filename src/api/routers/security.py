@@ -42,7 +42,10 @@ router = APIRouter(prefix="/security", tags=["security"])
 # Pydantic models for API
 class AgentRegistrationRequest(BaseModel):
     """Request model for agent registration."""
-    agent_id: str = Field(..., min_length=3, max_length=100, pattern=r'^[a-zA-Z0-9]([a-zA-Z0-9._-]*[a-zA-Z0-9])?$')
+
+    agent_id: str = Field(
+        ..., min_length=3, max_length=100, pattern=r"^[a-zA-Z0-9]([a-zA-Z0-9._-]*[a-zA-Z0-9])?$"
+    )
     display_name: str = Field(..., min_length=1, max_length=200)
     namespace: str = Field("default", min_length=1, max_length=50)
     access_level: AccessLevel = AccessLevel.PRIVATE
@@ -51,6 +54,7 @@ class AgentRegistrationRequest(BaseModel):
 
 class AgentRegistrationResponse(BaseModel):
     """Response model for agent registration."""
+
     agent_id: str
     api_key: str = Field(..., description="Store securely - cannot be retrieved later")
     public_key: str
@@ -61,12 +65,14 @@ class AgentRegistrationResponse(BaseModel):
 
 class AgentAuthRequest(BaseModel):
     """Request model for agent authentication."""
+
     agent_id: str
     api_key: str
 
 
 class AgentTokenResponse(BaseModel):
     """Response model for agent token."""
+
     access_token: str
     token_type: str = "bearer"
     expires_in: int
@@ -76,6 +82,7 @@ class AgentTokenResponse(BaseModel):
 
 class AccessPolicyRequest(BaseModel):
     """Request model for creating access policies."""
+
     policy_id: str = Field(..., min_length=3, max_length=100)
     name: str = Field(..., min_length=1, max_length=200)
     description: str = Field(..., min_length=1, max_length=500)
@@ -88,6 +95,7 @@ class AccessPolicyRequest(BaseModel):
 
 class SecurityStatsResponse(BaseModel):
     """Response model for security statistics."""
+
     timestamp: datetime
     total_registered_agents: int
     active_sessions: int
@@ -99,6 +107,7 @@ class SecurityStatsResponse(BaseModel):
 
 class AuditLogEntry(BaseModel):
     """Model for audit log entries."""
+
     timestamp: datetime
     event_type: str
     agent_id: str
@@ -109,12 +118,16 @@ class AuditLogEntry(BaseModel):
     details: dict[str, Any]
 
 
-@router.post("/agents/register", response_model=AgentRegistrationResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/agents/register",
+    response_model=AgentRegistrationResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def register_agent(
     request: AgentRegistrationRequest,
     current_agent: CurrentAgent,
-    _ = Depends(require_system_agent),
-    authenticator: AgentAuthService = Depends(get_agent_authenticator)
+    _=Depends(require_system_agent),
+    authenticator: AgentAuthService = Depends(get_agent_authenticator),
 ):
     """
     Register a new agent with the system.
@@ -126,7 +139,7 @@ async def register_agent(
         registration_result = await authenticator.register_agent(
             agent_id=request.agent_id,
             namespace=request.namespace,
-            access_level=request.access_level
+            access_level=request.access_level,
         )
 
         logger.info(f"Agent registered: {request.agent_id} by {current_agent.agent_id}")
@@ -137,7 +150,7 @@ async def register_agent(
             public_key=registration_result["public_key"],
             namespace=registration_result["namespace"],
             access_level=request.access_level.value,
-            registered_at=datetime.utcnow()
+            registered_at=datetime.utcnow(),
         )
 
     except HTTPException:
@@ -145,15 +158,13 @@ async def register_agent(
     except Exception as e:
         logger.error(f"Agent registration error: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Agent registration failed"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Agent registration failed"
         )
 
 
 @router.post("/agents/authenticate", response_model=AgentTokenResponse)
 async def authenticate_agent(
-    request: AgentAuthRequest,
-    authenticator: AgentAuthService = Depends(get_agent_authenticator)
+    request: AgentAuthRequest, authenticator: AgentAuthService = Depends(get_agent_authenticator)
 ):
     """
     Authenticate agent and return access token.
@@ -163,8 +174,7 @@ async def authenticate_agent(
     try:
         # Authenticate agent
         session_data = await authenticator.authenticate_agent(
-            agent_id=request.agent_id,
-            api_key=request.api_key
+            agent_id=request.agent_id, api_key=request.api_key
         )
 
         # Create token
@@ -176,7 +186,7 @@ async def authenticate_agent(
             access_token=access_token,
             expires_in=expires_in,
             agent_id=request.agent_id,
-            namespace=session_data.get("namespace", "default")
+            namespace=session_data.get("namespace", "default"),
         )
 
     except HTTPException:
@@ -184,15 +194,13 @@ async def authenticate_agent(
     except Exception as e:
         logger.error(f"Agent authentication error: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Authentication failed"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Authentication failed"
         )
 
 
 @router.post("/agents/logout")
 async def logout_agent(
-    current_agent: CurrentAgent,
-    authenticator: AgentAuthService = Depends(get_agent_authenticator)
+    current_agent: CurrentAgent, authenticator: AgentAuthService = Depends(get_agent_authenticator)
 ):
     """Logout current agent and invalidate session."""
     try:
@@ -207,16 +215,15 @@ async def logout_agent(
     except Exception as e:
         logger.error(f"Agent logout error: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Logout failed"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Logout failed"
         )
 
 
 @router.get("/agents")
 async def list_agents(
     current_agent: CurrentAgent,
-    _ = Depends(require_system_agent),
-    authenticator: AgentAuthService = Depends(get_agent_authenticator)
+    _=Depends(require_system_agent),
+    authenticator: AgentAuthService = Depends(get_agent_authenticator),
 ):
     """List registered agents (system access required)."""
     try:
@@ -228,20 +235,16 @@ async def list_agents(
                 "agent_id": agent_id,
                 "namespace": credentials.namespace,
                 "created_at": credentials.created_at.isoformat(),
-                "is_active": agent_id in authenticator.agent_sessions
+                "is_active": agent_id in authenticator.agent_sessions,
             }
             agents_info.append(agent_info)
 
-        return {
-            "agents": agents_info,
-            "total": len(agents_info)
-        }
+        return {"agents": agents_info, "total": len(agents_info)}
 
     except Exception as e:
         logger.error(f"List agents error: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve agents"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve agents"
         )
 
 
@@ -249,8 +252,8 @@ async def list_agents(
 async def create_access_policy(
     policy_request: AccessPolicyRequest,
     current_agent: CurrentAgent,
-    _ = Depends(require_system_agent),
-    access_control: AccessControlManager = Depends(get_access_control)
+    _=Depends(require_system_agent),
+    access_control: AccessControlManager = Depends(get_access_control),
 ):
     """Create new access control policy (system access required)."""
     try:
@@ -264,7 +267,7 @@ async def create_access_policy(
             conditions=policy_request.conditions,
             decision=AccessDecision.ALLOW,  # Default for created policies
             priority=policy_request.priority,
-            created_by=current_agent.agent_id
+            created_by=current_agent.agent_id,
         )
 
         access_control.add_policy(policy)
@@ -276,16 +279,15 @@ async def create_access_policy(
     except Exception as e:
         logger.error(f"Create policy error: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create policy"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create policy"
         )
 
 
 @router.get("/policies")
 async def list_access_policies(
     current_agent: CurrentAgent,
-    _ = Depends(require_system_agent),
-    access_control: AccessControlManager = Depends(get_access_control)
+    _=Depends(require_system_agent),
+    access_control: AccessControlManager = Depends(get_access_control),
 ):
     """List access control policies."""
     try:
@@ -301,20 +303,16 @@ async def list_access_policies(
                 "priority": policy.priority,
                 "is_active": policy.is_active,
                 "created_by": policy.created_by,
-                "created_at": policy.created_at.isoformat()
+                "created_at": policy.created_at.isoformat(),
             }
             policies_info.append(policy_info)
 
-        return {
-            "policies": policies_info,
-            "total": len(policies_info)
-        }
+        return {"policies": policies_info, "total": len(policies_info)}
 
     except Exception as e:
         logger.error(f"List policies error: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve policies"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve policies"
         )
 
 
@@ -322,18 +320,15 @@ async def list_access_policies(
 async def delete_access_policy(
     policy_id: str,
     current_agent: CurrentAgent,
-    _ = Depends(require_system_agent),
-    access_control: AccessControlManager = Depends(get_access_control)
+    _=Depends(require_system_agent),
+    access_control: AccessControlManager = Depends(get_access_control),
 ):
     """Delete access control policy."""
     try:
         success = access_control.remove_policy(policy_id)
 
         if not success:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Policy not found"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Policy not found")
 
         logger.info(f"Access policy deleted: {policy_id} by {current_agent.agent_id}")
 
@@ -344,18 +339,17 @@ async def delete_access_policy(
     except Exception as e:
         logger.error(f"Delete policy error: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to delete policy"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to delete policy"
         )
 
 
 @router.get("/stats", response_model=SecurityStatsResponse)
 async def get_security_stats(
     current_agent: CurrentAgent,
-    _ = Depends(require_system_agent),
+    _=Depends(require_system_agent),
     authenticator: AgentAuthService = Depends(get_agent_authenticator),
     access_control: AccessControlManager = Depends(get_access_control),
-    encryption: EncryptionService = Depends(get_encryption_service)
+    encryption: EncryptionService = Depends(get_encryption_service),
 ):
     """Get comprehensive security statistics."""
     try:
@@ -366,10 +360,13 @@ async def get_security_stats(
         encryption_stats = await encryption.get_encryption_stats()
 
         # Count active sessions
-        active_sessions = len([
-            session for session in authenticator.agent_sessions.values()
-            if datetime.utcnow() < session.get("expires_at", datetime.utcnow())
-        ])
+        active_sessions = len(
+            [
+                session
+                for session in authenticator.agent_sessions.values()
+                if datetime.utcnow() < session.get("expires_at", datetime.utcnow())
+            ]
+        )
 
         return SecurityStatsResponse(
             timestamp=datetime.utcnow(),
@@ -378,25 +375,25 @@ async def get_security_stats(
             access_attempts_24h=access_stats.get("total_access_attempts", 0),
             access_denials_24h=access_stats.get("decision_breakdown", {}).get("deny", 0),
             policies_count=access_stats.get("total_policies", 0),
-            encryption_stats=encryption_stats
+            encryption_stats=encryption_stats,
         )
 
     except Exception as e:
         logger.error(f"Get security stats error: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve security statistics"
+            detail="Failed to retrieve security statistics",
         )
 
 
 @router.get("/audit")
 async def get_audit_log(
     current_agent: CurrentAgent,
-    _ = Depends(require_system_agent),
+    _=Depends(require_system_agent),
     limit: int = 100,
     event_type: str | None = None,
     agent_id: str | None = None,
-    access_control: AccessControlManager = Depends(get_access_control)
+    access_control: AccessControlManager = Depends(get_access_control),
 ):
     """Get security audit log."""
     try:
@@ -418,47 +415,44 @@ async def get_audit_log(
                 resource_id=entry.get("resource_id"),
                 action=entry.get("action"),
                 result=entry["decision"],
-                details=entry.get("context", {})
+                details=entry.get("context", {}),
             )
             audit_entries.append(audit_entry)
 
-        return {
-            "audit_log": audit_entries,
-            "total": len(audit_entries)
-        }
+        return {"audit_log": audit_entries, "total": len(audit_entries)}
 
     except Exception as e:
         logger.error(f"Get audit log error: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve audit log"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve audit log"
         )
 
 
 @router.post("/encryption/rotate-keys")
 async def rotate_encryption_keys(
     current_agent: CurrentAgent,
-    _ = Depends(require_system_agent),
+    _=Depends(require_system_agent),
     force: bool = False,
-    encryption: EncryptionService = Depends(get_encryption_service)
+    encryption: EncryptionService = Depends(get_encryption_service),
 ):
     """Rotate encryption keys (system access required)."""
     try:
         rotation_result = encryption.key_manager.rotate_keys(force=force)
 
-        logger.info(f"Encryption keys rotated by {current_agent.agent_id}: {len(rotation_result['rotated_keys'])} keys")
+        logger.info(
+            f"Encryption keys rotated by {current_agent.agent_id}: {len(rotation_result['rotated_keys'])} keys"
+        )
 
         return {
             "message": "Key rotation completed",
             "rotated_keys_count": len(rotation_result["rotated_keys"]),
-            "details": rotation_result
+            "details": rotation_result,
         }
 
     except Exception as e:
         logger.error(f"Key rotation error: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Key rotation failed"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Key rotation failed"
         )
 
 
@@ -473,13 +467,9 @@ async def security_health_check():
                 "authentication": "operational",
                 "access_control": "operational",
                 "encryption": "operational",
-                "audit_logging": "operational"
-            }
+                "audit_logging": "operational",
+            },
         }
     except Exception as e:
         logger.error(f"Security health check error: {e}")
-        return {
-            "status": "degraded",
-            "timestamp": datetime.utcnow().isoformat(),
-            "error": str(e)
-        }
+        return {"status": "degraded", "timestamp": datetime.utcnow().isoformat(), "error": str(e)}

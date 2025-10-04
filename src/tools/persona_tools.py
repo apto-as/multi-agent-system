@@ -14,15 +14,19 @@ from .base_tool import BaseTool
 
 class PersonaCreateRequest(BaseModel):
     """Persona creation parameters."""
+
     name: str = Field(..., description="Persona name")
     description: str = Field(..., description="Persona description")
     capabilities: list[str] = Field(..., description="List of persona capabilities")
-    personality_traits: dict[str, Any] = Field(default_factory=dict, description="Personality traits")
+    personality_traits: dict[str, Any] = Field(
+        default_factory=dict, description="Personality traits"
+    )
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
 
 class PersonaUpdateRequest(BaseModel):
     """Persona update parameters."""
+
     persona_id: str = Field(..., description="Persona ID to update")
     name: str | None = Field(None, description="New name")
     description: str | None = Field(None, description="New description")
@@ -44,7 +48,7 @@ class PersonaTools(BaseTool):
             description: str,
             capabilities: list[str],
             personality_traits: dict[str, Any] = None,
-            metadata: dict[str, Any] = None
+            metadata: dict[str, Any] = None,
         ) -> dict[str, Any]:
             """
             Create a new Trinitas persona.
@@ -67,18 +71,18 @@ class PersonaTools(BaseTool):
                 description=description,
                 capabilities=capabilities,
                 personality_traits=personality_traits or {},
-                metadata=metadata or {}
+                metadata=metadata or {},
             )
 
             async def _create_persona(session, services):
-                persona_service = services['persona_service']
+                persona_service = services["persona_service"]
 
                 persona = await persona_service.create_persona(
                     name=request.name,
                     description=request.description,
                     capabilities=request.capabilities,
                     personality_traits=request.personality_traits,
-                    metadata=request.metadata
+                    metadata=request.metadata,
                 )
 
                 return {
@@ -90,7 +94,7 @@ class PersonaTools(BaseTool):
                     "metadata": persona.metadata_json,
                     "is_active": persona.is_active,
                     "created_at": persona.created_at.isoformat(),
-                    "capability_count": len(persona.capabilities)
+                    "capability_count": len(persona.capabilities),
                 }
 
             result = await self.execute_with_session(_create_persona)
@@ -110,16 +114,17 @@ class PersonaTools(BaseTool):
             Returns:
                 Dict containing complete persona information
             """
+
             async def _get_persona(session, services):
-                persona_service = services['persona_service']
+                persona_service = services["persona_service"]
                 persona = await persona_service.get_persona(persona_id)
 
                 if not persona:
                     raise ValueError(f"Persona {persona_id} not found")
 
                 # Get associated memories and tasks
-                memory_service = services['memory_service']
-                task_service = services['task_service']
+                memory_service = services["memory_service"]
+                task_service = services["task_service"]
 
                 memory_count = await memory_service.count_memories(persona_id=persona_id)
                 active_tasks = await task_service.count_active_tasks(persona_id=persona_id)
@@ -137,8 +142,8 @@ class PersonaTools(BaseTool):
                     "statistics": {
                         "memory_count": memory_count,
                         "active_tasks": active_tasks,
-                        "capability_count": len(persona.capabilities)
-                    }
+                        "capability_count": len(persona.capabilities),
+                    },
                 }
 
             result = await self.execute_with_session(_get_persona)
@@ -146,9 +151,7 @@ class PersonaTools(BaseTool):
 
         @mcp.tool()
         async def list_personas(
-            active_only: bool = True,
-            include_stats: bool = False,
-            limit: int = 50
+            active_only: bool = True, include_stats: bool = False, limit: int = 50
         ) -> dict[str, Any]:
             """
             List all available personas.
@@ -163,12 +166,10 @@ class PersonaTools(BaseTool):
             Returns:
                 Dict containing list of personas with optional statistics
             """
+
             async def _list_personas(session, services):
-                persona_service = services['persona_service']
-                personas = await persona_service.list_personas(
-                    active_only=active_only,
-                    limit=limit
-                )
+                persona_service = services["persona_service"]
+                personas = await persona_service.list_personas(active_only=active_only, limit=limit)
 
                 persona_list = []
                 for p in personas:
@@ -178,19 +179,19 @@ class PersonaTools(BaseTool):
                         "description": p.description,
                         "capabilities": p.capabilities,
                         "is_active": p.is_active,
-                        "created_at": p.created_at.isoformat()
+                        "created_at": p.created_at.isoformat(),
                     }
 
                     if include_stats:
-                        memory_service = services['memory_service']
-                        task_service = services['task_service']
+                        memory_service = services["memory_service"]
+                        task_service = services["task_service"]
 
                         memory_count = await memory_service.count_memories(persona_id=str(p.id))
                         active_tasks = await task_service.count_active_tasks(persona_id=str(p.id))
 
                         persona_data["statistics"] = {
                             "memory_count": memory_count,
-                            "active_tasks": active_tasks
+                            "active_tasks": active_tasks,
                         }
 
                     persona_list.append(persona_data)
@@ -199,7 +200,7 @@ class PersonaTools(BaseTool):
                     "count": len(persona_list),
                     "active_filter": active_only,
                     "include_stats": include_stats,
-                    "personas": persona_list
+                    "personas": persona_list,
                 }
 
             result = await self.execute_with_session(_list_personas)
@@ -213,7 +214,7 @@ class PersonaTools(BaseTool):
             capabilities: list[str] | None = None,
             personality_traits: dict[str, Any] | None = None,
             metadata: dict[str, Any] | None = None,
-            is_active: bool | None = None
+            is_active: bool | None = None,
         ) -> dict[str, Any]:
             """
             Update an existing persona.
@@ -240,25 +241,25 @@ class PersonaTools(BaseTool):
                 capabilities=capabilities,
                 personality_traits=personality_traits,
                 metadata=metadata,
-                is_active=is_active
+                is_active=is_active,
             )
 
             async def _update_persona(session, services):
-                persona_service = services['persona_service']
+                persona_service = services["persona_service"]
 
                 updates = {}
                 if request.name is not None:
-                    updates['name'] = request.name
+                    updates["name"] = request.name
                 if request.description is not None:
-                    updates['description'] = request.description
+                    updates["description"] = request.description
                 if request.capabilities is not None:
-                    updates['capabilities'] = request.capabilities
+                    updates["capabilities"] = request.capabilities
                 if request.personality_traits is not None:
-                    updates['personality_traits'] = request.personality_traits
+                    updates["personality_traits"] = request.personality_traits
                 if request.metadata is not None:
-                    updates['metadata'] = request.metadata
+                    updates["metadata"] = request.metadata
                 if request.is_active is not None:
-                    updates['is_active'] = request.is_active
+                    updates["is_active"] = request.is_active
 
                 persona = await persona_service.update_persona(request.persona_id, updates)
 
@@ -270,7 +271,7 @@ class PersonaTools(BaseTool):
                     "personality_traits": persona.personality_traits,
                     "metadata": persona.metadata_json,
                     "is_active": persona.is_active,
-                    "updated_at": persona.updated_at.isoformat()
+                    "updated_at": persona.updated_at.isoformat(),
                 }
 
             result = await self.execute_with_session(_update_persona)
@@ -290,10 +291,11 @@ class PersonaTools(BaseTool):
             Returns:
                 Dict confirming deletion with cleanup summary
             """
+
             async def _delete_persona(session, services):
-                persona_service = services['persona_service']
-                memory_service = services['memory_service']
-                task_service = services['task_service']
+                persona_service = services["persona_service"]
+                memory_service = services["memory_service"]
+                task_service = services["task_service"]
 
                 # Get counts before deletion
                 memory_count = await memory_service.count_memories(persona_id=persona_id)
@@ -306,8 +308,8 @@ class PersonaTools(BaseTool):
                     "deleted_at": datetime.utcnow().isoformat(),
                     "cleanup_summary": {
                         "associated_memories": memory_count,
-                        "associated_tasks": task_count
-                    }
+                        "associated_tasks": task_count,
+                    },
                 }
 
             result = await self.execute_with_session(_delete_persona)
@@ -324,8 +326,9 @@ class PersonaTools(BaseTool):
             Returns:
                 Dict containing capability catalog with usage metrics
             """
+
             async def _get_capabilities(session, services):
-                persona_service = services['persona_service']
+                persona_service = services["persona_service"]
 
                 # Get all personas to analyze capabilities
                 all_personas = await persona_service.list_personas(active_only=False, limit=1000)
@@ -336,18 +339,13 @@ class PersonaTools(BaseTool):
                 for persona in all_personas:
                     for capability in persona.capabilities:
                         if capability not in capability_usage:
-                            capability_usage[capability] = {
-                                "count": 0,
-                                "personas": []
-                            }
+                            capability_usage[capability] = {"count": 0, "personas": []}
                         capability_usage[capability]["count"] += 1
                         capability_usage[capability]["personas"].append(persona.name)
 
                 # Sort by usage frequency
                 sorted_capabilities = sorted(
-                    capability_usage.items(),
-                    key=lambda x: x[1]["count"],
-                    reverse=True
+                    capability_usage.items(), key=lambda x: x[1]["count"], reverse=True
                 )
 
                 return {
@@ -357,10 +355,10 @@ class PersonaTools(BaseTool):
                         name: {
                             "usage_count": data["count"],
                             "usage_percentage": (data["count"] / total_personas) * 100,
-                            "used_by": data["personas"]
+                            "used_by": data["personas"],
                         }
                         for name, data in sorted_capabilities
-                    }
+                    },
                 }
 
             result = await self.execute_with_session(_get_capabilities)
@@ -380,8 +378,9 @@ class PersonaTools(BaseTool):
             Returns:
                 Dict containing matching personas and their details
             """
+
             async def _find_by_capability(session, services):
-                persona_service = services['persona_service']
+                persona_service = services["persona_service"]
 
                 personas = await persona_service.find_personas_by_capability(capability)
 
@@ -394,11 +393,14 @@ class PersonaTools(BaseTool):
                             "name": p.name,
                             "description": p.description,
                             "is_active": p.is_active,
-                            "all_capabilities": p.capabilities
+                            "all_capabilities": p.capabilities,
                         }
                         for p in personas
-                    ]
+                    ],
                 }
 
             result = await self.execute_with_session(_find_by_capability)
-            return self.format_success(result, f"Found {result.get('match_count', 0)} personas with capability '{capability}'")
+            return self.format_success(
+                result,
+                f"Found {result.get('match_count', 0)} personas with capability '{capability}'",
+            )

@@ -34,17 +34,12 @@ class LearningPattern(TMWSBase, MetadataMixin):
 
     # Pattern identification
     pattern_name: Mapped[str] = mapped_column(
-        String(255),
-        nullable=False,
-        comment="Pattern name identifier"
+        String(255), nullable=False, comment="Pattern name identifier"
     )
 
     # Agent-centric design
     agent_id: Mapped[str | None] = mapped_column(
-        Text,
-        nullable=True,
-        index=True,
-        comment="Owner agent identifier (null for system patterns)"
+        Text, nullable=True, index=True, comment="Owner agent identifier (null for system patterns)"
     )
 
     # Namespace organization
@@ -54,21 +49,16 @@ class LearningPattern(TMWSBase, MetadataMixin):
         default="default",
         server_default=sa.text("'default'"),
         index=True,
-        comment="Pattern namespace for organization and isolation"
+        comment="Pattern namespace for organization and isolation",
     )
 
     # Pattern classification
     category: Mapped[str] = mapped_column(
-        String(100),
-        nullable=False,
-        index=True,
-        comment="Pattern category classification"
+        String(100), nullable=False, index=True, comment="Pattern category classification"
     )
 
     subcategory: Mapped[str | None] = mapped_column(
-        String(100),
-        nullable=True,
-        comment="Pattern subcategory for fine-grained classification"
+        String(100), nullable=True, comment="Pattern subcategory for fine-grained classification"
     )
 
     # Access control
@@ -77,14 +67,12 @@ class LearningPattern(TMWSBase, MetadataMixin):
         nullable=False,
         default="private",
         server_default=sa.text("'private'"),
-        comment="Access level: private, shared, public, system"
+        comment="Access level: private, shared, public, system",
     )
 
     # Pattern data
     pattern_data: Mapped[dict[str, Any]] = mapped_column(
-        JSONB,
-        nullable=False,
-        comment="Pattern data structure with enhanced schema"
+        JSONB, nullable=False, comment="Pattern data structure with enhanced schema"
     )
 
     # Pattern versioning
@@ -93,14 +81,14 @@ class LearningPattern(TMWSBase, MetadataMixin):
         nullable=False,
         default="1.0.0",
         server_default=sa.text("'1.0.0'"),
-        comment="Pattern version for evolution tracking"
+        comment="Pattern version for evolution tracking",
     )
 
     parent_pattern_id: Mapped[UUID | None] = mapped_column(
         PGUUID(as_uuid=True),
         sa.ForeignKey("learning_patterns_v2.id", ondelete="SET NULL"),
         nullable=True,
-        comment="Parent pattern for versioning hierarchy"
+        comment="Parent pattern for versioning hierarchy",
     )
 
     # Usage analytics
@@ -109,7 +97,7 @@ class LearningPattern(TMWSBase, MetadataMixin):
         nullable=False,
         default=0,
         server_default=sa.text("0"),
-        comment="Total usage count across all agents"
+        comment="Total usage count across all agents",
     )
 
     agent_usage_count: Mapped[int] = mapped_column(
@@ -117,7 +105,7 @@ class LearningPattern(TMWSBase, MetadataMixin):
         nullable=False,
         default=0,
         server_default=sa.text("0"),
-        comment="Usage count by the owner agent"
+        comment="Usage count by the owner agent",
     )
 
     success_rate: Mapped[float] = mapped_column(
@@ -125,7 +113,7 @@ class LearningPattern(TMWSBase, MetadataMixin):
         nullable=False,
         default=0.0,
         server_default=sa.text("0.0"),
-        comment="Overall success rate (0.0-1.0)"
+        comment="Overall success rate (0.0-1.0)",
     )
 
     agent_success_rate: Mapped[float] = mapped_column(
@@ -133,40 +121,30 @@ class LearningPattern(TMWSBase, MetadataMixin):
         nullable=False,
         default=0.0,
         server_default=sa.text("0.0"),
-        comment="Success rate for the owner agent (0.0-1.0)"
+        comment="Success rate for the owner agent (0.0-1.0)",
     )
 
     # Performance tracking
     avg_execution_time: Mapped[float | None] = mapped_column(
-        Float,
-        nullable=True,
-        comment="Average execution time in seconds"
+        Float, nullable=True, comment="Average execution time in seconds"
     )
 
     complexity_score: Mapped[float | None] = mapped_column(
-        Float,
-        nullable=True,
-        comment="Pattern complexity score for optimization"
+        Float, nullable=True, comment="Pattern complexity score for optimization"
     )
 
     # Timestamp tracking
     last_used_at: Mapped[datetime | None] = mapped_column(
-        sa.DateTime(timezone=True),
-        nullable=True,
-        comment="Last usage timestamp"
+        sa.DateTime(timezone=True), nullable=True, comment="Last usage timestamp"
     )
 
     last_agent_used_at: Mapped[datetime | None] = mapped_column(
-        sa.DateTime(timezone=True),
-        nullable=True,
-        comment="Last usage by owner agent"
+        sa.DateTime(timezone=True), nullable=True, comment="Last usage by owner agent"
     )
 
     # Collaborative features
     shared_with_agents: Mapped[list[str] | None] = mapped_column(
-        JSONB,
-        nullable=True,
-        comment="List of agent IDs with shared access"
+        JSONB, nullable=True, comment="List of agent IDs with shared access"
     )
 
     # Learning metrics
@@ -175,7 +153,7 @@ class LearningPattern(TMWSBase, MetadataMixin):
         nullable=False,
         default=1.0,
         server_default=sa.text("1.0"),
-        comment="Weight for learning algorithms"
+        comment="Weight for learning algorithms",
     )
 
     confidence_score: Mapped[float] = mapped_column(
@@ -183,94 +161,70 @@ class LearningPattern(TMWSBase, MetadataMixin):
         nullable=False,
         default=0.5,
         server_default=sa.text("0.5"),
-        comment="Confidence in pattern effectiveness"
+        comment="Confidence in pattern effectiveness",
     )
 
     # Relationships
     parent_pattern = relationship(
-        "LearningPattern",
-        remote_side="LearningPattern.id",
-        back_populates="child_patterns"
+        "LearningPattern", remote_side="LearningPattern.id", back_populates="child_patterns"
     )
 
     child_patterns = relationship(
-        "LearningPattern",
-        back_populates="parent_pattern",
-        cascade="all, delete-orphan"
+        "LearningPattern", back_populates="parent_pattern", cascade="all, delete-orphan"
     )
 
     # Table constraints and indexes
     __table_args__ = (
         # Unique constraints
         sa.UniqueConstraint(
-            "pattern_name", "namespace", "agent_id",
-            name="uq_learning_patterns_name_namespace_agent"
+            "pattern_name",
+            "namespace",
+            "agent_id",
+            name="uq_learning_patterns_name_namespace_agent",
         ),
-
         # Check constraints
         CheckConstraint(
             "access_level IN ('private', 'shared', 'public', 'system')",
-            name="ck_learning_patterns_access_level"
+            name="ck_learning_patterns_access_level",
         ),
         CheckConstraint(
-            "success_rate >= 0.0 AND success_rate <= 1.0",
-            name="ck_learning_patterns_success_rate"
+            "success_rate >= 0.0 AND success_rate <= 1.0", name="ck_learning_patterns_success_rate"
         ),
         CheckConstraint(
             "agent_success_rate >= 0.0 AND agent_success_rate <= 1.0",
-            name="ck_learning_patterns_agent_success_rate"
+            name="ck_learning_patterns_agent_success_rate",
         ),
         CheckConstraint(
             "confidence_score >= 0.0 AND confidence_score <= 1.0",
-            name="ck_learning_patterns_confidence_score"
+            name="ck_learning_patterns_confidence_score",
         ),
-        CheckConstraint(
-            "usage_count >= 0",
-            name="ck_learning_patterns_usage_count"
-        ),
-        CheckConstraint(
-            "agent_usage_count >= 0",
-            name="ck_learning_patterns_agent_usage_count"
-        ),
-
+        CheckConstraint("usage_count >= 0", name="ck_learning_patterns_usage_count"),
+        CheckConstraint("agent_usage_count >= 0", name="ck_learning_patterns_agent_usage_count"),
         # Performance indexes
-        Index(
-            "idx_learning_patterns_v2_agent_namespace",
-            "agent_id", "namespace"
-        ),
-        Index(
-            "idx_learning_patterns_v2_category_access",
-            "category", "access_level"
-        ),
+        Index("idx_learning_patterns_v2_agent_namespace", "agent_id", "namespace"),
+        Index("idx_learning_patterns_v2_category_access", "category", "access_level"),
         Index(
             "idx_learning_patterns_v2_usage_performance",
-            "usage_count", "success_rate",
-            postgresql_ops={"usage_count": "DESC", "success_rate": "DESC"}
+            "usage_count",
+            "success_rate",
+            postgresql_ops={"usage_count": "DESC", "success_rate": "DESC"},
         ),
         Index(
             "idx_learning_patterns_v2_agent_performance",
-            "agent_id", "agent_usage_count", "agent_success_rate",
-            postgresql_ops={"agent_usage_count": "DESC", "agent_success_rate": "DESC"}
+            "agent_id",
+            "agent_usage_count",
+            "agent_success_rate",
+            postgresql_ops={"agent_usage_count": "DESC", "agent_success_rate": "DESC"},
         ),
         Index(
-            "idx_learning_patterns_v2_shared_access",
-            "shared_with_agents",
-            postgresql_using="gin"
+            "idx_learning_patterns_v2_shared_access", "shared_with_agents", postgresql_using="gin"
         ),
-        Index(
-            "idx_learning_patterns_v2_pattern_data",
-            "pattern_data",
-            postgresql_using="gin"
-        ),
-        Index(
-            "idx_learning_patterns_v2_metadata",
-            "metadata",
-            postgresql_using="gin"
-        ),
+        Index("idx_learning_patterns_v2_pattern_data", "pattern_data", postgresql_using="gin"),
+        Index("idx_learning_patterns_v2_metadata", "metadata", postgresql_using="gin"),
         Index(
             "idx_learning_patterns_v2_last_used",
             "last_used_at",
-            postgresql_ops={"last_used_at": "DESC"}
+            postgresql_ops={"last_used_at": "DESC"},
         ),
     )
 
@@ -290,7 +244,9 @@ class LearningPattern(TMWSBase, MetadataMixin):
             else:
                 # Exponential moving average
                 alpha = 0.1
-                self.avg_execution_time = (1 - alpha) * self.avg_execution_time + alpha * execution_time
+                self.avg_execution_time = (
+                    1 - alpha
+                ) * self.avg_execution_time + alpha * execution_time
 
     def update_success_rate(self, success: bool, by_owner: bool = False) -> None:
         """Update success rate based on outcome."""
@@ -345,8 +301,9 @@ class LearningPattern(TMWSBase, MetadataMixin):
         if self.access_level == "private" and self.agent_id == agent_id:
             return True
         if self.access_level == "shared":
-            return (self.agent_id == agent_id or
-                   (self.shared_with_agents and agent_id in self.shared_with_agents))
+            return self.agent_id == agent_id or (
+                self.shared_with_agents and agent_id in self.shared_with_agents
+            )
         return False
 
     def create_version(self, new_version: str, pattern_data: dict[str, Any]) -> "LearningPattern":
@@ -363,7 +320,7 @@ class LearningPattern(TMWSBase, MetadataMixin):
             parent_pattern_id=self.id,
             learning_weight=self.learning_weight,
             confidence_score=0.5,  # Reset confidence for new version
-            shared_with_agents=self.shared_with_agents.copy() if self.shared_with_agents else None
+            shared_with_agents=self.shared_with_agents.copy() if self.shared_with_agents else None,
         )
         return new_pattern
 
@@ -386,19 +343,25 @@ class LearningPattern(TMWSBase, MetadataMixin):
             "learning_weight": self.learning_weight,
             "last_used_at": self.last_used_at.isoformat() if self.last_used_at else None,
             "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat()
+            "updated_at": self.updated_at.isoformat(),
         }
 
         if include_sensitive:
-            result.update({
-                "agent_id": self.agent_id,
-                "agent_usage_count": self.agent_usage_count,
-                "agent_success_rate": self.agent_success_rate,
-                "last_agent_used_at": self.last_agent_used_at.isoformat() if self.last_agent_used_at else None,
-                "shared_with_agents": self.shared_with_agents,
-                "parent_pattern_id": str(self.parent_pattern_id) if self.parent_pattern_id else None,
-                "metadata": self.metadata
-            })
+            result.update(
+                {
+                    "agent_id": self.agent_id,
+                    "agent_usage_count": self.agent_usage_count,
+                    "agent_success_rate": self.agent_success_rate,
+                    "last_agent_used_at": self.last_agent_used_at.isoformat()
+                    if self.last_agent_used_at
+                    else None,
+                    "shared_with_agents": self.shared_with_agents,
+                    "parent_pattern_id": str(self.parent_pattern_id)
+                    if self.parent_pattern_id
+                    else None,
+                    "metadata": self.metadata,
+                }
+            )
 
         return result
 
@@ -414,38 +377,25 @@ class PatternUsageHistory(TMWSBase):
         PGUUID(as_uuid=True),
         sa.ForeignKey("learning_patterns_v2.id", ondelete="CASCADE"),
         nullable=False,
-        index=True
+        index=True,
     )
 
-    agent_id: Mapped[str | None] = mapped_column(
-        Text,
-        nullable=True,
-        index=True
-    )
+    agent_id: Mapped[str | None] = mapped_column(Text, nullable=True, index=True)
 
     used_at: Mapped[datetime] = mapped_column(
-        sa.DateTime(timezone=True),
-        nullable=False,
-        default=func.now(),
-        server_default=func.now()
+        sa.DateTime(timezone=True), nullable=False, default=func.now(), server_default=func.now()
     )
 
     execution_time: Mapped[float | None] = mapped_column(
-        Float,
-        nullable=True,
-        comment="Execution time in seconds"
+        Float, nullable=True, comment="Execution time in seconds"
     )
 
     success: Mapped[bool | None] = mapped_column(
-        sa.Boolean,
-        nullable=True,
-        comment="Whether the pattern usage was successful"
+        sa.Boolean, nullable=True, comment="Whether the pattern usage was successful"
     )
 
     context_data: Mapped[dict[str, Any] | None] = mapped_column(
-        JSONB,
-        nullable=True,
-        comment="Context information about the usage"
+        JSONB, nullable=True, comment="Context information about the usage"
     )
 
     # Relationships

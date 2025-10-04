@@ -10,7 +10,8 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 import sqlalchemy as sa
-from sqlalchemy import JSON, Boolean, DateTime, Float, Index, Integer, Text
+from sqlalchemy import Boolean, DateTime, Float, Index, Integer, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import MetadataMixin, TMWSBase
@@ -21,15 +22,17 @@ if TYPE_CHECKING:
 
 class AccessLevel(str, Enum):
     """Access levels for memory isolation."""
-    PRIVATE = "private"      # Only accessible by owner agent
-    TEAM = "team"            # Accessible by team members
-    SHARED = "shared"        # Accessible by explicitly shared agents
-    PUBLIC = "public"        # Accessible by all agents
-    SYSTEM = "system"        # System-level shared knowledge
+
+    PRIVATE = "private"  # Only accessible by owner agent
+    TEAM = "team"  # Accessible by team members
+    SHARED = "shared"  # Accessible by explicitly shared agents
+    PUBLIC = "public"  # Accessible by all agents
+    SYSTEM = "system"  # System-level shared knowledge
 
 
 class AgentStatus(str, Enum):
     """Agent operational status."""
+
     ACTIVE = "active"
     INACTIVE = "inactive"
     SUSPENDED = "suspended"
@@ -47,21 +50,16 @@ class Agent(TMWSBase, MetadataMixin):
         nullable=False,
         unique=True,
         index=True,
-        comment="Unique identifier for the agent (e.g., 'claude-3', 'gpt-4', 'athena-conductor')"
+        comment="Unique identifier for the agent (e.g., 'claude-3', 'gpt-4', 'athena-conductor')",
     )
 
     display_name: Mapped[str] = mapped_column(
-        Text,
-        nullable=False,
-        comment="Human-readable name for the agent"
+        Text, nullable=False, comment="Human-readable name for the agent"
     )
 
     # Organization and namespace
     organization_id: Mapped[str | None] = mapped_column(
-        Text,
-        nullable=True,
-        index=True,
-        comment="Organization or project identifier"
+        Text, nullable=True, index=True, comment="Organization or project identifier"
     )
 
     namespace: Mapped[str] = mapped_column(
@@ -69,28 +67,22 @@ class Agent(TMWSBase, MetadataMixin):
         nullable=False,
         default="default",
         index=True,
-        comment="Namespace for memory isolation"
+        comment="Namespace for memory isolation",
     )
 
     # Agent metadata
     agent_type: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
-        comment="Type of agent (e.g., 'language_model', 'task_executor', 'coordinator')"
+        comment="Type of agent (e.g., 'language_model', 'task_executor', 'coordinator')",
     )
 
     capabilities: Mapped[dict[str, Any]] = mapped_column(
-        JSON,
-        nullable=False,
-        default=dict,
-        comment="Dynamic capabilities and features"
+        JSONB, nullable=False, default=dict, comment="Dynamic capabilities and features"
     )
 
     config: Mapped[dict[str, Any]] = mapped_column(
-        JSON,
-        nullable=False,
-        default=dict,
-        comment="Agent-specific configuration"
+        JSONB, nullable=False, default=dict, comment="Agent-specific configuration"
     )
 
     # Access control
@@ -98,7 +90,7 @@ class Agent(TMWSBase, MetadataMixin):
         sa.Enum(AccessLevel, values_callable=lambda obj: [e.value for e in obj]),
         nullable=False,
         default=AccessLevel.PRIVATE,
-        comment="Default access level for agent's memories"
+        comment="Default access level for agent's memories",
     )
 
     # Status and health
@@ -106,14 +98,11 @@ class Agent(TMWSBase, MetadataMixin):
         sa.Enum(AgentStatus, values_callable=lambda obj: [e.value for e in obj]),
         nullable=False,
         default=AgentStatus.ACTIVE,
-        index=True
+        index=True,
     )
 
     health_score: Mapped[float] = mapped_column(
-        Float,
-        nullable=False,
-        default=1.0,
-        comment="Health score (0.0 - 1.0)"
+        Float, nullable=False, default=1.0, comment="Health score (0.0 - 1.0)"
     )
 
     # Performance metrics
@@ -124,16 +113,12 @@ class Agent(TMWSBase, MetadataMixin):
 
     # Authentication
     api_key_hash: Mapped[str | None] = mapped_column(
-        Text,
-        nullable=True,
-        comment="Hashed API key for agent authentication"
+        Text, nullable=True, comment="Hashed API key for agent authentication"
     )
 
     # Timestamps
     last_active_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True),
-        nullable=True,
-        index=True
+        DateTime(timezone=True), nullable=True, index=True
     )
 
     # Relationships
@@ -142,14 +127,14 @@ class Agent(TMWSBase, MetadataMixin):
         back_populates="assigned_agent",
         cascade="all, delete-orphan",
         foreign_keys="[Task.assigned_agent_id]",
-        primaryjoin="Agent.agent_id == Task.assigned_agent_id"
+        primaryjoin="Agent.agent_id == Task.assigned_agent_id",
     )
 
     # Indexes for performance
     __table_args__ = (
-        Index('ix_agent_org_namespace', 'organization_id', 'namespace'),
-        Index('ix_agent_status_active', 'status', 'last_active_at'),
-        Index('ix_agent_type_status', 'agent_type', 'status'),
+        Index("ix_agent_org_namespace", "organization_id", "namespace"),
+        Index("ix_agent_status_active", "status", "last_active_at"),
+        Index("ix_agent_type_status", "agent_type", "status"),
     )
 
     def __repr__(self) -> str:
@@ -167,10 +152,7 @@ class Agent(TMWSBase, MetadataMixin):
         self.last_active_at = datetime.utcnow()
 
     def update_metrics(
-        self,
-        success: bool,
-        response_time_ms: float,
-        memory_count_delta: int = 0
+        self, success: bool, response_time_ms: float, memory_count_delta: int = 0
     ) -> None:
         """Update performance metrics."""
         self.total_tasks += 1
@@ -229,13 +211,13 @@ class Agent(TMWSBase, MetadataMixin):
                     "orchestration": "advanced",
                     "workflow": "expert",
                     "parallel_execution": True,
-                    "task_delegation": True
+                    "task_delegation": True,
                 },
                 "config": {
                     "personality": "warm",
                     "approach": "harmonious",
-                    "specialties": ["orchestration", "workflow", "automation"]
-                }
+                    "specialties": ["orchestration", "workflow", "automation"],
+                },
             },
             {
                 "agent_id": "artemis-optimizer",
@@ -246,13 +228,13 @@ class Agent(TMWSBase, MetadataMixin):
                     "performance": "expert",
                     "optimization": "advanced",
                     "code_quality": True,
-                    "best_practices": True
+                    "best_practices": True,
                 },
                 "config": {
                     "personality": "perfectionist",
                     "approach": "technical_excellence",
-                    "specialties": ["optimization", "performance", "quality"]
-                }
+                    "specialties": ["optimization", "performance", "quality"],
+                },
             },
             {
                 "agent_id": "hestia-auditor",
@@ -263,13 +245,13 @@ class Agent(TMWSBase, MetadataMixin):
                     "security": "expert",
                     "audit": "advanced",
                     "vulnerability_scan": True,
-                    "threat_modeling": True
+                    "threat_modeling": True,
                 },
                 "config": {
                     "personality": "paranoid",
                     "approach": "defensive",
-                    "specialties": ["security", "audit", "risk", "vulnerability"]
-                }
+                    "specialties": ["security", "audit", "risk", "vulnerability"],
+                },
             },
             {
                 "agent_id": "eris-coordinator",
@@ -280,13 +262,13 @@ class Agent(TMWSBase, MetadataMixin):
                     "coordination": "advanced",
                     "tactical_planning": True,
                     "conflict_resolution": True,
-                    "team_alignment": True
+                    "team_alignment": True,
                 },
                 "config": {
                     "personality": "strategic",
                     "approach": "tactical",
-                    "specialties": ["coordinate", "tactical", "team", "collaboration"]
-                }
+                    "specialties": ["coordinate", "tactical", "team", "collaboration"],
+                },
             },
             {
                 "agent_id": "hera-strategist",
@@ -297,13 +279,13 @@ class Agent(TMWSBase, MetadataMixin):
                     "strategy": "expert",
                     "planning": "advanced",
                     "architecture": True,
-                    "vision": True
+                    "vision": True,
                 },
                 "config": {
                     "personality": "commander",
                     "approach": "strategic",
-                    "specialties": ["strategy", "planning", "architecture", "vision"]
-                }
+                    "specialties": ["strategy", "planning", "architecture", "vision"],
+                },
             },
             {
                 "agent_id": "muses-documenter",
@@ -314,14 +296,14 @@ class Agent(TMWSBase, MetadataMixin):
                     "documentation": "expert",
                     "knowledge_management": True,
                     "content_creation": True,
-                    "archival": True
+                    "archival": True,
                 },
                 "config": {
                     "personality": "meticulous",
                     "approach": "structured",
-                    "specialties": ["documentation", "knowledge", "record", "guide"]
-                }
-            }
+                    "specialties": ["documentation", "knowledge", "record", "guide"],
+                },
+            },
         ]
 
 
@@ -335,11 +317,11 @@ class AgentTeam(TMWSBase, MetadataMixin):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Team members (agent_ids)
-    members: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    members: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
     leader_agent_id: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Team configuration
-    config: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    config: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
     shared_namespace: Mapped[str] = mapped_column(Text, nullable=False)
 
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)
@@ -355,15 +337,15 @@ class AgentNamespace(TMWSBase, MetadataMixin):
 
     # Access control
     owner_agent_id: Mapped[str | None] = mapped_column(Text, nullable=True)
-    admin_agents: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
-    member_agents: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    admin_agents: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
+    member_agents: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
 
     # Namespace settings
     default_access_level: Mapped[AccessLevel] = mapped_column(
         sa.Enum(AccessLevel, values_callable=lambda obj: [e.value for e in obj]),
         nullable=False,
-        default=AccessLevel.PRIVATE
+        default=AccessLevel.PRIVATE,
     )
 
-    config: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    config: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)

@@ -33,10 +33,7 @@ class VectorizationService:
 
         return cls._model
 
-    async def vectorize_text(
-        self,
-        text: str | list[str]
-    ) -> np.ndarray:
+    async def vectorize_text(self, text: str | list[str]) -> np.ndarray:
         """
         Generate vector embedding for text.
 
@@ -61,7 +58,7 @@ class VectorizationService:
             texts,
             convert_to_numpy=True,
             show_progress_bar=False,
-            batch_size=settings.max_embedding_batch_size
+            batch_size=settings.max_embedding_batch_size,
         )
 
         # Return single embedding if single input
@@ -70,11 +67,7 @@ class VectorizationService:
 
         return embeddings
 
-    async def vectorize_batch(
-        self,
-        texts: list[str],
-        batch_size: int = None
-    ) -> list[np.ndarray]:
+    async def vectorize_batch(self, texts: list[str], batch_size: int = None) -> list[np.ndarray]:
         """
         Generate vector embeddings for a batch of texts.
 
@@ -95,12 +88,8 @@ class VectorizationService:
         all_embeddings = []
 
         for i in range(0, len(texts), batch_size):
-            batch = texts[i:i + batch_size]
-            embeddings = model.encode(
-                batch,
-                convert_to_numpy=True,
-                show_progress_bar=False
-            )
+            batch = texts[i : i + batch_size]
+            embeddings = model.encode(batch, convert_to_numpy=True, show_progress_bar=False)
             all_embeddings.extend(embeddings)
 
         logger.info(f"Vectorized {len(texts)} texts in batches of {batch_size}")
@@ -112,11 +101,7 @@ class VectorizationService:
         model = self.get_model()
         return model.get_sentence_embedding_dimension()
 
-    async def compute_similarity(
-        self,
-        embedding1: np.ndarray,
-        embedding2: np.ndarray
-    ) -> float:
+    async def compute_similarity(self, embedding1: np.ndarray, embedding2: np.ndarray) -> float:
         """
         Compute cosine similarity between two embeddings.
 
@@ -142,7 +127,7 @@ class VectorizationService:
         query_embedding: np.ndarray,
         candidate_embeddings: list[np.ndarray],
         top_k: int = 10,
-        min_similarity: float = 0.0
+        min_similarity: float = 0.0,
     ) -> list[tuple[int, float]]:
         """
         Find the most similar embeddings from a list of candidates.

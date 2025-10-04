@@ -15,9 +15,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ...core.config import get_settings
 from ...core.database import get_db_session_dependency
 from ...models.task import Task, TaskPriority, TaskStatus
+from ...models.user import APIKey, APIKeyScope, User
 from ...security.validators import InputValidator
 from ...services.task_service import TaskService
-from ..dependencies import get_current_user, get_task_service
+from ..dependencies import get_task_service, require_scope
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -33,12 +34,17 @@ async def list_tasks(
     priority: TaskPriority | None = Query(None, description="Filter by priority"),
     assigned_persona: str | None = Query(None, description="Filter by assigned persona"),
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict = Depends(get_current_user),
-    task_service: TaskService = Depends(get_task_service)
+    user_and_key: tuple[User | None, APIKey | None] = Depends(
+        require_scope(APIKeyScope.READ)
+    ),
+    task_service: TaskService = Depends(get_task_service),
 ) -> dict[str, Any]:
     """
     Get list of tasks with optional filtering.
+
+    Requires: READ scope or higher
     """
+    user, api_key = user_and_key
     try:
         # Build query
         query = select(Task)
@@ -77,15 +83,14 @@ async def list_tasks(
             "filters": {
                 "status": status,
                 "priority": priority,
-                "assigned_persona": assigned_persona
-            }
+                "assigned_persona": assigned_persona,
+            },
         }
 
     except Exception as e:
         logger.error(f"Failed to list tasks: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve tasks"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve tasks"
         )
 
 
@@ -97,18 +102,22 @@ async def create_task(
     assigned_persona: str | None = None,
     metadata: dict[str, Any] | None = None,
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict = Depends(get_current_user),
-    task_service: TaskService = Depends(get_task_service)
+    user_and_key: tuple[User | None, APIKey | None] = Depends(
+        require_scope(APIKeyScope.WRITE)
+    ),
+    task_service: TaskService = Depends(get_task_service),
 ) -> dict[str, Any]:
     """
     Create a new task.
+
+    Requires: WRITE scope or higher
     """
+    user, api_key = user_and_key
     try:
         # Validate input
         if not input_validator.validate_task_title(title):
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid task title"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid task title"
             )
 
         # Create task
@@ -118,21 +127,17 @@ async def create_task(
             priority=priority,
             assigned_persona=assigned_persona,
             metadata=metadata or {},
-            db_session=db
+            db_session=db,
         )
 
         logger.info(f"Task created: {task.id}")
 
-        return {
-            "message": "Task created successfully",
-            "task": task.to_dict()
-        }
+        return {"message": "Task created successfully", "task": task.to_dict()}
 
     except Exception as e:
         logger.error(f"Failed to create task: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create task"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create task"
         )
 
 
@@ -140,34 +145,33 @@ async def create_task(
 async def get_task(
     task_id: UUID,
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict = Depends(get_current_user)
+    user_and_key: tuple[User | None, APIKey | None] = Depends(
+        require_scope(APIKeyScope.READ)
+    ),
 ) -> dict[str, Any]:
     """
     Get a specific task by ID.
+
+    Requires: READ scope or higher
     """
+    user, api_key = user_and_key
     try:
-        result = await db.execute(
-            select(Task).where(Task.id == task_id)
-        )
+        result = await db.execute(select(Task).where(Task.id == task_id))
         task = result.scalar_one_or_none()
 
         if not task:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Task {task_id} not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail=f"Task {task_id} not found"
             )
 
-        return {
-            "task": task.to_dict()
-        }
+        return {"task": task.to_dict()}
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Failed to get task {task_id}: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve task"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve task"
         )
 
 
@@ -182,31 +186,32 @@ async def update_task(
     progress: int | None = Query(None, ge=0, le=100),
     metadata: dict[str, Any] | None = None,
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict = Depends(get_current_user),
-    task_service: TaskService = Depends(get_task_service)
+    user_and_key: tuple[User | None, APIKey | None] = Depends(
+        require_scope(APIKeyScope.WRITE)
+    ),
+    task_service: TaskService = Depends(get_task_service),
 ) -> dict[str, Any]:
     """
     Update an existing task.
+
+    Requires: WRITE scope or higher
     """
+    user, api_key = user_and_key
     try:
         # Get existing task
-        result = await db.execute(
-            select(Task).where(Task.id == task_id)
-        )
+        result = await db.execute(select(Task).where(Task.id == task_id))
         task = result.scalar_one_or_none()
 
         if not task:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Task {task_id} not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail=f"Task {task_id} not found"
             )
 
         # Update fields
         if title is not None:
             if not input_validator.validate_task_title(title):
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Invalid task title"
+                    status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid task title"
                 )
             task.title = title
 
@@ -231,10 +236,7 @@ async def update_task(
 
         logger.info(f"Task updated: {task_id}")
 
-        return {
-            "message": "Task updated successfully",
-            "task": task.to_dict()
-        }
+        return {"message": "Task updated successfully", "task": task.to_dict()}
 
     except HTTPException:
         raise
@@ -242,8 +244,7 @@ async def update_task(
         logger.error(f"Failed to update task {task_id}: {e}")
         await db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to update task"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update task"
         )
 
 
@@ -251,36 +252,33 @@ async def update_task(
 async def delete_task(
     task_id: UUID,
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict = Depends(get_current_user)
+    user_and_key: tuple[User | None, APIKey | None] = Depends(
+        require_scope(APIKeyScope.ADMIN)
+    ),
 ) -> dict[str, Any]:
     """
     Delete a task.
+
+    Requires: ADMIN scope
     """
+    user, api_key = user_and_key
     try:
         # Check if task exists
-        result = await db.execute(
-            select(Task).where(Task.id == task_id)
-        )
+        result = await db.execute(select(Task).where(Task.id == task_id))
         task = result.scalar_one_or_none()
 
         if not task:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Task {task_id} not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail=f"Task {task_id} not found"
             )
 
         # Delete task
-        await db.execute(
-            delete(Task).where(Task.id == task_id)
-        )
+        await db.execute(delete(Task).where(Task.id == task_id))
         await db.commit()
 
         logger.info(f"Task deleted: {task_id}")
 
-        return {
-            "message": "Task deleted successfully",
-            "task_id": str(task_id)
-        }
+        return {"message": "Task deleted successfully", "task_id": str(task_id)}
 
     except HTTPException:
         raise
@@ -288,8 +286,7 @@ async def delete_task(
         logger.error(f"Failed to delete task {task_id}: {e}")
         await db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to delete task"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to delete task"
         )
 
 
@@ -297,59 +294,60 @@ async def delete_task(
 async def complete_task(
     task_id: UUID,
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict = Depends(get_current_user),
-    task_service: TaskService = Depends(get_task_service)
+    user_and_key: tuple[User | None, APIKey | None] = Depends(
+        require_scope(APIKeyScope.WRITE)
+    ),
+    task_service: TaskService = Depends(get_task_service),
 ) -> dict[str, Any]:
     """
     Mark a task as completed.
+
+    Requires: WRITE scope or higher
     """
+    user, api_key = user_and_key
     try:
         task = await task_service.complete_task(task_id, db)
 
         if not task:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Task {task_id} not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail=f"Task {task_id} not found"
             )
 
-        return {
-            "message": "Task completed successfully",
-            "task": task.to_dict()
-        }
+        return {"message": "Task completed successfully", "task": task.to_dict()}
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Failed to complete task {task_id}: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to complete task"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to complete task"
         )
 
 
 @router.get("/stats/summary")
 async def get_task_statistics(
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict = Depends(get_current_user)
+    user_and_key: tuple[User | None, APIKey | None] = Depends(
+        require_scope(APIKeyScope.READ)
+    ),
 ) -> dict[str, Any]:
     """
     Get task statistics summary.
+
+    Requires: READ scope or higher
     """
+    user, api_key = user_and_key
     try:
         # Get counts by status
         status_counts = {}
         for status in TaskStatus:
-            result = await db.execute(
-                select(Task).where(Task.status == status)
-            )
+            result = await db.execute(select(Task).where(Task.status == status))
             status_counts[status.value] = len(result.scalars().all())
 
         # Get counts by priority
         priority_counts = {}
         for priority in TaskPriority:
-            result = await db.execute(
-                select(Task).where(Task.priority == priority)
-            )
+            result = await db.execute(select(Task).where(Task.priority == priority))
             priority_counts[priority.value] = len(result.scalars().all())
 
         # Get total count
@@ -360,12 +358,12 @@ async def get_task_statistics(
             "total_tasks": total,
             "by_status": status_counts,
             "by_priority": priority_counts,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
 
     except Exception as e:
         logger.error(f"Failed to get task statistics: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve statistics"
+            detail="Failed to retrieve statistics",
         )

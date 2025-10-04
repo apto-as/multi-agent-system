@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 class LogLevel(Enum):
     """Log levels for system logs."""
+
     DEBUG = "DEBUG"
     INFO = "INFO"
     WARNING = "WARNING"
@@ -28,6 +29,7 @@ class LogLevel(Enum):
 
 class SystemLog(Base):
     """Database model for system logs."""
+
     __tablename__ = "system_logs"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -55,11 +57,11 @@ class LogCleanupService:
 
         # Default retention policies (days)
         self.retention_policies = {
-            LogLevel.DEBUG: 7,      # Keep debug logs for 7 days
-            LogLevel.INFO: 30,      # Keep info logs for 30 days
-            LogLevel.WARNING: 90,   # Keep warnings for 90 days
-            LogLevel.ERROR: 180,    # Keep errors for 180 days
-            LogLevel.CRITICAL: 365  # Keep critical logs for 1 year
+            LogLevel.DEBUG: 7,  # Keep debug logs for 7 days
+            LogLevel.INFO: 30,  # Keep info logs for 30 days
+            LogLevel.WARNING: 90,  # Keep warnings for 90 days
+            LogLevel.ERROR: 180,  # Keep errors for 180 days
+            LogLevel.CRITICAL: 365,  # Keep critical logs for 1 year
         }
 
         # Cleanup configuration
@@ -68,11 +70,7 @@ class LogCleanupService:
         self.last_cleanup: datetime | None = None
 
     async def log_event(
-        self,
-        level: LogLevel,
-        message: str,
-        component: str = None,
-        context: dict[str, Any] = None
+        self, level: LogLevel, message: str, component: str = None, context: dict[str, Any] = None
     ) -> SystemLog:
         """
         Log an event to the database.
@@ -92,7 +90,7 @@ class LogCleanupService:
             level=level.value,
             component=component or "system",
             message=message,
-            context=context or {}
+            context=context or {},
         )
 
         self.session.add(log_entry)
@@ -101,11 +99,7 @@ class LogCleanupService:
 
         return log_entry
 
-    async def cleanup_old_logs(
-        self,
-        force: bool = False,
-        dry_run: bool = False
-    ) -> dict[str, Any]:
+    async def cleanup_old_logs(self, force: bool = False, dry_run: bool = False) -> dict[str, Any]:
         """
         Clean up old logs based on retention policies.
 
@@ -126,7 +120,7 @@ class LogCleanupService:
                     "reason": f"Cleanup ran {hours_since_cleanup:.1f} hours ago",
                     "next_cleanup": (
                         self.last_cleanup + timedelta(hours=self.cleanup_interval_hours)
-                    ).isoformat()
+                    ).isoformat(),
                 }
 
         cleanup_stats = {
@@ -134,7 +128,7 @@ class LogCleanupService:
             "dry_run": dry_run,
             "deleted_by_level": {},
             "total_deleted": 0,
-            "errors": []
+            "errors": [],
         }
 
         try:
@@ -143,9 +137,10 @@ class LogCleanupService:
                 cutoff_date = datetime.utcnow() - timedelta(days=retention_days)
 
                 # Count logs to delete
-                count_stmt = select(func.count()).select_from(SystemLog).where(
-                    SystemLog.level == level.value,
-                    SystemLog.timestamp < cutoff_date
+                count_stmt = (
+                    select(func.count())
+                    .select_from(SystemLog)
+                    .where(SystemLog.level == level.value, SystemLog.timestamp < cutoff_date)
                 )
                 result = await self.session.execute(count_stmt)
                 count_to_delete = result.scalar()
@@ -153,7 +148,7 @@ class LogCleanupService:
                 if count_to_delete == 0:
                     cleanup_stats["deleted_by_level"][level.value] = {
                         "count": 0,
-                        "cutoff_date": cutoff_date.isoformat()
+                        "cutoff_date": cutoff_date.isoformat(),
                     }
                     continue
 
@@ -163,10 +158,13 @@ class LogCleanupService:
                     # Delete in batches to avoid locking
                     while deleted_count < count_to_delete:
                         # Get batch of IDs to delete
-                        batch_stmt = select(SystemLog.id).where(
-                            SystemLog.level == level.value,
-                            SystemLog.timestamp < cutoff_date
-                        ).limit(self.batch_size)
+                        batch_stmt = (
+                            select(SystemLog.id)
+                            .where(
+                                SystemLog.level == level.value, SystemLog.timestamp < cutoff_date
+                            )
+                            .limit(self.batch_size)
+                        )
 
                         batch_result = await self.session.execute(batch_stmt)
                         log_ids = [row[0] for row in batch_result]
@@ -187,7 +185,7 @@ class LogCleanupService:
                 cleanup_stats["deleted_by_level"][level.value] = {
                     "count": deleted_count if not dry_run else count_to_delete,
                     "cutoff_date": cutoff_date.isoformat(),
-                    "retention_days": retention_days
+                    "retention_days": retention_days,
                 }
                 cleanup_stats["total_deleted"] += deleted_count if not dry_run else count_to_delete
 
@@ -218,7 +216,7 @@ class LogCleanupService:
             "by_component": {},
             "oldest_log": None,
             "newest_log": None,
-            "storage_info": {}
+            "storage_info": {},
         }
 
         # Total count
@@ -227,20 +225,19 @@ class LogCleanupService:
         stats["total_logs"] = total_result.scalar()
 
         # Count by level
-        level_stmt = select(
-            SystemLog.level,
-            func.count()
-        ).group_by(SystemLog.level)
+        level_stmt = select(SystemLog.level, func.count()).group_by(SystemLog.level)
 
         level_result = await self.session.execute(level_stmt)
         for level, count in level_result:
             stats["by_level"][level] = count
 
         # Count by component (top 10)
-        component_stmt = select(
-            SystemLog.component,
-            func.count()
-        ).group_by(SystemLog.component).order_by(func.count().desc()).limit(10)
+        component_stmt = (
+            select(SystemLog.component, func.count())
+            .group_by(SystemLog.component)
+            .order_by(func.count().desc())
+            .limit(10)
+        )
 
         component_result = await self.session.execute(component_stmt)
         for component, count in component_result:
@@ -267,7 +264,7 @@ class LogCleanupService:
             "estimated_size_mb": (stats["total_logs"] * avg_log_size) / (1024 * 1024),
             "retention_policies": {
                 level.value: days for level, days in self.retention_policies.items()
-            }
+            },
         }
 
         return stats
@@ -279,7 +276,7 @@ class LogCleanupService:
         start_date: datetime | None = None,
         end_date: datetime | None = None,
         search_text: str | None = None,
-        limit: int = 100
+        limit: int = 100,
     ) -> list[dict[str, Any]]:
         """
         Search logs with filters.
@@ -327,15 +324,13 @@ class LogCleanupService:
                 "level": log.level,
                 "component": log.component,
                 "message": log.message,
-                "context": log.context
+                "context": log.context,
             }
             for log in logs
         ]
 
     async def archive_old_logs(
-        self,
-        archive_days: int = 90,
-        archive_path: str = "/archive/logs"
+        self, archive_days: int = 90, archive_path: str = "/archive/logs"
     ) -> dict[str, Any]:
         """
         Archive old logs to external storage before deletion.
@@ -354,8 +349,8 @@ class LogCleanupService:
         archive_date = datetime.utcnow() - timedelta(days=archive_days)
 
         # Count logs to archive
-        count_stmt = select(func.count()).select_from(SystemLog).where(
-            SystemLog.timestamp < archive_date
+        count_stmt = (
+            select(func.count()).select_from(SystemLog).where(SystemLog.timestamp < archive_date)
         )
         result = await self.session.execute(count_stmt)
         count_to_archive = result.scalar()
@@ -365,14 +360,10 @@ class LogCleanupService:
             "message": "Archive functionality requires external storage configuration",
             "logs_to_archive": count_to_archive,
             "archive_date": archive_date.isoformat(),
-            "archive_path": archive_path
+            "archive_path": archive_path,
         }
 
-    def update_retention_policy(
-        self,
-        level: LogLevel,
-        retention_days: int
-    ) -> None:
+    def update_retention_policy(self, level: LogLevel, retention_days: int) -> None:
         """
         Update retention policy for a log level.
 
@@ -388,6 +379,5 @@ class LogCleanupService:
         self.retention_policies[level] = retention_days
 
         logger.info(
-            f"Updated retention policy for {level.value}: "
-            f"{old_retention} -> {retention_days} days"
+            f"Updated retention policy for {level.value}: {old_retention} -> {retention_days} days"
         )

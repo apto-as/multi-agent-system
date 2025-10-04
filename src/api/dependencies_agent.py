@@ -37,7 +37,7 @@ _encryption_service: EncryptionService | None = None
 agent_security = HTTPBearer(
     scheme_name="Agent Bearer Token",
     description="Agent authentication using Bearer token",
-    auto_error=False
+    auto_error=False,
 )
 
 
@@ -76,7 +76,7 @@ class AgentContext:
         namespace: str,
         session_data: dict[str, Any],
         request: Request,
-        permissions: dict[str, Any] | None = None
+        permissions: dict[str, Any] | None = None,
     ):
         self.agent_id = agent_id
         self.namespace = namespace
@@ -115,8 +115,12 @@ class AgentContext:
     def is_trinitas_agent(self) -> bool:
         """Check if this is a Trinitas core agent."""
         trinitas_agents = [
-            "athena-conductor", "artemis-optimizer", "hestia-auditor",
-            "eris-coordinator", "hera-strategist", "muses-documenter"
+            "athena-conductor",
+            "artemis-optimizer",
+            "hestia-auditor",
+            "eris-coordinator",
+            "hera-strategist",
+            "muses-documenter",
         ]
         return self.agent_id in trinitas_agents
 
@@ -124,7 +128,7 @@ class AgentContext:
 async def authenticate_agent(
     request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(agent_security)],
-    authenticator: Annotated[AgentAuthService, Depends(get_agent_authenticator)]
+    authenticator: Annotated[AgentAuthService, Depends(get_agent_authenticator)],
 ) -> AgentContext:
     """
     Authenticate agent from Bearer token.
@@ -143,17 +147,26 @@ async def authenticate_agent(
     # Check for development mode bypass
     settings = get_settings()
     if not settings.auth_enabled:
-        # Development mode - create mock context
-        mock_agent_id = request.headers.get("x-agent-id", "dev-agent")
-        mock_namespace = request.headers.get("x-agent-namespace", "development")
+        # Development mode - create secure mock context
+        # DO NOT allow arbitrary agent IDs from headers in production
+        if settings.environment != "development":
+            logger.error("Auth disabled in non-development environment!")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Configuration error: authentication must be enabled",
+            )
 
-        logger.debug(f"Development mode: bypassing auth for {mock_agent_id}")
+        # Use fixed development agent ID, not from headers
+        mock_agent_id = "dev-agent-fixed"
+        mock_namespace = "development"
+
+        logger.debug(f"Development mode: using fixed dev agent {mock_agent_id}")
 
         return AgentContext(
             agent_id=mock_agent_id,
             namespace=mock_namespace,
-            session_data={"dev_mode": True},
-            request=request
+            session_data={"dev_mode": True, "warning": "Development mode only"},
+            request=request,
         )
 
     # Production mode - require authentication
@@ -161,7 +174,7 @@ async def authenticate_agent(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Agent authentication required",
-            headers={"WWW-Authenticate": "Bearer"}
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
     try:
@@ -178,10 +191,7 @@ async def authenticate_agent(
         logger.info(f"Agent authenticated: {agent_id} (session: {session_id})")
 
         return AgentContext(
-            agent_id=agent_id,
-            namespace=namespace,
-            session_data=session_data,
-            request=request
+            agent_id=agent_id, namespace=namespace, session_data=session_data, request=request
         )
 
     except HTTPException:
@@ -189,15 +199,12 @@ async def authenticate_agent(
     except Exception as e:
         logger.error(f"Agent authentication error: {e}")
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid agent credentials"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid agent credentials"
         )
 
 
 async def require_agent_access(
-    resource_type: ResourceType,
-    action: ActionType,
-    resource_id: str | None = None
+    resource_type: ResourceType, action: ActionType, resource_id: str | None = None
 ):
     """
     Dependency factory for resource access control.
@@ -212,9 +219,10 @@ async def require_agent_access(
             # Agent has verified access to read memories
             pass
     """
+
     async def check_access(
         agent: Annotated[AgentContext, Depends(authenticate_agent)],
-        access_control: Annotated[AccessControlManager, Depends(get_access_control)]
+        access_control: Annotated[AccessControlManager, Depends(get_access_control)],
     ):
         """Check agent access to resource."""
         # Use resource_id from path if not provided
@@ -222,7 +230,9 @@ async def require_agent_access(
 
         # For system agents, allow broader access
         if agent.is_system_agent():
-            logger.debug(f"System agent {agent.agent_id} granted access to {resource_type.value}:{action.value}")
+            logger.debug(
+                f"System agent {agent.agent_id} granted access to {resource_type.value}:{action.value}"
+            )
             return
 
         # Check access control
@@ -232,13 +242,13 @@ async def require_agent_access(
                 resource_id=target_resource,
                 resource_type=resource_type,
                 action=action,
-                resource_metadata={"namespace": agent.namespace}
+                resource_metadata={"namespace": agent.namespace},
             )
 
             if not has_access:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
-                    detail=f"Access denied: {action.value} on {resource_type.value}"
+                    detail=f"Access denied: {action.value} on {resource_type.value}",
                 )
 
         except HTTPException:
@@ -247,7 +257,7 @@ async def require_agent_access(
             logger.error(f"Access control error: {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Access control system error"
+                detail="Access control system error",
             )
 
     return check_access
@@ -255,11 +265,12 @@ async def require_agent_access(
 
 def require_trinitas_agent():
     """Require authenticated Trinitas core agent."""
+
     async def check_trinitas_agent(agent: Annotated[AgentContext, Depends(authenticate_agent)]):
         if not agent.is_trinitas_agent():
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access restricted to Trinitas core agents"
+                detail="Access restricted to Trinitas core agents",
             )
         return agent
 
@@ -268,11 +279,11 @@ def require_trinitas_agent():
 
 def require_system_agent():
     """Require system-level agent."""
+
     async def check_system_agent(agent: Annotated[AgentContext, Depends(authenticate_agent)]):
         if not agent.is_system_agent():
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="System-level access required"
+                status_code=status.HTTP_403_FORBIDDEN, detail="System-level access required"
             )
         return agent
 
@@ -281,11 +292,12 @@ def require_system_agent():
 
 def require_namespace(required_namespace: str):
     """Require agent from specific namespace."""
+
     async def check_namespace(agent: Annotated[AgentContext, Depends(authenticate_agent)]):
         if agent.namespace != required_namespace:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Access restricted to {required_namespace} namespace"
+                detail=f"Access restricted to {required_namespace} namespace",
             )
         return agent
 
@@ -294,19 +306,17 @@ def require_namespace(required_namespace: str):
 
 async def get_encrypted_data_handler(
     agent: Annotated[AgentContext, Depends(authenticate_agent)],
-    encryption: Annotated[EncryptionService, Depends(get_encryption_service)]
+    encryption: Annotated[EncryptionService, Depends(get_encryption_service)],
 ):
     """Dependency for handling encrypted data operations."""
+
     class EncryptedDataHandler:
         def __init__(self, agent_context: AgentContext, encryption_service: EncryptionService):
             self.agent = agent_context
             self.encryption = encryption_service
 
         async def encrypt_data(
-            self,
-            data: dict[str, Any],
-            data_type: str,
-            classification: str = "confidential"
+            self, data: dict[str, Any], data_type: str, classification: str = "confidential"
         ) -> dict[str, Any]:
             """Encrypt data for the current agent."""
             from ..security.data_encryption import DataClassification
@@ -317,9 +327,7 @@ async def get_encrypted_data_handler(
             )
 
         async def decrypt_data(
-            self,
-            encrypted_data: dict[str, Any],
-            data_type: str
+            self, encrypted_data: dict[str, Any], data_type: str
         ) -> dict[str, Any]:
             """Decrypt data for the current agent."""
             return await self.encryption.decrypt_agent_data(
@@ -331,12 +339,20 @@ async def get_encrypted_data_handler(
 
 # Convenience dependencies
 CurrentAgent = Annotated[AgentContext, Depends(authenticate_agent)]
-MemoryReadAccess = Depends(require_agent_access(ResourceType.MEMORY, ActionType.READ))
-MemoryWriteAccess = Depends(require_agent_access(ResourceType.MEMORY, ActionType.UPDATE))
-MemoryCreateAccess = Depends(require_agent_access(ResourceType.MEMORY, ActionType.CREATE))
-TaskExecuteAccess = Depends(require_agent_access(ResourceType.TASK, ActionType.EXECUTE))
-SystemAccess = Depends(require_system_agent())
-TrinitasAccess = Depends(require_trinitas_agent())
+MemoryReadAccess = Annotated[
+    AgentContext, Depends(require_agent_access(ResourceType.MEMORY, ActionType.READ))
+]
+MemoryWriteAccess = Annotated[
+    AgentContext, Depends(require_agent_access(ResourceType.MEMORY, ActionType.UPDATE))
+]
+MemoryCreateAccess = Annotated[
+    AgentContext, Depends(require_agent_access(ResourceType.MEMORY, ActionType.CREATE))
+]
+TaskExecuteAccess = Annotated[
+    AgentContext, Depends(require_agent_access(ResourceType.TASK, ActionType.EXECUTE))
+]
+SystemAccess = Annotated[AgentContext, Depends(require_system_agent())]
+TrinitasAccess = Annotated[AgentContext, Depends(require_trinitas_agent())]
 EncryptedDataHandler = Annotated[object, Depends(get_encrypted_data_handler)]
 
 
@@ -355,5 +371,5 @@ __all__ = [
     "TaskExecuteAccess",
     "SystemAccess",
     "TrinitasAccess",
-    "EncryptedDataHandler"
+    "EncryptedDataHandler",
 ]

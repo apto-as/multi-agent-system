@@ -14,7 +14,16 @@
         "TMWS_AUTH_ENABLED": "false",
         "TMWS_AGENT_ID": "athena-conductor",
         "TMWS_AGENT_NAMESPACE": "trinitas",
-        "TMWS_ALLOW_DEFAULT_AGENT": "true"
+        "TMWS_ALLOW_DEFAULT_AGENT": "true",
+        "GENAI_TOOLBOX_PATH": "/path/to/genai-toolbox"
+      }
+    },
+    "genai-toolbox-direct": {
+      "command": "/path/to/genai-toolbox",
+      "args": ["--mcp-server"],
+      "env": {
+        "OPENAI_API_KEY": "your-openai-key",
+        "ANTHROPIC_API_KEY": "your-anthropic-key"
       }
     }
   }

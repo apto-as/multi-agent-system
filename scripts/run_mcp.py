@@ -8,7 +8,7 @@ Usage:
 
 Environment Variables:
     TMWS_AGENT_ID - Agent identifier
-    TMWS_AGENT_NAMESPACE - Agent namespace (default: "default") 
+    TMWS_AGENT_NAMESPACE - Agent namespace (default: "default")
     TMWS_AGENT_CAPABILITIES - JSON string of agent capabilities
 """
 

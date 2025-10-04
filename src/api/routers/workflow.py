@@ -14,11 +14,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.config import get_settings
 from ...core.database import get_db_session_dependency
+from ...models.user import APIKey, APIKeyScope, User
 from ...models.workflow import Workflow, WorkflowStatus
 from ...security.validators import InputValidator
 from ...services.workflow_history_service import WorkflowHistoryService
 from ...services.workflow_service import WorkflowService
-from ..dependencies import get_current_user, get_workflow_service
+from ..dependencies import require_scope, get_workflow_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -33,11 +34,16 @@ async def list_workflows(
     status: WorkflowStatus | None = Query(None, description="Filter by status"),
     workflow_type: str | None = Query(None, description="Filter by workflow type"),
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict = Depends(get_current_user)
+    user_and_key: tuple[User | None, APIKey | None] = Depends(
+        require_scope(APIKeyScope.READ)
+    ),
 ) -> dict[str, Any]:
     """
     Get list of workflows with optional filtering.
+
+    Requires: READ scope or higher
     """
+    user, api_key = user_and_key
     try:
         # Build query
         query = select(Workflow)
@@ -71,17 +77,13 @@ async def list_workflows(
             "total": total,
             "skip": skip,
             "limit": limit,
-            "filters": {
-                "status": status,
-                "workflow_type": workflow_type
-            }
+            "filters": {"status": status, "workflow_type": workflow_type},
         }
 
     except Exception as e:
         logger.error(f"Failed to list workflows: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve workflows"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve workflows"
         )
 
 
@@ -93,18 +95,22 @@ async def create_workflow(
     config: dict[str, Any] | None = None,
     metadata: dict[str, Any] | None = None,
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict = Depends(get_current_user),
-    workflow_service: WorkflowService = Depends(get_workflow_service)
+    user_and_key: tuple[User | None, APIKey | None] = Depends(
+        require_scope(APIKeyScope.WRITE)
+    ),
+    workflow_service: WorkflowService = Depends(get_workflow_service),
 ) -> dict[str, Any]:
     """
     Create a new workflow.
+
+    Requires: WRITE scope or higher
     """
+    user, api_key = user_and_key
     try:
         # Validate input
         if not input_validator.validate_workflow_name(name):
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid workflow name"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid workflow name"
             )
 
         # Create workflow
@@ -114,21 +120,17 @@ async def create_workflow(
             description=description,
             config=config or {},
             metadata=metadata or {},
-            db_session=db
+            db_session=db,
         )
 
         logger.info(f"Workflow created: {workflow.id}")
 
-        return {
-            "message": "Workflow created successfully",
-            "workflow": workflow.to_dict()
-        }
+        return {"message": "Workflow created successfully", "workflow": workflow.to_dict()}
 
     except Exception as e:
         logger.error(f"Failed to create workflow: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create workflow"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create workflow"
         )
 
 
@@ -137,34 +139,32 @@ async def get_workflow(
     workflow_id: UUID,
     include_history: bool = Query(False, description="Include execution history"),
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict = Depends(get_current_user),
-    history_service: WorkflowHistoryService = Depends(lambda: WorkflowHistoryService())
+    user_and_key: tuple[User | None, APIKey | None] = Depends(
+        require_scope(APIKeyScope.READ)
+    ),
+    history_service: WorkflowHistoryService = Depends(lambda: WorkflowHistoryService()),
 ) -> dict[str, Any]:
     """
     Get a specific workflow by ID.
+
+    Requires: READ scope or higher
     """
+    user, api_key = user_and_key
     try:
-        result = await db.execute(
-            select(Workflow).where(Workflow.id == workflow_id)
-        )
+        result = await db.execute(select(Workflow).where(Workflow.id == workflow_id))
         workflow = result.scalar_one_or_none()
 
         if not workflow:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Workflow {workflow_id} not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail=f"Workflow {workflow_id} not found"
             )
 
-        response = {
-            "workflow": workflow.to_dict()
-        }
+        response = {"workflow": workflow.to_dict()}
 
         # Include execution history if requested
         if include_history:
             history = await history_service.get_workflow_history(
-                workflow_id=workflow_id,
-                limit=10,
-                db_session=db
+                workflow_id=workflow_id, limit=10, db_session=db
             )
             response["execution_history"] = [h.to_dict() for h in history]
 
@@ -175,8 +175,7 @@ async def get_workflow(
     except Exception as e:
         logger.error(f"Failed to get workflow {workflow_id}: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve workflow"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve workflow"
         )
 
 
@@ -188,37 +187,37 @@ async def update_workflow(
     config: dict[str, Any] | None = None,
     metadata: dict[str, Any] | None = None,
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict = Depends(get_current_user)
+    user_and_key: tuple[User | None, APIKey | None] = Depends(
+        require_scope(APIKeyScope.WRITE)
+    ),
 ) -> dict[str, Any]:
     """
     Update an existing workflow.
+
+    Requires: WRITE scope or higher
     """
+    user, api_key = user_and_key
     try:
         # Get existing workflow
-        result = await db.execute(
-            select(Workflow).where(Workflow.id == workflow_id)
-        )
+        result = await db.execute(select(Workflow).where(Workflow.id == workflow_id))
         workflow = result.scalar_one_or_none()
 
         if not workflow:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Workflow {workflow_id} not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail=f"Workflow {workflow_id} not found"
             )
 
         # Check if workflow is running
         if workflow.status == WorkflowStatus.RUNNING:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Cannot update a running workflow"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot update a running workflow"
             )
 
         # Update fields
         if name is not None:
             if not input_validator.validate_workflow_name(name):
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Invalid workflow name"
+                    status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid workflow name"
                 )
             workflow.name = name
 
@@ -237,10 +236,7 @@ async def update_workflow(
 
         logger.info(f"Workflow updated: {workflow_id}")
 
-        return {
-            "message": "Workflow updated successfully",
-            "workflow": workflow.to_dict()
-        }
+        return {"message": "Workflow updated successfully", "workflow": workflow.to_dict()}
 
     except HTTPException:
         raise
@@ -248,8 +244,7 @@ async def update_workflow(
         logger.error(f"Failed to update workflow {workflow_id}: {e}")
         await db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to update workflow"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update workflow"
         )
 
 
@@ -257,43 +252,39 @@ async def update_workflow(
 async def delete_workflow(
     workflow_id: UUID,
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict = Depends(get_current_user)
+    user_and_key: tuple[User | None, APIKey | None] = Depends(
+        require_scope(APIKeyScope.ADMIN)
+    ),
 ) -> dict[str, Any]:
     """
     Delete a workflow.
+
+    Requires: ADMIN scope
     """
+    user, api_key = user_and_key
     try:
         # Check if workflow exists
-        result = await db.execute(
-            select(Workflow).where(Workflow.id == workflow_id)
-        )
+        result = await db.execute(select(Workflow).where(Workflow.id == workflow_id))
         workflow = result.scalar_one_or_none()
 
         if not workflow:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Workflow {workflow_id} not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail=f"Workflow {workflow_id} not found"
             )
 
         # Check if workflow is running
         if workflow.status == WorkflowStatus.RUNNING:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Cannot delete a running workflow"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot delete a running workflow"
             )
 
         # Delete workflow
-        await db.execute(
-            delete(Workflow).where(Workflow.id == workflow_id)
-        )
+        await db.execute(delete(Workflow).where(Workflow.id == workflow_id))
         await db.commit()
 
         logger.info(f"Workflow deleted: {workflow_id}")
 
-        return {
-            "message": "Workflow deleted successfully",
-            "workflow_id": str(workflow_id)
-        }
+        return {"message": "Workflow deleted successfully", "workflow_id": str(workflow_id)}
 
     except HTTPException:
         raise
@@ -301,8 +292,7 @@ async def delete_workflow(
         logger.error(f"Failed to delete workflow {workflow_id}: {e}")
         await db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to delete workflow"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to delete workflow"
         )
 
 
@@ -312,30 +302,31 @@ async def execute_workflow(
     parameters: dict[str, Any] | None = None,
     background_tasks: BackgroundTasks = BackgroundTasks(),
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict = Depends(get_current_user),
-    workflow_service: WorkflowService = Depends(get_workflow_service)
+    user_and_key: tuple[User | None, APIKey | None] = Depends(
+        require_scope(APIKeyScope.WRITE)
+    ),
+    workflow_service: WorkflowService = Depends(get_workflow_service),
 ) -> dict[str, Any]:
     """
     Execute a workflow asynchronously.
+
+    Requires: WRITE scope or higher
     """
+    user, api_key = user_and_key
     try:
         # Get workflow
-        result = await db.execute(
-            select(Workflow).where(Workflow.id == workflow_id)
-        )
+        result = await db.execute(select(Workflow).where(Workflow.id == workflow_id))
         workflow = result.scalar_one_or_none()
 
         if not workflow:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Workflow {workflow_id} not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail=f"Workflow {workflow_id} not found"
             )
 
         # Check if workflow is already running
         if workflow.status == WorkflowStatus.RUNNING:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Workflow is already running"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Workflow is already running"
             )
 
         # Update workflow status to running
@@ -348,7 +339,7 @@ async def execute_workflow(
             workflow_service.execute_workflow,
             workflow_id=workflow_id,
             parameters=parameters or {},
-            db_session=db
+            db_session=db,
         )
 
         logger.info(f"Workflow execution started: {workflow_id}")
@@ -357,7 +348,7 @@ async def execute_workflow(
             "message": "Workflow execution started",
             "workflow_id": str(workflow_id),
             "status": WorkflowStatus.RUNNING.value,
-            "started_at": workflow.started_at.isoformat()
+            "started_at": workflow.started_at.isoformat(),
         }
 
     except HTTPException:
@@ -365,8 +356,7 @@ async def execute_workflow(
     except Exception as e:
         logger.error(f"Failed to execute workflow {workflow_id}: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to execute workflow"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to execute workflow"
         )
 
 
@@ -374,21 +364,23 @@ async def execute_workflow(
 async def get_workflow_status(
     workflow_id: UUID,
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict = Depends(get_current_user)
+    user_and_key: tuple[User | None, APIKey | None] = Depends(
+        require_scope(APIKeyScope.READ)
+    ),
 ) -> dict[str, Any]:
     """
     Get the current status of a workflow.
+
+    Requires: READ scope or higher
     """
+    user, api_key = user_and_key
     try:
-        result = await db.execute(
-            select(Workflow).where(Workflow.id == workflow_id)
-        )
+        result = await db.execute(select(Workflow).where(Workflow.id == workflow_id))
         workflow = result.scalar_one_or_none()
 
         if not workflow:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Workflow {workflow_id} not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail=f"Workflow {workflow_id} not found"
             )
 
         return {
@@ -397,7 +389,7 @@ async def get_workflow_status(
             "started_at": workflow.started_at.isoformat() if workflow.started_at else None,
             "completed_at": workflow.completed_at.isoformat() if workflow.completed_at else None,
             "error": workflow.error,
-            "result": workflow.result
+            "result": workflow.result,
         }
 
     except HTTPException:
@@ -406,7 +398,7 @@ async def get_workflow_status(
         logger.error(f"Failed to get workflow status {workflow_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve workflow status"
+            detail="Failed to retrieve workflow status",
         )
 
 
@@ -414,29 +406,30 @@ async def get_workflow_status(
 async def cancel_workflow(
     workflow_id: UUID,
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict = Depends(get_current_user)
+    user_and_key: tuple[User | None, APIKey | None] = Depends(
+        require_scope(APIKeyScope.WRITE)
+    ),
 ) -> dict[str, Any]:
     """
     Cancel a running workflow.
+
+    Requires: WRITE scope or higher
     """
+    user, api_key = user_and_key
     try:
         # Get workflow
-        result = await db.execute(
-            select(Workflow).where(Workflow.id == workflow_id)
-        )
+        result = await db.execute(select(Workflow).where(Workflow.id == workflow_id))
         workflow = result.scalar_one_or_none()
 
         if not workflow:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Workflow {workflow_id} not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail=f"Workflow {workflow_id} not found"
             )
 
         # Check if workflow is running
         if workflow.status != WorkflowStatus.RUNNING:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Workflow is not running"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Workflow is not running"
             )
 
         # Update status to cancelled
@@ -451,7 +444,7 @@ async def cancel_workflow(
         return {
             "message": "Workflow cancelled successfully",
             "workflow_id": str(workflow_id),
-            "status": WorkflowStatus.CANCELLED.value
+            "status": WorkflowStatus.CANCELLED.value,
         }
 
     except HTTPException:
@@ -460,26 +453,28 @@ async def cancel_workflow(
         logger.error(f"Failed to cancel workflow {workflow_id}: {e}")
         await db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to cancel workflow"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to cancel workflow"
         )
 
 
 @router.get("/stats/summary")
 async def get_workflow_statistics(
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict = Depends(get_current_user)
+    user_and_key: tuple[User | None, APIKey | None] = Depends(
+        require_scope(APIKeyScope.READ)
+    ),
 ) -> dict[str, Any]:
     """
     Get workflow statistics summary.
+
+    Requires: READ scope or higher
     """
+    user, api_key = user_and_key
     try:
         # Get counts by status
         status_counts = {}
         for status in WorkflowStatus:
-            result = await db.execute(
-                select(Workflow).where(Workflow.status == status)
-            )
+            result = await db.execute(select(Workflow).where(Workflow.status == status))
             status_counts[status.value] = len(result.scalars().all())
 
         # Get total count
@@ -498,12 +493,12 @@ async def get_workflow_statistics(
             "total_workflows": total,
             "by_status": status_counts,
             "by_type": type_counts,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
 
     except Exception as e:
         logger.error(f"Failed to get workflow statistics: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve statistics"
+            detail="Failed to retrieve statistics",
         )

@@ -11,40 +11,46 @@ from sqlalchemy import and_, or_, select, update
 from sqlalchemy.orm import selectinload
 
 from ..core.database import get_db_session
+from ..models.audit_log import SecurityEventSeverity, SecurityEventType
 from ..models.user import APIKey, APIKeyScope, RefreshToken, User, UserRole, UserStatus
 from ..security.audit_logger import get_audit_logger
-from ..models.audit_log import SecurityEventType, SecurityEventSeverity
 from ..security.jwt_service import jwt_service, token_blacklist
 from ..utils.security import hash_password_with_salt, verify_password_with_salt
 
 
 class AuthenticationError(Exception):
     """Base authentication error."""
+
     pass
 
 
 class InvalidCredentialsError(AuthenticationError):
     """Invalid username/password."""
+
     pass
 
 
 class AccountLockedError(AuthenticationError):
     """Account is locked due to failed login attempts."""
+
     pass
 
 
 class AccountDisabledError(AuthenticationError):
     """Account is disabled or suspended."""
+
     pass
 
 
 class TokenExpiredError(AuthenticationError):
     """Token has expired."""
+
     pass
 
 
 class InsufficientPermissionsError(AuthenticationError):
     """User lacks required permissions."""
+
     pass
 
 
@@ -64,7 +70,7 @@ class AuthService:
         full_name: str | None = None,
         roles: list[UserRole] | None = None,
         agent_namespace: str = "default",
-        created_by: str | None = None
+        created_by: str | None = None,
     ) -> User:
         """
         Create new user account with secure password hashing.
@@ -74,7 +80,9 @@ class AuthService:
             raise ValueError("Username must be 2-64 characters long")
 
         if len(password) < self.password_min_length:
-            raise ValueError(f"Password must be at least {self.password_min_length} characters long")
+            raise ValueError(
+                f"Password must be at least {self.password_min_length} characters long"
+            )
 
         # Hash password securely
         password_hash, password_salt = hash_password_with_salt(password)
@@ -93,16 +101,14 @@ class AuthService:
             agent_namespace=agent_namespace,
             password_changed_at=datetime.now(timezone.utc),
             created_by=created_by,
-            status=UserStatus.ACTIVE
+            status=UserStatus.ACTIVE,
         )
 
         # Save to database
         async with get_db_session() as session:
             # Check for existing username/email
             existing = await session.execute(
-                select(User).where(
-                    or_(User.username == username, User.email == email)
-                )
+                select(User).where(or_(User.username == username, User.email == email))
             )
             if existing.scalar_one_or_none():
                 raise ValueError("Username or email already exists")
@@ -120,21 +126,23 @@ class AuthService:
                 client_ip="127.0.0.1",
                 message=f"User created: {user.username}",
                 user_id=created_by or "system",
-                details={"action": "user_creation", "new_user_id": str(user.id), "username": user.username}
+                details={
+                    "action": "user_creation",
+                    "new_user_id": str(user.id),
+                    "username": user.username,
+                },
             )
         except Exception as e:
             # Log audit error but don't fail the operation
             import logging
+
             logger = logging.getLogger(__name__)
             logger.warning(f"Audit logging failed: {e}")
 
         return user
 
     async def authenticate_user(
-        self,
-        username: str,
-        password: str,
-        ip_address: str | None = None
+        self, username: str, password: str, ip_address: str | None = None
     ) -> tuple[User, str, str]:
         """
         Authenticate user and return user object with tokens.
@@ -144,9 +152,7 @@ class AuthService:
         async with get_db_session() as session:
             # Fetch user with single query
             result = await session.execute(
-                select(User).where(
-                    or_(User.username == username, User.email == username)
-                )
+                select(User).where(or_(User.username == username, User.email == username))
             )
             user = result.scalar_one_or_none()
 
@@ -197,10 +203,11 @@ class AuthService:
                     client_ip=ip_address or "127.0.0.1",
                     message=f"User login successful: {user.username}",
                     user_id=user.username,
-                    details={"login_method": "password"}
+                    details={"login_method": "password"},
                 )
             except Exception as e:
                 import logging
+
                 logger = logging.getLogger(__name__)
                 logger.warning(f"Audit logging failed: {e}")
 
@@ -262,7 +269,7 @@ class AuthService:
         scopes: list[APIKeyScope] | None = None,
         expires_days: int | None = None,
         allowed_ips: list[str] | None = None,
-        rate_limit_per_hour: int | None = None
+        rate_limit_per_hour: int | None = None,
     ) -> tuple[str, APIKey]:
         """
         Create API key for user.
@@ -293,7 +300,7 @@ class AuthService:
             allowed_ips=allowed_ips,
             rate_limit_per_hour=rate_limit_per_hour,
             expires_at=expires_at,
-            user_id=user_id
+            user_id=user_id,
         )
 
         async with get_db_session() as session:
@@ -307,10 +314,7 @@ class AuthService:
         return final_key, api_key
 
     async def validate_api_key(
-        self,
-        api_key: str,
-        required_scope: APIKeyScope | None = None,
-        ip_address: str | None = None
+        self, api_key: str, required_scope: APIKeyScope | None = None, ip_address: str | None = None
     ) -> tuple[User, APIKey]:
         """
         Validate API key and return user and key objects.
@@ -325,9 +329,7 @@ class AuthService:
         async with get_db_session() as session:
             # Fetch API key with user in single query
             result = await session.execute(
-                select(APIKey)
-                .where(APIKey.key_id == key_id)
-                .options(selectinload(APIKey.user))
+                select(APIKey).where(APIKey.key_id == key_id).options(selectinload(APIKey.user))
             )
             key_record = result.scalar_one_or_none()
 
@@ -384,9 +386,7 @@ class AuthService:
         async with get_db_session() as session:
             # Revoke all refresh tokens
             await session.execute(
-                update(RefreshToken)
-                .where(RefreshToken.user_id == user_id)
-                .values(is_revoked=True)
+                update(RefreshToken).where(RefreshToken.user_id == user_id).values(is_revoked=True)
             )
             await session.commit()
 
@@ -394,14 +394,13 @@ class AuthService:
         token_blacklist.blacklist_user_tokens(str(user_id))
 
     async def change_password(
-        self,
-        user_id: UUID,
-        current_password: str,
-        new_password: str
+        self, user_id: UUID, current_password: str, new_password: str
     ) -> None:
         """Change user password with validation."""
         if len(new_password) < self.password_min_length:
-            raise ValueError(f"Password must be at least {self.password_min_length} characters long")
+            raise ValueError(
+                f"Password must be at least {self.password_min_length} characters long"
+            )
 
         async with get_db_session() as session:
             user = await session.get(User, user_id)
@@ -409,7 +408,9 @@ class AuthService:
                 raise ValueError("User not found")
 
             # Verify current password
-            if not verify_password_with_salt(current_password, user.password_hash, user.password_salt):
+            if not verify_password_with_salt(
+                current_password, user.password_hash, user.password_salt
+            ):
                 raise InvalidCredentialsError("Current password is incorrect")
 
             # Hash new password
@@ -429,7 +430,9 @@ class AuthService:
     async def reset_password(self, user_id: UUID, new_password: str) -> None:
         """Reset user password (admin operation)."""
         if len(new_password) < self.password_min_length:
-            raise ValueError(f"Password must be at least {self.password_min_length} characters long")
+            raise ValueError(
+                f"Password must be at least {self.password_min_length} characters long"
+            )
 
         password_hash, password_salt = hash_password(new_password)
 
@@ -443,7 +446,7 @@ class AuthService:
                     password_changed_at=datetime.now(timezone.utc),
                     force_password_change=True,
                     failed_login_attempts=0,
-                    status=UserStatus.ACTIVE
+                    status=UserStatus.ACTIVE,
                 )
             )
             await session.commit()
@@ -458,9 +461,7 @@ class AuthService:
                 update(User)
                 .where(User.id == user_id)
                 .values(
-                    status=UserStatus.ACTIVE,
-                    failed_login_attempts=0,
-                    last_failed_login_at=None
+                    status=UserStatus.ACTIVE, failed_login_attempts=0, last_failed_login_at=None
                 )
             )
             await session.commit()
@@ -469,9 +470,7 @@ class AuthService:
         """Disable user account."""
         async with get_db_session() as session:
             await session.execute(
-                update(User)
-                .where(User.id == user_id)
-                .values(status=UserStatus.SUSPENDED)
+                update(User).where(User.id == user_id).values(status=UserStatus.SUSPENDED)
             )
             await session.commit()
 
@@ -486,18 +485,14 @@ class AuthService:
     async def get_user_by_username(self, username: str) -> User | None:
         """Get user by username."""
         async with get_db_session() as session:
-            result = await session.execute(
-                select(User).where(User.username == username)
-            )
+            result = await session.execute(select(User).where(User.username == username))
             return result.scalar_one_or_none()
 
     async def list_user_api_keys(self, user_id: UUID) -> list[APIKey]:
         """List all API keys for user."""
         async with get_db_session() as session:
             result = await session.execute(
-                select(APIKey)
-                .where(APIKey.user_id == user_id)
-                .order_by(APIKey.created_at.desc())
+                select(APIKey).where(APIKey.user_id == user_id).order_by(APIKey.created_at.desc())
             )
             return result.scalars().all()
 
@@ -512,12 +507,7 @@ class AuthService:
             await session.commit()
             return result.rowcount > 0
 
-    async def _log_failed_login(
-        self,
-        username: str,
-        ip_address: str | None,
-        reason: str
-    ) -> None:
+    async def _log_failed_login(self, username: str, ip_address: str | None, reason: str) -> None:
         """Log failed login attempt."""
         try:
             audit_logger = get_audit_logger()
@@ -527,10 +517,11 @@ class AuthService:
                 client_ip=ip_address or "127.0.0.1",
                 message=f"Login failed for user: {username}",
                 user_id=username,
-                details={"reason": reason, "login_method": "password"}
+                details={"reason": reason, "login_method": "password"},
             )
         except Exception as e:
             import logging
+
             logger = logging.getLogger(__name__)
             logger.warning(f"Audit logging failed: {e}")
 

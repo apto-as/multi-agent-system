@@ -26,7 +26,7 @@ from datetime import datetime
 
 import pytest
 from fastapi import status
-from starlette.testclient import TestClient
+from httpx import AsyncClient
 
 from tests.test_config import (
     PerformanceTestResult,
@@ -40,7 +40,7 @@ from tests.test_config import (
 class TestCompleteUserJourney:
     """Test complete user journey from registration to API usage."""
 
-    async def test_user_registration_to_api_usage_workflow(self, client: TestClient, performance_timer):
+    async def test_user_registration_to_api_usage_workflow(self, async_client: AsyncClient, performance_timer):
         """Test complete workflow: Register -> Login -> Create API Key -> Use API."""
 
         # Step 1: User Registration
@@ -56,7 +56,7 @@ class TestCompleteUserJourney:
         registration_time = performance_timer.stop()
 
         assert register_response.status_code == status.HTTP_201_CREATED
-        user_info = register_response.json()
+        register_response.json()
 
         # Record performance
         perf_result = PerformanceTestResult(
@@ -218,7 +218,7 @@ class TestCompleteUserJourney:
 
         assert total_time < 1000, f"Complete workflow took {total_time}ms, should be under 1000ms"
 
-    async def test_concurrent_user_workflows(self, client: TestClient):
+    async def test_concurrent_user_workflows(self, async_client: AsyncClient):
         """Test multiple concurrent user workflows."""
 
         async def user_workflow(user_id: int):
@@ -303,7 +303,7 @@ class TestCompleteUserJourney:
 class TestSecurityWorkflows:
     """Test security-focused end-to-end workflows."""
 
-    async def test_security_enforcement_workflow(self, client: TestClient):
+    async def test_security_enforcement_workflow(self, async_client: AsyncClient):
         """Test that security is properly enforced across all endpoints."""
 
         # Test 1: Unauthenticated access prevention
@@ -393,7 +393,7 @@ class TestSecurityWorkflows:
 
         assert not injection_attempts, f"Potential SQL injection vulnerabilities: {injection_attempts}"
 
-    async def test_authentication_security_workflow(self, client: TestClient, test_user, test_user_data):
+    async def test_authentication_security_workflow(self, async_client: AsyncClient, test_user, test_user_data):
         """Test authentication security measures."""
 
         # Test 1: Brute force protection
@@ -455,7 +455,7 @@ class TestSecurityWorkflows:
 class TestPerformanceWorkflows:
     """Test performance under realistic workloads."""
 
-    async def test_authentication_performance_under_load(self, client: TestClient, performance_timer):
+    async def test_authentication_performance_under_load(self, async_client: AsyncClient, performance_timer):
         """Test authentication performance under concurrent load."""
 
         # Create test user
@@ -514,7 +514,7 @@ class TestPerformanceWorkflows:
         assert len(successful_results) >= 18, f"Expected at least 18/20 successful logins, got {len(successful_results)}"
         assert avg_time < 300, f"Average login time {avg_time}ms exceeds 300ms under load"
 
-    async def test_api_key_performance_workflow(self, authenticated_client: TestClient, performance_timer):
+    async def test_api_key_performance_workflow(self, authenticated_client: AsyncClient, performance_timer):
         """Test API key operations performance."""
 
         # Test API key creation performance
@@ -587,7 +587,7 @@ class TestPerformanceWorkflows:
 class TestErrorRecoveryWorkflows:
     """Test error handling and recovery scenarios."""
 
-    async def test_database_error_recovery(self, client: TestClient):
+    async def test_database_error_recovery(self, async_client: AsyncClient):
         """Test system behavior under database errors."""
 
         # This test would ideally simulate database connection issues
@@ -636,7 +636,7 @@ class TestErrorRecoveryWorkflows:
 
         assert graceful_failures == total_tests, f"Expected graceful error handling for all {total_tests} tests, got {graceful_failures}"
 
-    async def test_timeout_handling(self, client: TestClient):
+    async def test_timeout_handling(self, async_client: AsyncClient):
         """Test system behavior under timeouts."""
 
         # Test with very short timeout
@@ -649,7 +649,7 @@ class TestErrorRecoveryWorkflows:
         )
 
         try:
-            response = await short_timeout_client.get("/health")
+            await short_timeout_client.get("/health")
             # If no timeout, that's also acceptable
             timeout_handled = True
         except httpx.TimeoutException:
@@ -668,7 +668,7 @@ class TestErrorRecoveryWorkflows:
 class TestSystemIntegration:
     """Test integration between all system components."""
 
-    async def test_full_system_integration(self, client: TestClient):
+    async def test_full_system_integration(self, async_client: AsyncClient):
         """Test that all system components work together properly."""
 
         integration_results = {

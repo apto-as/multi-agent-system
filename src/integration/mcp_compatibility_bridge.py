@@ -42,6 +42,7 @@ settings = get_settings()
 
 class MCPBridgeMessage(BaseModel):
     """Standardized MCP message format for bridge"""
+
     jsonrpc: str = "2.0"
     id: str | None = None
     method: str | None = None
@@ -53,6 +54,7 @@ class MCPBridgeMessage(BaseModel):
 @dataclass
 class ToolRegistry:
     """Registry of MCP tools with harmonious organization"""
+
     memory_tools: dict[str, Callable] = None
     agent_tools: dict[str, Callable] = None
     task_tools: dict[str, Callable] = None
@@ -110,7 +112,7 @@ class ToolRegistry:
                 "system": list(self.system_tools.keys()),
             },
             "total_tools": len(self.get_all_tools()),
-            "version": settings.api_version
+            "version": settings.api_version,
         }
 
 
@@ -164,11 +166,9 @@ class MCPCompatibilityBridge:
             headers = {
                 "X-Agent-ID": os.getenv("TMWS_AGENT_ID", "legacy-bridge-agent"),
                 "X-Agent-Namespace": os.getenv("TMWS_AGENT_NAMESPACE", "legacy"),
-                "X-Agent-Capabilities": json.dumps({
-                    "bridge_mode": True,
-                    "legacy_compatibility": True,
-                    "stdio_fallback": True
-                })
+                "X-Agent-Capabilities": json.dumps(
+                    {"bridge_mode": True, "legacy_compatibility": True, "stdio_fallback": True}
+                ),
             }
 
             self.websocket_client = await websockets.connect(uri, extra_headers=headers)
@@ -209,7 +209,7 @@ class MCPCompatibilityBridge:
         message = MCPBridgeMessage(
             id=f"bridge_{asyncio.get_event_loop().time()}",
             method=method,
-            params={**kwargs, "args": args}
+            params={**kwargs, "args": args},
         )
 
         # Send message
@@ -268,7 +268,7 @@ class MCPCompatibilityBridge:
         results = {
             "stdio_mode": {},
             "websocket_mode": {},
-            "tool_inventory": self.tool_registry.get_tool_info()
+            "tool_inventory": self.tool_registry.get_tool_info(),
         }
 
         # Test stdio mode

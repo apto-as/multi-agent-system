@@ -33,10 +33,7 @@ class ConfigLoader:
         """
         # Default configuration path
         if not config_path:
-            config_path = os.environ.get(
-                'TMWS_CONFIG_PATH',
-                './config/tmws.yaml'
-            )
+            config_path = os.environ.get("TMWS_CONFIG_PATH", "./config/tmws.yaml")
 
         config_file = Path(config_path)
 
@@ -49,7 +46,7 @@ class ConfigLoader:
             config = ConfigLoader._get_default_config()
 
         # Apply environment-specific overrides
-        environment = os.environ.get('TMWS_ENVIRONMENT', 'development')
+        environment = os.environ.get("TMWS_ENVIRONMENT", "development")
         config = ConfigLoader._apply_environment_overrides(config, environment)
 
         # Apply direct environment variable overrides
@@ -71,18 +68,18 @@ class ConfigLoader:
 
         # Provide defaults for common variables
         defaults = {
-            'TMWS_ENVIRONMENT': 'development',
-            'TMWS_DB_HOST': 'localhost',
-            'TMWS_DB_PORT': '5432',
-            'TMWS_DB_NAME': 'tmws',
-            'TMWS_DB_USER': 'tmws_user',
-            'TMWS_DB_PASSWORD': 'tmws_password',
-            'TMWS_SECRET_KEY': 'dev-secret-key-change-in-production',
-            'REDIS_HOST': 'localhost',
-            'REDIS_PORT': '6379',
-            'LOG_LEVEL': 'INFO',
-            'LOCAL_LLM_ENDPOINT': 'http://localhost:1234/v1',
-            'LOCAL_LLM_MODEL': 'auto'
+            "TMWS_ENVIRONMENT": "development",
+            "TMWS_DB_HOST": "localhost",
+            "TMWS_DB_PORT": "5432",
+            "TMWS_DB_NAME": "tmws",
+            "TMWS_DB_USER": "tmws_user",
+            "TMWS_DB_PASSWORD": "tmws_password",
+            "TMWS_SECRET_KEY": "dev-secret-key-change-in-production",
+            "REDIS_HOST": "localhost",
+            "REDIS_PORT": "6379",
+            "LOG_LEVEL": "INFO",
+            "LOCAL_LLM_ENDPOINT": "http://localhost:1234/v1",
+            "LOCAL_LLM_MODEL": "auto",
         }
 
         # Merge defaults with actual environment variables
@@ -101,11 +98,11 @@ class ConfigLoader:
             "server": {
                 "name": "TMWS Unified Server",
                 "version": "1.0.0",
-                "environment": os.environ.get("TMWS_ENVIRONMENT", "development")
+                "environment": os.environ.get("TMWS_ENVIRONMENT", "development"),
             },
             "protocols": {
                 "mcp": {"enabled": True, "stdio_mode": True},
-                "fastapi": {"enabled": True, "host": "0.0.0.0", "port": 8000}
+                "fastapi": {"enabled": True, "host": "0.0.0.0", "port": 8000},
             },
             "database": {
                 "primary": "postgresql",
@@ -114,31 +111,26 @@ class ConfigLoader:
                     "port": int(os.environ.get("TMWS_DB_PORT", "5432")),
                     "database": os.environ.get("TMWS_DB_NAME", "tmws"),
                     "user": os.environ.get("TMWS_DB_USER", "tmws_user"),
-                    "password": os.environ.get("TMWS_DB_PASSWORD", "tmws_password")
-                }
+                    "password": os.environ.get("TMWS_DB_PASSWORD", "tmws_password"),
+                },
             },
-            "memory": {
-                "cache_size_mb": 100,
-                "persistence": True
-            },
+            "memory": {"cache_size_mb": 100, "persistence": True},
             "security": {
                 "auth_enabled": False,
-                "secret_key": os.environ.get("TMWS_SECRET_KEY", "dev-secret-key-change-in-production"),
-                "encryption_master_key": os.environ.get("TMWS_ENCRYPTION_KEY", "dev-encryption-key-change-in-production"),
+                "secret_key": os.environ.get(
+                    "TMWS_SECRET_KEY", "dev-secret-key-change-in-production"
+                ),
+                "encryption_master_key": os.environ.get(
+                    "TMWS_ENCRYPTION_KEY", "dev-encryption-key-change-in-production"
+                ),
                 "jwt_algorithm": "HS256",
                 "jwt_expire_minutes": 480,  # 8 hours
                 "rate_limit_period": 60,
                 "max_failed_attempts": 5,
-                "lockout_duration_minutes": 15
+                "lockout_duration_minutes": 15,
             },
-            "logging": {
-                "level": os.environ.get("LOG_LEVEL", "INFO"),
-                "format": "structured"
-            },
-            "tactical": {
-                "enabled": True,
-                "mode": "peacetime"
-            }
+            "logging": {"level": os.environ.get("LOG_LEVEL", "INFO"), "format": "structured"},
+            "tactical": {"enabled": True, "mode": "peacetime"},
         }
 
     @staticmethod
@@ -165,19 +157,28 @@ class ConfigLoader:
         """Apply direct environment variable overrides"""
         # FastAPI port override
         if "TMWS_API_PORT" in os.environ:
-            config.setdefault("protocols", {}).setdefault("fastapi", {})["port"] = int(os.environ["TMWS_API_PORT"])
+            config.setdefault("protocols", {}).setdefault("fastapi", {})["port"] = int(
+                os.environ["TMWS_API_PORT"]
+            )
 
         # Auth override
         if "TMWS_AUTH_ENABLED" in os.environ:
             auth_value = os.environ["TMWS_AUTH_ENABLED"].lower()
-            config.setdefault("security", {})["auth_enabled"] = auth_value in ("true", "1", "yes", "on")
+            config.setdefault("security", {})["auth_enabled"] = auth_value in (
+                "true",
+                "1",
+                "yes",
+                "on",
+            )
 
         # Security configuration overrides
         if "TMWS_SECRET_KEY" in os.environ:
             config.setdefault("security", {})["secret_key"] = os.environ["TMWS_SECRET_KEY"]
 
         if "TMWS_ENCRYPTION_KEY" in os.environ:
-            config.setdefault("security", {})["encryption_master_key"] = os.environ["TMWS_ENCRYPTION_KEY"]
+            config.setdefault("security", {})["encryption_master_key"] = os.environ[
+                "TMWS_ENCRYPTION_KEY"
+            ]
 
         if "TMWS_RATE_LIMIT" in os.environ:
             try:
@@ -189,7 +190,12 @@ class ConfigLoader:
         # MCP enable/disable
         if "TMWS_MCP_ENABLED" in os.environ:
             mcp_value = os.environ["TMWS_MCP_ENABLED"].lower()
-            config.setdefault("protocols", {}).setdefault("mcp", {})["enabled"] = mcp_value in ("true", "1", "yes", "on")
+            config.setdefault("protocols", {}).setdefault("mcp", {})["enabled"] = mcp_value in (
+                "true",
+                "1",
+                "yes",
+                "on",
+            )
 
         # Tactical mode
         if "TMWS_TACTICAL_MODE" in os.environ:
@@ -229,7 +235,7 @@ class ConfigLoader:
         config_path = Path(path)
         config_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(config_path, 'w') as f:
+        with open(config_path, "w") as f:
             yaml.dump(config, f, default_flow_style=False, sort_keys=False)
 
         logger.info(f"Configuration saved to {config_path}")
@@ -241,7 +247,7 @@ class ConfigLoader:
             ("server", "name"),
             ("protocols", "mcp", "enabled"),
             ("protocols", "fastapi", "enabled"),
-            ("database", "primary")
+            ("database", "primary"),
         ]
 
         for field_path in required_fields:

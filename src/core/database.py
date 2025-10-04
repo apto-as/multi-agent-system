@@ -9,14 +9,17 @@ from contextlib import asynccontextmanager
 import sqlalchemy as sa
 from sqlalchemy import event, pool, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import DeclarativeBase
 
 from .config import get_settings
 
 logger = logging.getLogger(__name__)
 
+
 # Base class for all database models
-Base = declarative_base()
+class Base(DeclarativeBase):
+    pass
+
 
 # Global variables for database engine and session maker
 _engine: object | None = None
@@ -29,7 +32,7 @@ def _setup_connection_events(engine) -> None:
     @event.listens_for(engine.sync_engine, "connect")
     def set_sqlite_pragma(dbapi_connection, connection_record):
         """Optimize connection settings."""
-        if 'sqlite' in str(engine.url):
+        if "sqlite" in str(engine.url):
             cursor = dbapi_connection.cursor()
             cursor.execute("PRAGMA journal_mode=WAL")
             cursor.execute("PRAGMA synchronous=NORMAL")
@@ -38,16 +41,20 @@ def _setup_connection_events(engine) -> None:
     @event.listens_for(engine.sync_engine, "checkout")
     def receive_checkout(dbapi_connection, connection_record, connection_proxy):
         """Monitor connection checkout and detect slow queries."""
-        connection_record.info['checkout_time'] = sa.func.now()
-        logger.debug(f"Connection checked out from pool (pool size: {engine.pool.size() if hasattr(engine.pool, 'size') else 'N/A'})")
+        connection_record.info["checkout_time"] = sa.func.now()
+        logger.debug(
+            f"Connection checked out from pool (pool size: {engine.pool.size() if hasattr(engine.pool, 'size') else 'N/A'})"
+        )
 
     @event.listens_for(engine.sync_engine, "checkin")
     def receive_checkin(dbapi_connection, connection_record):
         """Monitor connection checkin and track connection lifetime."""
-        if 'checkout_time' in connection_record.info:
+        if "checkout_time" in connection_record.info:
             # Track connection usage time for performance monitoring
-            logger.debug(f"Connection checked in to pool (pool size: {engine.pool.size() if hasattr(engine.pool, 'size') else 'N/A'})")
-            del connection_record.info['checkout_time']
+            logger.debug(
+                f"Connection checked in to pool (pool size: {engine.pool.size() if hasattr(engine.pool, 'size') else 'N/A'})"
+            )
+            del connection_record.info["checkout_time"]
 
 
 def get_engine():
@@ -58,10 +65,10 @@ def get_engine():
         settings = get_settings()
 
         # Environment-specific pool sizing for 50% throughput improvement
-        if settings.environment == 'production':
+        if settings.environment == "production":
             pool_size = 20
             max_overflow = 50
-        elif settings.environment == 'staging':
+        elif settings.environment == "staging":
             pool_size = 10
             max_overflow = 20
         else:  # development
@@ -71,10 +78,12 @@ def get_engine():
         engine_config = {}
 
         if settings.database_url_async.startswith("postgresql"):
-            engine_config.update({
-                "pool_size": pool_size,
-                "max_overflow": max_overflow,
-            })
+            engine_config.update(
+                {
+                    "pool_size": pool_size,
+                    "max_overflow": max_overflow,
+                }
+            )
 
         # Add connection arguments for PostgreSQL with performance tuning
         if settings.database_url_async.startswith("postgresql"):
@@ -87,13 +96,15 @@ def get_engine():
             }
 
             # SSL enforcement in production
-            if settings.environment == 'production':
+            if settings.environment == "production":
                 connect_args["ssl"] = "require"
 
-            engine_config.update({
-                "connect_args": connect_args,
-                "poolclass": pool.AsyncAdaptedQueuePool,  # Better for async operations
-            })
+            engine_config.update(
+                {
+                    "connect_args": connect_args,
+                    "poolclass": pool.AsyncAdaptedQueuePool,  # Better for async operations
+                }
+            )
 
         _engine = create_async_engine(settings.database_url_async, **engine_config)
 
@@ -180,11 +191,11 @@ class DatabaseHealthCheck:
         settings = get_settings()
 
         status = {
-            "pool_size": pool.size() if hasattr(pool, 'size') else 0,
-            "checked_in": pool.checkedin() if hasattr(pool, 'checkedin') else 0,
-            "checked_out": pool.checkedout() if hasattr(pool, 'checkedout') else 0,
-            "overflow": pool.overflow() if hasattr(pool, 'overflow') else 0,
-            "total": pool.total() if hasattr(pool, 'total') else 0,
+            "pool_size": pool.size() if hasattr(pool, "size") else 0,
+            "checked_in": pool.checkedin() if hasattr(pool, "checkedin") else 0,
+            "checked_out": pool.checkedout() if hasattr(pool, "checkedout") else 0,
+            "overflow": pool.overflow() if hasattr(pool, "overflow") else 0,
+            "total": pool.total() if hasattr(pool, "total") else 0,
             "environment": settings.environment,
         }
 
@@ -208,7 +219,7 @@ class DatabaseHealthCheck:
         try:
             async with get_db_session() as session:
                 # PostgreSQL slow query detection
-                if 'postgresql' in str(get_engine().url):
+                if "postgresql" in str(get_engine().url):
                     query = text("""
                         SELECT
                             query,
@@ -226,7 +237,7 @@ class DatabaseHealthCheck:
                             "query": row.query[:100],  # Truncate for safety
                             "calls": row.calls,
                             "mean_time_ms": row.mean_exec_time,
-                            "total_time_ms": row.total_exec_time
+                            "total_time_ms": row.total_exec_time,
                         }
                         for row in result
                     ]
@@ -244,7 +255,7 @@ async def create_tables():
         await conn.run_sync(Base.metadata.create_all)
 
         # Create optimized indexes for common queries
-        if 'postgresql' in str(engine.url):
+        if "postgresql" in str(engine.url):
             indexes = [
                 # Vector search optimization
                 "CREATE INDEX IF NOT EXISTS idx_memory_embedding_ivfflat ON memory_embeddings USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100)",
@@ -273,6 +284,12 @@ async def drop_tables():
     logger.info("Database tables dropped")
 
 
+async def get_session():
+    """Alias for get_db_session_dependency for backward compatibility."""
+    async with get_db_session() as session:
+        yield session
+
+
 async def close_db_connections():
     """Gracefully close all database connections."""
     global _engine, _session_maker
@@ -296,7 +313,7 @@ async def close_db_connections():
 
 async def optimize_database():
     """Run database optimization tasks."""
-    if 'postgresql' not in str(get_engine().url):
+    if "postgresql" not in str(get_engine().url):
         return
 
     try:
@@ -305,7 +322,7 @@ async def optimize_database():
             await session.execute(text("ANALYZE"))
 
             # Clean up dead tuples
-            tables = ['tasks', 'memories', 'memory_embeddings', 'personas']
+            tables = ["tasks", "memories", "memory_embeddings", "personas"]
             for table in tables:
                 try:
                     await session.execute(text(f"VACUUM ANALYZE {table}"))

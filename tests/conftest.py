@@ -12,27 +12,42 @@ import pytest_asyncio
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
+from sqlalchemy import text
 
 # Set test environment
 os.environ["TMWS_ENVIRONMENT"] = "test"
 os.environ["TMWS_AUTH_ENABLED"] = "false"
-os.environ["TMWS_DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 os.environ["TMWS_SECRET_KEY"] = "test_secret_key_for_testing_only_32_chars"
+
+# Database URL configuration - support both SQLite and PostgreSQL
+# Default to SQLite for CI/CD, PostgreSQL for integration tests
+TEST_USE_POSTGRESQL = os.getenv("TEST_USE_POSTGRESQL", "false").lower() == "true"
+
+if TEST_USE_POSTGRESQL:
+    # PostgreSQL for integration tests with pgvector support
+    os.environ["TMWS_DATABASE_URL"] = "postgresql+asyncpg://tmws_user:tmws_password@localhost:5433/tmws_test"
+else:
+    # SQLite for unit tests
+    os.environ["TMWS_DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 
 from src.api.app import create_app
 from src.core.config import get_settings
 from src.core.database import Base, get_db_session_dependency
 
 # Import all models to ensure Base.metadata discovers them
-from src.models.user import User, UserRole, APIKey, RefreshToken
-from src.models.agent import Agent, AgentTeam, AgentNamespace
-from src.models.task import Task, TaskTemplate
-from src.models.workflow import Workflow, WorkflowType, WorkflowStatus
-from src.models.workflow_history import WorkflowExecution, WorkflowStepExecution, WorkflowExecutionLog, WorkflowSchedule
-from src.models.learning_pattern import LearningPattern
-from src.models.memory import Memory
-from src.models.persona import Persona
-from src.models.api_audit_log import APIAuditLog
+from src.models import (
+    Agent, AgentNamespace, AgentTeam,
+    APIAuditLog,
+    LearningPattern,
+    Memory, MemoryConsolidation, MemoryPattern, MemorySharing,
+    Persona, PersonaRole, PersonaType,
+    SecurityAuditLog, SecurityEventSeverity, SecurityEventType,
+    Task, TaskPriority, TaskStatus,
+    User,
+    Workflow, WorkflowStatus, WorkflowType,
+    WorkflowExecution, WorkflowExecutionLog, WorkflowSchedule, WorkflowStepExecution,
+)
+from src.models.user import UserRole
 
 # Get test settings
 settings = get_settings()
@@ -48,26 +63,44 @@ def event_loop():
 @pytest_asyncio.fixture
 async def test_engine():
     """Create test database engine."""
+    settings = get_settings()
     engine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:",
+        settings.database_url_async,
         poolclass=NullPool,
         echo=False
     )
 
-    # Import all models to ensure Base.metadata discovers them within the fixture scope
-    from src.models.user import User, UserRole, APIKey, RefreshToken
-    from src.models.agent import Agent, AgentTeam, AgentNamespace
-    from src.models.task import Task, TaskTemplate
-    from src.models.workflow import Workflow, WorkflowType, WorkflowStatus
-    from src.models.workflow_history import WorkflowExecution, WorkflowStepExecution, WorkflowExecutionLog, WorkflowSchedule
-    from src.models.learning_pattern import LearningPattern
-    from src.models.memory import Memory
-    from src.models.persona import Persona
-    from src.models.api_audit_log import APIAuditLog
-
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all) # Drop all tables for a clean slate
         await conn.run_sync(Base.metadata.create_all)
+
+        # PostgreSQL specific setup
+        if TEST_USE_POSTGRESQL:
+            # Ensure pgvector extension is available
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+
+    yield engine
+
+    await engine.dispose()
+
+@pytest_asyncio.fixture
+async def postgresql_engine():
+    """Create PostgreSQL test database engine for integration tests."""
+    if not TEST_USE_POSTGRESQL:
+        pytest.skip("PostgreSQL tests require TEST_USE_POSTGRESQL=true")
+
+    settings = get_settings()
+    engine = create_async_engine(
+        "postgresql+asyncpg://tmws_user:tmws_password@localhost:5433/tmws_test",
+        poolclass=NullPool,
+        echo=False
+    )
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+        await conn.run_sync(Base.metadata.create_all)
+        # Ensure pgvector extension is available
+        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
 
     yield engine
 
@@ -98,28 +131,56 @@ async def client(test_session):
     app.dependency_overrides.clear()
 
 @pytest_asyncio.fixture
+async def async_client(test_session):
+    """Create async test client for E2E tests."""
+    from httpx import AsyncClient, ASGITransport
+
+    from src.api.app import create_app
+    app = create_app()
+    app.dependency_overrides[get_db_session_dependency] = lambda: test_session
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        yield ac
+
+    app.dependency_overrides.clear()
+
+@pytest_asyncio.fixture
 async def authenticated_client(client, test_session):
     """Create authenticated test client."""
     # Create test user and get token
-    from src.models.user import UserRole
-    from src.services.auth_service import AuthService
+    from src.models.user import UserRole, UserStatus
+    from src.utils.security import hash_password_with_salt
+    from src.models.user import User
+    from src.services.jwt_service import JWTService
+    from datetime import datetime, timezone
 
-    auth_service = AuthService()
+    # Create test user directly in test session
+    password_hash, password_salt = hash_password_with_salt("TestPassword123!")
 
-    # Create test user
-    user = await auth_service.create_user(
+    user = User(
         username="testuser",
         email="test@example.com",
-        password="TestPassword123!",
-        roles=[UserRole.USER]
+        password_hash=password_hash,
+        password_salt=password_salt,
+        roles=[UserRole.USER],
+        agent_namespace="default",
+        password_changed_at=datetime.now(timezone.utc),
+        status=UserStatus.ACTIVE
     )
 
-    # Generate token
-    user, token, _ = await auth_service.authenticate_user(
-        username="testuser",
-        password="TestPassword123!"
-    )
+    test_session.add(user)
+    await test_session.commit()
+    await test_session.refresh(user)
 
+    # Generate JWT token
+    jwt_service = JWTService()
+    token = jwt_service.create_access_token(
+        subject=str(user.id),
+        additional_claims={
+            "username": user.username,
+            "roles": [role.value for role in user.roles]
+        }
+    )
 
     # Add auth header to client
     client.headers["Authorization"] = f"Bearer {token}"
@@ -129,15 +190,89 @@ async def authenticated_client(client, test_session):
 @pytest_asyncio.fixture
 async def test_user(test_session, test_user_data):
     """Create a test user in the database."""
-    from src.services.auth_service import AuthService
-    auth_service = AuthService()
-    user = await auth_service.create_user(
+    from src.utils.security import hash_password_with_salt
+    from src.models.user import User, UserStatus
+    from datetime import datetime, timezone
+
+    # Create test user directly in test session
+    password_hash, password_salt = hash_password_with_salt(test_user_data["password"])
+
+    user = User(
         username=test_user_data["username"],
         email=test_user_data["email"],
-        password=test_user_data["password"],
-        roles=test_user_data["roles"]
+        password_hash=password_hash,
+        password_salt=password_salt,
+        roles=test_user_data["roles"],
+        agent_namespace="default",
+        password_changed_at=datetime.now(timezone.utc),
+        status=UserStatus.ACTIVE
     )
+
+    test_session.add(user)
+    await test_session.commit()
+    await test_session.refresh(user)
     return user
+
+@pytest_asyncio.fixture
+async def test_api_key(test_user, test_session):
+    """
+    Create test API key with full permissions.
+
+    Returns:
+        tuple: (full_key, key_info) where:
+            - full_key: Complete API key string in format "{key_id}.{raw_key}"
+            - key_info: Dictionary with key metadata (key_id, key_prefix, scopes)
+
+    Note:
+        - No IP restrictions (as per requirements)
+        - No expiration (unlimited lifetime)
+        - No rate limiting (unlimited requests)
+        - Scopes: READ, WRITE, ADMIN (full access)
+    """
+    from src.models.user import APIKey, APIKeyScope
+    import secrets
+    from passlib.context import CryptContext
+
+    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+    # Generate secure key components
+    key_id = secrets.token_urlsafe(16)
+    raw_key = secrets.token_urlsafe(32)
+    full_key = f"{key_id}.{raw_key}"
+
+    # Create API key record
+    api_key = APIKey(
+        key_id=key_id,
+        key_prefix=raw_key[:8],
+        key_hash=pwd_context.hash(raw_key),
+        user_id=test_user.id,
+        name="Test API Key",
+        description="Test API key for integration tests",
+        scopes=[APIKeyScope.READ, APIKeyScope.WRITE, APIKeyScope.ADMIN],
+        expires_at=None,  # No expiration (unlimited)
+        allowed_ips=None,  # No IP restrictions
+        rate_limit_per_hour=None,  # No rate limiting (unlimited)
+    )
+
+    test_session.add(api_key)
+    await test_session.commit()
+    await test_session.refresh(api_key)
+
+    # Return both the full key and metadata
+    # Note: scopes from DB might be strings or enum objects
+    scopes_list = []
+    for s in api_key.scopes:
+        if isinstance(s, str):
+            scopes_list.append(s)
+        else:
+            scopes_list.append(s.value)
+
+    return full_key, {
+        "key_id": key_id,
+        "key_prefix": raw_key[:8],
+        "scopes": scopes_list,
+        "user_id": str(test_user.id),
+    }
 
 @pytest.fixture
 def mock_redis():
@@ -231,3 +366,72 @@ def test_user_data():
         "password": "TestPassword123!",
         "roles": [UserRole.USER]
     }
+
+@pytest.fixture
+def performance_timer():
+    """Performance timer fixture for measuring execution times."""
+    import time
+
+    class PerformanceTimer:
+        def __init__(self):
+            self.start_time = None
+            self.end_time = None
+
+        def start(self):
+            """Start the timer."""
+            self.start_time = time.perf_counter()
+            return self
+
+        def stop(self):
+            """Stop the timer and return elapsed milliseconds."""
+            if self.start_time is None:
+                raise RuntimeError("Timer not started")
+            self.end_time = time.perf_counter()
+            elapsed_seconds = self.end_time - self.start_time
+            return elapsed_seconds * 1000  # Convert to milliseconds
+
+        def get_elapsed(self):
+            """Get elapsed time without stopping."""
+            if self.start_time is None:
+                raise RuntimeError("Timer not started")
+            current = time.perf_counter()
+            return (current - self.start_time) * 1000
+
+    return PerformanceTimer()
+
+# PostgreSQL specific fixtures and helpers
+@pytest.fixture
+def requires_postgresql():
+    """Skip test if PostgreSQL is not available."""
+    if not TEST_USE_POSTGRESQL:
+        pytest.skip("PostgreSQL tests require TEST_USE_POSTGRESQL=true")
+
+@pytest_asyncio.fixture
+async def postgresql_session(postgresql_engine) -> AsyncGenerator[AsyncSession, None]:
+    """Create PostgreSQL test database session."""
+    async_session = async_sessionmaker(
+        postgresql_engine,
+        class_=AsyncSession,
+        expire_on_commit=False
+    )
+
+    async with async_session() as session:
+        yield session
+
+@pytest.fixture
+def sample_vector_data():
+    """Sample vector data for testing pgvector functionality."""
+    import numpy as np
+
+    return {
+        "content": "Test memory content for vector search",
+        "embedding": np.random.rand(384).tolist(),  # 384-dimensional vector
+        "importance": 0.8,
+        "tags": ["test", "vector", "memory"],
+        "metadata": {"source": "test", "test_type": "vector"}
+    }
+
+@pytest.fixture
+def database_marker():
+    """Helper to identify current database type."""
+    return "postgresql" if TEST_USE_POSTGRESQL else "sqlite"

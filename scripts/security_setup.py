@@ -197,7 +197,7 @@ def block_ip(ip_address: str, duration: int, reason: str):
         click.echo(f"📝 Reason: {reason}")
 
         # Log the action
-        audit_logger = get_audit_logger()
+        get_audit_logger()
         # TODO: Log security action
 
     except Exception as e:
@@ -285,7 +285,7 @@ def setup_audit_database() -> None:
     """Initialize audit database."""
     try:
         # This will create tables if they don't exist
-        audit_logger = get_audit_logger()
+        get_audit_logger()
         click.echo("✅ Audit database initialized")
     except Exception as e:
         click.echo(f"⚠️  Failed to initialize audit database: {e}")

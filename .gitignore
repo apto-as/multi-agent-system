@@ -38,6 +38,9 @@ MANIFEST
 .pytest_cache/
 nosetests.xml
 coverage.xml
+coverage.json
+junit.xml
+test_report.html
 *.cover
 .hypothesis/
 htmlcov/
@@ -71,6 +74,9 @@ backups/
 archive/
 data/
 ssl/
+
+# MCP Server cache
+.serena/cache/
 
 # Vector data
 chromadb_data/

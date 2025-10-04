@@ -24,7 +24,7 @@ __all__ = [
     "TaskTools",
     "WorkflowTools",
     "SystemTools",
-    "LearningTools"
+    "LearningTools",
 ]
 
 __version__ = "1.0.0"

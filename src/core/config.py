@@ -2,13 +2,14 @@
 Configuration management for TMWS.
 404 Security Standards: Zero compromise, zero defaults for sensitive data.
 """
+
 import logging
 import os
 import secrets
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field, model_validator, root_validator, validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
@@ -30,21 +31,21 @@ class Settings(BaseSettings):
     database_url: str = Field(
         default="",
         description="Database connection URL - MUST be set via TMWS_DATABASE_URL",
-        min_length=10
+        min_length=10,
     )
 
     # Security - MANDATORY secret key, no insecure defaults
     secret_key: str = Field(
         default="",
         description="Cryptographic secret key - MUST be set via TMWS_SECRET_KEY (min 32 chars)",
-        min_length=32
+        min_length=32,
     )
 
     # Environment - REQUIRED for proper validation
     environment: str = Field(
         default="development",
         description="Runtime environment - MUST be set via TMWS_ENVIRONMENT",
-        pattern="^(development|staging|production|test)$"
+        pattern="^(development|staging|production|test)$",
     )
 
     # ==== DATABASE CONFIGURATION ====
@@ -65,14 +66,27 @@ class Settings(BaseSettings):
     ws_enabled: bool = Field(default=True, description="Enable WebSocket MCP server")
     ws_host: str = Field(default="127.0.0.1", description="WebSocket server host")
     ws_port: int = Field(default=8001, ge=1024, le=65535, description="WebSocket server port")
-    ws_max_connections: int = Field(default=100, ge=1, le=1000, description="Max concurrent WebSocket connections")
-    ws_ping_interval: int = Field(default=20, ge=5, le=300, description="WebSocket ping interval in seconds")
-    ws_ping_timeout: int = Field(default=10, ge=1, le=60, description="WebSocket ping timeout in seconds")
-    ws_max_message_size: int = Field(default=1048576, ge=1024, le=10485760, description="Max WebSocket message size in bytes (1MB default)")
+    ws_max_connections: int = Field(
+        default=100, ge=1, le=1000, description="Max concurrent WebSocket connections"
+    )
+    ws_ping_interval: int = Field(
+        default=20, ge=5, le=300, description="WebSocket ping interval in seconds"
+    )
+    ws_ping_timeout: int = Field(
+        default=10, ge=1, le=60, description="WebSocket ping timeout in seconds"
+    )
+    ws_max_message_size: int = Field(
+        default=1048576,
+        ge=1024,
+        le=10485760,
+        description="Max WebSocket message size in bytes (1MB default)",
+    )
 
     # ==== STDIO MCP CONFIGURATION ====
     stdio_enabled: bool = Field(default=True, description="Enable stdio MCP bridge")
-    stdio_fallback: bool = Field(default=True, description="Enable stdio fallback when WebSocket unavailable")
+    stdio_fallback: bool = Field(
+        default=True, description="Enable stdio fallback when WebSocket unavailable"
+    )
 
     # ==== JWT & AUTHENTICATION ====
     jwt_algorithm: str = Field(default="HS256", pattern="^HS256|RS256|ES256$")
@@ -82,13 +96,13 @@ class Settings(BaseSettings):
     # Authentication mode control (404 Security Standard)
     auth_enabled: bool = Field(
         default=False,
-        description="Enable production authentication - default False for development mode"
+        description="Enable production authentication - default False for development mode",
     )
 
     # ==== CORS - RESTRICTIVE BY DEFAULT ====
     cors_origins: list[str] = Field(
         default_factory=lambda: [],
-        description="CORS origins - MUST be explicitly set for production"
+        description="CORS origins - MUST be explicitly set for production",
     )
     cors_credentials: bool = Field(default=False)
     cors_methods: list[str] = Field(default=["GET", "POST", "PUT", "DELETE"])
@@ -137,37 +151,38 @@ class Settings(BaseSettings):
     cache_max_size: int = Field(default=1000, ge=1, le=100000)
 
     # ==== VALIDATION RULES ====
-    @root_validator(pre=True)
+    @model_validator(mode="before")
+    @classmethod
     def validate_required_env_vars(cls, values):
         """404 Rule: Critical environment variables MUST be set."""
         import os
 
         # Check if values are provided in .env or environment
         # pydantic-settings should handle TMWS_ prefix automatically
-        if not values.get('database_url'):
-            values['database_url'] = (
-                values.get('DATABASE_URL') or
-                os.environ.get('TMWS_DATABASE_URL') or
-                os.environ.get('DATABASE_URL', '')
+        if not values.get("database_url"):
+            values["database_url"] = (
+                values.get("DATABASE_URL")
+                or os.environ.get("TMWS_DATABASE_URL")
+                or os.environ.get("DATABASE_URL", "")
             )
-        if not values.get('secret_key'):
-            values['secret_key'] = (
-                values.get('SECRET_KEY') or
-                os.environ.get('TMWS_SECRET_KEY') or
-                os.environ.get('SECRET_KEY', '')
+        if not values.get("secret_key"):
+            values["secret_key"] = (
+                values.get("SECRET_KEY")
+                or os.environ.get("TMWS_SECRET_KEY")
+                or os.environ.get("SECRET_KEY", "")
             )
-        if not values.get('environment'):
-            values['environment'] = (
-                values.get('ENVIRONMENT') or
-                os.environ.get('TMWS_ENVIRONMENT') or
-                os.environ.get('ENVIRONMENT', 'development')
+        if not values.get("environment"):
+            values["environment"] = (
+                values.get("ENVIRONMENT")
+                or os.environ.get("TMWS_ENVIRONMENT")
+                or os.environ.get("ENVIRONMENT", "development")
             )
 
         # Validate required fields - only database_url and secret_key are truly required
         errors = []
-        if not values.get('database_url'):
+        if not values.get("database_url"):
             errors.append("TMWS_DATABASE_URL environment variable is required")
-        if not values.get('secret_key'):
+        if not values.get("secret_key"):
             errors.append("TMWS_SECRET_KEY environment variable is required")
 
         if errors:
@@ -175,10 +190,11 @@ class Settings(BaseSettings):
 
         return values
 
-    @validator("secret_key")
-    def validate_secret_key_security(cls, v, values):
+    @field_validator("secret_key")
+    @classmethod
+    def validate_secret_key_security(cls, v, info):
         """404 Security: Secret key must meet cryptographic standards."""
-        environment = values.get("environment", "development")
+        environment = info.data.get("environment", "development") if info.data else "development"
 
         # Production requirements
         if environment == "production":
@@ -188,24 +204,36 @@ class Settings(BaseSettings):
             # Check for common weak keys
             weak_keys = [
                 "change-this-in-production-to-a-secure-random-key",
-                "debug", "test", "dev", "development", "secret", "password",
-                "12345", "admin", "root", "default"
+                "debug",
+                "test",
+                "dev",
+                "development",
+                "secret",
+                "password",
+                "12345",
+                "admin",
+                "root",
+                "default",
             ]
 
             if v.lower() in weak_keys or v.lower().startswith(tuple(weak_keys)):
                 raise ValueError("Weak or default secret key detected in production")
 
             # Entropy check - must contain mixed case, numbers, special chars
-            if not (any(c.isupper() for c in v) and any(c.islower() for c in v) and
-                   any(c.isdigit() for c in v)):
+            if not (
+                any(c.isupper() for c in v)
+                and any(c.islower() for c in v)
+                and any(c.isdigit() for c in v)
+            ):
                 logger.warning("Secret key should contain mixed case letters and numbers")
 
         return v
 
-    @validator("database_url")
-    def validate_database_url_security(cls, v, values):
+    @field_validator("database_url")
+    @classmethod
+    def validate_database_url_security(cls, v, info):
         """404 Security: Database URL validation."""
-        environment = values.get("environment", "development")
+        environment = info.data.get("environment", "development") if info.data else "development"
 
         if environment == "production":
             # Check for weak credentials in URL
@@ -218,10 +246,11 @@ class Settings(BaseSettings):
 
         return v
 
-    @validator("cors_origins")
-    def validate_cors_security(cls, v, values):
+    @field_validator("cors_origins")
+    @classmethod
+    def validate_cors_security(cls, v, info):
         """404 Security: CORS must be properly configured."""
-        environment = values.get("environment", "development")
+        environment = info.data.get("environment", "development") if info.data else "development"
 
         if environment == "production":
             if not v:
@@ -240,37 +269,43 @@ class Settings(BaseSettings):
 
         return v
 
-    @validator("api_host")
-    def validate_api_host_security(cls, v, values):
+    @field_validator("api_host")
+    @classmethod
+    def validate_api_host_security(cls, v, info):
         """404 Security: API host validation."""
-        environment = values.get("environment", "development")
+        environment = info.data.get("environment", "development") if info.data else "development"
 
         if environment == "production" and v == "0.0.0.0":
             logger.warning("API bound to 0.0.0.0 in production - ensure proper firewall/proxy")
 
         return v
 
-    @validator("auth_enabled")
-    def validate_auth_enabled_security(cls, v, values):
+    @field_validator("auth_enabled")
+    @classmethod
+    def validate_auth_enabled_security(cls, v, info):
         """404 Security: Authentication must be enabled in production.
 
         v2.2.0 Enhancement: Automatic enforcement, no bypass possible.
         """
-        environment = values.get("environment", "development")
+        environment = info.data.get("environment", "development") if info.data else "development"
 
         if environment == "production":
             if not v:
                 # Auto-enable authentication in production, log critical warning
-                logger.critical("SECURITY: Authentication was disabled in production - AUTO-ENABLED for safety")
+                logger.critical(
+                    "SECURITY: Authentication was disabled in production - AUTO-ENABLED for safety"
+                )
                 return True  # Force enable
             return v
 
         if environment == "staging" and not v:
-            logger.warning("Authentication disabled in staging - consider enabling for realistic testing")
+            logger.warning(
+                "Authentication disabled in staging - consider enabling for realistic testing"
+            )
 
         return v
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def validate_production_security(self):
         """404 Security: Final validation for production mode.
 
@@ -296,7 +331,9 @@ class Settings(BaseSettings):
             errors.append("Audit logging MUST be enabled (TMWS_AUDIT_LOG_ENABLED=true)")
 
         if errors:
-            raise ValueError("CRITICAL PRODUCTION SECURITY VIOLATIONS:\n" + "\n".join(f"  - {e}" for e in errors))
+            raise ValueError(
+                "CRITICAL PRODUCTION SECURITY VIOLATIONS:\n" + "\n".join(f"  - {e}" for e in errors)
+            )
 
         return self
 
@@ -331,13 +368,15 @@ class Settings(BaseSettings):
         headers = {}
 
         if self.security_headers_enabled:
-            headers.update({
-                "X-Content-Type-Options": "nosniff",
-                "X-Frame-Options": "DENY",
-                "X-XSS-Protection": "1; mode=block",
-                "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
-                "Referrer-Policy": "strict-origin-when-cross-origin"
-            })
+            headers.update(
+                {
+                    "X-Content-Type-Options": "nosniff",
+                    "X-Frame-Options": "DENY",
+                    "X-XSS-Protection": "1; mode=block",
+                    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+                    "Referrer-Policy": "strict-origin-when-cross-origin",
+                }
+            )
 
             if self.csp_enabled:
                 headers["Content-Security-Policy"] = self.csp_policy
@@ -458,7 +497,7 @@ def create_secure_env_template() -> str:
     Returns:
         str: Complete .env template with security comments
     """
-    return '''# TMWS Configuration - 404 Security Standards
+    return """# TMWS Configuration - 404 Security Standards
 # ============================================
 # Copy this file to .env and update ALL values
 # Never commit .env files to version control
@@ -536,7 +575,7 @@ TMWS_MAX_EMBEDDING_BATCH_SIZE=32
 
 # Custom CSP policy (optional)
 # TMWS_CSP_POLICY="default-src 'self'; script-src 'self'"
-'''
+"""
 
 
 def validate_environment_security() -> dict:
@@ -554,7 +593,7 @@ def validate_environment_security() -> dict:
             "security_level": "unknown",
             "issues": [],
             "warnings": [],
-            "recommendations": []
+            "recommendations": [],
         }
 
         if settings.is_production:
@@ -581,7 +620,7 @@ def validate_environment_security() -> dict:
             "security_level": "configuration_error",
             "issues": [str(e)],
             "warnings": [],
-            "recommendations": ["Fix configuration errors before proceeding"]
+            "recommendations": ["Fix configuration errors before proceeding"],
         }
 
 
@@ -609,5 +648,5 @@ __all__ = [
     "SRC_DIR",
     "MIGRATIONS_DIR",
     "TESTS_DIR",
-    "LOGS_DIR"
+    "LOGS_DIR",
 ]

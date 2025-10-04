@@ -22,6 +22,7 @@ class DatabaseException(TMWSException):
 
 class DatabaseError(DatabaseException):
     """Alias for DatabaseException for backward compatibility."""
+
     pass
 
 
@@ -45,6 +46,7 @@ class ValidationException(TMWSException):
 
 class ValidationError(ValidationException):
     """Alias for ValidationException for backward compatibility."""
+
     pass
 
 
@@ -68,6 +70,30 @@ class RateLimitException(TMWSException):
 
 class VectorizationException(TMWSException):
     """Vector embedding errors."""
+
+    pass
+
+
+class ConfigurationError(TMWSException):
+    """Configuration-related errors."""
+
+    pass
+
+
+class PermissionError(TMWSException):
+    """Permission-related errors."""
+
+    pass
+
+
+class SecurityError(TMWSException):
+    """Security-related errors."""
+
+    pass
+
+
+class ServiceError(TMWSException):
+    """General service errors."""
 
     pass
 

@@ -31,14 +31,16 @@ logger = logging.getLogger(__name__)
 
 class TacticalMode(Enum):
     """Tactical operation modes"""
-    PEACETIME = "peacetime"       # Normal operations
-    ALERT = "alert"               # Elevated monitoring
-    CRITICAL = "critical"         # Emergency protocols
-    MAINTENANCE = "maintenance"   # Planned maintenance mode
+
+    PEACETIME = "peacetime"  # Normal operations
+    ALERT = "alert"  # Elevated monitoring
+    CRITICAL = "critical"  # Emergency protocols
+    MAINTENANCE = "maintenance"  # Planned maintenance mode
 
 
 class OperationalStatus(Enum):
     """Overall operational status"""
+
     OPTIMAL = "optimal"
     STABLE = "stable"
     DEGRADED = "degraded"
@@ -49,6 +51,7 @@ class OperationalStatus(Enum):
 @dataclass
 class TacticalMetrics:
     """System-wide tactical metrics"""
+
     mode: TacticalMode = TacticalMode.PEACETIME
     status: OperationalStatus = OperationalStatus.OFFLINE
     total_services: int = 0
@@ -87,8 +90,8 @@ class TacticalCoordinator:
                 "cpu_percent": 80.0,
                 "memory_percent": 85.0,
                 "response_time_ms": 1000.0,
-                "error_rate_percent": 5.0
-            }
+                "error_rate_percent": 5.0,
+            },
         }
 
         # Command history for tactical analysis
@@ -108,15 +111,14 @@ class TacticalCoordinator:
 
             # Create service managers
             fastmcp_manager = create_fastmcp_manager(
-                mcp_server,
-                max_memory_mb=self.config.get("mcp_max_memory", 256)
+                mcp_server, max_memory_mb=self.config.get("mcp_max_memory", 256)
             )
 
             fastapi_manager = create_fastapi_manager(
                 fastapi_app,
                 host=self.config.get("api_host", "0.0.0.0"),
                 port=self.config.get("api_port", 8000),
-                max_memory_mb=self.config.get("api_max_memory", 512)
+                max_memory_mb=self.config.get("api_max_memory", 512),
             )
 
             # Register services with process manager
@@ -240,12 +242,17 @@ class TacticalCoordinator:
             service_status = self.process_manager.get_service_status()
 
             # Count service states
-            healthy = sum(1 for s in service_status["services"].values()
-                         if s["state"] in ["healthy"])
-            degraded = sum(1 for s in service_status["services"].values()
-                          if s["state"] in ["degraded"])
-            failed = sum(1 for s in service_status["services"].values()
-                        if s["state"] in ["failed", "unhealthy"])
+            healthy = sum(
+                1 for s in service_status["services"].values() if s["state"] in ["healthy"]
+            )
+            degraded = sum(
+                1 for s in service_status["services"].values() if s["state"] in ["degraded"]
+            )
+            failed = sum(
+                1
+                for s in service_status["services"].values()
+                if s["state"] in ["failed", "unhealthy"]
+            )
 
             # Update metrics
             self.metrics.healthy_services = healthy
@@ -303,7 +310,7 @@ class TacticalCoordinator:
             "timestamp": datetime.utcnow().isoformat(),
             "type": "critical_situation",
             "failed_services": self.metrics.failed_services,
-            "details": "Emergency protocols activated"
+            "details": "Emergency protocols activated",
         }
         self.incident_log.append(incident)
 
@@ -397,6 +404,7 @@ class TacticalCoordinator:
         # - Cache cleanup
         # - Memory limits enforcement
         import gc
+
         gc.collect()
 
     async def _log_coordination_status(self):
@@ -410,13 +418,15 @@ class TacticalCoordinator:
                     "total": self.metrics.total_services,
                     "healthy": self.metrics.healthy_services,
                     "degraded": self.metrics.degraded_services,
-                    "failed": self.metrics.failed_services
-                }
+                    "failed": self.metrics.failed_services,
+                },
             }
 
-            logger.info(f"[TACTICAL] Status: {self.metrics.status.value.upper()} | "
-                       f"Mode: {self.metrics.mode.value.upper()} | "
-                       f"Services: {self.metrics.healthy_services}/{self.metrics.total_services} healthy")
+            logger.info(
+                f"[TACTICAL] Status: {self.metrics.status.value.upper()} | "
+                f"Mode: {self.metrics.mode.value.upper()} | "
+                f"Services: {self.metrics.healthy_services}/{self.metrics.total_services} healthy"
+            )
 
             self.command_history.append(status)
 
@@ -426,7 +436,7 @@ class TacticalCoordinator:
             "coordinator": {
                 "active": self.is_active,
                 "mode": self.metrics.mode.value,
-                "status": self.metrics.status.value
+                "status": self.metrics.status.value,
             },
             "services": self.process_manager.get_service_status(),
             "metrics": {
@@ -435,13 +445,17 @@ class TacticalCoordinator:
                 "degraded_services": self.metrics.degraded_services,
                 "failed_services": self.metrics.failed_services,
                 "uptime_percentage": self.metrics.uptime_percentage,
-                "error_rate": self.metrics.error_rate
+                "error_rate": self.metrics.error_rate,
             },
             "incidents": len(self.incident_log),
-            "last_incident": self.metrics.last_incident.isoformat() if self.metrics.last_incident else None
+            "last_incident": self.metrics.last_incident.isoformat()
+            if self.metrics.last_incident
+            else None,
         }
 
-    async def execute_tactical_command(self, command: str, params: dict[str, Any] = None) -> dict[str, Any]:
+    async def execute_tactical_command(
+        self, command: str, params: dict[str, Any] = None
+    ) -> dict[str, Any]:
         """Execute tactical command"""
         logger.info(f"[TACTICAL] Executing command: {command}")
 
@@ -476,8 +490,8 @@ class TacticalCoordinator:
                     "health": {
                         "healthy": self.metrics.healthy_services,
                         "total": self.metrics.total_services,
-                        "status": self.metrics.status.value
-                    }
+                        "status": self.metrics.status.value,
+                    },
                 }
 
             else:

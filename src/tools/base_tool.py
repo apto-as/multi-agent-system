@@ -9,14 +9,13 @@ from typing import Any, TypeVar
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..core.database import async_session_maker
 from ..services.memory_service import MemoryService
 from ..services.persona_service import PersonaService
 from ..services.task_service import TaskService
 from ..services.vectorization_service import VectorizationService
 from ..services.workflow_service import WorkflowService
 
-T = TypeVar('T', bound=BaseModel)
+T = TypeVar("T", bound=BaseModel)
 
 
 class BaseTool(ABC):
@@ -42,11 +41,11 @@ class BaseTool(ABC):
     async def get_services(self, session: AsyncSession) -> dict[str, Any]:
         """Initialize and return all services with session."""
         return {
-            'memory_service': MemoryService(session),
-            'persona_service': PersonaService(session),
-            'task_service': TaskService(session),
-            'workflow_service': WorkflowService(session),
-            'vectorization_service': VectorizationService()
+            "memory_service": MemoryService(session),
+            "persona_service": PersonaService(session),
+            "task_service": TaskService(session),
+            "workflow_service": WorkflowService(session),
+            "vectorization_service": VectorizationService(),
         }
 
     async def execute_with_session(self, func, *args, **kwargs) -> dict[str, Any]:
@@ -68,21 +67,15 @@ class BaseTool(ABC):
         except Exception as e:
             return self.format_error(str(e))
 
-    def format_success(self, data: Any, message: str = "Operation completed successfully") -> dict[str, Any]:
+    def format_success(
+        self, data: Any, message: str = "Operation completed successfully"
+    ) -> dict[str, Any]:
         """Format successful response."""
-        return {
-            "success": True,
-            "message": message,
-            "data": data
-        }
+        return {"success": True, "message": message, "data": data}
 
     def format_error(self, error: str, error_type: str = "general") -> dict[str, Any]:
         """Format error response."""
-        return {
-            "success": False,
-            "error": error,
-            "error_type": error_type
-        }
+        return {"success": False, "error": error, "error_type": error_type}
 
     def validate_input(self, data: dict[str, Any], model_class: type[T]) -> T:
         """

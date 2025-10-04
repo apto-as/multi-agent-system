@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.database import get_db_session_dependency
@@ -15,52 +15,62 @@ from ...core.exceptions import NotFoundError, ValidationError
 from ...services.agent_service import AgentService
 from ..dependencies import get_current_user
 
-# from ..security import require_permissions  # TODO: Implement permissions system
-
 router = APIRouter(prefix="/agents", tags=["agents"])
 
 
 # Request/Response Models
 
+
 class AgentCreateRequest(BaseModel):
     """Agent creation request."""
+
     agent_id: str = Field(..., description="Unique agent identifier")
     display_name: str = Field(..., description="Human-readable agent name")
     agent_type: str = Field(..., description="Agent type classification")
-    agent_subtype: str | None = Field(None, description="Agent subtype for fine-grained classification")
+    agent_subtype: str | None = Field(
+        None, description="Agent subtype for fine-grained classification"
+    )
     capabilities: dict[str, Any] = Field(default_factory=dict, description="Agent capabilities")
     configuration: dict[str, Any] = Field(default_factory=dict, description="Agent configuration")
     namespace: str = Field(default="default", description="Agent namespace")
     access_level: str = Field(default="standard", description="Access level")
-    parent_agent_id: str | None = Field(None, description="Parent agent ID for hierarchical relationships")
+    parent_agent_id: str | None = Field(
+        None, description="Parent agent ID for hierarchical relationships"
+    )
     team_memberships: list[str] = Field(default_factory=list, description="Team memberships")
     learning_enabled: bool = Field(default=True, description="Enable learning capabilities")
     adaptation_rate: float = Field(default=0.1, description="Learning adaptation rate")
 
-    @validator('agent_id')
+    @field_validator("agent_id")
+    @classmethod
     def validate_agent_id(cls, v):
         if not v or len(v) < 3 or len(v) > 100:
-            raise ValueError('agent_id must be 3-100 characters long')
-        if not v.replace('-', '').replace('_', '').replace('.', '').isalnum():
-            raise ValueError('agent_id must contain only alphanumeric characters, hyphens, underscores, and dots')
+            raise ValueError("agent_id must be 3-100 characters long")
+        if not v.replace("-", "").replace("_", "").replace(".", "").isalnum():
+            raise ValueError(
+                "agent_id must contain only alphanumeric characters, hyphens, underscores, and dots"
+            )
         return v
 
-    @validator('access_level')
+    @field_validator("access_level")
+    @classmethod
     def validate_access_level(cls, v):
-        valid_levels = ['admin', 'standard', 'restricted', 'readonly']
+        valid_levels = ["admin", "standard", "restricted", "readonly"]
         if v not in valid_levels:
-            raise ValueError(f'access_level must be one of: {valid_levels}')
+            raise ValueError(f"access_level must be one of: {valid_levels}")
         return v
 
-    @validator('adaptation_rate')
+    @field_validator("adaptation_rate")
+    @classmethod
     def validate_adaptation_rate(cls, v):
         if v < 0.0 or v > 1.0:
-            raise ValueError('adaptation_rate must be between 0.0 and 1.0')
+            raise ValueError("adaptation_rate must be between 0.0 and 1.0")
         return v
 
 
 class AgentUpdateRequest(BaseModel):
     """Agent update request."""
+
     display_name: str | None = Field(None, description="Updated display name")
     agent_type: str | None = Field(None, description="Updated agent type")
     agent_subtype: str | None = Field(None, description="Updated agent subtype")
@@ -72,23 +82,26 @@ class AgentUpdateRequest(BaseModel):
     adaptation_rate: float | None = Field(None, description="Updated adaptation rate")
     is_active: bool | None = Field(None, description="Updated active status")
 
-    @validator('access_level')
+    @field_validator("access_level")
+    @classmethod
     def validate_access_level(cls, v):
         if v is not None:
-            valid_levels = ['admin', 'standard', 'restricted', 'readonly']
+            valid_levels = ["admin", "standard", "restricted", "readonly"]
             if v not in valid_levels:
-                raise ValueError(f'access_level must be one of: {valid_levels}')
+                raise ValueError(f"access_level must be one of: {valid_levels}")
         return v
 
-    @validator('adaptation_rate')
+    @field_validator("adaptation_rate")
+    @classmethod
     def validate_adaptation_rate(cls, v):
         if v is not None and (v < 0.0 or v > 1.0):
-            raise ValueError('adaptation_rate must be between 0.0 and 1.0')
+            raise ValueError("adaptation_rate must be between 0.0 and 1.0")
         return v
 
 
 class AgentResponse(BaseModel):
     """Agent response model."""
+
     id: str
     agent_id: str
     display_name: str
@@ -110,12 +123,12 @@ class AgentResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 class AgentStatsResponse(BaseModel):
     """Agent statistics response."""
+
     agent_id: str
     display_name: str
     agent_type: str
@@ -135,6 +148,7 @@ class AgentStatsResponse(BaseModel):
 
 class NamespaceCreateRequest(BaseModel):
     """Namespace creation request."""
+
     namespace: str = Field(..., description="Namespace identifier")
     display_name: str = Field(..., description="Human-readable namespace name")
     description: str | None = Field(None, description="Namespace description")
@@ -142,16 +156,18 @@ class NamespaceCreateRequest(BaseModel):
     access_policy: str = Field(default="private", description="Access policy")
     max_agents: int | None = Field(None, description="Maximum number of agents")
 
-    @validator('access_policy')
+    @field_validator("access_policy")
+    @classmethod
     def validate_access_policy(cls, v):
-        valid_policies = ['public', 'private', 'invite_only', 'restricted']
+        valid_policies = ["public", "private", "invite_only", "restricted"]
         if v not in valid_policies:
-            raise ValueError(f'access_policy must be one of: {valid_policies}')
+            raise ValueError(f"access_policy must be one of: {valid_policies}")
         return v
 
 
 class TeamCreateRequest(BaseModel):
     """Team creation request."""
+
     team_id: str = Field(..., description="Team identifier")
     display_name: str = Field(..., description="Human-readable team name")
     description: str | None = Field(None, description="Team description")
@@ -160,21 +176,23 @@ class TeamCreateRequest(BaseModel):
     team_lead: str | None = Field(None, description="Team lead agent ID")
     max_members: int | None = Field(None, description="Maximum team members")
 
-    @validator('team_type')
+    @field_validator("team_type")
+    @classmethod
     def validate_team_type(cls, v):
-        valid_types = ['collaborative', 'hierarchical', 'specialized']
+        valid_types = ["collaborative", "hierarchical", "specialized"]
         if v not in valid_types:
-            raise ValueError(f'team_type must be one of: {valid_types}')
+            raise ValueError(f"team_type must be one of: {valid_types}")
         return v
 
 
 # Agent Management Endpoints
 
+
 @router.post("/", response_model=AgentResponse, status_code=status.HTTP_201_CREATED)
 async def create_agent(
     agent_data: AgentCreateRequest,
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict[str, Any] = Depends(get_current_user)
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> AgentResponse:
     """
     Create a new agent.
@@ -185,7 +203,7 @@ async def create_agent(
     if current_user.get("access_level") != "admin" and agent_data.access_level == "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient privileges to create admin agent"
+            detail="Insufficient privileges to create admin agent",
         )
 
     agent_service = AgentService(db)
@@ -203,10 +221,10 @@ async def create_agent(
             parent_agent_id=agent_data.parent_agent_id,
             team_memberships=agent_data.team_memberships,
             learning_enabled=agent_data.learning_enabled,
-            adaptation_rate=agent_data.adaptation_rate
+            adaptation_rate=agent_data.adaptation_rate,
         )
 
-        return AgentResponse.from_orm(agent)
+        return AgentResponse.model_validate(agent)
 
     except ValidationError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
@@ -218,7 +236,7 @@ async def create_agent(
 async def get_agent(
     agent_id: str,
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict[str, Any] = Depends(get_current_user)
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> AgentResponse:
     """Get agent details by ID."""
     agent_service = AgentService(db)
@@ -226,20 +244,21 @@ async def get_agent(
     agent = await agent_service.get_agent_by_id(agent_id)
     if not agent:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Agent {agent_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Agent {agent_id} not found"
         )
 
     # Check access permissions
-    if (current_user.get("access_level") != "admin" and
-        agent.namespace != current_user.get("namespace", "default") and
-        agent.access_level == "restricted"):
+    if (
+        current_user.get("access_level") != "admin"
+        and agent.namespace != current_user.get("namespace", "default")
+        and agent.access_level == "restricted"
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient privileges to access this agent"
+            detail="Insufficient privileges to access this agent",
         )
 
-    return AgentResponse.from_orm(agent)
+    return AgentResponse.model_validate(agent)
 
 
 @router.get("/", response_model=list[AgentResponse])
@@ -251,7 +270,7 @@ async def list_agents(
     limit: int = Query(50, ge=1, le=100, description="Maximum number of results"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict[str, Any] = Depends(get_current_user)
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> list[AgentResponse]:
     """List agents with optional filtering."""
     agent_service = AgentService(db)
@@ -268,10 +287,10 @@ async def list_agents(
         access_level=access_level,
         is_active=is_active,
         limit=limit,
-        offset=offset
+        offset=offset,
     )
 
-    return [AgentResponse.from_orm(agent) for agent in agents]
+    return [AgentResponse.model_validate(agent) for agent in agents]
 
 
 @router.put("/{agent_id}", response_model=AgentResponse)
@@ -279,7 +298,7 @@ async def update_agent(
     agent_id: str,
     update_data: AgentUpdateRequest,
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict[str, Any] = Depends(get_current_user)
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> AgentResponse:
     """Update an existing agent."""
     agent_service = AgentService(db)
@@ -288,32 +307,31 @@ async def update_agent(
     existing_agent = await agent_service.get_agent_by_id(agent_id)
     if not existing_agent:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Agent {agent_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Agent {agent_id} not found"
         )
 
     # Check permissions
-    if (current_user.get("access_level") != "admin" and
-        existing_agent.namespace != current_user.get("namespace", "default")):
+    if current_user.get("access_level") != "admin" and existing_agent.namespace != current_user.get(
+        "namespace", "default"
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient privileges to update this agent"
+            detail="Insufficient privileges to update this agent",
         )
 
     # Prevent non-admin from elevating access level
-    if (current_user.get("access_level") != "admin" and
-        update_data.access_level == "admin"):
+    if current_user.get("access_level") != "admin" and update_data.access_level == "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient privileges to set admin access level"
+            detail="Insufficient privileges to set admin access level",
         )
 
     try:
         # Convert to dict and filter None values
-        updates = {k: v for k, v in update_data.dict().items() if v is not None}
+        updates = {k: v for k, v in update_data.model_dump().items() if v is not None}
 
         agent = await agent_service.update_agent(agent_id, updates)
-        return AgentResponse.from_orm(agent)
+        return AgentResponse.model_validate(agent)
 
     except NotFoundError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found")
@@ -328,13 +346,12 @@ async def delete_agent(
     agent_id: str,
     force: bool = Query(False, description="Force hard delete"),
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict[str, Any] = Depends(get_current_user)
+    current_user: dict[str, Any] = Depends(get_current_user),
 ):
     """Delete an agent (soft delete by default, hard delete if force=True)."""
     if current_user.get("access_level") != "admin":
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient privileges to delete agents"
+            status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient privileges to delete agents"
         )
 
     agent_service = AgentService(db)
@@ -342,8 +359,7 @@ async def delete_agent(
     success = await agent_service.delete_agent(agent_id, force=force)
     if not success:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Agent {agent_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Agent {agent_id} not found"
         )
 
 
@@ -351,14 +367,14 @@ async def delete_agent(
 async def activate_agent(
     agent_id: str,
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict[str, Any] = Depends(get_current_user)
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> AgentResponse:
     """Activate a deactivated agent."""
     agent_service = AgentService(db)
 
     try:
         agent = await agent_service.activate_agent(agent_id)
-        return AgentResponse.from_orm(agent)
+        return AgentResponse.model_validate(agent)
     except NotFoundError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found")
 
@@ -367,31 +383,32 @@ async def activate_agent(
 async def deactivate_agent(
     agent_id: str,
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict[str, Any] = Depends(get_current_user)
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> AgentResponse:
     """Deactivate an agent."""
     if current_user.get("access_level") not in ["admin", "standard"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient privileges to deactivate agents"
+            detail="Insufficient privileges to deactivate agents",
         )
 
     agent_service = AgentService(db)
 
     try:
         agent = await agent_service.deactivate_agent(agent_id)
-        return AgentResponse.from_orm(agent)
+        return AgentResponse.model_validate(agent)
     except NotFoundError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found")
 
 
 # Agent Analytics and Statistics
 
+
 @router.get("/{agent_id}/stats", response_model=AgentStatsResponse)
 async def get_agent_stats(
     agent_id: str,
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict[str, Any] = Depends(get_current_user)
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> AgentStatsResponse:
     """Get comprehensive statistics for an agent."""
     agent_service = AgentService(db)
@@ -409,7 +426,7 @@ async def get_agent_stats(
 async def update_performance_metrics(
     agent_id: str,
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict[str, Any] = Depends(get_current_user)
+    current_user: dict[str, Any] = Depends(get_current_user),
 ):
     """Update agent performance metrics based on recent activity."""
     agent_service = AgentService(db)
@@ -420,6 +437,7 @@ async def update_performance_metrics(
 
 # Agent Memory and Task Management
 
+
 @router.get("/{agent_id}/memories")
 async def get_agent_memories(
     agent_id: str,
@@ -429,7 +447,7 @@ async def get_agent_memories(
     limit: int = Query(100, ge=1, le=500, description="Maximum number of results"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict[str, Any] = Depends(get_current_user)
+    current_user: dict[str, Any] = Depends(get_current_user),
 ):
     """Get memories associated with an agent."""
     agent_service = AgentService(db)
@@ -440,19 +458,21 @@ async def get_agent_memories(
         access_level=access_level,
         is_archived=is_archived,
         limit=limit,
-        offset=offset
+        offset=offset,
     )
 
     # Convert to dict representation
     return [
         {
             "id": str(memory.id),
-            "content": memory.content[:200] + "..." if len(memory.content) > 200 else memory.content,
+            "content": memory.content[:200] + "..."
+            if len(memory.content) > 200
+            else memory.content,
             "memory_type": memory.memory_type,
             "access_level": memory.access_level,
             "importance": memory.importance,
             "created_at": memory.created_at.isoformat(),
-            "accessed_at": memory.accessed_at.isoformat() if memory.accessed_at else None
+            "accessed_at": memory.accessed_at.isoformat() if memory.accessed_at else None,
         }
         for memory in memories
     ]
@@ -463,11 +483,13 @@ async def get_agent_tasks(
     agent_id: str,
     status: str | None = Query(None, description="Filter by task status"),
     task_type: str | None = Query(None, description="Filter by task type"),
-    include_collaborating: bool = Query(False, description="Include tasks where agent is collaborating"),
+    include_collaborating: bool = Query(
+        False, description="Include tasks where agent is collaborating"
+    ),
     limit: int = Query(100, ge=1, le=500, description="Maximum number of results"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict[str, Any] = Depends(get_current_user)
+    current_user: dict[str, Any] = Depends(get_current_user),
 ):
     """Get tasks associated with an agent."""
     agent_service = AgentService(db)
@@ -478,7 +500,7 @@ async def get_agent_tasks(
         task_type=task_type,
         include_collaborating=include_collaborating,
         limit=limit,
-        offset=offset
+        offset=offset,
     )
 
     # Convert to dict representation
@@ -490,13 +512,14 @@ async def get_agent_tasks(
             "priority": task.priority,
             "progress_percentage": task.progress_percentage,
             "created_at": task.created_at.isoformat(),
-            "due_date": task.due_date.isoformat() if task.due_date else None
+            "due_date": task.due_date.isoformat() if task.due_date else None,
         }
         for task in tasks
     ]
 
 
 # Search and Discovery
+
 
 @router.get("/search/", response_model=list[AgentResponse])
 async def search_agents(
@@ -505,19 +528,16 @@ async def search_agents(
     agent_type: str | None = Query(None, description="Filter by agent type"),
     limit: int = Query(20, ge=1, le=50, description="Maximum number of results"),
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict[str, Any] = Depends(get_current_user)
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> list[AgentResponse]:
     """Search agents by name, capabilities, or other attributes."""
     agent_service = AgentService(db)
 
     agents = await agent_service.search_agents(
-        query=query,
-        namespace=namespace,
-        agent_type=agent_type,
-        limit=limit
+        query=query, namespace=namespace, agent_type=agent_type, limit=limit
     )
 
-    return [AgentResponse.from_orm(agent) for agent in agents]
+    return [AgentResponse.model_validate(agent) for agent in agents]
 
 
 @router.get("/recommend/", response_model=list[AgentResponse])
@@ -527,34 +547,32 @@ async def get_recommended_agents(
     namespace: str | None = Query(None, description="Filter by namespace"),
     limit: int = Query(10, ge=1, le=20, description="Maximum number of results"),
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict[str, Any] = Depends(get_current_user)
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> list[AgentResponse]:
     """Get recommended agents based on requirements."""
     agent_service = AgentService(db)
 
     agents = await agent_service.get_recommended_agents(
-        task_type=task_type,
-        capabilities=capabilities or [],
-        namespace=namespace,
-        limit=limit
+        task_type=task_type, capabilities=capabilities or [], namespace=namespace, limit=limit
     )
 
-    return [AgentResponse.from_orm(agent) for agent in agents]
+    return [AgentResponse.model_validate(agent) for agent in agents]
 
 
 # Namespace Management
+
 
 @router.post("/namespaces/", status_code=status.HTTP_201_CREATED)
 async def create_namespace(
     namespace_data: NamespaceCreateRequest,
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict[str, Any] = Depends(get_current_user)
+    current_user: dict[str, Any] = Depends(get_current_user),
 ):
     """Create a new namespace."""
     if current_user.get("access_level") != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient privileges to create namespaces"
+            detail="Insufficient privileges to create namespaces",
         )
 
     agent_service = AgentService(db)
@@ -566,14 +584,14 @@ async def create_namespace(
             description=namespace_data.description,
             parent_namespace=namespace_data.parent_namespace,
             access_policy=namespace_data.access_policy,
-            max_agents=namespace_data.max_agents
+            max_agents=namespace_data.max_agents,
         )
 
         return {
             "namespace": namespace.namespace,
             "display_name": namespace.display_name,
             "access_policy": namespace.access_policy,
-            "created_at": namespace.created_at.isoformat()
+            "created_at": namespace.created_at.isoformat(),
         }
 
     except ValidationError as e:
@@ -589,16 +607,13 @@ async def list_namespaces(
     limit: int = Query(50, ge=1, le=100, description="Maximum number of results"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict[str, Any] = Depends(get_current_user)
+    current_user: dict[str, Any] = Depends(get_current_user),
 ):
     """List namespaces."""
     agent_service = AgentService(db)
 
     namespaces = await agent_service.list_namespaces(
-        access_policy=access_policy,
-        is_active=is_active,
-        limit=limit,
-        offset=offset
+        access_policy=access_policy, is_active=is_active, limit=limit, offset=offset
     )
 
     return [
@@ -609,7 +624,7 @@ async def list_namespaces(
             "access_policy": ns.access_policy,
             "agent_count": ns.agent_count,
             "is_active": ns.is_active,
-            "created_at": ns.created_at.isoformat()
+            "created_at": ns.created_at.isoformat(),
         }
         for ns in namespaces
     ]
@@ -617,11 +632,12 @@ async def list_namespaces(
 
 # Team Management
 
+
 @router.post("/teams/", status_code=status.HTTP_201_CREATED)
 async def create_team(
     team_data: TeamCreateRequest,
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict[str, Any] = Depends(get_current_user)
+    current_user: dict[str, Any] = Depends(get_current_user),
 ):
     """Create a new team."""
     agent_service = AgentService(db)
@@ -634,7 +650,7 @@ async def create_team(
             namespace=team_data.namespace,
             team_type=team_data.team_type,
             team_lead=team_data.team_lead,
-            max_members=team_data.max_members
+            max_members=team_data.max_members,
         )
 
         return {
@@ -642,7 +658,7 @@ async def create_team(
             "display_name": team.display_name,
             "team_type": team.team_type,
             "namespace": team.namespace,
-            "created_at": team.created_at.isoformat()
+            "created_at": team.created_at.isoformat(),
         }
 
     except ValidationError as e:
@@ -656,7 +672,7 @@ async def add_agent_to_team(
     team_id: str,
     agent_id: str,
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict[str, Any] = Depends(get_current_user)
+    current_user: dict[str, Any] = Depends(get_current_user),
 ):
     """Add an agent to a team."""
     agent_service = AgentService(db)
@@ -668,7 +684,7 @@ async def add_agent_to_team(
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Failed to add agent to team (possibly at capacity or already member)"
+                detail="Failed to add agent to team (possibly at capacity or already member)",
             )
     except NotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
@@ -679,7 +695,7 @@ async def remove_agent_from_team(
     team_id: str,
     agent_id: str,
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict[str, Any] = Depends(get_current_user)
+    current_user: dict[str, Any] = Depends(get_current_user),
 ):
     """Remove an agent from a team."""
     agent_service = AgentService(db)
@@ -690,34 +706,30 @@ async def remove_agent_from_team(
     else:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Team or agent not found, or agent not in team"
+            detail="Team or agent not found, or agent not in team",
         )
 
 
 # Migration and Compatibility
 
+
 @router.post("/migrate-from-personas", status_code=status.HTTP_200_OK)
 async def migrate_from_personas(
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict[str, Any] = Depends(get_current_user)
+    current_user: dict[str, Any] = Depends(get_current_user),
 ):
     """Migrate existing persona data to agent format."""
     if current_user.get("access_level") != "admin":
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient privileges to run migration"
+            status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient privileges to run migration"
         )
 
     agent_service = AgentService(db)
 
     try:
         results = await agent_service.migrate_from_personas()
-        return {
-            "message": "Migration completed successfully",
-            "results": results
-        }
+        return {"message": "Migration completed successfully", "results": results}
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Migration failed: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Migration failed: {str(e)}"
         )

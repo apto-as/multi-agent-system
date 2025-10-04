@@ -13,15 +13,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.exceptions import NotFoundError, ValidationError
 from ..models import Workflow
+from .base_service import BaseService
 
 logger = logging.getLogger(__name__)
 
 
-class WorkflowService:
+class WorkflowService(BaseService):
     """Service for managing workflows."""
 
     def __init__(self, session: AsyncSession):
-        self.session = session
+        super().__init__(session)
 
     async def create_workflow(
         self,
@@ -29,7 +30,7 @@ class WorkflowService:
         description: str,
         steps: list[dict[str, Any]],
         workflow_type: str = "sequential",
-        metadata: dict[str, Any] = None
+        metadata: dict[str, Any] = None,
     ) -> Workflow:
         """Create a new workflow."""
         # Validate workflow type
@@ -52,7 +53,7 @@ class WorkflowService:
             workflow_type=workflow_type,
             steps=steps,
             status="draft",
-            metadata_json=metadata or {}
+            metadata_json=metadata or {},
         )
 
         self.session.add(workflow)
@@ -64,16 +65,10 @@ class WorkflowService:
 
     async def get_workflow(self, workflow_id: UUID) -> Workflow | None:
         """Get a workflow by ID."""
-        result = await self.session.execute(
-            select(Workflow).where(Workflow.id == workflow_id)
-        )
+        result = await self.session.execute(select(Workflow).where(Workflow.id == workflow_id))
         return result.scalar_one_or_none()
 
-    async def update_workflow(
-        self,
-        workflow_id: UUID,
-        updates: dict[str, Any]
-    ) -> Workflow:
+    async def update_workflow(self, workflow_id: UUID, updates: dict[str, Any]) -> Workflow:
         """Update an existing workflow."""
         workflow = await self.get_workflow(workflow_id)
         if not workflow:
@@ -85,8 +80,12 @@ class WorkflowService:
 
         # Update allowed fields
         allowed_fields = [
-            'name', 'description', 'workflow_type', 'steps',
-            'status', 'metadata_json'
+            "name",
+            "description",
+            "workflow_type",
+            "steps",
+            "status",
+            "metadata_json",
         ]
 
         for key, value in updates.items():
@@ -117,11 +116,7 @@ class WorkflowService:
         return True
 
     async def list_workflows(
-        self,
-        status: str = None,
-        workflow_type: str = None,
-        limit: int = 50,
-        offset: int = 0
+        self, status: str = None, workflow_type: str = None, limit: int = 50, offset: int = 0
     ) -> list[Workflow]:
         """List workflows with filters."""
         stmt = select(Workflow)
@@ -175,9 +170,7 @@ class WorkflowService:
         return workflow
 
     async def execute_workflow(
-        self,
-        workflow_id: UUID,
-        input_data: dict[str, Any] = None
+        self, workflow_id: UUID, input_data: dict[str, Any] = None
     ) -> dict[str, Any]:
         """Execute a workflow synchronously."""
         workflow = await self.get_workflow(workflow_id)
@@ -195,26 +188,17 @@ class WorkflowService:
             "started_at": datetime.utcnow().isoformat(),
             "steps_completed": [],
             "current_step": 0,
-            "status": "running"
+            "status": "running",
         }
 
         try:
             # Execute steps based on workflow type
             if workflow.workflow_type == "sequential":
-                result = await self._execute_sequential_steps(
-                    workflow.steps,
-                    execution_context
-                )
+                result = await self._execute_sequential_steps(workflow.steps, execution_context)
             elif workflow.workflow_type == "parallel":
-                result = await self._execute_parallel_steps(
-                    workflow.steps,
-                    execution_context
-                )
+                result = await self._execute_parallel_steps(workflow.steps, execution_context)
             elif workflow.workflow_type == "conditional":
-                result = await self._execute_conditional_steps(
-                    workflow.steps,
-                    execution_context
-                )
+                result = await self._execute_conditional_steps(workflow.steps, execution_context)
             else:
                 raise ValidationError(f"Unsupported workflow type: {workflow.workflow_type}")
 
@@ -234,9 +218,7 @@ class WorkflowService:
         return execution_context
 
     async def _execute_sequential_steps(
-        self,
-        steps: list[dict[str, Any]],
-        context: dict[str, Any]
+        self, steps: list[dict[str, Any]], context: dict[str, Any]
     ) -> dict[str, Any]:
         """Execute workflow steps sequentially."""
         results = {}
@@ -261,9 +243,7 @@ class WorkflowService:
         return results
 
     async def _execute_parallel_steps(
-        self,
-        steps: list[dict[str, Any]],
-        context: dict[str, Any]
+        self, steps: list[dict[str, Any]], context: dict[str, Any]
     ) -> dict[str, Any]:
         """Execute workflow steps in parallel."""
         import asyncio
@@ -291,9 +271,7 @@ class WorkflowService:
         return results
 
     async def _execute_conditional_steps(
-        self,
-        steps: list[dict[str, Any]],
-        context: dict[str, Any]
+        self, steps: list[dict[str, Any]], context: dict[str, Any]
     ) -> dict[str, Any]:
         """Execute workflow steps with conditional logic."""
         results = {}
@@ -318,10 +296,7 @@ class WorkflowService:
         return results
 
     async def _execute_step_action(
-        self,
-        step: dict[str, Any],
-        context: dict[str, Any],
-        previous_results: dict[str, Any]
+        self, step: dict[str, Any], context: dict[str, Any], previous_results: dict[str, Any]
     ) -> dict[str, Any]:
         """Execute a single step action."""
         action = step.get("action", {})
@@ -330,6 +305,7 @@ class WorkflowService:
         if action_type == "task":
             # Create and execute a task
             from .task_service import TaskService
+
             task_service = TaskService(self.session)
 
             task = await task_service.create_task(
@@ -339,14 +315,13 @@ class WorkflowService:
                 priority=action.get("priority", "medium"),
                 metadata={
                     "workflow_execution_id": context["execution_id"],
-                    "step_index": context["current_step"]
-                }
+                    "step_index": context["current_step"],
+                },
             )
 
             # Mark task as in progress
             await task_service.update_task(
-                task.id,
-                {"status": "in_progress", "started_at": datetime.utcnow()}
+                task.id, {"status": "in_progress", "started_at": datetime.utcnow()}
             )
 
             # Simulate task execution (in real implementation, this would be async)
@@ -356,19 +331,16 @@ class WorkflowService:
                     "status": "completed",
                     "progress": 1.0,
                     "completed_at": datetime.utcnow(),
-                    "result": {"message": "Step completed successfully"}
-                }
+                    "result": {"message": "Step completed successfully"},
+                },
             )
 
-            return {
-                "status": "completed",
-                "task_id": str(task.id),
-                "result": task.result
-            }
+            return {"status": "completed", "task_id": str(task.id), "result": task.result}
 
         elif action_type == "wait":
             # Wait for a specified duration
             import asyncio
+
             duration = action.get("duration", 1)
             await asyncio.sleep(duration)
             return {"status": "completed", "waited": duration}
@@ -383,10 +355,7 @@ class WorkflowService:
             return {"status": "completed", "message": f"Unknown action type: {action_type}"}
 
     async def _evaluate_condition(
-        self,
-        condition: dict[str, Any],
-        context: dict[str, Any],
-        results: dict[str, Any]
+        self, condition: dict[str, Any], context: dict[str, Any], results: dict[str, Any]
     ) -> bool:
         """Evaluate a condition for conditional execution."""
         # Simple condition evaluation
@@ -408,11 +377,7 @@ class WorkflowService:
         else:
             return True
 
-    async def _evaluate_decision(
-        self,
-        logic: dict[str, Any],
-        results: dict[str, Any]
-    ) -> str:
+    async def _evaluate_decision(self, logic: dict[str, Any], results: dict[str, Any]) -> str:
         """Evaluate decision logic based on previous results."""
         # Simple decision evaluation
         decision_type = logic.get("type", "default")
@@ -429,9 +394,7 @@ class WorkflowService:
             return "continue"
 
     async def queue_workflow_execution(
-        self,
-        workflow_id: UUID,
-        input_data: dict[str, Any] = None
+        self, workflow_id: UUID, input_data: dict[str, Any] = None
     ) -> str:
         """Queue a workflow for asynchronous execution."""
         workflow = await self.get_workflow(workflow_id)
@@ -447,9 +410,7 @@ class WorkflowService:
         return execution_id
 
     async def get_workflow_executions(
-        self,
-        workflow_id: UUID,
-        limit: int = 10
+        self, workflow_id: UUID, limit: int = 10
     ) -> list[dict[str, Any]]:
         """Get recent workflow executions."""
         # In a real implementation, this would query an executions table
@@ -472,8 +433,7 @@ class WorkflowService:
         """Get workflow statistics."""
         # Count by status
         status_counts_stmt = select(
-            Workflow.status,
-            func.count(Workflow.id).label('count')
+            Workflow.status, func.count(Workflow.id).label("count")
         ).group_by(Workflow.status)
 
         status_counts_result = await self.session.execute(status_counts_stmt)
@@ -481,8 +441,7 @@ class WorkflowService:
 
         # Count by type
         type_counts_stmt = select(
-            Workflow.workflow_type,
-            func.count(Workflow.id).label('count')
+            Workflow.workflow_type, func.count(Workflow.id).label("count")
         ).group_by(Workflow.workflow_type)
 
         type_counts_result = await self.session.execute(type_counts_stmt)
@@ -492,5 +451,5 @@ class WorkflowService:
             "workflows_by_status": status_counts,
             "workflows_by_type": type_counts,
             "total_workflows": sum(status_counts.values()),
-            "active_workflows": status_counts.get("active", 0)
+            "active_workflows": status_counts.get("active", 0),
         }

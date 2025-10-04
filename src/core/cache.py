@@ -26,7 +26,7 @@ class CacheManager:
         redis_url: str = None,
         local_ttl: int = 60,
         redis_ttl: int = 300,
-        max_local_size: int = 1000
+        max_local_size: int = 1000,
     ):
         """
         Initialize cache manager
@@ -54,7 +54,7 @@ class CacheManager:
             "local_hits": 0,
             "redis_hits": 0,
             "evictions": 0,
-            "invalidations": 0
+            "invalidations": 0,
         }
 
     async def initialize(self):
@@ -68,11 +68,7 @@ class CacheManager:
                 logger.warning(f"Redis unavailable, using local cache only: {e}")
                 self.redis_client = None
 
-    async def get(
-        self,
-        key: str,
-        namespace: str = "default"
-    ) -> Any | None:
+    async def get(self, key: str, namespace: str = "default") -> Any | None:
         """
         Get value from cache
 
@@ -105,13 +101,7 @@ class CacheManager:
         self.stats["misses"] += 1
         return None
 
-    async def set(
-        self,
-        key: str,
-        value: Any,
-        namespace: str = "default",
-        ttl: int = None
-    ):
+    async def set(self, key: str, value: Any, namespace: str = "default", ttl: int = None):
         """
         Set value in cache
 
@@ -128,16 +118,9 @@ class CacheManager:
 
         # Set in Redis if available
         if self.redis_client:
-            await self._set_redis(
-                full_key, value,
-                ttl or self.redis_ttl
-            )
+            await self._set_redis(full_key, value, ttl or self.redis_ttl)
 
-    async def delete(
-        self,
-        key: str,
-        namespace: str = "default"
-    ):
+    async def delete(self, key: str, namespace: str = "default"):
         """Delete value from cache"""
         full_key = self._make_key(namespace, key)
 
@@ -156,10 +139,7 @@ class CacheManager:
         if namespace:
             # Clear specific namespace
             prefix = f"{namespace}:"
-            keys_to_delete = [
-                k for k in self.local_cache
-                if k.startswith(prefix)
-            ]
+            keys_to_delete = [k for k in self.local_cache if k.startswith(prefix)]
             for key in keys_to_delete:
                 self.local_cache.pop(key, None)
                 self.access_count.pop(key, None)
@@ -169,9 +149,7 @@ class CacheManager:
                 pattern = f"{namespace}:*"
                 cursor = 0
                 while True:
-                    cursor, keys = await self.redis_client.scan(
-                        cursor, match=pattern, count=100
-                    )
+                    cursor, keys = await self.redis_client.scan(cursor, match=pattern, count=100)
                     if keys:
                         await self.redis_client.delete(*keys)
                     if cursor == 0:
@@ -219,10 +197,7 @@ class CacheManager:
             return
 
         # Find LRU key
-        lru_key = min(
-            self.access_count.keys(),
-            key=lambda k: self.access_count[k]
-        )
+        lru_key = min(self.access_count.keys(), key=lambda k: self.access_count[k])
 
         self.local_cache.pop(lru_key, None)
         self.access_count.pop(lru_key, None)
@@ -255,7 +230,7 @@ class CacheManager:
             **self.stats,
             "hit_rate": (total_hits / total_requests) if total_requests > 0 else 0,
             "local_cache_size": len(self.local_cache),
-            "redis_available": self.redis_client is not None
+            "redis_available": self.redis_client is not None,
         }
 
 
@@ -267,12 +242,7 @@ class CacheDecorator:
     def __init__(self, cache_manager: CacheManager):
         self.cache_manager = cache_manager
 
-    def cached(
-        self,
-        namespace: str = "function",
-        ttl: int = None,
-        key_prefix: str = None
-    ):
+    def cached(self, namespace: str = "function", ttl: int = None, key_prefix: str = None):
         """
         Decorator for caching function results
 
@@ -281,6 +251,7 @@ class CacheDecorator:
             ttl: TTL override
             key_prefix: Optional key prefix
         """
+
         def decorator(func):
             @wraps(func)
             async def wrapper(*args, **kwargs):
@@ -288,14 +259,10 @@ class CacheDecorator:
                 key_parts = [key_prefix or func.__name__]
                 key_parts.extend(str(arg) for arg in args)
                 key_parts.extend(f"{k}={v}" for k, v in sorted(kwargs.items()))
-                cache_key = hashlib.md5(
-                    ":".join(key_parts).encode()
-                ).hexdigest()
+                cache_key = hashlib.md5(":".join(key_parts).encode()).hexdigest()
 
                 # Check cache
-                cached_value = await self.cache_manager.get(
-                    cache_key, namespace
-                )
+                cached_value = await self.cache_manager.get(cache_key, namespace)
                 if cached_value is not None:
                     return cached_value
 
@@ -303,13 +270,12 @@ class CacheDecorator:
                 result = await func(*args, **kwargs)
 
                 # Cache result
-                await self.cache_manager.set(
-                    cache_key, result, namespace, ttl
-                )
+                await self.cache_manager.set(cache_key, result, namespace, ttl)
 
                 return result
 
             return wrapper
+
         return decorator
 
 
@@ -323,16 +289,11 @@ class InvalidationManager:
         self.db_pool = db_pool
         self.invalidation_queue = asyncio.Queue()
 
-    async def invalidate_pattern(
-        self,
-        pattern: str,
-        reason: str = None
-    ):
+    async def invalidate_pattern(self, pattern: str, reason: str = None):
         """Invalidate cache entries matching pattern"""
         # Local invalidation
         keys_to_delete = [
-            k for k in self.cache_manager.local_cache
-            if self._match_pattern(k, pattern)
+            k for k in self.cache_manager.local_cache if self._match_pattern(k, pattern)
         ]
 
         for key in keys_to_delete:
@@ -341,18 +302,24 @@ class InvalidationManager:
         # Log invalidation
         if self.db_pool:
             async with self.db_pool.acquire() as conn:
-                await conn.execute("""
+                await conn.execute(
+                    """
                     INSERT INTO cache_invalidations (
                         cache_key, invalidated_by, reason
                     )
                     VALUES ($1, $2, $3)
-                """, pattern, "system", reason)
+                """,
+                    pattern,
+                    "system",
+                    reason,
+                )
 
         logger.info(f"Invalidated {len(keys_to_delete)} cache entries for pattern: {pattern}")
 
     def _match_pattern(self, key: str, pattern: str) -> bool:
         """Simple pattern matching with * wildcard"""
         import fnmatch
+
         return fnmatch.fnmatch(key, pattern)
 
     async def process_invalidations(self):
@@ -360,10 +327,7 @@ class InvalidationManager:
         while True:
             try:
                 invalidation = await self.invalidation_queue.get()
-                await self.invalidate_pattern(
-                    invalidation["pattern"],
-                    invalidation.get("reason")
-                )
+                await self.invalidate_pattern(invalidation["pattern"], invalidation.get("reason"))
             except Exception as e:
                 logger.error(f"Invalidation processing error: {e}")
             await asyncio.sleep(0.1)

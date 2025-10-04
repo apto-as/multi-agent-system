@@ -6,8 +6,8 @@ Tracks workflow execution history and logs for auditing and debugging
 import uuid
 from datetime import datetime
 
-from sqlalchemy import JSON, Column, DateTime, Float, ForeignKey, Index, Integer, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, DateTime, Float, ForeignKey, Index, Integer, String, Text
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 
 from .base import TMWSBase as Base
@@ -15,6 +15,7 @@ from .base import TMWSBase as Base
 
 class WorkflowExecution(Base):
     """Model for workflow execution history."""
+
     __tablename__ = "workflow_executions"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -23,15 +24,17 @@ class WorkflowExecution(Base):
     # Execution metadata
     started_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     completed_at = Column(DateTime)
-    status = Column(String(50), nullable=False, default="running")  # running, completed, failed, cancelled
+    status = Column(
+        String(50), nullable=False, default="running"
+    )  # running, completed, failed, cancelled
 
     # Execution context
     triggered_by = Column(String(100))  # user_id, system, api, scheduler
     trigger_type = Column(String(50))  # manual, scheduled, event, api
 
     # Input/Output
-    input_data = Column(JSON)
-    output_data = Column(JSON)
+    input_data = Column(JSONB)
+    output_data = Column(JSONB)
 
     # Performance metrics
     execution_time_seconds = Column(Float)
@@ -40,16 +43,20 @@ class WorkflowExecution(Base):
 
     # Error handling
     error_message = Column(Text)
-    error_details = Column(JSON)
+    error_details = Column(JSONB)
     retry_count = Column(Integer, default=0)
 
     # Additional metadata
-    metadata_json = Column(JSON, default=dict)
+    metadata_json = Column(JSONB, default=dict)
 
     # Relationships
     workflow = relationship("Workflow", back_populates="executions")
-    step_executions = relationship("WorkflowStepExecution", back_populates="workflow_execution", cascade="all, delete-orphan")
-    logs = relationship("WorkflowExecutionLog", back_populates="workflow_execution", cascade="all, delete-orphan")
+    step_executions = relationship(
+        "WorkflowStepExecution", back_populates="workflow_execution", cascade="all, delete-orphan"
+    )
+    logs = relationship(
+        "WorkflowExecutionLog", back_populates="workflow_execution", cascade="all, delete-orphan"
+    )
 
     # Indexes for performance
     __table_args__ = (
@@ -62,10 +69,13 @@ class WorkflowExecution(Base):
 
 class WorkflowStepExecution(Base):
     """Model for individual step execution within a workflow."""
+
     __tablename__ = "workflow_step_executions"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    workflow_execution_id = Column(UUID(as_uuid=True), ForeignKey("workflow_executions.id"), nullable=False)
+    workflow_execution_id = Column(
+        UUID(as_uuid=True), ForeignKey("workflow_executions.id"), nullable=False
+    )
 
     # Step identification
     step_name = Column(String(200), nullable=False)
@@ -75,22 +85,24 @@ class WorkflowStepExecution(Base):
     # Execution timing
     started_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     completed_at = Column(DateTime)
-    status = Column(String(50), nullable=False, default="running")  # running, completed, failed, skipped
+    status = Column(
+        String(50), nullable=False, default="running"
+    )  # running, completed, failed, skipped
 
     # Input/Output
-    input_data = Column(JSON)
-    output_data = Column(JSON)
+    input_data = Column(JSONB)
+    output_data = Column(JSONB)
 
     # Performance
     execution_time_seconds = Column(Float)
 
     # Error handling
     error_message = Column(Text)
-    error_details = Column(JSON)
+    error_details = Column(JSONB)
     retry_count = Column(Integer, default=0)
 
     # Additional metadata
-    metadata_json = Column(JSON, default=dict)
+    metadata_json = Column(JSONB, default=dict)
 
     # Relationships
     workflow_execution = relationship("WorkflowExecution", back_populates="step_executions")
@@ -105,10 +117,13 @@ class WorkflowStepExecution(Base):
 
 class WorkflowExecutionLog(Base):
     """Model for detailed workflow execution logs."""
+
     __tablename__ = "workflow_execution_logs"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    workflow_execution_id = Column(UUID(as_uuid=True), ForeignKey("workflow_executions.id"), nullable=False)
+    workflow_execution_id = Column(
+        UUID(as_uuid=True), ForeignKey("workflow_executions.id"), nullable=False
+    )
     step_execution_id = Column(UUID(as_uuid=True), ForeignKey("workflow_step_executions.id"))
 
     # Log details
@@ -122,7 +137,7 @@ class WorkflowExecutionLog(Base):
     line_number = Column(Integer)
 
     # Additional data
-    context_data = Column(JSON)
+    context_data = Column(JSONB)
 
     # Relationships
     workflow_execution = relationship("WorkflowExecution", back_populates="logs")
@@ -137,6 +152,7 @@ class WorkflowExecutionLog(Base):
 
 class WorkflowSchedule(Base):
     """Model for scheduled workflow executions."""
+
     __tablename__ = "workflow_schedules"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -156,8 +172,8 @@ class WorkflowSchedule(Base):
     next_run_at = Column(DateTime)
 
     # Execution configuration
-    input_data = Column(JSON)
-    metadata_json = Column(JSON, default=dict)
+    input_data = Column(JSONB)
+    metadata_json = Column(JSONB, default=dict)
 
     # Statistics
     total_runs = Column(Integer, default=0)

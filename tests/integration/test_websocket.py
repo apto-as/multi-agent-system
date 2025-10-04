@@ -197,7 +197,7 @@ async def main():
 
     # First, check if server is running
     try:
-        async with websockets.connect("ws://localhost:8000/ws/mcp") as ws:
+        async with websockets.connect("ws://localhost:8000/ws/mcp"):
             pass
     except Exception:
         print("❌ Server is not running!")

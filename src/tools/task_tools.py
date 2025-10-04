@@ -14,6 +14,7 @@ from .base_tool import BaseTool
 
 class TaskCreateRequest(BaseModel):
     """Task creation parameters."""
+
     title: str = Field(..., description="Task title")
     description: str = Field(..., description="Detailed task description")
     task_type: str = Field(default="general", description="Type of task")
@@ -27,6 +28,7 @@ class TaskCreateRequest(BaseModel):
 
 class TaskUpdateRequest(BaseModel):
     """Task update parameters."""
+
     task_id: str = Field(..., description="Task ID to update")
     title: str | None = Field(None, description="New title")
     description: str | None = Field(None, description="New description")
@@ -54,7 +56,7 @@ class TaskTools(BaseTool):
             dependencies: list[str] = None,
             metadata: dict[str, Any] = None,
             estimated_duration: int | None = None,
-            due_date: str | None = None
+            due_date: str | None = None,
         ) -> dict[str, Any]:
             """
             Create a new task in the system.
@@ -93,11 +95,11 @@ class TaskTools(BaseTool):
                 dependencies=dependencies or [],
                 metadata=metadata or {},
                 estimated_duration=estimated_duration,
-                due_date=parsed_due_date
+                due_date=parsed_due_date,
             )
 
             async def _create_task(session, services):
-                task_service = services['task_service']
+                task_service = services["task_service"]
 
                 task = await task_service.create_task(
                     title=request.title,
@@ -108,7 +110,7 @@ class TaskTools(BaseTool):
                     dependencies=request.dependencies,
                     metadata=request.metadata,
                     estimated_duration=request.estimated_duration,
-                    due_date=request.due_date
+                    due_date=request.due_date,
                 )
 
                 return {
@@ -119,11 +121,13 @@ class TaskTools(BaseTool):
                     "status": task.status,
                     "priority": task.priority,
                     "progress": task.progress,
-                    "assigned_persona_id": str(task.assigned_persona_id) if task.assigned_persona_id else None,
+                    "assigned_persona_id": str(task.assigned_persona_id)
+                    if task.assigned_persona_id
+                    else None,
                     "dependencies": task.dependencies,
                     "estimated_duration": task.estimated_duration,
                     "due_date": task.due_date.isoformat() if task.due_date else None,
-                    "created_at": task.created_at.isoformat()
+                    "created_at": task.created_at.isoformat(),
                 }
 
             result = await self.execute_with_session(_create_task)
@@ -135,7 +139,7 @@ class TaskTools(BaseTool):
             status: str,
             progress: float | None = None,
             result: dict[str, Any] | None = None,
-            notes: str | None = None
+            notes: str | None = None,
         ) -> dict[str, Any]:
             """
             Update task status and progress.
@@ -154,14 +158,11 @@ class TaskTools(BaseTool):
                 Dict containing updated task information
             """
             request = TaskUpdateRequest(
-                task_id=task_id,
-                status=status,
-                progress=progress,
-                result=result
+                task_id=task_id, status=status, progress=progress, result=result
             )
 
             async def _update_task_status(session, services):
-                task_service = services['task_service']
+                task_service = services["task_service"]
 
                 updates = {"status": request.status}
                 if request.progress is not None:
@@ -189,10 +190,12 @@ class TaskTools(BaseTool):
                     "status": task.status,
                     "priority": task.priority,
                     "progress": task.progress,
-                    "assigned_persona_id": str(task.assigned_persona_id) if task.assigned_persona_id else None,
+                    "assigned_persona_id": str(task.assigned_persona_id)
+                    if task.assigned_persona_id
+                    else None,
                     "result": task.result,
                     "updated_at": task.updated_at.isoformat(),
-                    "status_change": request.status
+                    "status_change": request.status,
                 }
 
             result = await self.execute_with_session(_update_task_status)
@@ -212,8 +215,9 @@ class TaskTools(BaseTool):
             Returns:
                 Dict containing comprehensive task information
             """
+
             async def _get_task_status(session, services):
-                task_service = services['task_service']
+                task_service = services["task_service"]
                 task = await task_service.get_task(task_id)
 
                 if not task:
@@ -225,23 +229,25 @@ class TaskTools(BaseTool):
                     for dep_id in task.dependencies:
                         dep_task = await task_service.get_task(dep_id)
                         if dep_task:
-                            dependency_info.append({
-                                "id": dep_id,
-                                "title": dep_task.title,
-                                "status": dep_task.status,
-                                "progress": dep_task.progress
-                            })
+                            dependency_info.append(
+                                {
+                                    "id": dep_id,
+                                    "title": dep_task.title,
+                                    "status": dep_task.status,
+                                    "progress": dep_task.progress,
+                                }
+                            )
 
                 # Get persona information if assigned
                 persona_info = None
                 if task.assigned_persona_id:
-                    persona_service = services['persona_service']
+                    persona_service = services["persona_service"]
                     persona = await persona_service.get_persona(str(task.assigned_persona_id))
                     if persona:
                         persona_info = {
                             "id": str(persona.id),
                             "name": persona.name,
-                            "capabilities": persona.capabilities
+                            "capabilities": persona.capabilities,
                         }
 
                 return {
@@ -259,7 +265,7 @@ class TaskTools(BaseTool):
                     "result": task.result,
                     "metadata": task.metadata_json,
                     "created_at": task.created_at.isoformat(),
-                    "updated_at": task.updated_at.isoformat() if task.updated_at else None
+                    "updated_at": task.updated_at.isoformat() if task.updated_at else None,
                 }
 
             result = await self.execute_with_session(_get_task_status)
@@ -272,7 +278,7 @@ class TaskTools(BaseTool):
             assigned_persona_id: str | None = None,
             task_type: str | None = None,
             limit: int = 50,
-            include_completed: bool = True
+            include_completed: bool = True,
         ) -> dict[str, Any]:
             """
             List tasks with optional filtering.
@@ -290,20 +296,21 @@ class TaskTools(BaseTool):
             Returns:
                 Dict containing filtered task list with summary statistics
             """
+
             async def _list_tasks(session, services):
-                task_service = services['task_service']
+                task_service = services["task_service"]
 
                 filters = {}
                 if status:
-                    filters['status'] = status
+                    filters["status"] = status
                 if priority:
-                    filters['priority'] = priority
+                    filters["priority"] = priority
                 if assigned_persona_id:
-                    filters['assigned_persona_id'] = assigned_persona_id
+                    filters["assigned_persona_id"] = assigned_persona_id
                 if task_type:
-                    filters['task_type'] = task_type
+                    filters["task_type"] = task_type
                 if not include_completed:
-                    filters['exclude_status'] = 'completed'
+                    filters["exclude_status"] = "completed"
 
                 tasks = await task_service.list_tasks(filters=filters, limit=limit)
 
@@ -324,12 +331,12 @@ class TaskTools(BaseTool):
                         "priority": priority,
                         "assigned_persona_id": assigned_persona_id,
                         "task_type": task_type,
-                        "include_completed": include_completed
+                        "include_completed": include_completed,
                     },
                     "summary": {
                         "by_status": status_counts,
                         "by_priority": priority_counts,
-                        "by_type": type_counts
+                        "by_type": type_counts,
                     },
                     "tasks": [
                         {
@@ -339,12 +346,14 @@ class TaskTools(BaseTool):
                             "status": t.status,
                             "priority": t.priority,
                             "progress": t.progress,
-                            "assigned_persona_id": str(t.assigned_persona_id) if t.assigned_persona_id else None,
+                            "assigned_persona_id": str(t.assigned_persona_id)
+                            if t.assigned_persona_id
+                            else None,
                             "due_date": t.due_date.isoformat() if t.due_date else None,
-                            "created_at": t.created_at.isoformat()
+                            "created_at": t.created_at.isoformat(),
                         }
                         for t in tasks
-                    ]
+                    ],
                 }
 
             result = await self.execute_with_session(_list_tasks)
@@ -352,9 +361,7 @@ class TaskTools(BaseTool):
 
         @mcp.tool()
         async def assign_task(
-            task_id: str,
-            persona_id: str,
-            notes: str | None = None
+            task_id: str, persona_id: str, notes: str | None = None
         ) -> dict[str, Any]:
             """
             Assign a task to a persona.
@@ -370,9 +377,10 @@ class TaskTools(BaseTool):
             Returns:
                 Dict containing assignment confirmation and details
             """
+
             async def _assign_task(session, services):
-                task_service = services['task_service']
-                persona_service = services['persona_service']
+                task_service = services["task_service"]
+                persona_service = services["persona_service"]
 
                 # Validate persona exists and is active
                 persona = await persona_service.get_persona(persona_id)
@@ -382,10 +390,7 @@ class TaskTools(BaseTool):
                     raise ValueError(f"Persona {persona.name} is not active")
 
                 # Update task assignment
-                updates = {
-                    "assigned_persona_id": persona_id,
-                    "status": "assigned"
-                }
+                updates = {"assigned_persona_id": persona_id, "status": "assigned"}
 
                 if notes:
                     task = await task_service.get_task(task_id)
@@ -401,12 +406,12 @@ class TaskTools(BaseTool):
                     "assigned_persona": {
                         "id": str(persona.id),
                         "name": persona.name,
-                        "capabilities": persona.capabilities
+                        "capabilities": persona.capabilities,
                     },
                     "assignment_date": datetime.utcnow().isoformat(),
                     "assignment_notes": notes,
                     "previous_status": task.status if task else "unknown",
-                    "new_status": updated_task.status
+                    "new_status": updated_task.status,
                 }
 
             result = await self.execute_with_session(_assign_task)
@@ -414,9 +419,7 @@ class TaskTools(BaseTool):
 
         @mcp.tool()
         async def complete_task(
-            task_id: str,
-            result: dict[str, Any],
-            completion_notes: str | None = None
+            task_id: str, result: dict[str, Any], completion_notes: str | None = None
         ) -> dict[str, Any]:
             """
             Mark a task as completed with results.
@@ -432,8 +435,9 @@ class TaskTools(BaseTool):
             Returns:
                 Dict containing completion confirmation and metrics
             """
+
             async def _complete_task(session, services):
-                task_service = services['task_service']
+                task_service = services["task_service"]
 
                 # Get current task to calculate duration
                 task = await task_service.get_task(task_id)
@@ -448,18 +452,20 @@ class TaskTools(BaseTool):
 
                 # Prepare completion metadata
                 completion_metadata = task.metadata_json or {}
-                completion_metadata.update({
-                    "completed_at": completion_time.isoformat(),
-                    "actual_duration_minutes": duration_minutes,
-                    "completion_notes": completion_notes
-                })
+                completion_metadata.update(
+                    {
+                        "completed_at": completion_time.isoformat(),
+                        "actual_duration_minutes": duration_minutes,
+                        "completion_notes": completion_notes,
+                    }
+                )
 
                 # Update task to completed status
                 updates = {
                     "status": "completed",
                     "progress": 1.0,
                     "result": result,
-                    "metadata": completion_metadata
+                    "metadata": completion_metadata,
                 }
 
                 completed_task = await task_service.update_task(task_id, updates)
@@ -468,11 +474,9 @@ class TaskTools(BaseTool):
                 dependent_tasks = await task_service.find_dependent_tasks(task_id)
                 dependent_task_info = []
                 for dep_task in dependent_tasks:
-                    dependent_task_info.append({
-                        "id": str(dep_task.id),
-                        "title": dep_task.title,
-                        "status": dep_task.status
-                    })
+                    dependent_task_info.append(
+                        {"id": str(dep_task.id), "title": dep_task.title, "status": dep_task.status}
+                    )
 
                 return {
                     "task_id": str(completed_task.id),
@@ -487,7 +491,7 @@ class TaskTools(BaseTool):
                     ),
                     "result": result,
                     "completion_notes": completion_notes,
-                    "dependent_tasks": dependent_task_info
+                    "dependent_tasks": dependent_task_info,
                 }
 
             result = await self.execute_with_session(_complete_task)
@@ -504,8 +508,9 @@ class TaskTools(BaseTool):
             Returns:
                 Dict containing comprehensive task analytics
             """
+
             async def _get_task_analytics(session, services):
-                task_service = services['task_service']
+                task_service = services["task_service"]
 
                 # Get overall statistics
                 total_tasks = await task_service.count_all_tasks()
@@ -526,7 +531,9 @@ class TaskTools(BaseTool):
                     if task.estimated_duration and task.metadata_json:
                         actual = task.metadata_json.get("actual_duration_minutes")
                         if actual:
-                            accuracy = abs(actual - task.estimated_duration) / task.estimated_duration
+                            accuracy = (
+                                abs(actual - task.estimated_duration) / task.estimated_duration
+                            )
                             duration_accuracy.append(accuracy)
 
                     # Persona performance tracking
@@ -535,7 +542,7 @@ class TaskTools(BaseTool):
                         if persona_id not in persona_performance:
                             persona_performance[persona_id] = {
                                 "completed_tasks": 0,
-                                "total_duration": 0
+                                "total_duration": 0,
                             }
                         persona_performance[persona_id]["completed_tasks"] += 1
                         if task.metadata_json:
@@ -543,8 +550,7 @@ class TaskTools(BaseTool):
                             persona_performance[persona_id]["total_duration"] += actual_duration
 
                 avg_duration_accuracy = (
-                    sum(duration_accuracy) / len(duration_accuracy)
-                    if duration_accuracy else 0
+                    sum(duration_accuracy) / len(duration_accuracy) if duration_accuracy else 0
                 )
 
                 return {
@@ -552,23 +558,26 @@ class TaskTools(BaseTool):
                         "total_tasks": total_tasks,
                         "completed_tasks": completed_tasks,
                         "active_tasks": active_tasks,
-                        "completion_rate_percent": round(completion_rate, 2)
+                        "completion_rate_percent": round(completion_rate, 2),
                     },
                     "performance_metrics": {
-                        "avg_duration_accuracy_percent": round((1 - avg_duration_accuracy) * 100, 2),
-                        "tasks_analyzed": len(recent_tasks)
+                        "avg_duration_accuracy_percent": round(
+                            (1 - avg_duration_accuracy) * 100, 2
+                        ),
+                        "tasks_analyzed": len(recent_tasks),
                     },
                     "persona_performance": {
                         persona_id: {
                             "completed_tasks": data["completed_tasks"],
                             "avg_duration_minutes": (
                                 data["total_duration"] / data["completed_tasks"]
-                                if data["completed_tasks"] > 0 else 0
-                            )
+                                if data["completed_tasks"] > 0
+                                else 0
+                            ),
                         }
                         for persona_id, data in persona_performance.items()
                     },
-                    "generated_at": datetime.utcnow().isoformat()
+                    "generated_at": datetime.utcnow().isoformat(),
                 }
 
             result = await self.execute_with_session(_get_task_analytics)

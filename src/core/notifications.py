@@ -39,7 +39,7 @@ class NotificationCoordinator:
             "notifications_received": 0,
             "notifications_sent": 0,
             "errors": 0,
-            "active_listeners": 0
+            "active_listeners": 0,
         }
 
     async def initialize(self):
@@ -58,11 +58,7 @@ class NotificationCoordinator:
             logger.error(f"Failed to initialize notifications: {e}")
             raise
 
-    async def subscribe(
-        self,
-        channel: str,
-        callback: Callable[[dict], None]
-    ):
+    async def subscribe(self, channel: str, callback: Callable[[dict], None]):
         """
         Subscribe to a notification channel
 
@@ -80,11 +76,7 @@ class NotificationCoordinator:
 
         logger.info(f"Subscribed to channel: {channel}")
 
-    async def unsubscribe(
-        self,
-        channel: str,
-        callback: Callable[[dict], None]
-    ):
+    async def unsubscribe(self, channel: str, callback: Callable[[dict], None]):
         """
         Unsubscribe from a notification channel
 
@@ -105,11 +97,7 @@ class NotificationCoordinator:
             except ValueError:
                 logger.warning(f"Callback not found for channel: {channel}")
 
-    async def notify(
-        self,
-        channel: str,
-        payload: dict[str, Any]
-    ):
+    async def notify(self, channel: str, payload: dict[str, Any]):
         """
         Send notification to a channel
 
@@ -121,10 +109,7 @@ class NotificationCoordinator:
             json_payload = json.dumps(payload)
 
             async with self.db_pool.acquire() as conn:
-                await conn.execute(
-                    f"NOTIFY {channel}, $1",
-                    json_payload
-                )
+                await conn.execute(f"NOTIFY {channel}, $1", json_payload)
 
             self.stats["notifications_sent"] += 1
 
@@ -158,8 +143,7 @@ class NotificationCoordinator:
 
                 # Wait for notification with timeout
                 msg = await asyncio.wait_for(
-                    self.notification_conn.wait_for_notification(),
-                    timeout=1.0
+                    self.notification_conn.wait_for_notification(), timeout=1.0
                 )
 
                 if msg:
@@ -211,7 +195,7 @@ class NotificationCoordinator:
         return {
             **self.stats,
             "active_channels": len(self.active_channels),
-            "listener_count": sum(len(l) for l in self.listeners.values())
+            "listener_count": sum(len(l) for l in self.listeners.values()),
         }
 
 
@@ -235,61 +219,57 @@ class ChangeNotifier:
         memory_id: str,
         agent_id: str,
         instance_id: str,
-        visibility: str = "shared"
+        visibility: str = "shared",
     ):
         """Notify memory change"""
-        await self.coordinator.notify("memory_changes", {
-            "operation": operation,
-            "memory_id": memory_id,
-            "agent_id": agent_id,
-            "instance_id": instance_id,
-            "visibility": visibility,
-            "timestamp": datetime.utcnow().isoformat()
-        })
+        await self.coordinator.notify(
+            "memory_changes",
+            {
+                "operation": operation,
+                "memory_id": memory_id,
+                "agent_id": agent_id,
+                "instance_id": instance_id,
+                "visibility": visibility,
+                "timestamp": datetime.utcnow().isoformat(),
+            },
+        )
 
     async def notify_task_change(
-        self,
-        operation: str,
-        task_id: str,
-        assigned_agent: str,
-        status: str
+        self, operation: str, task_id: str, assigned_agent: str, status: str
     ):
         """Notify task change"""
-        await self.coordinator.notify("task_changes", {
-            "operation": operation,
-            "task_id": task_id,
-            "assigned_agent": assigned_agent,
-            "status": status,
-            "timestamp": datetime.utcnow().isoformat()
-        })
+        await self.coordinator.notify(
+            "task_changes",
+            {
+                "operation": operation,
+                "task_id": task_id,
+                "assigned_agent": assigned_agent,
+                "status": status,
+                "timestamp": datetime.utcnow().isoformat(),
+            },
+        )
 
     async def notify_agent_status(
-        self,
-        agent_id: str,
-        instance_id: str,
-        status: str,
-        metadata: dict = None
+        self, agent_id: str, instance_id: str, status: str, metadata: dict = None
     ):
         """Notify agent status change"""
-        await self.coordinator.notify("agent_status", {
-            "agent_id": agent_id,
-            "instance_id": instance_id,
-            "status": status,
-            "metadata": metadata or {},
-            "timestamp": datetime.utcnow().isoformat()
-        })
+        await self.coordinator.notify(
+            "agent_status",
+            {
+                "agent_id": agent_id,
+                "instance_id": instance_id,
+                "status": status,
+                "metadata": metadata or {},
+                "timestamp": datetime.utcnow().isoformat(),
+            },
+        )
 
-    async def broadcast_cache_invalidation(
-        self,
-        pattern: str,
-        reason: str = None
-    ):
+    async def broadcast_cache_invalidation(self, pattern: str, reason: str = None):
         """Broadcast cache invalidation to all instances"""
-        await self.coordinator.notify("cache_invalidation", {
-            "pattern": pattern,
-            "reason": reason,
-            "timestamp": datetime.utcnow().isoformat()
-        })
+        await self.coordinator.notify(
+            "cache_invalidation",
+            {"pattern": pattern, "reason": reason, "timestamp": datetime.utcnow().isoformat()},
+        )
 
 
 class SyncHandler:
@@ -297,11 +277,7 @@ class SyncHandler:
     Handles synchronization events from other instances
     """
 
-    def __init__(
-        self,
-        coordinator: NotificationCoordinator,
-        cache_manager=None
-    ):
+    def __init__(self, coordinator: NotificationCoordinator, cache_manager=None):
         """
         Initialize sync handler
 
@@ -332,10 +308,7 @@ class SyncHandler:
 
             # Invalidate task cache if available
             if self.cache_manager:
-                await self.cache_manager.delete(
-                    payload["task_id"],
-                    namespace="tasks"
-                )
+                await self.cache_manager.delete(payload["task_id"], namespace="tasks")
 
         # Cache invalidation handler
         async def handle_cache_invalidation(payload: dict):

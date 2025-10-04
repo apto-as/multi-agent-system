@@ -18,10 +18,12 @@ import asyncpg
 from fastmcp import FastMCP
 
 from src.core.config import get_settings
+from src.integration.genai_toolbox_bridge import register_genai_integration
 from src.utils.embeddings import get_embedding
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
+
 
 class OptimizedMCPServer:
     """
@@ -52,10 +54,7 @@ class OptimizedMCPServer:
         self.cache = self.secondary_cache
 
         # MCP server setup
-        self.mcp = FastMCP(
-            name="tmws",
-            version="2.2.0"
-        )
+        self.mcp = FastMCP(name="tmws", version="2.2.0")
 
         # Notification listeners
         self.listeners = []
@@ -69,77 +68,60 @@ class OptimizedMCPServer:
             "errors": 0,
             "primary_cache_hits": 0,
             "secondary_cache_hits": 0,
-            "hot_cache_hits": 0
+            "hot_cache_hits": 0,
         }
 
         # Register MCP tools
         self._register_tools()
 
+        # Register GenAI Toolbox integration
+        self.genai_bridge = register_genai_integration(self.mcp)
+
     def _register_tools(self):
         """Register all MCP tools"""
 
-        @self.mcp.tool(
-            name="store_memory",
-            description="Store information in semantic memory"
-        )
+        @self.mcp.tool(name="store_memory", description="Store information in semantic memory")
         async def store_memory(
-            content: str,
-            importance: float = 0.5,
-            tags: list[str] = None,
-            metadata: dict = None
+            content: str, importance: float = 0.5, tags: list[str] = None, metadata: dict = None
         ) -> dict:
             """Store a new memory with vector embedding"""
             return await self.store_memory_shared(content, importance, tags, metadata)
 
-        @self.mcp.tool(
-            name="search_memories",
-            description="Search semantic memories"
-        )
-        async def search_memories(
-            query: str,
-            limit: int = 10,
-            global_search: bool = False
-        ) -> dict:
+        @self.mcp.tool(name="search_memories", description="Search semantic memories")
+        async def search_memories(query: str, limit: int = 10, global_search: bool = False) -> dict:
             """Search memories using vector similarity"""
             return await self.search_global_memories(query, limit, global_search)
 
-        @self.mcp.tool(
-            name="create_task",
-            description="Create a new task"
-        )
+        @self.mcp.tool(name="create_task", description="Create a new task")
         async def create_task(
             title: str,
             description: str = None,
             priority: str = "MEDIUM",
-            assigned_persona: str = None
+            assigned_persona: str = None,
         ) -> dict:
             """Create and coordinate task"""
-            return await self.create_coordinated_task(title, description, priority, assigned_persona)
+            return await self.create_coordinated_task(
+                title, description, priority, assigned_persona
+            )
 
-        @self.mcp.tool(
-            name="get_agent_status",
-            description="Get status of all connected agents"
-        )
+        @self.mcp.tool(name="get_agent_status", description="Get status of all connected agents")
         async def get_agent_status() -> dict:
             """Get status of all agent instances"""
             return await self.get_connected_agents()
 
-        @self.mcp.tool(
-            name="invalidate_cache",
-            description="Invalidate local cache"
-        )
+        @self.mcp.tool(name="invalidate_cache", description="Invalidate local cache")
         async def invalidate_cache(key: str = None) -> dict:
             """Invalidate cache entries"""
             if key:
                 self.primary_cache.pop(key, None)
                 self.secondary_cache.pop(key, None)
                 self.hot_cache.pop(key, None)
-                self.cache.pop(key, None) # Also clear the legacy cache reference
+                self.cache.pop(key, None)  # Also clear the legacy cache reference
             else:
                 self.primary_cache.clear()
                 self.secondary_cache.clear()
                 self.hot_cache.clear()
-                self.cache.clear() # Also clear the legacy cache reference
+                self.cache.clear()  # Also clear the legacy cache reference
             return {"status": "cache_invalidated", "key": key}
 
     async def initialize(self):
@@ -177,7 +159,7 @@ class OptimizedMCPServer:
                 command_timeout=10,
                 # Connection recycling for long-running instances
                 max_cached_statement_lifetime=3600,
-                max_cached_statement_use_count=5000
+                max_cached_statement_use_count=5000,
             )
 
             # Register this instance
@@ -189,7 +171,12 @@ class OptimizedMCPServer:
             # Start heartbeat task
             asyncio.create_task(self.heartbeat_loop())
 
-            logger.info(f"MCP Server initialized: {self.instance_id} (env: {env}, pool: {min_size}-{max_size})")
+            # Start GenAI Toolbox sidecar services
+            await self.genai_bridge.start_sidecar_services()
+
+            logger.info(
+                f"MCP Server initialized: {self.instance_id} (env: {env}, pool: {min_size}-{max_size})"
+            )
 
         except Exception as e:
             logger.error(f"Failed to initialize MCP server: {e}")
@@ -198,7 +185,8 @@ class OptimizedMCPServer:
     async def register_instance(self):
         """Register this MCP server instance in the database"""
         async with self.db_pool.acquire() as conn:
-            await conn.execute("""
+            await conn.execute(
+                """
                 INSERT INTO agent_instances (
                     id, agent_id, instance_id, pid, hostname, status
                 )
@@ -206,7 +194,13 @@ class OptimizedMCPServer:
                 ON CONFLICT (instance_id) DO UPDATE
                 SET last_heartbeat = NOW(),
                     status = 'active'
-            """, uuid4(), self.agent_id, self.instance_id, os.getpid(), self.hostname)
+            """,
+                uuid4(),
+                self.agent_id,
+                self.instance_id,
+                os.getpid(),
+                self.hostname,
+            )
 
     async def heartbeat_loop(self):
         """Send periodic heartbeats to maintain instance registration"""
@@ -214,25 +208,34 @@ class OptimizedMCPServer:
             try:
                 await asyncio.sleep(30)  # Heartbeat every 30 seconds
                 async with self.db_pool.acquire() as conn:
-                    await conn.execute("""
+                    await conn.execute(
+                        """
                         UPDATE agent_instances
                         SET last_heartbeat = NOW()
                         WHERE instance_id = $1
-                    """, self.instance_id)
+                    """,
+                        self.instance_id,
+                    )
 
                     # Record connection pool stats
                     pool_stats = self.db_pool.get_stats()
-                    await conn.execute("""
+                    await conn.execute(
+                        """
                         INSERT INTO connection_stats (
                             instance_id, pool_size, active_connections,
                             idle_connections, waiting_requests,
                             total_requests, total_errors
                         )
                         VALUES ($1, $2, $3, $4, $5, $6, $7)
-                    """, self.instance_id, pool_stats.size,
-                        pool_stats.active, pool_stats.idle,
-                        pool_stats.waiting, self.metrics["requests"],
-                        self.metrics["errors"])
+                    """,
+                        self.instance_id,
+                        pool_stats.size,
+                        pool_stats.active,
+                        pool_stats.idle,
+                        pool_stats.waiting,
+                        self.metrics["requests"],
+                        self.metrics["errors"],
+                    )
 
             except Exception as e:
                 logger.error(f"Heartbeat error: {e}")
@@ -279,11 +282,7 @@ class OptimizedMCPServer:
         asyncio.create_task(listen_for_task_changes())
 
     async def store_memory_shared(
-        self,
-        content: str,
-        importance: float,
-        tags: list[str],
-        metadata: dict
+        self, content: str, importance: float, tags: list[str], metadata: dict
     ) -> dict:
         """Store memory with shared visibility"""
         self.metrics["requests"] += 1
@@ -295,14 +294,23 @@ class OptimizedMCPServer:
             async with self.db_pool.acquire() as conn:
                 # Store memory
                 memory_id = uuid4()
-                await conn.execute("""
+                await conn.execute(
+                    """
                     INSERT INTO shared_memories (
                         id, content, embedding_vector, importance,
                         agent_id, instance_id, visibility, tags, metadata
                     )
                     VALUES ($1, $2, $3::vector, $4, $5, $6, 'shared', $7, $8)
-                """, memory_id, content, embedding, importance,
-                    self.agent_id, self.instance_id, tags, json.dumps(metadata or {}))
+                """,
+                    memory_id,
+                    content,
+                    embedding,
+                    importance,
+                    self.agent_id,
+                    self.instance_id,
+                    tags,
+                    json.dumps(metadata or {}),
+                )
 
                 # Trigger will notify other instances automatically
 
@@ -312,7 +320,7 @@ class OptimizedMCPServer:
                     "memory_id": str(memory_id),
                     "status": "stored",
                     "importance": importance,
-                    "shared": True
+                    "shared": True,
                 }
 
         except Exception as e:
@@ -320,12 +328,7 @@ class OptimizedMCPServer:
             logger.error(f"Memory storage error: {e}")
             return {"error": str(e)}
 
-    async def search_global_memories(
-        self,
-        query: str,
-        limit: int,
-        global_search: bool
-    ) -> dict:
+    async def search_global_memories(self, query: str, limit: int, global_search: bool) -> dict:
         """Search memories with multi-tier caching and vector similarity"""
         self.metrics["requests"] += 1
 
@@ -368,23 +371,32 @@ class OptimizedMCPServer:
             async with self.db_pool.acquire() as conn:
                 # Use vector similarity search
                 if global_search:
-                    results = await conn.fetch("""
+                    results = await conn.fetch(
+                        """
                         SELECT id, content, importance, agent_id,
                                embedding_vector <=> $1::vector as distance
                         FROM shared_memories
                         WHERE visibility = 'shared'
                         ORDER BY embedding_vector <=> $1::vector
                         LIMIT $2
-                    """, query_embedding, limit)
+                    """,
+                        query_embedding,
+                        limit,
+                    )
                 else:
-                    results = await conn.fetch("""
+                    results = await conn.fetch(
+                        """
                         SELECT id, content, importance, agent_id,
                                embedding_vector <=> $1::vector as distance
                         FROM shared_memories
                         WHERE agent_id = $2
                         ORDER BY embedding_vector <=> $1::vector
                         LIMIT $3
-                    """, query_embedding, self.agent_id, limit)
+                    """,
+                        query_embedding,
+                        self.agent_id,
+                        limit,
+                    )
 
                 self.metrics["db_queries"] += 1
 
@@ -395,7 +407,7 @@ class OptimizedMCPServer:
                         "content": r["content"],
                         "importance": r["importance"],
                         "agent_id": r["agent_id"],
-                        "similarity": 1.0 - r["distance"]  # Convert distance to similarity
+                        "similarity": 1.0 - r["distance"],  # Convert distance to similarity
                     }
                     for r in results
                 ]
@@ -421,11 +433,7 @@ class OptimizedMCPServer:
             return {"error": str(e)}
 
     async def create_coordinated_task(
-        self,
-        title: str,
-        description: str,
-        priority: str,
-        assigned_persona: str
+        self, title: str, description: str, priority: str, assigned_persona: str
     ) -> dict:
         """Create task with coordination support"""
         self.metrics["requests"] += 1
@@ -434,29 +442,41 @@ class OptimizedMCPServer:
             async with self.db_pool.acquire() as conn:
                 # Create task
                 task_id = uuid4()
-                await conn.execute("""
+                await conn.execute(
+                    """
                     INSERT INTO tasks (
                         id, title, description, priority,
                         assigned_persona, status
                     )
                     VALUES ($1, $2, $3, $4, $5, 'pending')
-                """, task_id, title, description, priority, assigned_persona)
+                """,
+                    task_id,
+                    title,
+                    description,
+                    priority,
+                    assigned_persona,
+                )
 
                 # Create coordination entry
-                await conn.execute("""
+                await conn.execute(
+                    """
                     INSERT INTO task_coordination (
                         id, task_id, assigned_agent, priority
                     )
                     VALUES ($1, $2, $3, $4)
-                """, uuid4(), task_id, assigned_persona or self.agent_id,
-                    {"LOW": 1, "MEDIUM": 5, "HIGH": 8, "URGENT": 10}.get(priority, 5))
+                """,
+                    uuid4(),
+                    task_id,
+                    assigned_persona or self.agent_id,
+                    {"LOW": 1, "MEDIUM": 5, "HIGH": 8, "URGENT": 10}.get(priority, 5),
+                )
 
                 self.metrics["db_queries"] += 2
 
                 return {
                     "task_id": str(task_id),
                     "status": "created",
-                    "assigned_to": assigned_persona or self.agent_id
+                    "assigned_to": assigned_persona or self.agent_id,
                 }
 
         except Exception as e:
@@ -487,12 +507,12 @@ class OptimizedMCPServer:
                             "instance_id": a["instance_id"],
                             "hostname": a["hostname"],
                             "status": a["status"],
-                            "uptime": str(datetime.now() - a["connected_at"])
+                            "uptime": str(datetime.now() - a["connected_at"]),
                         }
                         for a in agents
                     ],
                     "total": len(agents),
-                    "current_instance": self.instance_id
+                    "current_instance": self.instance_id,
                 }
 
         except Exception as e:
@@ -504,15 +524,21 @@ class OptimizedMCPServer:
         """Log synchronization event for debugging"""
         try:
             async with self.db_pool.acquire() as conn:
-                await conn.execute("""
+                await conn.execute(
+                    """
                     INSERT INTO sync_events (
                         event_type, entity_type, entity_id,
                         agent_id, instance_id, payload
                     )
                     VALUES ($1, $2, $3, $4, $5, $6)
-                """, event_type, data.get("entity_type", "unknown"),
-                    uuid4(), self.agent_id, self.instance_id,
-                    json.dumps(data))
+                """,
+                    event_type,
+                    data.get("entity_type", "unknown"),
+                    uuid4(),
+                    self.agent_id,
+                    self.instance_id,
+                    json.dumps(data),
+                )
 
         except Exception as e:
             logger.error(f"Sync event logging error: {e}")
@@ -522,12 +548,18 @@ class OptimizedMCPServer:
         try:
             # Mark instance as disconnected
             async with self.db_pool.acquire() as conn:
-                await conn.execute("""
+                await conn.execute(
+                    """
                     UPDATE agent_instances
                     SET status = 'disconnected',
                         disconnected_at = NOW()
                     WHERE instance_id = $1
-                """, self.instance_id)
+                """,
+                    self.instance_id,
+                )
+
+            # Shutdown GenAI Toolbox integration
+            await self.genai_bridge.shutdown()
 
             # Close database pool
             await self.db_pool.close()
@@ -542,8 +574,7 @@ class OptimizedMCPServer:
 async def main():
     """Main entry point for MCP server"""
     logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
 
     server = OptimizedMCPServer()

@@ -40,7 +40,7 @@ class DynamicMCPBridge:
             ("task", TaskTools),
             ("workflow", WorkflowTools),
             ("system", SystemTools),
-            ("learning", LearningTools)
+            ("learning", LearningTools),
         ]
 
         for module_name, module_class in tool_modules:
@@ -51,9 +51,9 @@ class DynamicMCPBridge:
 
                 # Discover all tool methods in the module
                 for method_name in dir(module_instance):
-                    if not method_name.startswith('_'):  # Skip private methods
+                    if not method_name.startswith("_"):  # Skip private methods
                         method = getattr(module_instance, method_name, None)
-                        if callable(method) and not method_name.startswith('__'):
+                        if callable(method) and not method_name.startswith("__"):
                             # Register tool
                             tool_full_name = f"{module_name}_{method_name}"
                             self.tool_registry[tool_full_name] = method
@@ -64,7 +64,7 @@ class DynamicMCPBridge:
                                 "method": method_name,
                                 "description": method.__doc__ or "No description available",
                                 "signature": str(inspect.signature(method)),
-                                "async": inspect.iscoroutinefunction(method)
+                                "async": inspect.iscoroutinefunction(method),
                             }
 
                 logger.info(f"Registered {len(self.tool_metadata)} tools from {module_name} module")
@@ -72,11 +72,7 @@ class DynamicMCPBridge:
             except Exception as e:
                 logger.error(f"Failed to register {module_name} module: {e}")
 
-    async def invoke_tool(
-        self,
-        tool_name: str,
-        parameters: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def invoke_tool(self, tool_name: str, parameters: dict[str, Any]) -> dict[str, Any]:
         """
         Dynamically invoke any registered MCP tool.
 
@@ -98,13 +94,13 @@ class DynamicMCPBridge:
                 return {
                     "success": False,
                     "error": f"Ambiguous tool name. Matches: {matches}",
-                    "available_tools": list(self.tool_registry.keys())
+                    "available_tools": list(self.tool_registry.keys()),
                 }
             else:
                 return {
                     "success": False,
                     "error": f"Tool '{tool_name}' not found",
-                    "available_tools": list(self.tool_registry.keys())
+                    "available_tools": list(self.tool_registry.keys()),
                 }
 
         # Get tool function and metadata
@@ -124,7 +120,7 @@ class DynamicMCPBridge:
                 "success": True,
                 "tool_name": tool_name,
                 "result": result,
-                "metadata": tool_meta
+                "metadata": tool_meta,
             }
 
         except TypeError as e:
@@ -133,7 +129,7 @@ class DynamicMCPBridge:
                 "success": False,
                 "error": f"Parameter error: {str(e)}",
                 "expected_signature": tool_meta["signature"],
-                "provided_parameters": list(parameters.keys())
+                "provided_parameters": list(parameters.keys()),
             }
         except Exception as e:
             # Tool execution error
@@ -142,7 +138,7 @@ class DynamicMCPBridge:
                 "success": False,
                 "error": str(e),
                 "tool_name": tool_name,
-                "metadata": tool_meta
+                "metadata": tool_meta,
             }
 
     def get_tool_info(self, tool_name: str | None = None) -> dict[str, Any]:
@@ -161,14 +157,10 @@ class DynamicMCPBridge:
                 return {
                     "tool_name": tool_name,
                     "metadata": self.tool_metadata[tool_name],
-                    "available": True
+                    "available": True,
                 }
             else:
-                return {
-                    "tool_name": tool_name,
-                    "available": False,
-                    "error": "Tool not found"
-                }
+                return {"tool_name": tool_name, "available": False, "error": "Tool not found"}
         else:
             # Return all tools grouped by module
             tools_by_module = {}
@@ -177,23 +169,24 @@ class DynamicMCPBridge:
                 if module not in tools_by_module:
                     tools_by_module[module] = []
 
-                tools_by_module[module].append({
-                    "name": tool_full_name,
-                    "method": metadata["method"],
-                    "description": metadata["description"].split('\n')[0] if metadata["description"] else "No description",
-                    "async": metadata["async"]
-                })
+                tools_by_module[module].append(
+                    {
+                        "name": tool_full_name,
+                        "method": metadata["method"],
+                        "description": metadata["description"].split("\n")[0]
+                        if metadata["description"]
+                        else "No description",
+                        "async": metadata["async"],
+                    }
+                )
 
             return {
                 "total_tools": len(self.tool_metadata),
                 "modules": list(tools_by_module.keys()),
-                "tools_by_module": tools_by_module
+                "tools_by_module": tools_by_module,
             }
 
-    async def batch_invoke(
-        self,
-        tool_invocations: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+    async def batch_invoke(self, tool_invocations: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """
         Invoke multiple tools in parallel.
 
@@ -206,10 +199,7 @@ class DynamicMCPBridge:
 
         tasks = []
         for invocation in tool_invocations:
-            task = self.invoke_tool(
-                invocation.get("tool_name"),
-                invocation.get("parameters", {})
-            )
+            task = self.invoke_tool(invocation.get("tool_name"), invocation.get("parameters", {}))
             tasks.append(task)
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -218,11 +208,13 @@ class DynamicMCPBridge:
         processed_results = []
         for i, result in enumerate(results):
             if isinstance(result, Exception):
-                processed_results.append({
-                    "success": False,
-                    "error": str(result),
-                    "tool_name": tool_invocations[i].get("tool_name")
-                })
+                processed_results.append(
+                    {
+                        "success": False,
+                        "error": str(result),
+                        "tool_name": tool_invocations[i].get("tool_name"),
+                    }
+                )
             else:
                 processed_results.append(result)
 
@@ -236,11 +228,13 @@ def create_enhanced_bridge_routes(app: FastAPI, bridge: DynamicMCPBridge) -> Non
 
     class ToolInvocationRequest(BaseModel):
         """Request for single tool invocation."""
+
         tool_name: str
         parameters: dict[str, Any] = Field(default_factory=dict)
 
     class BatchInvocationRequest(BaseModel):
         """Request for batch tool invocation."""
+
         invocations: list[ToolInvocationRequest]
         parallel: bool = Field(default=True, description="Execute in parallel")
 
@@ -276,7 +270,7 @@ def create_enhanced_bridge_routes(app: FastAPI, bridge: DynamicMCPBridge) -> Non
             "success": all(r["success"] for r in results),
             "results": results,
             "total": len(results),
-            "failed": sum(1 for r in results if not r["success"])
+            "failed": sum(1 for r in results if not r["success"]),
         }
 
     @app.get("/api/v2/tools/catalog")
@@ -290,7 +284,7 @@ def create_enhanced_bridge_routes(app: FastAPI, bridge: DynamicMCPBridge) -> Non
                 return {
                     "module": module,
                     "tools": info["tools_by_module"][module],
-                    "count": len(info["tools_by_module"][module])
+                    "count": len(info["tools_by_module"][module]),
                 }
             else:
                 raise HTTPException(status_code=404, detail=f"Module '{module}' not found")
@@ -318,17 +312,20 @@ def create_enhanced_bridge_routes(app: FastAPI, bridge: DynamicMCPBridge) -> Non
 
         for tool_name, metadata in bridge.tool_metadata.items():
             description_lower = (metadata.get("description") or "").lower()
-            if (capability_lower in tool_name.lower() or
-                capability_lower in description_lower):
-                matching_tools.append({
-                    "tool_name": tool_name,
-                    "module": metadata["module"],
-                    "description": metadata["description"].split('\n')[0] if metadata["description"] else "No description",
-                    "relevance_score": 1.0  # Simple binary match for now
-                })
+            if capability_lower in tool_name.lower() or capability_lower in description_lower:
+                matching_tools.append(
+                    {
+                        "tool_name": tool_name,
+                        "module": metadata["module"],
+                        "description": metadata["description"].split("\n")[0]
+                        if metadata["description"]
+                        else "No description",
+                        "relevance_score": 1.0,  # Simple binary match for now
+                    }
+                )
 
         return {
             "query": capability,
             "matches": len(matching_tools),
-            "tools": sorted(matching_tools, key=lambda x: x["relevance_score"], reverse=True)
+            "tools": sorted(matching_tools, key=lambda x: x["relevance_score"], reverse=True),
         }

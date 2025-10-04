@@ -14,6 +14,7 @@ from .base_tool import BaseTool
 
 class WorkflowCreateRequest(BaseModel):
     """Workflow creation parameters."""
+
     name: str = Field(..., description="Workflow name")
     description: str = Field(..., description="Workflow description")
     steps: list[dict[str, Any]] = Field(..., description="Workflow steps")
@@ -24,6 +25,7 @@ class WorkflowCreateRequest(BaseModel):
 
 class WorkflowExecutionRequest(BaseModel):
     """Workflow execution parameters."""
+
     workflow_id: str = Field(..., description="Workflow ID to execute")
     input_data: dict[str, Any] = Field(default_factory=dict, description="Input data")
     async_execution: bool = Field(default=False, description="Execute asynchronously")
@@ -43,7 +45,7 @@ class WorkflowTools(BaseTool):
             steps: list[dict[str, Any]],
             workflow_type: str = "sequential",
             metadata: dict[str, Any] = None,
-            timeout_minutes: int | None = None
+            timeout_minutes: int | None = None,
         ) -> dict[str, Any]:
             """
             Create a new workflow with multiple steps.
@@ -68,11 +70,11 @@ class WorkflowTools(BaseTool):
                 steps=steps,
                 workflow_type=workflow_type,
                 metadata=metadata or {},
-                timeout_minutes=timeout_minutes
+                timeout_minutes=timeout_minutes,
             )
 
             async def _create_workflow(session, services):
-                workflow_service = services['workflow_service']
+                workflow_service = services["workflow_service"]
 
                 # Validate workflow steps
                 validated_steps = []
@@ -89,7 +91,7 @@ class WorkflowTools(BaseTool):
                         "condition": step.get("condition"),
                         "on_error": step.get("on_error", "halt"),
                         "timeout_seconds": step.get("timeout_seconds", 300),
-                        "retry_attempts": step.get("retry_attempts", 0)
+                        "retry_attempts": step.get("retry_attempts", 0),
                     }
                     validated_steps.append(validated_step)
 
@@ -99,7 +101,7 @@ class WorkflowTools(BaseTool):
                     steps=validated_steps,
                     workflow_type=request.workflow_type,
                     metadata=request.metadata,
-                    timeout_minutes=request.timeout_minutes
+                    timeout_minutes=request.timeout_minutes,
                 )
 
                 return {
@@ -110,7 +112,7 @@ class WorkflowTools(BaseTool):
                     "status": workflow.status,
                     "step_count": len(validated_steps),
                     "timeout_minutes": workflow.timeout_minutes,
-                    "created_at": workflow.created_at.isoformat()
+                    "created_at": workflow.created_at.isoformat(),
                 }
 
             result = await self.execute_with_session(_create_workflow)
@@ -121,7 +123,7 @@ class WorkflowTools(BaseTool):
             workflow_id: str,
             input_data: dict[str, Any] = None,
             async_execution: bool = False,
-            execution_context: dict[str, Any] = None
+            execution_context: dict[str, Any] = None,
         ) -> dict[str, Any]:
             """
             Execute a workflow with optional input data.
@@ -142,18 +144,18 @@ class WorkflowTools(BaseTool):
                 workflow_id=workflow_id,
                 input_data=input_data or {},
                 async_execution=async_execution,
-                execution_context=execution_context
+                execution_context=execution_context,
             )
 
             async def _execute_workflow(session, services):
-                workflow_service = services['workflow_service']
+                workflow_service = services["workflow_service"]
 
                 if request.async_execution:
                     # Queue for background execution
                     execution_id = await workflow_service.queue_workflow_execution(
                         workflow_id=request.workflow_id,
                         input_data=request.input_data,
-                        execution_context=request.execution_context or {}
+                        execution_context=request.execution_context or {},
                     )
 
                     return {
@@ -161,7 +163,7 @@ class WorkflowTools(BaseTool):
                         "execution_id": execution_id,
                         "status": "queued",
                         "execution_mode": "asynchronous",
-                        "queued_at": datetime.utcnow().isoformat()
+                        "queued_at": datetime.utcnow().isoformat(),
                     }
                 else:
                     # Execute synchronously
@@ -169,7 +171,7 @@ class WorkflowTools(BaseTool):
                     result = await workflow_service.execute_workflow(
                         workflow_id=request.workflow_id,
                         input_data=request.input_data,
-                        execution_context=request.execution_context or {}
+                        execution_context=request.execution_context or {},
                     )
                     execution_end = datetime.utcnow()
 
@@ -182,7 +184,7 @@ class WorkflowTools(BaseTool):
                         "result": result,
                         "execution_time_seconds": duration,
                         "started_at": execution_start.isoformat(),
-                        "completed_at": execution_end.isoformat()
+                        "completed_at": execution_end.isoformat(),
                     }
 
             result = await self.execute_with_session(_execute_workflow)
@@ -202,8 +204,9 @@ class WorkflowTools(BaseTool):
             Returns:
                 Dict containing comprehensive workflow information
             """
+
             async def _get_workflow_status(session, services):
-                workflow_service = services['workflow_service']
+                workflow_service = services["workflow_service"]
                 workflow = await workflow_service.get_workflow(workflow_id)
 
                 if not workflow:
@@ -217,20 +220,24 @@ class WorkflowTools(BaseTool):
                     exec_data = {
                         "execution_id": str(execution.id),
                         "status": execution.status,
-                        "started_at": execution.started_at.isoformat() if execution.started_at else None,
-                        "completed_at": execution.completed_at.isoformat() if execution.completed_at else None,
-                        "duration_seconds": None
+                        "started_at": execution.started_at.isoformat()
+                        if execution.started_at
+                        else None,
+                        "completed_at": execution.completed_at.isoformat()
+                        if execution.completed_at
+                        else None,
+                        "duration_seconds": None,
                     }
 
                     if execution.started_at and execution.completed_at:
                         duration = execution.completed_at - execution.started_at
                         exec_data["duration_seconds"] = duration.total_seconds()
 
-                    if hasattr(execution, 'result') and execution.result:
+                    if hasattr(execution, "result") and execution.result:
                         exec_data["result_summary"] = {
                             "steps_executed": execution.result.get("steps_executed", 0),
                             "steps_failed": execution.result.get("steps_failed", 0),
-                            "success": execution.result.get("success", False)
+                            "success": execution.result.get("success", False),
                         }
 
                     execution_history.append(exec_data)
@@ -247,11 +254,13 @@ class WorkflowTools(BaseTool):
                     "execution_history": execution_history,
                     "statistics": {
                         "total_executions": len(executions),
-                        "successful_executions": len([e for e in executions if e.status == "completed"]),
-                        "failed_executions": len([e for e in executions if e.status == "failed"])
+                        "successful_executions": len(
+                            [e for e in executions if e.status == "completed"]
+                        ),
+                        "failed_executions": len([e for e in executions if e.status == "failed"]),
                     },
                     "created_at": workflow.created_at.isoformat(),
-                    "updated_at": workflow.updated_at.isoformat() if workflow.updated_at else None
+                    "updated_at": workflow.updated_at.isoformat() if workflow.updated_at else None,
                 }
 
             result = await self.execute_with_session(_get_workflow_status)
@@ -259,9 +268,7 @@ class WorkflowTools(BaseTool):
 
         @mcp.tool()
         async def list_workflows(
-            status: str | None = None,
-            workflow_type: str | None = None,
-            limit: int = 50
+            status: str | None = None, workflow_type: str | None = None, limit: int = 50
         ) -> dict[str, Any]:
             """
             List workflows with optional filtering.
@@ -276,14 +283,15 @@ class WorkflowTools(BaseTool):
             Returns:
                 Dict containing filtered workflow list
             """
+
             async def _list_workflows(session, services):
-                workflow_service = services['workflow_service']
+                workflow_service = services["workflow_service"]
 
                 filters = {}
                 if status:
-                    filters['status'] = status
+                    filters["status"] = status
                 if workflow_type:
-                    filters['workflow_type'] = workflow_type
+                    filters["workflow_type"] = workflow_type
 
                 workflows = await workflow_service.list_workflows(filters=filters, limit=limit)
 
@@ -306,21 +314,18 @@ class WorkflowTools(BaseTool):
                             {
                                 "execution_id": str(e.id),
                                 "status": e.status,
-                                "started_at": e.started_at.isoformat() if e.started_at else None
+                                "started_at": e.started_at.isoformat() if e.started_at else None,
                             }
                             for e in recent_executions
                         ],
-                        "created_at": workflow.created_at.isoformat()
+                        "created_at": workflow.created_at.isoformat(),
                     }
                     workflow_list.append(workflow_data)
 
                 return {
                     "count": len(workflow_list),
-                    "filters": {
-                        "status": status,
-                        "workflow_type": workflow_type
-                    },
-                    "workflows": workflow_list
+                    "filters": {"status": status, "workflow_type": workflow_type},
+                    "workflows": workflow_list,
                 }
 
             result = await self.execute_with_session(_list_workflows)
@@ -334,7 +339,7 @@ class WorkflowTools(BaseTool):
             steps: list[dict[str, Any]] | None = None,
             status: str | None = None,
             metadata: dict[str, Any] | None = None,
-            timeout_minutes: int | None = None
+            timeout_minutes: int | None = None,
         ) -> dict[str, Any]:
             """
             Update an existing workflow.
@@ -354,20 +359,21 @@ class WorkflowTools(BaseTool):
             Returns:
                 Dict containing updated workflow information
             """
+
             async def _update_workflow(session, services):
-                workflow_service = services['workflow_service']
+                workflow_service = services["workflow_service"]
 
                 updates = {}
                 if name is not None:
-                    updates['name'] = name
+                    updates["name"] = name
                 if description is not None:
-                    updates['description'] = description
+                    updates["description"] = description
                 if status is not None:
-                    updates['status'] = status
+                    updates["status"] = status
                 if metadata is not None:
-                    updates['metadata'] = metadata
+                    updates["metadata"] = metadata
                 if timeout_minutes is not None:
-                    updates['timeout_minutes'] = timeout_minutes
+                    updates["timeout_minutes"] = timeout_minutes
 
                 if steps is not None:
                     # Validate and format steps
@@ -385,11 +391,11 @@ class WorkflowTools(BaseTool):
                             "condition": step.get("condition"),
                             "on_error": step.get("on_error", "halt"),
                             "timeout_seconds": step.get("timeout_seconds", 300),
-                            "retry_attempts": step.get("retry_attempts", 0)
+                            "retry_attempts": step.get("retry_attempts", 0),
                         }
                         validated_steps.append(validated_step)
 
-                    updates['steps'] = validated_steps
+                    updates["steps"] = validated_steps
 
                 workflow = await workflow_service.update_workflow(workflow_id, updates)
 
@@ -401,7 +407,7 @@ class WorkflowTools(BaseTool):
                     "status": workflow.status,
                     "step_count": len(workflow.steps),
                     "timeout_minutes": workflow.timeout_minutes,
-                    "updated_at": workflow.updated_at.isoformat()
+                    "updated_at": workflow.updated_at.isoformat(),
                 }
 
             result = await self.execute_with_session(_update_workflow)
@@ -420,8 +426,9 @@ class WorkflowTools(BaseTool):
             Returns:
                 Dict containing cancellation confirmation
             """
+
             async def _cancel_execution(session, services):
-                workflow_service = services['workflow_service']
+                workflow_service = services["workflow_service"]
 
                 result = await workflow_service.cancel_workflow_execution(execution_id)
 
@@ -429,7 +436,7 @@ class WorkflowTools(BaseTool):
                     "execution_id": execution_id,
                     "cancellation_requested": True,
                     "cancelled_at": datetime.utcnow().isoformat(),
-                    "cancellation_result": result
+                    "cancellation_result": result,
                 }
 
             result = await self.execute_with_session(_cancel_execution)
@@ -437,8 +444,7 @@ class WorkflowTools(BaseTool):
 
         @mcp.tool()
         async def get_workflow_execution_logs(
-            execution_id: str,
-            limit: int = 100
+            execution_id: str, limit: int = 100
         ) -> dict[str, Any]:
             """
             Get detailed execution logs for a workflow run.
@@ -452,8 +458,9 @@ class WorkflowTools(BaseTool):
             Returns:
                 Dict containing detailed execution logs
             """
+
             async def _get_execution_logs(session, services):
-                workflow_service = services['workflow_service']
+                workflow_service = services["workflow_service"]
 
                 execution = await workflow_service.get_workflow_execution(execution_id)
                 if not execution:
@@ -465,8 +472,12 @@ class WorkflowTools(BaseTool):
                     "execution_id": execution_id,
                     "workflow_id": str(execution.workflow_id),
                     "status": execution.status,
-                    "started_at": execution.started_at.isoformat() if execution.started_at else None,
-                    "completed_at": execution.completed_at.isoformat() if execution.completed_at else None,
+                    "started_at": execution.started_at.isoformat()
+                    if execution.started_at
+                    else None,
+                    "completed_at": execution.completed_at.isoformat()
+                    if execution.completed_at
+                    else None,
                     "log_count": len(logs),
                     "logs": [
                         {
@@ -474,10 +485,10 @@ class WorkflowTools(BaseTool):
                             "level": log.level,
                             "step_id": log.step_id,
                             "message": log.message,
-                            "details": log.details
+                            "details": log.details,
                         }
                         for log in logs
-                    ]
+                    ],
                 }
 
             result = await self.execute_with_session(_get_execution_logs)
@@ -494,8 +505,9 @@ class WorkflowTools(BaseTool):
             Returns:
                 Dict containing comprehensive workflow analytics
             """
+
             async def _get_workflow_analytics(session, services):
-                workflow_service = services['workflow_service']
+                workflow_service = services["workflow_service"]
 
                 # Get overall statistics
                 total_workflows = await workflow_service.count_workflows()
@@ -511,8 +523,7 @@ class WorkflowTools(BaseTool):
                 total_executions = execution_stats.get("total_executions", 0)
                 successful_executions = execution_stats.get("successful_executions", 0)
                 success_rate = (
-                    successful_executions / total_executions * 100
-                    if total_executions > 0 else 0
+                    successful_executions / total_executions * 100 if total_executions > 0 else 0
                 )
 
                 # Get average execution times
@@ -525,15 +536,19 @@ class WorkflowTools(BaseTool):
                         "total_executions": total_executions,
                         "successful_executions": successful_executions,
                         "failed_executions": execution_stats.get("failed_executions", 0),
-                        "success_rate_percent": round(success_rate, 2)
+                        "success_rate_percent": round(success_rate, 2),
                     },
                     "performance": {
                         "avg_execution_time_seconds": round(avg_execution_time, 2),
-                        "fastest_execution_seconds": execution_stats.get("min_execution_time_seconds", 0),
-                        "slowest_execution_seconds": execution_stats.get("max_execution_time_seconds", 0)
+                        "fastest_execution_seconds": execution_stats.get(
+                            "min_execution_time_seconds", 0
+                        ),
+                        "slowest_execution_seconds": execution_stats.get(
+                            "max_execution_time_seconds", 0
+                        ),
                     },
                     "workflow_types": workflow_types,
-                    "generated_at": datetime.utcnow().isoformat()
+                    "generated_at": datetime.utcnow().isoformat(),
                 }
 
             result = await self.execute_with_session(_get_workflow_analytics)

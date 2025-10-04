@@ -1,4 +1,3 @@
-
 """
 Embedding generation utilities for TMWS semantic search.
 Artemis's optimized vector embedding service.
@@ -8,7 +7,6 @@ import logging
 import math
 import os
 from functools import lru_cache
-from typing import List
 
 import numpy as np
 
@@ -32,7 +30,9 @@ def _get_embedding_model():
 
             logger.info(f"Loading embedding model: {model_name}")
             _embedding_model = SentenceTransformer(model_name)
-            logger.info(f"Embedding model loaded successfully. Dimension: {_embedding_model.get_sentence_embedding_dimension()}")
+            logger.info(
+                f"Embedding model loaded successfully. Dimension: {_embedding_model.get_sentence_embedding_dimension()}"
+            )
 
         except ImportError:
             logger.warning("sentence-transformers not available, using fallback implementation")
@@ -45,7 +45,7 @@ def _get_embedding_model():
 
 
 @lru_cache(maxsize=1000)
-def get_embedding(text: str) -> List[float]:
+def get_embedding(text: str) -> list[float]:
     """
     Generate embedding vector for text.
 
@@ -75,11 +75,13 @@ def get_embedding(text: str) -> List[float]:
 
         # Ensure consistent dimension (384 for all-MiniLM-L6-v2)
         if len(embedding) != 384:
-            logger.warning(f"Unexpected embedding dimension: {len(embedding)}, padding/truncating to 384")
+            logger.warning(
+                f"Unexpected embedding dimension: {len(embedding)}, padding/truncating to 384"
+            )
             if len(embedding) > 384:
                 embedding = embedding[:384]
             else:
-                embedding = np.pad(embedding, (0, 384 - len(embedding)), mode='constant')
+                embedding = np.pad(embedding, (0, 384 - len(embedding)), mode="constant")
 
         return embedding.tolist()
 
@@ -88,7 +90,7 @@ def get_embedding(text: str) -> List[float]:
         return _fallback_embedding(text)
 
 
-def _fallback_embedding(text: str) -> List[float]:
+def _fallback_embedding(text: str) -> list[float]:
     """
     Fallback embedding generation when sentence-transformers is unavailable.
 
@@ -125,20 +127,20 @@ def _fallback_embedding(text: str) -> List[float]:
     for i in range(384):
         # Combine hash-based value with text features
         vector[i] = base_vector[i] + (
-            len_feature * math.sin(i * 0.1) * 0.1 +
-            word_feature * math.cos(i * 0.1) * 0.1 +
-            char_diversity * math.sin(i * 0.2) * 0.05
+            len_feature * math.sin(i * 0.1) * 0.1
+            + word_feature * math.cos(i * 0.1) * 0.1
+            + char_diversity * math.sin(i * 0.2) * 0.05
         )
 
     # Normalize vector (unit length)
-    norm = math.sqrt(sum(x*x for x in vector))
+    norm = math.sqrt(sum(x * x for x in vector))
     if norm > 0:
         vector = [x / norm for x in vector]
 
     return vector
 
 
-def get_embeddings_batch(texts: List[str]) -> List[List[float]]:
+def get_embeddings_batch(texts: list[str]) -> list[list[float]]:
     """
     Generate embeddings for multiple texts efficiently.
 
@@ -167,7 +169,7 @@ def get_embeddings_batch(texts: List[str]) -> List[List[float]]:
                 if len(embedding) > 384:
                     embedding = embedding[:384]
                 else:
-                    embedding = np.pad(embedding, (0, 384 - len(embedding)), mode='constant')
+                    embedding = np.pad(embedding, (0, 384 - len(embedding)), mode="constant")
             result.append(embedding.tolist())
 
         return result
@@ -177,7 +179,7 @@ def get_embeddings_batch(texts: List[str]) -> List[List[float]]:
         return [get_embedding(text) for text in texts]
 
 
-def cosine_similarity(vec1: List[float], vec2: List[float]) -> float:
+def cosine_similarity(vec1: list[float], vec2: list[float]) -> float:
     """
     Calculate cosine similarity between two vectors.
 
@@ -191,7 +193,7 @@ def cosine_similarity(vec1: List[float], vec2: List[float]) -> float:
         raise ValueError("Vectors must have same dimension")
 
     # Calculate dot product and norms
-    dot_product = sum(a * b for a, b in zip(vec1, vec2))
+    dot_product = sum(a * b for a, b in zip(vec1, vec2, strict=False))
     norm1 = math.sqrt(sum(a * a for a in vec1))
     norm2 = math.sqrt(sum(b * b for b in vec2))
 
@@ -223,20 +225,21 @@ def get_model_info() -> dict:
             "model_type": "fallback",
             "model_name": "hash_based_fallback",
             "dimension": 384,
-            "description": "Simple hash-based fallback embedding"
+            "description": "Simple hash-based fallback embedding",
         }
 
     try:
         return {
             "model_type": "sentence_transformer",
-            "model_name": getattr(model, 'model_name', 'unknown'),
+            "model_name": getattr(model, "model_name", "unknown"),
             "dimension": model.get_sentence_embedding_dimension(),
-            "description": "SentenceTransformer-based semantic embedding"
+            "description": "SentenceTransformer-based semantic embedding",
         }
-    except Exception:
+    except Exception as e:
+        logger.error(f"Failed to get model info: {type(e).__name__}: {str(e)}", exc_info=True)
         return {
             "model_type": "unknown",
             "model_name": "unknown",
             "dimension": 384,
-            "description": "Unknown model configuration"
+            "description": "Unknown model configuration",
         }

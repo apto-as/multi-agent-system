@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 
 class ServiceState(Enum):
     """Service operational states"""
+
     INITIALIZING = "initializing"
     STARTING = "starting"
     HEALTHY = "healthy"
@@ -41,15 +42,17 @@ class ServiceState(Enum):
 
 class ProcessPriority(Enum):
     """Process priority levels for resource allocation"""
+
     CRITICAL = 0  # MCP Server - core functionality
-    HIGH = 1      # FastAPI - user interface
-    MEDIUM = 2    # Background services
-    LOW = 3       # Monitoring and cleanup
+    HIGH = 1  # FastAPI - user interface
+    MEDIUM = 2  # Background services
+    LOW = 3  # Monitoring and cleanup
 
 
 @dataclass
 class ServiceMetrics:
     """Real-time service performance metrics"""
+
     cpu_percent: float = 0.0
     memory_mb: float = 0.0
     requests_per_second: float = 0.0
@@ -62,6 +65,7 @@ class ServiceMetrics:
 @dataclass
 class ServiceConfig:
     """Service configuration and constraints"""
+
     name: str
     priority: ProcessPriority
     max_memory_mb: int = 512
@@ -160,11 +164,7 @@ class FastMCPManager(ServiceManager):
 
             # Configure and run MCP server
             async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):
-                await self.mcp_server.run(
-                    read_stream,
-                    write_stream,
-                    mcp.server.stdio.init_kwargs
-                )
+                await self.mcp_server.run(read_stream, write_stream, mcp.server.stdio.init_kwargs)
         except Exception as e:
             logger.error(f"[TACTICAL] MCP server error: {e}")
             self.state = ServiceState.FAILED
@@ -201,7 +201,13 @@ class FastMCPManager(ServiceManager):
             self.metrics.last_health_check = datetime.utcnow()
             return True
 
-        except Exception:
+        except Exception as e:
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.error(
+                f"FastMCP health check failed: {type(e).__name__}: {str(e)}", exc_info=True
+            )
             return False
 
     async def get_metrics(self) -> ServiceMetrics:
@@ -213,7 +219,11 @@ class FastMCPManager(ServiceManager):
                 self.metrics.memory_mb = process.memory_info().rss / 1024 / 1024
 
             return self.metrics
-        except:
+        except Exception as e:
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Failed to update process metrics: {type(e).__name__}: {str(e)}")
             return self.metrics
 
 
@@ -241,7 +251,7 @@ class FastAPIManager(ServiceManager):
                 port=self.port,
                 log_level="info",
                 access_log=True,
-                loop="asyncio"
+                loop="asyncio",
             )
 
             self._server = uvicorn.Server(config)
@@ -294,16 +304,22 @@ class FastAPIManager(ServiceManager):
         try:
             import aiohttp
 
-            async with aiohttp.ClientSession() as session, session.get(
-                f"http://{self.host}:{self.port}/health",
-                timeout=aiohttp.ClientTimeout(total=5)
-            ) as response:
+            async with (
+                aiohttp.ClientSession() as session,
+                session.get(
+                    f"http://{self.host}:{self.port}/health", timeout=aiohttp.ClientTimeout(total=5)
+                ) as response,
+            ):
                 healthy = response.status == 200
 
             self.metrics.last_health_check = datetime.utcnow()
             return healthy
 
-        except Exception:
+        except Exception as e:
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.error(f"FastAPI health check failed: {type(e).__name__}: {str(e)}")
             return False
 
     async def get_metrics(self) -> ServiceMetrics:
@@ -315,7 +331,11 @@ class FastAPIManager(ServiceManager):
                 self.metrics.memory_mb = process.memory_info().rss / 1024 / 1024
 
             return self.metrics
-        except:
+        except Exception as e:
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Failed to update FastAPI metrics: {type(e).__name__}: {str(e)}")
             return self.metrics
 
 
@@ -370,7 +390,9 @@ class TacticalProcessManager:
 
             for service_name in startup_order:
                 service = self.services[service_name]
-                logger.info(f"[TACTICAL] Starting {service_name} (Priority: {service.config.priority.name})")
+                logger.info(
+                    f"[TACTICAL] Starting {service_name} (Priority: {service.config.priority.name})"
+                )
 
                 success = await service.start()
                 if not success:
@@ -411,10 +433,7 @@ class TacticalProcessManager:
             logger.info(f"[TACTICAL] Stopping {service_name}")
 
             try:
-                await asyncio.wait_for(
-                    service.stop(),
-                    timeout=service.config.shutdown_timeout
-                )
+                await asyncio.wait_for(service.stop(), timeout=service.config.shutdown_timeout)
             except asyncio.TimeoutError:
                 logger.warning(f"[TACTICAL] {service_name} shutdown timeout - forcing stop")
             except Exception as e:
@@ -555,25 +574,21 @@ class TacticalProcessManager:
 
         # Could trigger garbage collection, cache clearing, etc.
         import gc
+
         gc.collect()
 
     async def send_ipc_message(self, from_service: str, to_service: str, message: dict[str, Any]):
         """Send inter-process communication message"""
         if to_service in self._ipc_channels:
-            await self._ipc_channels[to_service].put({
-                "from": from_service,
-                "timestamp": datetime.utcnow().isoformat(),
-                "data": message
-            })
+            await self._ipc_channels[to_service].put(
+                {"from": from_service, "timestamp": datetime.utcnow().isoformat(), "data": message}
+            )
 
     async def receive_ipc_message(self, service_name: str) -> dict[str, Any] | None:
         """Receive IPC message for a service"""
         if service_name in self._ipc_channels:
             try:
-                return await asyncio.wait_for(
-                    self._ipc_channels[service_name].get(),
-                    timeout=0.1
-                )
+                return await asyncio.wait_for(self._ipc_channels[service_name].get(), timeout=0.1)
             except asyncio.TimeoutError:
                 return None
         return None
@@ -583,26 +598,31 @@ class TacticalProcessManager:
         status = {
             "manager_running": self.is_running,
             "start_time": self.system_metrics["start_time"].isoformat(),
-            "uptime_seconds": (datetime.utcnow() - self.system_metrics["start_time"]).total_seconds(),
-            "services": {}
+            "uptime_seconds": (
+                datetime.utcnow() - self.system_metrics["start_time"]
+            ).total_seconds(),
+            "services": {},
         }
 
         for service_name, service in self.services.items():
             status["services"][service_name] = {
                 "state": service.state.value,
                 "restart_count": service.restart_count,
-                "last_health_check": service.metrics.last_health_check.isoformat() if service.metrics.last_health_check else None,
+                "last_health_check": service.metrics.last_health_check.isoformat()
+                if service.metrics.last_health_check
+                else None,
                 "metrics": {
                     "cpu_percent": service.metrics.cpu_percent,
                     "memory_mb": service.metrics.memory_mb,
-                    "uptime_seconds": service.metrics.uptime_seconds
-                }
+                    "uptime_seconds": service.metrics.uptime_seconds,
+                },
             }
 
         return status
 
     async def setup_signal_handlers(self):
         """Setup graceful shutdown signal handlers"""
+
         def signal_handler(signum, frame):
             logger.info(f"[TACTICAL] Received signal {signum} - initiating shutdown")
             asyncio.create_task(self.shutdown_all_services())
@@ -622,12 +642,14 @@ def create_fastmcp_manager(mcp_server, max_memory_mb: int = 256) -> FastMCPManag
         health_check_interval=15,
         restart_threshold=3,
         startup_timeout=45,
-        shutdown_timeout=20
+        shutdown_timeout=20,
     )
     return FastMCPManager(mcp_server, config)
 
 
-def create_fastapi_manager(app, host: str = "0.0.0.0", port: int = 8000, max_memory_mb: int = 512) -> FastAPIManager:
+def create_fastapi_manager(
+    app, host: str = "0.0.0.0", port: int = 8000, max_memory_mb: int = 512
+) -> FastAPIManager:
     """Create FastAPI service manager with tactical configuration"""
     config = ServiceConfig(
         name="fastapi",
@@ -638,7 +660,7 @@ def create_fastapi_manager(app, host: str = "0.0.0.0", port: int = 8000, max_mem
         restart_threshold=5,
         startup_timeout=30,
         shutdown_timeout=15,
-        dependencies=["fastmcp"]  # FastAPI depends on MCP for some operations
+        dependencies=["fastmcp"],  # FastAPI depends on MCP for some operations
     )
     return FastAPIManager(app, config, host, port)
 

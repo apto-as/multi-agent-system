@@ -9,7 +9,8 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 import sqlalchemy as sa
-from sqlalchemy import JSON, DateTime, Index, Integer, Text
+from sqlalchemy import DateTime, Index, Integer, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import MetadataMixin, TMWSBase
@@ -20,6 +21,7 @@ if TYPE_CHECKING:
 
 class WorkflowStatus(str, Enum):
     """Workflow status enumeration."""
+
     DRAFT = "draft"
     ACTIVE = "active"
     INACTIVE = "inactive"
@@ -32,6 +34,7 @@ class WorkflowStatus(str, Enum):
 
 class WorkflowType(str, Enum):
     """Workflow type enumeration."""
+
     SEQUENTIAL = "sequential"
     PARALLEL = "parallel"
     CONDITIONAL = "conditional"
@@ -49,58 +52,37 @@ class Workflow(TMWSBase, MetadataMixin):
 
     # Workflow configuration
     workflow_type: Mapped[WorkflowType] = mapped_column(
-        sa.Enum(WorkflowType),
-        nullable=False,
-        default=WorkflowType.SEQUENTIAL,
-        index=True
+        sa.Enum(WorkflowType), nullable=False, default=WorkflowType.SEQUENTIAL, index=True
     )
 
     # Workflow status
     status: Mapped[WorkflowStatus] = mapped_column(
-        sa.Enum(WorkflowStatus),
-        nullable=False,
-        default=WorkflowStatus.DRAFT,
-        index=True
+        sa.Enum(WorkflowStatus), nullable=False, default=WorkflowStatus.DRAFT, index=True
     )
 
     # Workflow definition
     steps: Mapped[list[dict]] = mapped_column(
-        JSON,
-        nullable=False,
-        default=list,
-        server_default=sa.text("'[]'::jsonb")
+        JSONB, nullable=False, default=list, server_default=sa.text("'[]'::jsonb")
     )
 
     # Execution tracking
     current_step_index: Mapped[int] = mapped_column(
-        Integer,
-        nullable=False,
-        default=0,
-        server_default=sa.text("0")
+        Integer, nullable=False, default=0, server_default=sa.text("0")
     )
 
     execution_count: Mapped[int] = mapped_column(
-        Integer,
-        nullable=False,
-        default=0,
-        server_default=sa.text("0")
+        Integer, nullable=False, default=0, server_default=sa.text("0")
     )
 
     # Execution timestamps
     started_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True),
-        nullable=True,
-        index=True
+        DateTime(timezone=True), nullable=True, index=True
     )
     completed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True),
-        nullable=True,
-        index=True
+        DateTime(timezone=True), nullable=True, index=True
     )
     last_executed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True),
-        nullable=True,
-        index=True
+        DateTime(timezone=True), nullable=True, index=True
     )
 
     # Error tracking
@@ -108,49 +90,37 @@ class Workflow(TMWSBase, MetadataMixin):
     failed_step_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # Creator information
-    created_by: Mapped[str | None] = mapped_column(
-        Text,
-        nullable=True,
-        index=True
-    )
+    created_by: Mapped[str | None] = mapped_column(Text, nullable=True, index=True)
 
     # Tags for categorization
     tags: Mapped[list[str]] = mapped_column(
-        JSON,
-        nullable=False,
-        default=list,
-        server_default=sa.text("'[]'::jsonb")
+        JSONB, nullable=False, default=list, server_default=sa.text("'[]'::jsonb")
     )
 
     # Execution configuration
     config: Mapped[dict] = mapped_column(
-        JSON,
-        nullable=False,
-        default=dict,
-        server_default=sa.text("'{}'::jsonb")
+        JSONB, nullable=False, default=dict, server_default=sa.text("'{}'::jsonb")
     )
 
     # Relationships
     executions: Mapped[list[WorkflowExecution]] = relationship(
-        "WorkflowExecution",
-        back_populates="workflow",
-        cascade="all, delete-orphan"
+        "WorkflowExecution", back_populates="workflow", cascade="all, delete-orphan"
     )
     schedules: Mapped[list[WorkflowSchedule]] = relationship(
-        "WorkflowSchedule",
-        back_populates="workflow",
-        cascade="all, delete-orphan"
+        "WorkflowSchedule", back_populates="workflow", cascade="all, delete-orphan"
     )
 
     # Indexes for performance
     __table_args__ = (
-        Index('ix_workflow_status_type', 'status', 'workflow_type'),
-        Index('ix_workflow_created_by_status', 'created_by', 'status'),
-        Index('ix_workflow_last_executed', 'last_executed_at'),
+        Index("ix_workflow_status_type", "status", "workflow_type"),
+        Index("ix_workflow_created_by_status", "created_by", "status"),
+        Index("ix_workflow_last_executed", "last_executed_at"),
     )
 
     def __repr__(self) -> str:
-        return f"<Workflow(name='{self.name}', type='{self.workflow_type}', status='{self.status}')>"
+        return (
+            f"<Workflow(name='{self.name}', type='{self.workflow_type}', status='{self.status}')>"
+        )
 
     @property
     def is_active(self) -> bool:
@@ -251,8 +221,12 @@ class Workflow(TMWSBase, MetadataMixin):
         self.completed_at = None
         self.error_message = None
         self.failed_step_index = None
-        if self.status in [WorkflowStatus.RUNNING, WorkflowStatus.PAUSED,
-                           WorkflowStatus.COMPLETED, WorkflowStatus.FAILED]:
+        if self.status in [
+            WorkflowStatus.RUNNING,
+            WorkflowStatus.PAUSED,
+            WorkflowStatus.COMPLETED,
+            WorkflowStatus.FAILED,
+        ]:
             self.status = WorkflowStatus.ACTIVE
 
     def add_step(self, step: dict) -> None:
@@ -286,7 +260,9 @@ class Workflow(TMWSBase, MetadataMixin):
             "execution_count": self.execution_count,
             "started_at": self.started_at.isoformat() if self.started_at else None,
             "completed_at": self.completed_at.isoformat() if self.completed_at else None,
-            "last_executed_at": self.last_executed_at.isoformat() if self.last_executed_at else None,
+            "last_executed_at": self.last_executed_at.isoformat()
+            if self.last_executed_at
+            else None,
             "duration": self.duration,
             "error_message": self.error_message,
             "failed_step_index": self.failed_step_index,

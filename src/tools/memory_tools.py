@@ -14,6 +14,7 @@ from .base_tool import BaseTool
 
 class MemoryCreateRequest(BaseModel):
     """Memory creation parameters."""
+
     content: str = Field(..., description="The memory content to store")
     memory_type: str = Field(default="general", description="Type of memory")
     persona_id: str | None = Field(None, description="Associated persona ID")
@@ -24,6 +25,7 @@ class MemoryCreateRequest(BaseModel):
 
 class MemorySearchRequest(BaseModel):
     """Memory search parameters."""
+
     query: str = Field(..., description="Search query")
     memory_type: str | None = Field(None, description="Filter by memory type")
     persona_id: str | None = Field(None, description="Filter by persona")
@@ -34,6 +36,7 @@ class MemorySearchRequest(BaseModel):
 
 class MemoryUpdateRequest(BaseModel):
     """Memory update parameters."""
+
     memory_id: str = Field(..., description="Memory ID to update")
     content: str | None = Field(None, description="New content")
     tags: list[str] | None = Field(None, description="New tags")
@@ -54,7 +57,7 @@ class MemoryTools(BaseTool):
             persona_id: str | None = None,
             tags: list[str] = None,
             metadata: dict[str, Any] = None,
-            importance: float = 0.5
+            importance: float = 0.5,
         ) -> dict[str, Any]:
             """
             Create a new memory with vector embedding.
@@ -79,12 +82,12 @@ class MemoryTools(BaseTool):
                 persona_id=persona_id,
                 tags=tags or [],
                 metadata=metadata or {},
-                importance=importance
+                importance=importance,
             )
 
             async def _create_memory(session, services):
-                memory_service = services['memory_service']
-                vectorization_service = services['vectorization_service']
+                memory_service = services["memory_service"]
+                vectorization_service = services["vectorization_service"]
 
                 # Generate vector embedding
                 embedding = await vectorization_service.vectorize_text(request.content)
@@ -97,7 +100,7 @@ class MemoryTools(BaseTool):
                     tags=request.tags,
                     metadata=request.metadata,
                     embedding=embedding.tolist(),
-                    importance=request.importance
+                    importance=request.importance,
                 )
 
                 return {
@@ -108,7 +111,7 @@ class MemoryTools(BaseTool):
                     "importance": memory.importance,
                     "persona_id": str(memory.persona_id) if memory.persona_id else None,
                     "created_at": memory.created_at.isoformat(),
-                    "vector_dimensions": len(embedding)
+                    "vector_dimensions": len(embedding),
                 }
 
             result = await self.execute_with_session(_create_memory)
@@ -121,7 +124,7 @@ class MemoryTools(BaseTool):
             persona_id: str | None = None,
             limit: int = 10,
             semantic_search: bool = True,
-            min_similarity: float = 0.7
+            min_similarity: float = 0.7,
         ) -> dict[str, Any]:
             """
             Recall memories based on query and filters.
@@ -146,15 +149,15 @@ class MemoryTools(BaseTool):
                 persona_id=persona_id,
                 limit=limit,
                 semantic_search=semantic_search,
-                min_similarity=min_similarity
+                min_similarity=min_similarity,
             )
 
             async def _recall_memory(session, services):
-                memory_service = services['memory_service']
+                memory_service = services["memory_service"]
 
                 if request.semantic_search:
                     # Vector similarity search
-                    vectorization_service = services['vectorization_service']
+                    vectorization_service = services["vectorization_service"]
                     query_embedding = await vectorization_service.vectorize_text(request.query)
 
                     memories = await memory_service.search_similar_memories(
@@ -162,7 +165,7 @@ class MemoryTools(BaseTool):
                         memory_type=request.memory_type,
                         persona_id=request.persona_id,
                         limit=request.limit,
-                        min_similarity=request.min_similarity
+                        min_similarity=request.min_similarity,
                     )
                 else:
                     # Keyword search
@@ -170,7 +173,7 @@ class MemoryTools(BaseTool):
                         query=request.query,
                         memory_type=request.memory_type,
                         persona_id=request.persona_id,
-                        limit=request.limit
+                        limit=request.limit,
                     )
 
                 return {
@@ -185,12 +188,12 @@ class MemoryTools(BaseTool):
                             "tags": m.tags,
                             "importance": m.importance,
                             "persona_id": str(m.persona_id) if m.persona_id else None,
-                            "similarity": getattr(m, 'similarity', None),
+                            "similarity": getattr(m, "similarity", None),
                             "created_at": m.created_at.isoformat(),
-                            "updated_at": m.updated_at.isoformat() if m.updated_at else None
+                            "updated_at": m.updated_at.isoformat() if m.updated_at else None,
                         }
                         for m in memories
-                    ]
+                    ],
                 }
 
             result = await self.execute_with_session(_recall_memory)
@@ -202,7 +205,7 @@ class MemoryTools(BaseTool):
             content: str | None = None,
             tags: list[str] | None = None,
             metadata: dict[str, Any] | None = None,
-            importance: float | None = None
+            importance: float | None = None,
         ) -> dict[str, Any]:
             """
             Update an existing memory.
@@ -225,26 +228,26 @@ class MemoryTools(BaseTool):
                 content=content,
                 tags=tags,
                 metadata=metadata,
-                importance=importance
+                importance=importance,
             )
 
             async def _update_memory(session, services):
-                memory_service = services['memory_service']
+                memory_service = services["memory_service"]
 
                 updates = {}
                 if request.content is not None:
-                    updates['content'] = request.content
+                    updates["content"] = request.content
                     # Regenerate embedding if content changed
-                    vectorization_service = services['vectorization_service']
+                    vectorization_service = services["vectorization_service"]
                     embedding = await vectorization_service.vectorize_text(request.content)
-                    updates['embedding'] = embedding.tolist()
+                    updates["embedding"] = embedding.tolist()
 
                 if request.tags is not None:
-                    updates['tags'] = request.tags
+                    updates["tags"] = request.tags
                 if request.metadata is not None:
-                    updates['metadata'] = request.metadata
+                    updates["metadata"] = request.metadata
                 if request.importance is not None:
-                    updates['importance'] = request.importance
+                    updates["importance"] = request.importance
 
                 memory = await memory_service.update_memory(request.memory_id, updates)
 
@@ -256,7 +259,7 @@ class MemoryTools(BaseTool):
                     "importance": memory.importance,
                     "persona_id": str(memory.persona_id) if memory.persona_id else None,
                     "updated_at": memory.updated_at.isoformat(),
-                    "embedding_updated": request.content is not None
+                    "embedding_updated": request.content is not None,
                 }
 
             result = await self.execute_with_session(_update_memory)
@@ -276,14 +279,12 @@ class MemoryTools(BaseTool):
             Returns:
                 Dict confirming deletion
             """
+
             async def _delete_memory(session, services):
-                memory_service = services['memory_service']
+                memory_service = services["memory_service"]
                 await memory_service.delete_memory(memory_id)
 
-                return {
-                    "id": memory_id,
-                    "deleted_at": datetime.utcnow().isoformat()
-                }
+                return {"id": memory_id, "deleted_at": datetime.utcnow().isoformat()}
 
             result = await self.execute_with_session(_delete_memory)
             return self.format_success(result, "Memory deleted successfully")
@@ -298,8 +299,9 @@ class MemoryTools(BaseTool):
             Returns:
                 Dict containing comprehensive memory statistics
             """
+
             async def _get_memory_stats(session, services):
-                memory_service = services['memory_service']
+                memory_service = services["memory_service"]
 
                 total_memories = await memory_service.count_memories()
                 memory_by_type = await memory_service.get_memory_type_distribution()
@@ -313,14 +315,16 @@ class MemoryTools(BaseTool):
                     "recent_memories": [
                         {
                             "id": str(m.id),
-                            "content_preview": m.content[:100] + "..." if len(m.content) > 100 else m.content,
+                            "content_preview": m.content[:100] + "..."
+                            if len(m.content) > 100
+                            else m.content,
                             "memory_type": m.memory_type,
                             "importance": m.importance,
-                            "created_at": m.created_at.isoformat()
+                            "created_at": m.created_at.isoformat(),
                         }
                         for m in recent_memories
                     ],
-                    "generated_at": datetime.utcnow().isoformat()
+                    "generated_at": datetime.utcnow().isoformat(),
                 }
 
             result = await self.execute_with_session(_get_memory_stats)
@@ -338,6 +342,7 @@ class MemoryTools(BaseTool):
             Returns:
                 Dict containing optimization results and performance metrics
             """
+
             async def _optimize_vectors(session, services):
                 # Analyze current vector statistics
                 result = await session.execute("""
@@ -359,9 +364,11 @@ class MemoryTools(BaseTool):
 
                 return {
                     "total_vectors": stats.total_vectors if stats else 0,
-                    "avg_dimensions": float(stats.avg_dimensions) if stats and stats.avg_dimensions else 0,
+                    "avg_dimensions": float(stats.avg_dimensions)
+                    if stats and stats.avg_dimensions
+                    else 0,
                     "operations_completed": ["vacuum_analyze", "reindex_vectors"],
-                    "optimized_at": datetime.utcnow().isoformat()
+                    "optimized_at": datetime.utcnow().isoformat(),
                 }
 
             result = await self.execute_with_session(_optimize_vectors)

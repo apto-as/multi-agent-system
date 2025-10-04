@@ -32,7 +32,7 @@ class MemoryService:
         tags: list[str] = None,
         metadata: dict[str, Any] = None,
         embedding: list[float] = None,
-        importance: float = 0.5
+        importance: float = 0.5,
     ) -> Memory:
         """Create a new memory with normalized embedding."""
         # Normalize embedding if provided
@@ -49,7 +49,7 @@ class MemoryService:
             tags=tags or [],
             metadata_json=metadata or {},
             embedding=embedding,
-            importance=importance
+            importance=importance,
         )
 
         self.session.add(memory)
@@ -61,16 +61,10 @@ class MemoryService:
 
     async def get_memory(self, memory_id: UUID) -> Memory | None:
         """Get a memory by ID."""
-        result = await self.session.execute(
-            select(Memory).where(Memory.id == memory_id)
-        )
+        result = await self.session.execute(select(Memory).where(Memory.id == memory_id))
         return result.scalar_one_or_none()
 
-    async def update_memory(
-        self,
-        memory_id: UUID,
-        updates: dict[str, Any]
-    ) -> Memory:
+    async def update_memory(self, memory_id: UUID, updates: dict[str, Any]) -> Memory:
         """Update an existing memory."""
         memory = await self.get_memory(memory_id)
         if not memory:
@@ -106,7 +100,7 @@ class MemoryService:
         persona_id: UUID = None,
         tags: list[str] = None,
         limit: int = 10,
-        offset: int = 0
+        offset: int = 0,
     ) -> list[Memory]:
         """Search memories with filters - optimized with better indexing."""
         stmt = select(Memory)
@@ -143,7 +137,7 @@ class MemoryService:
         memory_type: str = None,
         persona_id: UUID = None,
         limit: int = 10,
-        min_similarity: float = 0.7
+        min_similarity: float = 0.7,
     ) -> list[Memory]:
         """Search for similar memories using vector similarity.
 
@@ -162,10 +156,7 @@ class MemoryService:
         # Use <=> operator for cosine distance (faster than cosine_distance method)
         stmt = select(
             Memory,
-            func.coalesce(
-                1 - (Memory.embedding.op('<=>'))(query_vector),
-                0
-            ).label('similarity')
+            func.coalesce(1 - (Memory.embedding.op("<=>"))(query_vector), 0).label("similarity"),
         )
 
         # Add filters
@@ -179,15 +170,13 @@ class MemoryService:
             stmt = stmt.where(and_(*conditions))
 
         # Order by similarity (higher is better) and use index hint
-        stmt = stmt.order_by(text('similarity DESC'))
+        stmt = stmt.order_by(text("similarity DESC"))
         stmt = stmt.limit(limit)
 
         # Add index hint for better performance
-        if self.session.bind and hasattr(self.session.bind, 'dialect'):
-            if 'postgresql' in str(self.session.bind.dialect.name):
-                stmt = stmt.execution_options(
-                    postgresql_use_index='memories_embedding_idx'
-                )
+        if self.session.bind and hasattr(self.session.bind, "dialect"):
+            if "postgresql" in str(self.session.bind.dialect.name):
+                stmt = stmt.execution_options(postgresql_use_index="memories_embedding_idx")
 
         result = await self.session.execute(stmt)
         results = result.all()
@@ -210,7 +199,7 @@ class MemoryService:
         persona_id: UUID = None,
         limit: int = 10,
         text_weight: float = 0.3,
-        vector_weight: float = 0.7
+        vector_weight: float = 0.7,
     ) -> list[Memory]:
         """Hybrid search combining text and vector similarity.
 
@@ -234,16 +223,11 @@ class MemoryService:
             Memory,
             (
                 # Text similarity score (using ts_rank if available)
-                func.coalesce(
-                    func.similarity(Memory.content, text_query) * text_weight,
-                    0
-                ) +
+                func.coalesce(func.similarity(Memory.content, text_query) * text_weight, 0)
+                +
                 # Vector similarity score
-                func.coalesce(
-                    (1 - (Memory.embedding.op('<=>'))(query_vector)) * vector_weight,
-                    0
-                )
-            ).label('hybrid_score')
+                func.coalesce((1 - (Memory.embedding.op("<=>"))(query_vector)) * vector_weight, 0)
+            ).label("hybrid_score"),
         )
 
         # Add filters
@@ -257,7 +241,7 @@ class MemoryService:
             stmt = stmt.where(and_(*conditions))
 
         # Order by hybrid score
-        stmt = stmt.order_by(text('hybrid_score DESC'))
+        stmt = stmt.order_by(text("hybrid_score DESC"))
         stmt = stmt.limit(limit)
 
         result = await self.session.execute(stmt)
@@ -272,29 +256,26 @@ class MemoryService:
         logger.info(f"Hybrid search found {len(memories)} memories")
         return memories
 
-    async def batch_create_memories(
-        self,
-        memories_data: list[dict[str, Any]]
-    ) -> list[Memory]:
+    async def batch_create_memories(self, memories_data: list[dict[str, Any]]) -> list[Memory]:
         """Batch create multiple memories for better performance."""
         memories = []
 
         for data in memories_data:
             # Normalize embedding if provided
-            if 'embedding' in data and data['embedding']:
-                embedding_array = np.array(data['embedding'])
+            if "embedding" in data and data["embedding"]:
+                embedding_array = np.array(data["embedding"])
                 norm = np.linalg.norm(embedding_array)
                 if norm > 0:
-                    data['embedding'] = (embedding_array / norm).tolist()
+                    data["embedding"] = (embedding_array / norm).tolist()
 
             memory = Memory(
-                content=data.get('content'),
-                memory_type=data.get('memory_type', 'general'),
-                persona_id=data.get('persona_id'),
-                tags=data.get('tags', []),
-                metadata_json=data.get('metadata', {}),
-                embedding=data.get('embedding'),
-                importance=data.get('importance', 0.5)
+                content=data.get("content"),
+                memory_type=data.get("memory_type", "general"),
+                persona_id=data.get("persona_id"),
+                tags=data.get("tags", []),
+                metadata_json=data.get("metadata", {}),
+                embedding=data.get("embedding"),
+                importance=data.get("importance", 0.5),
             )
             memories.append(memory)
             self.session.add(memory)
@@ -309,11 +290,7 @@ class MemoryService:
         logger.info(f"Batch created {len(memories)} memories")
         return memories
 
-    async def count_memories(
-        self,
-        memory_type: str = None,
-        persona_id: UUID = None
-    ) -> int:
+    async def count_memories(self, memory_type: str = None, persona_id: UUID = None) -> int:
         """Count memories with optional filters."""
         stmt = select(func.count(Memory.id))
 
@@ -337,8 +314,7 @@ class MemoryService:
 
         # Count by type
         type_counts_stmt = select(
-            Memory.memory_type,
-            func.count(Memory.id).label('count')
+            Memory.memory_type, func.count(Memory.id).label("count")
         ).group_by(Memory.memory_type)
 
         type_counts_result = await self.session.execute(type_counts_stmt)
@@ -352,14 +328,10 @@ class MemoryService:
         return {
             "total_memories": total_count,
             "memories_by_type": type_counts,
-            "average_importance": float(avg_importance)
+            "average_importance": float(avg_importance),
         }
 
-    async def cleanup_old_memories(
-        self,
-        days_old: int = 90,
-        min_importance: float = 0.3
-    ) -> int:
+    async def cleanup_old_memories(self, days_old: int = 90, min_importance: float = 0.3) -> int:
         """Clean up old, low-importance memories."""
         from datetime import timedelta
 
@@ -367,10 +339,7 @@ class MemoryService:
 
         # Use bulk delete operation instead of individual deletions
         stmt = delete(Memory).where(
-            and_(
-                Memory.created_at < cutoff_date,
-                Memory.importance < min_importance
-            )
+            and_(Memory.created_at < cutoff_date, Memory.importance < min_importance)
         )
 
         result = await self.session.execute(stmt)

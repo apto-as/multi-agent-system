@@ -34,7 +34,7 @@ class WorkflowHistoryService:
         workflow_id: UUID,
         triggered_by: str = "system",
         trigger_type: str = "manual",
-        input_data: dict[str, Any] = None
+        input_data: dict[str, Any] = None,
     ) -> WorkflowExecution:
         """Start tracking a new workflow execution."""
 
@@ -52,8 +52,8 @@ class WorkflowHistoryService:
             input_data=input_data or {},
             metadata_json={
                 "workflow_name": workflow.name,
-                "workflow_version": workflow.metadata_json.get("version", "1.0.0")
-            }
+                "workflow_version": workflow.metadata_json.get("version", "1.0.0"),
+            },
         )
 
         self.session.add(execution)
@@ -65,7 +65,7 @@ class WorkflowHistoryService:
             execution.id,
             level="info",
             message=f"Workflow execution started: {workflow.name}",
-            component="workflow_engine"
+            component="workflow_engine",
         )
 
         logger.info(f"Started workflow execution {execution.id} for workflow {workflow_id}")
@@ -78,7 +78,7 @@ class WorkflowHistoryService:
         output_data: dict[str, Any] = None,
         error_message: str = None,
         error_details: dict[str, Any] = None,
-        performance_metrics: dict[str, float] = None
+        performance_metrics: dict[str, float] = None,
     ) -> WorkflowExecution:
         """Complete a workflow execution."""
 
@@ -114,7 +114,7 @@ class WorkflowHistoryService:
             execution.id,
             level="info" if status == "completed" else "error",
             message=f"Workflow execution {status}: {error_message or 'Success'}",
-            component="workflow_engine"
+            component="workflow_engine",
         )
 
         logger.info(f"Completed workflow execution {execution_id} with status {status}")
@@ -126,7 +126,7 @@ class WorkflowHistoryService:
         step_name: str,
         step_index: int,
         step_type: str = "action",
-        input_data: dict[str, Any] = None
+        input_data: dict[str, Any] = None,
     ) -> WorkflowStepExecution:
         """Start tracking a workflow step execution."""
 
@@ -137,7 +137,7 @@ class WorkflowHistoryService:
             step_type=step_type,
             started_at=datetime.utcnow(),
             status="running",
-            input_data=input_data or {}
+            input_data=input_data or {},
         )
 
         self.session.add(step_execution)
@@ -150,7 +150,7 @@ class WorkflowHistoryService:
             step_execution_id=step_execution.id,
             level="debug",
             message=f"Step started: {step_name}",
-            component="step_executor"
+            component="step_executor",
         )
 
         return step_execution
@@ -161,7 +161,7 @@ class WorkflowHistoryService:
         status: str = "completed",
         output_data: dict[str, Any] = None,
         error_message: str = None,
-        error_details: dict[str, Any] = None
+        error_details: dict[str, Any] = None,
     ) -> WorkflowStepExecution:
         """Complete a workflow step execution."""
 
@@ -193,7 +193,7 @@ class WorkflowHistoryService:
             step_execution_id=step_execution.id,
             level="debug" if status == "completed" else "error",
             message=f"Step {status}: {step_execution.step_name} - {error_message or 'Success'}",
-            component="step_executor"
+            component="step_executor",
         )
 
         return step_execution
@@ -206,7 +206,7 @@ class WorkflowHistoryService:
         component: str = None,
         function: str = None,
         step_execution_id: UUID = None,
-        context_data: dict[str, Any] = None
+        context_data: dict[str, Any] = None,
     ) -> WorkflowExecutionLog:
         """Add a log entry for workflow execution."""
 
@@ -218,7 +218,7 @@ class WorkflowHistoryService:
             message=message,
             component=component,
             function=function,
-            context_data=context_data or {}
+            context_data=context_data or {},
         )
 
         self.session.add(log_entry)
@@ -233,7 +233,7 @@ class WorkflowHistoryService:
         triggered_by: str | None = None,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
-        limit: int = 100
+        limit: int = 100,
     ) -> list[WorkflowExecution]:
         """Get workflow execution history with filters."""
 
@@ -261,25 +261,25 @@ class WorkflowHistoryService:
         # Include related data
         query = query.options(
             selectinload(WorkflowExecution.workflow),
-            selectinload(WorkflowExecution.step_executions)
+            selectinload(WorkflowExecution.step_executions),
         )
 
         result = await self.session.execute(query)
         return list(result.scalars().all())
 
     async def get_execution_details(
-        self,
-        execution_id: UUID,
-        include_logs: bool = False
+        self, execution_id: UUID, include_logs: bool = False
     ) -> dict[str, Any]:
         """Get detailed information about a workflow execution."""
 
         # Get execution with related data
-        query = select(WorkflowExecution).where(
-            WorkflowExecution.id == execution_id
-        ).options(
-            selectinload(WorkflowExecution.workflow),
-            selectinload(WorkflowExecution.step_executions)
+        query = (
+            select(WorkflowExecution)
+            .where(WorkflowExecution.id == execution_id)
+            .options(
+                selectinload(WorkflowExecution.workflow),
+                selectinload(WorkflowExecution.step_executions),
+            )
         )
 
         if include_logs:
@@ -297,7 +297,7 @@ class WorkflowHistoryService:
             "workflow": {
                 "id": str(execution.workflow.id),
                 "name": execution.workflow.name,
-                "type": execution.workflow.workflow_type
+                "type": execution.workflow.workflow_type,
             },
             "status": execution.status,
             "started_at": execution.started_at.isoformat(),
@@ -308,7 +308,7 @@ class WorkflowHistoryService:
             "input_data": execution.input_data,
             "output_data": execution.output_data,
             "error_message": execution.error_message,
-            "steps": []
+            "steps": [],
         }
 
         # Add step information
@@ -321,7 +321,7 @@ class WorkflowHistoryService:
                 "started_at": step.started_at.isoformat(),
                 "completed_at": step.completed_at.isoformat() if step.completed_at else None,
                 "execution_time_seconds": step.execution_time_seconds,
-                "error_message": step.error_message
+                "error_message": step.error_message,
             }
             details["steps"].append(step_data)
 
@@ -332,7 +332,7 @@ class WorkflowHistoryService:
                     "timestamp": log.timestamp.isoformat(),
                     "level": log.level,
                     "message": log.message,
-                    "component": log.component
+                    "component": log.component,
                 }
                 for log in sorted(execution.logs, key=lambda l: l.timestamp)
             ]
@@ -340,9 +340,7 @@ class WorkflowHistoryService:
         return details
 
     async def get_execution_statistics(
-        self,
-        workflow_id: UUID | None = None,
-        days: int = 30
+        self, workflow_id: UUID | None = None, days: int = 30
     ) -> dict[str, Any]:
         """Get execution statistics for workflows."""
 
@@ -351,25 +349,18 @@ class WorkflowHistoryService:
         start_date = end_date - timedelta(days=days)
 
         # Base query
-        base_query = select(WorkflowExecution).where(
-            WorkflowExecution.started_at >= start_date
-        )
+        base_query = select(WorkflowExecution).where(WorkflowExecution.started_at >= start_date)
 
         if workflow_id:
             base_query = base_query.where(WorkflowExecution.workflow_id == workflow_id)
 
         # Total executions
-        total_query = select(func.count(WorkflowExecution.id)).select_from(
-            base_query.subquery()
-        )
+        total_query = select(func.count(WorkflowExecution.id)).select_from(base_query.subquery())
         total_result = await self.session.execute(total_query)
         total_executions = total_result.scalar()
 
         # Status breakdown
-        status_query = select(
-            WorkflowExecution.status,
-            func.count(WorkflowExecution.id)
-        ).where(
+        status_query = select(WorkflowExecution.status, func.count(WorkflowExecution.id)).where(
             WorkflowExecution.started_at >= start_date
         )
 
@@ -381,12 +372,10 @@ class WorkflowHistoryService:
         status_breakdown = dict(status_result.all())
 
         # Average execution time
-        time_query = select(
-            func.avg(WorkflowExecution.execution_time_seconds)
-        ).where(
+        time_query = select(func.avg(WorkflowExecution.execution_time_seconds)).where(
             and_(
                 WorkflowExecution.started_at >= start_date,
-                WorkflowExecution.execution_time_seconds.isnot(None)
+                WorkflowExecution.execution_time_seconds.isnot(None),
             )
         )
 
@@ -408,28 +397,20 @@ class WorkflowHistoryService:
             "status_breakdown": status_breakdown,
             "average_execution_time_seconds": round(avg_execution_time, 2),
             "success_rate_percent": round(success_rate, 2),
-            "workflow_id": str(workflow_id) if workflow_id else None
+            "workflow_id": str(workflow_id) if workflow_id else None,
         }
 
-    async def cleanup_old_executions(
-        self,
-        days_to_keep: int = 90,
-        keep_failed: bool = True
-    ) -> int:
+    async def cleanup_old_executions(self, days_to_keep: int = 90, keep_failed: bool = True) -> int:
         """Clean up old execution records."""
 
         cutoff_date = datetime.utcnow() - timedelta(days=days_to_keep)
 
         # Build deletion query
-        delete_query = select(WorkflowExecution).where(
-            WorkflowExecution.started_at < cutoff_date
-        )
+        delete_query = select(WorkflowExecution).where(WorkflowExecution.started_at < cutoff_date)
 
         # Optionally keep failed executions
         if keep_failed:
-            delete_query = delete_query.where(
-                WorkflowExecution.status != "failed"
-            )
+            delete_query = delete_query.where(WorkflowExecution.status != "failed")
 
         # Get executions to delete
         result = await self.session.execute(delete_query)

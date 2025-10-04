@@ -44,7 +44,7 @@ class AgentService:
         parent_agent_id: str | None = None,
         team_memberships: list[str] = None,
         learning_enabled: bool = True,
-        adaptation_rate: float = 0.1
+        adaptation_rate: float = 0.1,
     ) -> Agent:
         """Create a new agent with comprehensive configuration."""
 
@@ -66,7 +66,7 @@ class AgentService:
             await self.create_namespace(
                 namespace=namespace,
                 display_name=f"Auto-created namespace: {namespace}",
-                access_policy="private"
+                access_policy="private",
             )
 
         agent = Agent(
@@ -81,7 +81,7 @@ class AgentService:
             parent_agent_id=parent_agent_id,
             team_memberships=team_memberships or [],
             learning_enabled=learning_enabled,
-            adaptation_rate=adaptation_rate
+            adaptation_rate=adaptation_rate,
         )
 
         try:
@@ -103,17 +103,16 @@ class AgentService:
             result = await self.session.execute(
                 select(Agent)
                 .where(Agent.agent_id == agent_id)
-                .options(
-                    selectinload(Agent.memories),
-                    selectinload(Agent.tasks)
-                )
+                .options(selectinload(Agent.memories), selectinload(Agent.tasks))
             )
             return result.scalar_one_or_none()
         except Exception as e:
             logger.error(f"Failed to get agent {agent_id}: {e}")
             return None
 
-    async def get_agent_by_display_name(self, display_name: str, namespace: str = None) -> Agent | None:
+    async def get_agent_by_display_name(
+        self, display_name: str, namespace: str = None
+    ) -> Agent | None:
         """Get an agent by their display name, optionally within a namespace."""
         try:
             query = select(Agent).where(Agent.display_name == display_name)
@@ -133,7 +132,7 @@ class AgentService:
         access_level: str = None,
         is_active: bool = None,
         limit: int = 50,
-        offset: int = 0
+        offset: int = 0,
     ) -> list[Agent]:
         """List agents with optional filtering."""
         try:
@@ -162,11 +161,7 @@ class AgentService:
             logger.error(f"Failed to list agents: {e}")
             return []
 
-    async def update_agent(
-        self,
-        agent_id: str,
-        updates: dict[str, Any]
-    ) -> Agent:
+    async def update_agent(self, agent_id: str, updates: dict[str, Any]) -> Agent:
         """Update an existing agent."""
         agent = await self.get_agent_by_id(agent_id)
         if not agent:
@@ -249,11 +244,14 @@ class AgentService:
             )
 
             # Average quality score
-            avg_quality = await self.session.scalar(
-                select(func.avg(Task.quality_score)).where(
-                    and_(Task.assigned_agent_id == agent_id, Task.quality_score.isnot(None))
+            avg_quality = (
+                await self.session.scalar(
+                    select(func.avg(Task.quality_score)).where(
+                        and_(Task.assigned_agent_id == agent_id, Task.quality_score.isnot(None))
+                    )
                 )
-            ) or 0.0
+                or 0.0
+            )
 
             # Calculate success rate
             success_rate = (completed_tasks / task_count) if task_count > 0 else 0.0
@@ -273,7 +271,7 @@ class AgentService:
                 "average_quality_score": float(avg_quality),
                 "last_activity": agent.last_activity.isoformat() if agent.last_activity else None,
                 "created_at": agent.created_at.isoformat(),
-                "updated_at": agent.updated_at.isoformat()
+                "updated_at": agent.updated_at.isoformat(),
             }
 
         except Exception as e:
@@ -289,6 +287,7 @@ class AgentService:
         try:
             # Get recent task performance (last 30 days)
             from datetime import datetime, timedelta
+
             thirty_days_ago = datetime.utcnow() - timedelta(days=30)
 
             # Calculate performance score based on recent tasks
@@ -297,7 +296,7 @@ class AgentService:
                     and_(
                         Task.assigned_agent_id == agent_id,
                         Task.completed_at >= thirty_days_ago,
-                        Task.status == "completed"
+                        Task.status == "completed",
                     )
                 )
             )
@@ -306,10 +305,14 @@ class AgentService:
             if tasks:
                 # Performance factors: quality, efficiency, success rate
                 quality_scores = [t.quality_score for t in tasks if t.quality_score is not None]
-                efficiency_scores = [t.efficiency_score for t in tasks if t.efficiency_score is not None]
+                efficiency_scores = [
+                    t.efficiency_score for t in tasks if t.efficiency_score is not None
+                ]
 
                 avg_quality = sum(quality_scores) / len(quality_scores) if quality_scores else 5.0
-                avg_efficiency = sum(efficiency_scores) / len(efficiency_scores) if efficiency_scores else 1.0
+                avg_efficiency = (
+                    sum(efficiency_scores) / len(efficiency_scores) if efficiency_scores else 1.0
+                )
 
                 # Calculate composite performance score (0-10 scale)
                 performance_score = min(10.0, (avg_quality + avg_efficiency * 5.0) / 2.0)
@@ -342,7 +345,7 @@ class AgentService:
         access_level: str = None,
         is_archived: bool = None,
         limit: int = 100,
-        offset: int = 0
+        offset: int = 0,
     ) -> list[Memory]:
         """Get memories associated with an agent."""
         try:
@@ -371,15 +374,15 @@ class AgentService:
         task_type: str = None,
         include_collaborating: bool = False,
         limit: int = 100,
-        offset: int = 0
+        offset: int = 0,
     ) -> list[Task]:
         """Get tasks associated with an agent."""
         try:
             if include_collaborating:
                 # Include tasks where agent is assigned or collaborating
                 query = select(Task).where(
-                    (Task.assigned_agent_id == agent_id) |
-                    (Task.collaborating_agents.contains([agent_id]))
+                    (Task.assigned_agent_id == agent_id)
+                    | (Task.collaborating_agents.contains([agent_id]))
                 )
             else:
                 query = select(Task).where(Task.assigned_agent_id == agent_id)
@@ -407,7 +410,7 @@ class AgentService:
         description: str = None,
         parent_namespace: str = None,
         access_policy: str = "private",
-        max_agents: int = None
+        max_agents: int = None,
     ) -> AgentNamespace:
         """Create a new agent namespace."""
         existing = await self.get_namespace(namespace)
@@ -420,7 +423,7 @@ class AgentService:
             description=description,
             parent_namespace=parent_namespace,
             access_policy=access_policy,
-            max_agents=max_agents
+            max_agents=max_agents,
         )
 
         try:
@@ -453,11 +456,7 @@ class AgentService:
         return result is not None
 
     async def list_namespaces(
-        self,
-        access_policy: str = None,
-        is_active: bool = None,
-        limit: int = 50,
-        offset: int = 0
+        self, access_policy: str = None, is_active: bool = None, limit: int = 50, offset: int = 0
     ) -> list[AgentNamespace]:
         """List namespaces with optional filtering."""
         try:
@@ -491,7 +490,7 @@ class AgentService:
         namespace: str = "default",
         team_type: str = "collaborative",
         team_lead: str = None,
-        max_members: int = None
+        max_members: int = None,
     ) -> AgentTeam:
         """Create a new agent team."""
         existing = await self.get_team(team_id)
@@ -505,7 +504,7 @@ class AgentService:
             namespace=namespace,
             team_type=team_type,
             team_lead=team_lead,
-            max_members=max_members
+            max_members=max_members,
         )
 
         try:
@@ -606,10 +605,7 @@ class AgentService:
                     continue
 
             logger.info(f"Migration complete: created {len(created_agents)} agents")
-            return {
-                "created_agents": created_agents,
-                "total_created": len(created_agents)
-            }
+            return {"created_agents": created_agents, "total_created": len(created_agents)}
 
         except Exception as e:
             logger.error(f"Migration failed: {e}")
@@ -618,19 +614,15 @@ class AgentService:
     # Search and Discovery
 
     async def search_agents(
-        self,
-        query: str,
-        namespace: str = None,
-        agent_type: str = None,
-        limit: int = 20
+        self, query: str, namespace: str = None, agent_type: str = None, limit: int = 20
     ) -> list[Agent]:
         """Search agents by name, capabilities, or other attributes."""
         try:
             # Simple text search - could be enhanced with full-text search
             search_query = select(Agent).where(
-                (Agent.display_name.ilike(f"%{query}%")) |
-                (Agent.agent_id.ilike(f"%{query}%")) |
-                (Agent.agent_type.ilike(f"%{query}%"))
+                (Agent.display_name.ilike(f"%{query}%"))
+                | (Agent.agent_id.ilike(f"%{query}%"))
+                | (Agent.agent_type.ilike(f"%{query}%"))
             )
 
             if namespace:
@@ -652,7 +644,7 @@ class AgentService:
         task_type: str = None,
         capabilities: list[str] = None,
         namespace: str = None,
-        limit: int = 10
+        limit: int = 10,
     ) -> list[Agent]:
         """Get recommended agents based on task requirements."""
         try:
@@ -662,15 +654,42 @@ class AgentService:
                 query = query.where(Agent.namespace == namespace)
 
             # Order by performance score and capability match
-            query = query.order_by(Agent.performance_score.desc()).limit(limit)
+            query = query.order_by(Agent.performance_score.desc()).limit(limit * 2)
 
             result = await self.session.execute(query)
-            agents = list(result.scalars().all())
+            candidates = list(result.scalars().all())
 
-            # TODO: Implement more sophisticated matching based on capabilities
-            # This could use ML models or rule-based matching
+            # Sophisticated matching based on capabilities
+            scored_agents = []
+            for agent in candidates:
+                score = 0.0
 
-            return agents
+                # Base score from performance
+                score += agent.performance_score * 0.3
+
+                # Capability matching score
+                if required_capabilities and agent.capabilities:
+                    agent_caps = set(agent.capabilities.get("skills", []))
+                    required_caps = set(required_capabilities)
+                    if required_caps:
+                        overlap = len(agent_caps & required_caps)
+                        total = len(required_caps)
+                        capability_score = (overlap / total) if total > 0 else 0
+                        score += capability_score * 0.4
+
+                # Success rate factor
+                if agent.successful_tasks > 0 and agent.total_tasks > 0:
+                    success_rate = agent.successful_tasks / agent.total_tasks
+                    score += success_rate * 0.2
+
+                # Health score factor
+                score += agent.health_score * 0.1
+
+                scored_agents.append((score, agent))
+
+            # Sort by score and return top matches
+            scored_agents.sort(key=lambda x: x[0], reverse=True)
+            return [agent for _, agent in scored_agents[:limit]]
 
         except Exception as e:
             logger.error(f"Failed to get recommended agents: {e}")

@@ -17,13 +17,15 @@ from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel, Field
 
 from ..core.exceptions import TMWSException
-from ..mcp_server_v2 import TMWSFastMCPServer, create_server
+
+# Removed non-existent mcp_server_v2 import
 
 logger = logging.getLogger(__name__)
 
 
 class MCPToolRequest(BaseModel):
     """Request model for MCP tool invocation."""
+
     tool_name: str = Field(..., description="Name of MCP tool to invoke")
     parameters: dict[str, Any] = Field(default_factory=dict, description="Tool parameters")
     async_execution: bool = Field(default=False, description="Execute asynchronously")
@@ -31,6 +33,7 @@ class MCPToolRequest(BaseModel):
 
 class MCPToolResponse(BaseModel):
     """Response model for MCP tool results."""
+
     success: bool = Field(..., description="Operation success status")
     tool_name: str = Field(..., description="Name of invoked tool")
     result: Any | None = Field(None, description="Tool execution result")
@@ -41,6 +44,7 @@ class MCPToolResponse(BaseModel):
 
 class HealthCheckResponse(BaseModel):
     """Health check response model."""
+
     status: str = Field(..., description="Overall system status")
     version: str = Field(..., description="Application version")
     timestamp: str = Field(..., description="Health check timestamp")
@@ -57,7 +61,7 @@ class TMWSFastAPIApp:
 
     def __init__(self):
         """Initialize FastAPI app with MCP integration."""
-        self.mcp_server: TMWSFastMCPServer | None = None
+        self.mcp_server: Any | None = None  # Will be initialized later
         self.app: FastAPI | None = None
         self.startup_time: datetime | None = None
 
@@ -76,9 +80,10 @@ class TMWSFastAPIApp:
             logger.info("Starting TMWS FastAPI application with MCP integration...")
             self.startup_time = datetime.utcnow()
 
-            # Initialize MCP server
-            self.mcp_server = create_server()
-            await self.mcp_server.initialize_server()
+            # MCP server initialization removed - to be refactored
+            # self.mcp_server = create_server()
+            # await self.mcp_server.initialize_server()
+            logger.info("MCP server initialization skipped - needs refactoring")
 
             logger.info("TMWS FastAPI application started successfully")
             yield
@@ -113,7 +118,7 @@ class TMWSFastAPIApp:
             lifespan=self.lifespan,
             docs_url="/docs",
             redoc_url="/redoc",
-            openapi_url="/openapi.json"
+            openapi_url="/openapi.json",
         )
 
         # Add middleware stack (404 performance optimization)
@@ -170,16 +175,16 @@ class TMWSFastAPIApp:
                     "Workflow Execution",
                     "Vector Search",
                     "Pattern Learning",
-                    "MCP Integration"
+                    "MCP Integration",
                 ],
                 "endpoints": {
                     "api": "/api/v1/",
                     "mcp": "/mcp/",
                     "admin": "/admin/",
                     "health": "/health",
-                    "docs": "/docs"
+                    "docs": "/docs",
                 },
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.utcnow().isoformat(),
             }
 
         @app.get("/health", response_model=HealthCheckResponse)
@@ -200,7 +205,7 @@ class TMWSFastAPIApp:
                         status=status,
                         version="2.0.0",
                         timestamp=datetime.utcnow().isoformat(),
-                        components=health_data.get("components", {})
+                        components=health_data.get("components", {}),
                     )
                 else:
                     raise HTTPException(status_code=503, detail="Health check failed")
@@ -214,9 +219,7 @@ class TMWSFastAPIApp:
 
         @app.post("/mcp/tools/{tool_name}", response_model=MCPToolResponse)
         async def invoke_mcp_tool(
-            tool_name: str,
-            request: MCPToolRequest,
-            background_tasks: BackgroundTasks
+            tool_name: str, request: MCPToolRequest, background_tasks: BackgroundTasks
         ):
             """
             Invoke MCP tool with parameters.
@@ -233,9 +236,7 @@ class TMWSFastAPIApp:
                 if request.async_execution:
                     # Queue for background execution
                     background_tasks.add_task(
-                        self._execute_tool_async,
-                        tool_name,
-                        request.parameters
+                        self._execute_tool_async, tool_name, request.parameters
                     )
 
                     return MCPToolResponse(
@@ -243,7 +244,7 @@ class TMWSFastAPIApp:
                         tool_name=tool_name,
                         result={"status": "queued", "message": "Tool execution queued"},
                         execution_time_ms=0,
-                        timestamp=datetime.utcnow().isoformat()
+                        timestamp=datetime.utcnow().isoformat(),
                     )
                 else:
                     # Execute synchronously
@@ -256,7 +257,7 @@ class TMWSFastAPIApp:
                         result=result.get("data", result),
                         error=result.get("error"),
                         execution_time_ms=execution_time,
-                        timestamp=datetime.utcnow().isoformat()
+                        timestamp=datetime.utcnow().isoformat(),
                     )
 
             except Exception as e:
@@ -269,7 +270,7 @@ class TMWSFastAPIApp:
                     result=None,
                     error=str(e),
                     execution_time_ms=execution_time,
-                    timestamp=datetime.utcnow().isoformat()
+                    timestamp=datetime.utcnow().isoformat(),
                 )
 
         @app.get("/mcp/tools", response_model=list[dict[str, Any]])
@@ -287,15 +288,19 @@ class TMWSFastAPIApp:
 
                     tools_list = []
                     for tool_category, status in tools_info.items():
-                        tools_list.append({
-                            "category": tool_category,
-                            "status": status,
-                            "description": f"{tool_category.title()} management tools"
-                        })
+                        tools_list.append(
+                            {
+                                "category": tool_category,
+                                "status": status,
+                                "description": f"{tool_category.title()} management tools",
+                            }
+                        )
 
                     return tools_list
                 else:
-                    raise HTTPException(status_code=503, detail="Failed to retrieve tool information")
+                    raise HTTPException(
+                        status_code=503, detail="Failed to retrieve tool information"
+                    )
 
             except Exception as e:
                 logger.error(f"Tool listing failed: {str(e)}")
@@ -316,16 +321,24 @@ class TMWSFastAPIApp:
                     "application_info": {
                         "name": "TMWS FastAPI-MCP Bridge",
                         "version": "2.0.0",
-                        "startup_time": self.startup_time.isoformat() if self.startup_time else None,
-                        "uptime_seconds": uptime
+                        "startup_time": self.startup_time.isoformat()
+                        if self.startup_time
+                        else None,
+                        "uptime_seconds": uptime,
                     },
                     "performance_metrics": {
                         "total_requests": self.request_count,
                         "error_count": self.error_count,
                         "mcp_tool_calls": self.mcp_tool_calls,
-                        "success_rate": ((self.request_count - self.error_count) / self.request_count * 100) if self.request_count > 0 else 100,
-                        "avg_requests_per_minute": (self.request_count / (uptime / 60)) if uptime > 60 else 0
-                    }
+                        "success_rate": (
+                            (self.request_count - self.error_count) / self.request_count * 100
+                        )
+                        if self.request_count > 0
+                        else 100,
+                        "avg_requests_per_minute": (self.request_count / (uptime / 60))
+                        if uptime > 60
+                        else 0,
+                    },
                 }
 
                 # Get MCP server stats if available
@@ -351,18 +364,17 @@ class TMWSFastAPIApp:
                     raise HTTPException(status_code=503, detail="MCP server not available")
 
                 # Trigger optimization via MCP
-                result = await self._call_mcp_tool("optimize_system", {
-                    "optimize_vectors": True,
-                    "cleanup_logs": True,
-                    "analyze_performance": True
-                })
+                result = await self._call_mcp_tool(
+                    "optimize_system",
+                    {"optimize_vectors": True, "cleanup_logs": True, "analyze_performance": True},
+                )
 
                 if result.get("success"):
                     return {
                         "success": True,
                         "message": "System optimization completed",
                         "result": result.get("data", {}),
-                        "timestamp": datetime.utcnow().isoformat()
+                        "timestamp": datetime.utcnow().isoformat(),
                     }
                 else:
                     raise HTTPException(status_code=500, detail="Optimization failed")
@@ -402,18 +414,16 @@ class TMWSFastAPIApp:
                 return {
                     "success": False,
                     "error": f"Tool {tool_name} not available via bridge",
-                    "available_tools": ["get_server_info", "perform_health_check"]
+                    "available_tools": ["get_server_info", "perform_health_check"],
                 }
 
         except Exception as e:
             logger.error(f"MCP tool call failed: {str(e)}")
-            return {
-                "success": False,
-                "error": str(e),
-                "tool_name": tool_name
-            }
+            return {"success": False, "error": str(e), "tool_name": tool_name}
 
-    async def _execute_diagnostic_tool(self, tool_name: str, parameters: dict[str, Any]) -> dict[str, Any]:
+    async def _execute_diagnostic_tool(
+        self, tool_name: str, parameters: dict[str, Any]
+    ) -> dict[str, Any]:
         """Execute diagnostic tools that are registered in the MCP server."""
         try:
             # This is a placeholder implementation
@@ -426,7 +436,7 @@ class TMWSFastAPIApp:
                         "server_info": {
                             "name": "TMWS FastMCP Server",
                             "version": "2.0.0",
-                            "edition": "Artemis - Technical Perfectionist"
+                            "edition": "Artemis - Technical Perfectionist",
                         },
                         "registered_tools": {
                             "memory": "operational",
@@ -434,9 +444,9 @@ class TMWSFastAPIApp:
                             "task": "operational",
                             "workflow": "operational",
                             "system": "operational",
-                            "learning": "operational"
-                        }
-                    }
+                            "learning": "operational",
+                        },
+                    },
                 }
             elif tool_name == "perform_health_check":
                 return {
@@ -447,21 +457,15 @@ class TMWSFastAPIApp:
                         "components": {
                             "database": {"status": "healthy", "details": "Connection OK"},
                             "mcp_server": {"status": "healthy", "details": "Server operational"},
-                            "tools": {"status": "healthy", "details": "All tools registered"}
-                        }
-                    }
+                            "tools": {"status": "healthy", "details": "All tools registered"},
+                        },
+                    },
                 }
             else:
-                return {
-                    "success": False,
-                    "error": f"Unknown diagnostic tool: {tool_name}"
-                }
+                return {"success": False, "error": f"Unknown diagnostic tool: {tool_name}"}
 
         except Exception as e:
-            return {
-                "success": False,
-                "error": str(e)
-            }
+            return {"success": False, "error": str(e)}
 
     async def _execute_tool_async(self, tool_name: str, parameters: dict[str, Any]) -> None:
         """Execute tool asynchronously in background."""
@@ -491,10 +495,4 @@ if __name__ == "__main__":
 
     app = create_tmws_app()
 
-    uvicorn.run(
-        app,
-        host="0.0.0.0",
-        port=8000,
-        log_level="info",
-        access_log=True
-    )
+    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info", access_log=True)
