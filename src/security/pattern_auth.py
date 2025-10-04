@@ -14,7 +14,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime
 
-from ..core.exceptions import AuthenticationError, AuthorizationError
+from ..core.exceptions import AuthenticationException, AuthorizationException
 from ..security.jwt_service import jwt_service
 
 logger = logging.getLogger(__name__)
@@ -104,8 +104,8 @@ class PatternAuthManager:
             Dict with agent_id and agent_role
 
         Raises:
-            AuthenticationError: Invalid token
-            AuthorizationError: Insufficient permissions
+            AuthenticationException: Invalid token
+            AuthorizationException: Insufficient permissions
         """
         # 1. Validate JWT token
         try:
@@ -114,27 +114,27 @@ class PatternAuthManager:
             agent_role = payload.get("role", "readonly")
 
             if not agent_id:
-                raise AuthenticationError("Invalid token: missing agent_id")
+                raise AuthenticationException("Invalid token: missing agent_id")
 
         except Exception as e:
             logger.error(f"JWT validation failed: {e}")
-            raise AuthenticationError(f"Token validation failed: {e}")
+            raise AuthenticationException(f"Token validation failed: {e}")
 
         # 2. Check pattern permissions
         permission = self.permissions.get(pattern_name)
         if not permission:
             # Pattern not registered - deny by default (fail-secure)
             logger.warning(f"Pattern {pattern_name} has no permissions defined")
-            raise AuthorizationError(f"Pattern {pattern_name} not registered for execution")
+            raise AuthorizationException(f"Pattern {pattern_name} not registered for execution")
 
         if not permission.is_allowed(agent_id, agent_role):
             logger.warning(f"Agent {agent_id} (role: {agent_role}) denied access to {pattern_name}")
-            raise AuthorizationError(f"Insufficient permissions for pattern {pattern_name}")
+            raise AuthorizationException(f"Insufficient permissions for pattern {pattern_name}")
 
         # 3. Check rate limiting
         if not self._check_rate_limit(agent_id, pattern_name, permission):
             logger.warning(f"Rate limit exceeded for {agent_id} on {pattern_name}")
-            raise AuthorizationError(f"Rate limit exceeded for pattern {pattern_name}")
+            raise AuthorizationException(f"Rate limit exceeded for pattern {pattern_name}")
 
         # 4. Audit log
         await self._log_pattern_access(agent_id, pattern_name, "ALLOWED")
