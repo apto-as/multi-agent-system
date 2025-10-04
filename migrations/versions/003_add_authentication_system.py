@@ -19,24 +19,46 @@ depends_on = None
 def upgrade() -> None:
     """Add authentication system tables."""
 
-    # Create user status and role enums
+    # Create user status and role enums (skip if already exists)
     user_status_enum = postgresql.ENUM(
         'active', 'inactive', 'suspended', 'locked', 'pending',
-        name='userstatus'
+        name='userstatus',
+        create_type=False
     )
-    user_status_enum.create(op.get_bind())
+    # Safely create enum with duplicate check
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE userstatus AS ENUM ('active', 'inactive', 'suspended', 'locked', 'pending');
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    """)
 
     user_role_enum = postgresql.ENUM(
         'super_admin', 'admin', 'user', 'readonly', 'service',
-        name='userrole'
+        name='userrole',
+        create_type=False
     )
-    user_role_enum.create(op.get_bind())
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE userrole AS ENUM ('super_admin', 'admin', 'user', 'readonly', 'service');
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    """)
 
     api_key_scope_enum = postgresql.ENUM(
         'full', 'read', 'write', 'admin', 'memory', 'tasks', 'workflows',
-        name='apikeyscope'
+        name='apikeyscope',
+        create_type=False
     )
-    api_key_scope_enum.create(op.get_bind())
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE apikeyscope AS ENUM ('full', 'read', 'write', 'admin', 'memory', 'tasks', 'workflows');
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    """)
 
     # Create users table
     op.create_table(

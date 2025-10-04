@@ -24,9 +24,23 @@ depends_on = None
 def upgrade():
     """Upgrade to universal agent platform."""
 
-    # Create AccessLevel enum
-    op.execute("CREATE TYPE accesslevel AS ENUM ('private', 'team', 'shared', 'public', 'system')")
-    op.execute("CREATE TYPE agentstatus AS ENUM ('active', 'inactive', 'suspended', 'deprecated')")
+    # Create AccessLevel enum (skip if already exists from migration 001's create_all)
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE accesslevel AS ENUM ('private', 'team', 'shared', 'public', 'system');
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    """)
+
+    # Create AgentStatus enum (skip if already exists)
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE agentstatus AS ENUM ('active', 'inactive', 'suspended', 'deprecated');
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    """)
 
     # 1. Create new agent tables
     op.create_table('agents',
