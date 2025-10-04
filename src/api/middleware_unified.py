@@ -47,7 +47,7 @@ class UnifiedSecurityMiddleware(BaseHTTPMiddleware):
                 socket_connect_timeout=5,
                 socket_timeout=5,
                 retry_on_timeout=True,
-                health_check_interval=30
+                health_check_interval=30,
             )
             logger.info("Redis connection initialized for middleware")
         except Exception as e:
@@ -73,42 +73,39 @@ class UnifiedSecurityMiddleware(BaseHTTPMiddleware):
                     client_ip=client_ip,
                     request=request,
                     details={"ip": client_ip, "path": str(request.url.path)},
-                    message="Rate limit exceeded for client IP"
+                    message="Rate limit exceeded for client IP",
                 )
                 raise HTTPException(
-                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                    detail="Rate limit exceeded"
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Rate limit exceeded"
                 )
 
             # 2. Security headers validation
             if not self.validate_headers(request):
                 await self.audit_logger.log_event(
-                    event_type=SecurityEventType.INPUT_VALIDATION_FAILED, # More appropriate event type
+                    event_type=SecurityEventType.INPUT_VALIDATION_FAILED,  # More appropriate event type
                     severity=SecurityEventSeverity.MEDIUM,
                     client_ip=client_ip,
                     request=request,
                     details={"ip": client_ip, "path": str(request.url.path)},
-                    message="Invalid request headers detected"
+                    message="Invalid request headers detected",
                 )
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Invalid request headers"
+                    status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid request headers"
                 )
 
             # 3. Request size limit (10MB)
             content_length = request.headers.get("content-length")
             if content_length and int(content_length) > 10 * 1024 * 1024:
                 await self.audit_logger.log_event(
-                    event_type=SecurityEventType.INPUT_VALIDATION_FAILED, # More appropriate event type
+                    event_type=SecurityEventType.INPUT_VALIDATION_FAILED,  # More appropriate event type
                     severity=SecurityEventSeverity.MEDIUM,
                     client_ip=client_ip,
                     request=request,
                     details={"ip": client_ip, "size": content_length},
-                    message="Oversized request detected"
+                    message="Oversized request detected",
                 )
                 raise HTTPException(
-                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                    detail="Request too large"
+                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Request too large"
                 )
 
             # 4. Process request
@@ -125,7 +122,7 @@ class UnifiedSecurityMiddleware(BaseHTTPMiddleware):
                 response.status_code,
                 process_time,
                 client_ip,
-                request_id
+                request_id,
             )
 
             return response
@@ -135,20 +132,15 @@ class UnifiedSecurityMiddleware(BaseHTTPMiddleware):
         except Exception as e:
             # Log error
             await self.audit_logger.log_event(
-                event_type=SecurityEventType.SYSTEM_COMPROMISE, # More appropriate event type for a general error
-                severity=SecurityEventSeverity.CRITICAL, # Critical as it's an unhandled exception
+                event_type=SecurityEventType.SYSTEM_COMPROMISE,  # More appropriate event type for a general error
+                severity=SecurityEventSeverity.CRITICAL,  # Critical as it's an unhandled exception
                 client_ip=client_ip,
                 request=request,
-                details={
-                    "ip": client_ip,
-                    "path": str(request.url.path),
-                    "error": str(e)
-                },
-                message="Unhandled exception during request processing"
+                details={"ip": client_ip, "path": str(request.url.path), "error": str(e)},
+                message="Unhandled exception during request processing",
             )
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Internal server error"
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
             )
 
     async def check_rate_limit(self, client_id: str) -> bool:
@@ -235,6 +227,7 @@ class UnifiedSecurityMiddleware(BaseHTTPMiddleware):
     def generate_request_id(self) -> str:
         """Generate unique request ID."""
         import uuid
+
         return f"req_{uuid.uuid4().hex[:12]}"
 
     async def __del__(self):
@@ -263,7 +256,7 @@ def setup_middleware(app: ASGIApp) -> None:
     app.add_middleware(
         GZipMiddleware,
         minimum_size=1000,  # Only compress responses larger than 1KB
-        compresslevel=6     # Balanced compression level
+        compresslevel=6,  # Balanced compression level
     )
 
     # 3. Unified Security Middleware (combines all security features)

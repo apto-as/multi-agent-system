@@ -65,8 +65,8 @@ async def validate_tactical_system():
 
     # Test 5: Check service state enums
     try:
-        states = [state for state in ServiceState]
-        priorities = [priority for priority in ProcessPriority]
+        states = list(ServiceState)
+        priorities = list(ProcessPriority)
         print(f"✅ Service States: {len(states)} defined")
         print(f"✅ Process Priorities: {len(priorities)} defined")
         validation_results.append(("Service States/Priorities", True))
@@ -122,7 +122,7 @@ async def validate_tactical_system():
 
     # Test 10: Tactical command execution (dry run)
     try:
-        command_result = await coordinator.execute_tactical_command("status")
+        await coordinator.execute_tactical_command("status")
         print("✅ Tactical command execution: SUCCESS")
         validation_results.append(("Command Execution", True))
     except Exception as e:

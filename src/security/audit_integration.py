@@ -23,12 +23,13 @@ async def initialize_audit_logger():
     global _audit_logger
     if _audit_logger is None:
         from ..core.config import get_settings
+
         settings = get_settings()
         _audit_logger = AsyncSecurityAuditLogger(
             log_dir="logs/security",
             max_file_size_mb=100,
             backup_count=10,
-            enable_encryption=settings.is_production
+            enable_encryption=settings.is_production,
         )
         await _audit_logger.initialize()
         logger.info("Security audit logger initialized")
@@ -40,7 +41,7 @@ async def log_security_event(
     request: Request,
     severity: SecurityEventSeverity = SecurityEventSeverity.MEDIUM,
     details: dict[str, Any] | None = None,
-    db_session: AsyncSession | None = None
+    db_session: AsyncSession | None = None,
 ):
     """
     Log a security event to both async logger and database.
@@ -56,7 +57,7 @@ async def log_security_event(
         # Get client info from request
         client_ip = request.client.host if request.client else "unknown"
         user_agent = request.headers.get("user-agent", "")
-        request_id = getattr(request.state, 'request_id', None)
+        request_id = getattr(request.state, "request_id", None)
 
         # Log to async security logger
         audit_logger = await initialize_audit_logger()
@@ -71,7 +72,7 @@ async def log_security_event(
                 method=request.method,
                 user_agent=user_agent,
                 details=details,
-                request=request
+                request=request,
             )
 
         # Also log to database if session provided
@@ -79,7 +80,7 @@ async def log_security_event(
             SecurityEventType.LOGIN_FAILED,
             SecurityEventType.UNAUTHORIZED_ACCESS,
             SecurityEventType.SQL_INJECTION_ATTEMPT,
-            SecurityEventType.RATE_LIMIT_EXCEEDED
+            SecurityEventType.RATE_LIMIT_EXCEEDED,
         ]:
             audit_log = APIAuditLog(
                 endpoint=str(request.url.path),
@@ -87,7 +88,7 @@ async def log_security_event(
                 request_body=details,
                 response_status=429 if event_type == SecurityEventType.RATE_LIMIT_EXCEEDED else 401,
                 user_id=details.get("user_id") if details else None,
-                ip_address=client_ip
+                ip_address=client_ip,
             )
             db_session.add(audit_log)
             await db_session.commit()

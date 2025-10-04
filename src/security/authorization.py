@@ -16,6 +16,7 @@ from ..models.user import APIKeyScope, User, UserRole
 
 class Resource(str, Enum):
     """System resources for authorization."""
+
     USERS = "users"
     API_KEYS = "api_keys"
     AGENTS = "agents"
@@ -29,6 +30,7 @@ class Resource(str, Enum):
 
 class Permission(str, Enum):
     """System permissions."""
+
     # CRUD operations
     CREATE = "create"
     READ = "read"
@@ -49,6 +51,7 @@ class Permission(str, Enum):
 @dataclass
 class AuthorizationContext:
     """Context for authorization decisions."""
+
     user: User
     resource: Resource
     permission: Permission
@@ -66,41 +69,125 @@ class RolePermissionMatrix:
     ROLE_PERMISSIONS = {
         UserRole.SUPER_ADMIN: {
             # Super admin has all permissions
-            Resource.USERS: [Permission.CREATE, Permission.READ, Permission.UPDATE, Permission.DELETE, Permission.ADMIN],
-            Resource.API_KEYS: [Permission.CREATE, Permission.READ, Permission.UPDATE, Permission.DELETE, Permission.ADMIN],
-            Resource.AGENTS: [Permission.CREATE, Permission.READ, Permission.UPDATE, Permission.DELETE, Permission.ADMIN],
-            Resource.MEMORIES: [Permission.CREATE, Permission.READ, Permission.UPDATE, Permission.DELETE, Permission.SHARE],
-            Resource.TASKS: [Permission.CREATE, Permission.READ, Permission.UPDATE, Permission.DELETE, Permission.EXECUTE],
-            Resource.WORKFLOWS: [Permission.CREATE, Permission.READ, Permission.UPDATE, Permission.DELETE, Permission.EXECUTE],
+            Resource.USERS: [
+                Permission.CREATE,
+                Permission.READ,
+                Permission.UPDATE,
+                Permission.DELETE,
+                Permission.ADMIN,
+            ],
+            Resource.API_KEYS: [
+                Permission.CREATE,
+                Permission.READ,
+                Permission.UPDATE,
+                Permission.DELETE,
+                Permission.ADMIN,
+            ],
+            Resource.AGENTS: [
+                Permission.CREATE,
+                Permission.READ,
+                Permission.UPDATE,
+                Permission.DELETE,
+                Permission.ADMIN,
+            ],
+            Resource.MEMORIES: [
+                Permission.CREATE,
+                Permission.READ,
+                Permission.UPDATE,
+                Permission.DELETE,
+                Permission.SHARE,
+            ],
+            Resource.TASKS: [
+                Permission.CREATE,
+                Permission.READ,
+                Permission.UPDATE,
+                Permission.DELETE,
+                Permission.EXECUTE,
+            ],
+            Resource.WORKFLOWS: [
+                Permission.CREATE,
+                Permission.READ,
+                Permission.UPDATE,
+                Permission.DELETE,
+                Permission.EXECUTE,
+            ],
             Resource.AUDIT_LOGS: [Permission.READ, Permission.AUDIT],
             Resource.SYSTEM_CONFIG: [Permission.READ, Permission.UPDATE, Permission.ADMIN],
-            Resource.NAMESPACES: [Permission.CREATE, Permission.READ, Permission.UPDATE, Permission.DELETE, Permission.ADMIN],
+            Resource.NAMESPACES: [
+                Permission.CREATE,
+                Permission.READ,
+                Permission.UPDATE,
+                Permission.DELETE,
+                Permission.ADMIN,
+            ],
         },
-
         UserRole.ADMIN: {
             Resource.USERS: [Permission.CREATE, Permission.READ, Permission.UPDATE],
-            Resource.API_KEYS: [Permission.CREATE, Permission.READ, Permission.UPDATE, Permission.DELETE],
+            Resource.API_KEYS: [
+                Permission.CREATE,
+                Permission.READ,
+                Permission.UPDATE,
+                Permission.DELETE,
+            ],
             Resource.AGENTS: [Permission.READ, Permission.UPDATE],
-            Resource.MEMORIES: [Permission.CREATE, Permission.READ, Permission.UPDATE, Permission.DELETE, Permission.SHARE],
-            Resource.TASKS: [Permission.CREATE, Permission.READ, Permission.UPDATE, Permission.DELETE, Permission.EXECUTE],
-            Resource.WORKFLOWS: [Permission.CREATE, Permission.READ, Permission.UPDATE, Permission.DELETE, Permission.EXECUTE],
+            Resource.MEMORIES: [
+                Permission.CREATE,
+                Permission.READ,
+                Permission.UPDATE,
+                Permission.DELETE,
+                Permission.SHARE,
+            ],
+            Resource.TASKS: [
+                Permission.CREATE,
+                Permission.READ,
+                Permission.UPDATE,
+                Permission.DELETE,
+                Permission.EXECUTE,
+            ],
+            Resource.WORKFLOWS: [
+                Permission.CREATE,
+                Permission.READ,
+                Permission.UPDATE,
+                Permission.DELETE,
+                Permission.EXECUTE,
+            ],
             Resource.AUDIT_LOGS: [Permission.READ],
             Resource.SYSTEM_CONFIG: [Permission.READ],
             Resource.NAMESPACES: [Permission.READ, Permission.UPDATE],
         },
-
         UserRole.USER: {
             Resource.USERS: [Permission.READ],  # Own profile only
-            Resource.API_KEYS: [Permission.CREATE, Permission.READ, Permission.DELETE],  # Own keys only
+            Resource.API_KEYS: [
+                Permission.CREATE,
+                Permission.READ,
+                Permission.DELETE,
+            ],  # Own keys only
             Resource.AGENTS: [Permission.READ],
-            Resource.MEMORIES: [Permission.CREATE, Permission.READ, Permission.UPDATE, Permission.DELETE, Permission.SHARE],
-            Resource.TASKS: [Permission.CREATE, Permission.READ, Permission.UPDATE, Permission.DELETE, Permission.EXECUTE],
-            Resource.WORKFLOWS: [Permission.CREATE, Permission.READ, Permission.UPDATE, Permission.DELETE, Permission.EXECUTE],
+            Resource.MEMORIES: [
+                Permission.CREATE,
+                Permission.READ,
+                Permission.UPDATE,
+                Permission.DELETE,
+                Permission.SHARE,
+            ],
+            Resource.TASKS: [
+                Permission.CREATE,
+                Permission.READ,
+                Permission.UPDATE,
+                Permission.DELETE,
+                Permission.EXECUTE,
+            ],
+            Resource.WORKFLOWS: [
+                Permission.CREATE,
+                Permission.READ,
+                Permission.UPDATE,
+                Permission.DELETE,
+                Permission.EXECUTE,
+            ],
             Resource.AUDIT_LOGS: [],  # No access
             Resource.SYSTEM_CONFIG: [],  # No access
             Resource.NAMESPACES: [Permission.READ],  # Own namespace only
         },
-
         UserRole.READONLY: {
             Resource.USERS: [Permission.READ],  # Own profile only
             Resource.API_KEYS: [Permission.READ],  # Own keys only
@@ -112,13 +199,17 @@ class RolePermissionMatrix:
             Resource.SYSTEM_CONFIG: [],  # No access
             Resource.NAMESPACES: [Permission.READ],  # Own namespace only
         },
-
         UserRole.SERVICE: {
             Resource.USERS: [],  # No user management
             Resource.API_KEYS: [],  # No key management
             Resource.AGENTS: [Permission.READ],
             Resource.MEMORIES: [Permission.CREATE, Permission.READ, Permission.UPDATE],
-            Resource.TASKS: [Permission.CREATE, Permission.READ, Permission.UPDATE, Permission.EXECUTE],
+            Resource.TASKS: [
+                Permission.CREATE,
+                Permission.READ,
+                Permission.UPDATE,
+                Permission.EXECUTE,
+            ],
             Resource.WORKFLOWS: [Permission.CREATE, Permission.READ, Permission.EXECUTE],
             Resource.AUDIT_LOGS: [],  # No access
             Resource.SYSTEM_CONFIG: [],  # No access
@@ -132,7 +223,9 @@ class RolePermissionMatrix:
         return set(cls.ROLE_PERMISSIONS.get(role, {}).get(resource, []))
 
     @classmethod
-    def has_permission(cls, user_roles: list[UserRole], resource: Resource, permission: Permission) -> bool:
+    def has_permission(
+        cls, user_roles: list[UserRole], resource: Resource, permission: Permission
+    ) -> bool:
         """Check if any user role has permission on resource."""
         for role in user_roles:
             role_permissions = cls.get_role_permissions(role, resource)
@@ -148,12 +241,29 @@ class APIKeyScopeMapper:
         APIKeyScope.FULL: {
             # Full access to most resources
             Resource.AGENTS: [Permission.READ],
-            Resource.MEMORIES: [Permission.CREATE, Permission.READ, Permission.UPDATE, Permission.DELETE, Permission.SHARE],
-            Resource.TASKS: [Permission.CREATE, Permission.READ, Permission.UPDATE, Permission.DELETE, Permission.EXECUTE],
-            Resource.WORKFLOWS: [Permission.CREATE, Permission.READ, Permission.UPDATE, Permission.DELETE, Permission.EXECUTE],
+            Resource.MEMORIES: [
+                Permission.CREATE,
+                Permission.READ,
+                Permission.UPDATE,
+                Permission.DELETE,
+                Permission.SHARE,
+            ],
+            Resource.TASKS: [
+                Permission.CREATE,
+                Permission.READ,
+                Permission.UPDATE,
+                Permission.DELETE,
+                Permission.EXECUTE,
+            ],
+            Resource.WORKFLOWS: [
+                Permission.CREATE,
+                Permission.READ,
+                Permission.UPDATE,
+                Permission.DELETE,
+                Permission.EXECUTE,
+            ],
             Resource.NAMESPACES: [Permission.READ],
         },
-
         APIKeyScope.READ: {
             Resource.AGENTS: [Permission.READ],
             Resource.MEMORIES: [Permission.READ],
@@ -161,7 +271,6 @@ class APIKeyScopeMapper:
             Resource.WORKFLOWS: [Permission.READ],
             Resource.NAMESPACES: [Permission.READ],
         },
-
         APIKeyScope.WRITE: {
             Resource.AGENTS: [Permission.READ],
             Resource.MEMORIES: [Permission.CREATE, Permission.READ, Permission.UPDATE],
@@ -169,38 +278,80 @@ class APIKeyScopeMapper:
             Resource.WORKFLOWS: [Permission.CREATE, Permission.READ, Permission.UPDATE],
             Resource.NAMESPACES: [Permission.READ],
         },
-
         APIKeyScope.ADMIN: {
-            Resource.API_KEYS: [Permission.CREATE, Permission.READ, Permission.UPDATE, Permission.DELETE],
+            Resource.API_KEYS: [
+                Permission.CREATE,
+                Permission.READ,
+                Permission.UPDATE,
+                Permission.DELETE,
+            ],
             Resource.AGENTS: [Permission.READ, Permission.UPDATE],
-            Resource.MEMORIES: [Permission.CREATE, Permission.READ, Permission.UPDATE, Permission.DELETE, Permission.SHARE],
-            Resource.TASKS: [Permission.CREATE, Permission.READ, Permission.UPDATE, Permission.DELETE, Permission.EXECUTE],
-            Resource.WORKFLOWS: [Permission.CREATE, Permission.READ, Permission.UPDATE, Permission.DELETE, Permission.EXECUTE],
+            Resource.MEMORIES: [
+                Permission.CREATE,
+                Permission.READ,
+                Permission.UPDATE,
+                Permission.DELETE,
+                Permission.SHARE,
+            ],
+            Resource.TASKS: [
+                Permission.CREATE,
+                Permission.READ,
+                Permission.UPDATE,
+                Permission.DELETE,
+                Permission.EXECUTE,
+            ],
+            Resource.WORKFLOWS: [
+                Permission.CREATE,
+                Permission.READ,
+                Permission.UPDATE,
+                Permission.DELETE,
+                Permission.EXECUTE,
+            ],
             Resource.AUDIT_LOGS: [Permission.READ],
             Resource.NAMESPACES: [Permission.READ, Permission.UPDATE],
         },
-
         APIKeyScope.MEMORY: {
-            Resource.MEMORIES: [Permission.CREATE, Permission.READ, Permission.UPDATE, Permission.DELETE, Permission.SHARE],
+            Resource.MEMORIES: [
+                Permission.CREATE,
+                Permission.READ,
+                Permission.UPDATE,
+                Permission.DELETE,
+                Permission.SHARE,
+            ],
             Resource.NAMESPACES: [Permission.READ],
         },
-
         APIKeyScope.TASKS: {
-            Resource.TASKS: [Permission.CREATE, Permission.READ, Permission.UPDATE, Permission.DELETE, Permission.EXECUTE],
+            Resource.TASKS: [
+                Permission.CREATE,
+                Permission.READ,
+                Permission.UPDATE,
+                Permission.DELETE,
+                Permission.EXECUTE,
+            ],
             Resource.AGENTS: [Permission.READ],
             Resource.NAMESPACES: [Permission.READ],
         },
-
         APIKeyScope.WORKFLOWS: {
-            Resource.WORKFLOWS: [Permission.CREATE, Permission.READ, Permission.UPDATE, Permission.DELETE, Permission.EXECUTE],
-            Resource.TASKS: [Permission.READ, Permission.EXECUTE],  # Workflows may need to execute tasks
+            Resource.WORKFLOWS: [
+                Permission.CREATE,
+                Permission.READ,
+                Permission.UPDATE,
+                Permission.DELETE,
+                Permission.EXECUTE,
+            ],
+            Resource.TASKS: [
+                Permission.READ,
+                Permission.EXECUTE,
+            ],  # Workflows may need to execute tasks
             Resource.AGENTS: [Permission.READ],
             Resource.NAMESPACES: [Permission.READ],
         },
     }
 
     @classmethod
-    def has_scope_permission(cls, scopes: list[APIKeyScope], resource: Resource, permission: Permission) -> bool:
+    def has_scope_permission(
+        cls, scopes: list[APIKeyScope], resource: Resource, permission: Permission
+    ) -> bool:
         """Check if API key scopes allow permission on resource."""
         for scope in scopes:
             scope_permissions = cls.SCOPE_PERMISSIONS.get(scope, {})
@@ -227,16 +378,16 @@ class AuthorizationService:
             return True
 
         # Check role-based permissions
-        if self.role_matrix.has_permission(context.user.roles, context.resource, context.permission):
+        if self.role_matrix.has_permission(
+            context.user.roles, context.resource, context.permission
+        ):
             # Additional context checks
             return self._check_additional_constraints(context)
 
         # Check API key scope permissions if applicable
         if context.api_key_scopes:
             return self.scope_mapper.has_scope_permission(
-                context.api_key_scopes,
-                context.resource,
-                context.permission
+                context.api_key_scopes, context.resource, context.permission
             )
 
         return False
@@ -315,7 +466,9 @@ class AuthorizationService:
 
         return list(set(permissions))  # Remove duplicates
 
-    def validate_api_key_scope(self, required_scope: APIKeyScope, available_scopes: list[APIKeyScope]) -> bool:
+    def validate_api_key_scope(
+        self, required_scope: APIKeyScope, available_scopes: list[APIKeyScope]
+    ) -> bool:
         """Validate API key has required scope."""
         if APIKeyScope.FULL in available_scopes:
             return True
@@ -329,6 +482,7 @@ authorization_service = AuthorizationService()
 
 def require_permission(resource: Resource, permission: Permission, check_ownership: bool = False):
     """Decorator for route permission checking."""
+
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
@@ -336,8 +490,7 @@ def require_permission(resource: Resource, permission: Permission, check_ownersh
             user = kwargs.get("user") or kwargs.get("current_user")
             if not user:
                 raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Authentication required"
+                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required"
                 )
 
             # Extract additional context
@@ -352,53 +505,88 @@ def require_permission(resource: Resource, permission: Permission, check_ownersh
                 permission=permission,
                 resource_id=resource_id,
                 namespace=namespace,
-                api_key_scopes=api_key_scopes
+                api_key_scopes=api_key_scopes,
             )
 
             # Check permission
             if not authorization_service.check_permission(auth_context):
                 raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Insufficient permissions"
+                    status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions"
                 )
 
             # Check ownership if required
             if check_ownership and not authorization_service.check_resource_ownership(auth_context):
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Access denied: not resource owner"
+                    detail="Access denied: not resource owner",
                 )
 
             return await func(*args, **kwargs)
+
         return wrapper
+
     return decorator
 
 
 def require_role(*required_roles: UserRole):
     """Decorator for role-based access control."""
+
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
             user = kwargs.get("user") or kwargs.get("current_user")
             if not user:
                 raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Authentication required"
+                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required"
                 )
 
             if not any(role in user.roles for role in required_roles):
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
-                    detail=f"Required roles: {[r.value for r in required_roles]}"
+                    detail=f"Required roles: {[r.value for r in required_roles]}",
                 )
 
             return await func(*args, **kwargs)
+
         return wrapper
+
+    return decorator
+
+
+def require_permissions(resource: Resource, *permissions: Permission):
+    """
+    Decorator for checking permissions on a resource.
+    Can be used on FastAPI route handlers.
+    """
+
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            # Get user from kwargs (injected by dependency)
+            user = kwargs.get("current_user")
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required"
+                )
+
+            # Check permissions
+            for permission in permissions:
+                if not authorization_service.check_permission(user, resource, permission):
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail=f"Missing permission: {permission.value} on {resource.value}",
+                    )
+
+            return await func(*args, **kwargs)
+
+        return wrapper
+
     return decorator
 
 
 def require_api_scope(*required_scopes: APIKeyScope):
     """Decorator for API key scope checking."""
+
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
@@ -408,12 +596,17 @@ def require_api_scope(*required_scopes: APIKeyScope):
                 # No API key authentication - check user permissions instead
                 return await func(*args, **kwargs)
 
-            if not any(authorization_service.validate_api_key_scope(scope, api_key_scopes) for scope in required_scopes):
+            if not any(
+                authorization_service.validate_api_key_scope(scope, api_key_scopes)
+                for scope in required_scopes
+            ):
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
-                    detail=f"Required API scopes: {[s.value for s in required_scopes]}"
+                    detail=f"Required API scopes: {[s.value for s in required_scopes]}",
                 )
 
             return await func(*args, **kwargs)
+
         return wrapper
+
     return decorator

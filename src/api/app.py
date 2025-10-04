@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 from ..core.config import get_settings
 from ..core.database import DatabaseHealthCheck, close_db_connections, create_tables
 from .middleware_unified import setup_middleware
-from .routers import health, memory, persona, task, websocket_mcp, workflow
+from .routers import auth_keys, health, memory, persona, task, websocket_mcp, workflow
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -68,66 +68,112 @@ def create_app() -> FastAPI:
         Configured FastAPI application
     """
 
+    # Enhanced API description with authentication information
+    api_description = f"""{settings.api_description}
+
+## Authentication
+
+TMWS supports two authentication methods:
+
+1. **JWT Token Authentication**: For user sessions and interactive applications
+   - Obtain token via `/api/v1/auth/login`
+   - Include in header: `Authorization: Bearer <token>`
+
+2. **API Key Authentication**: For service integrations and automation
+   - Create key via `/api/v1/auth/api-keys`
+   - Include in header: `X-API-Key: <key>`
+
+**Current Mode**: {'Production (Authentication Required)' if settings.auth_enabled else 'Development (No Authentication)'}
+
+📚 [Full Authentication Guide](https://github.com/apto-as/tmws/blob/master/docs/API_AUTHENTICATION.md)
+"""
+
     # Create FastAPI app with security-focused configuration
     app = FastAPI(
         title=settings.api_title,
         version=settings.api_version,
-        description=settings.api_description,
+        description=api_description,
         lifespan=lifespan,
-
         # Security configurations
         docs_url="/docs" if not settings.is_production else None,
         redoc_url="/redoc" if not settings.is_production else None,
         openapi_url="/openapi.json" if not settings.is_production else None,
-
         # Additional security settings
         swagger_ui_parameters={
             "persistAuthorization": False,
             "displayRequestDuration": True,
             "tryItOutEnabled": not settings.is_production,
-        } if not settings.is_production else None,
+        }
+        if not settings.is_production
+        else None,
     )
 
     # Setup unified middleware
     setup_middleware(app)
 
+    # Define OpenAPI security schemes
+    def custom_openapi():
+        if app.openapi_schema:
+            return app.openapi_schema
+
+        from fastapi.openapi.utils import get_openapi
+
+        openapi_schema = get_openapi(
+            title=app.title,
+            version=app.version,
+            description=app.description,
+            routes=app.routes,
+        )
+
+        # Add security schemes
+        openapi_schema["components"]["securitySchemes"] = {
+            "BearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT",
+                "description": "JWT token obtained from /api/v1/auth/login endpoint",
+            },
+            "ApiKeyAuth": {
+                "type": "apiKey",
+                "in": "header",
+                "name": "X-API-Key",
+                "description": "API key obtained from /api/v1/auth/api-keys endpoint",
+            },
+        }
+
+        # Add security requirement to all endpoints by default
+        # Individual endpoints can override this
+        if settings.auth_enabled:
+            openapi_schema["security"] = [{"BearerAuth": []}, {"ApiKeyAuth": []}]
+
+        # Add authentication status to info
+        openapi_schema["info"]["x-authentication"] = {
+            "enabled": settings.auth_enabled,
+            "mode": "production" if settings.auth_enabled else "development",
+            "methods": ["JWT Bearer Token", "API Key"],
+        }
+
+        app.openapi_schema = openapi_schema
+        return app.openapi_schema
+
+    app.openapi = custom_openapi
+
     # Include routers
-    app.include_router(
-        health.router,
-        prefix="/health",
-        tags=["health"]
-    )
+    app.include_router(health.router, prefix="/health", tags=["health"])
 
-    app.include_router(
-        memory.router,
-        prefix="/api/v1/memory",
-        tags=["memory"]
-    )
+    # Authentication and API key management
+    app.include_router(auth_keys.router, prefix="/api/v1", tags=["authentication"])
 
-    app.include_router(
-        persona.router,
-        prefix="/api/v1/personas",
-        tags=["personas"]
-    )
+    app.include_router(memory.router, prefix="/api/v1/memory", tags=["memory"])
 
-    app.include_router(
-        task.router,
-        prefix="/api/v1/tasks",
-        tags=["tasks"]
-    )
+    app.include_router(persona.router, prefix="/api/v1/personas", tags=["personas"])
 
-    app.include_router(
-        workflow.router,
-        prefix="/api/v1/workflows",
-        tags=["workflows"]
-    )
+    app.include_router(task.router, prefix="/api/v1/tasks", tags=["tasks"])
+
+    app.include_router(workflow.router, prefix="/api/v1/workflows", tags=["workflows"])
 
     # WebSocket MCP endpoint - Elite real-time communication
-    app.include_router(
-        websocket_mcp.router,
-        prefix="/ws",
-        tags=["websocket", "mcp"]
-    )
+    app.include_router(websocket_mcp.router, prefix="/ws", tags=["websocket", "mcp"])
 
     # Root endpoint
     @app.get("/")
@@ -151,14 +197,14 @@ def create_app() -> FastAPI:
                 "error": "Not Found",
                 "message": "The requested resource was not found",
                 "path": str(request.url.path),
-                "request_id": getattr(request.state, 'request_id', None)
-            }
+                "request_id": getattr(request.state, "request_id", None),
+            },
         )
 
     @app.exception_handler(500)
     async def internal_error_handler(request: Request, exc: Exception):
         """Handle 500 errors."""
-        request_id = getattr(request.state, 'request_id', None)
+        request_id = getattr(request.state, "request_id", None)
         logger.error(f"Internal server error {request_id}: {str(exc)}", exc_info=True)
 
         return JSONResponse(
@@ -166,8 +212,8 @@ def create_app() -> FastAPI:
             content={
                 "error": "Internal Server Error",
                 "message": "An unexpected error occurred" if settings.is_production else str(exc),
-                "request_id": request_id
-            }
+                "request_id": request_id,
+            },
         )
 
     @app.exception_handler(HTTPException)
@@ -178,8 +224,8 @@ def create_app() -> FastAPI:
             content={
                 "error": exc.detail,
                 "status_code": exc.status_code,
-                "request_id": getattr(request.state, 'request_id', None)
-            }
+                "request_id": getattr(request.state, "request_id", None),
+            },
         )
 
     # Validation error handler
@@ -195,8 +241,8 @@ def create_app() -> FastAPI:
                 "error": "Validation Error",
                 "message": "Request validation failed",
                 "details": exc.errors(),
-                "request_id": getattr(request.state, 'request_id', None)
-            }
+                "request_id": getattr(request.state, "request_id", None),
+            },
         )
 
     @app.exception_handler(ValidationError)
@@ -208,8 +254,8 @@ def create_app() -> FastAPI:
                 "error": "Data Validation Error",
                 "message": "Data validation failed",
                 "details": exc.errors(),
-                "request_id": getattr(request.state, 'request_id', None)
-            }
+                "request_id": getattr(request.state, "request_id", None),
+            },
         )
 
     # Add custom headers
@@ -260,7 +306,10 @@ def get_app_info() -> dict[str, Any]:
         "security_headers": True,
         "rate_limiting": settings.rate_limit_enabled,
         "cors_enabled": bool(settings.cors_origins),
-        "database_url": settings.database_url_async.split('@')[0] + "@[REDACTED]",  # Hide credentials
+        "database_url": settings.database_url_async.split("@")[0]
+        + "@[REDACTED]",  # Hide credentials
     }
+
+
 # Create default app instance for uvicorn
 app = create_app()

@@ -33,10 +33,7 @@ class GracefulShutdownHandler:
         loop = asyncio.get_running_loop()
 
         for sig in (signal.SIGTERM, signal.SIGINT):
-            loop.add_signal_handler(
-                sig,
-                lambda s=sig: asyncio.create_task(self._signal_handler(s))
-            )
+            loop.add_signal_handler(sig, lambda s=sig: asyncio.create_task(self._signal_handler(s)))
 
     async def _signal_handler(self, signum: int) -> None:
         """Handle shutdown signals."""
@@ -59,18 +56,20 @@ class GracefulShutdownHandler:
         cleanup_results = []
         for i, task in enumerate(self.cleanup_tasks):
             try:
-                logger.info(f"Executing cleanup task {i+1}/{len(self.cleanup_tasks)}")
+                logger.info(f"Executing cleanup task {i + 1}/{len(self.cleanup_tasks)}")
                 if asyncio.iscoroutinefunction(task):
                     await task()
                 else:
                     task()
                 cleanup_results.append(True)
             except Exception as e:
-                logger.error(f"Cleanup task {i+1} failed: {e}")
+                logger.error(f"Cleanup task {i + 1} failed: {e}")
                 cleanup_results.append(False)
 
         successful_cleanups = sum(cleanup_results)
-        logger.info(f"Cleanup completed: {successful_cleanups}/{len(self.cleanup_tasks)} tasks successful")
+        logger.info(
+            f"Cleanup completed: {successful_cleanups}/{len(self.cleanup_tasks)} tasks successful"
+        )
 
 
 # Global shutdown handler instance
@@ -87,16 +86,18 @@ async def lifespan_handler(app):
     await shutdown_handler.setup_signal_handlers()
 
     # Add database cleanup
-    from src.core.unified_database import get_database
-    db = get_database()
-    shutdown_handler.add_cleanup_task(db.close_all_connections)
+    from src.core.database import close_db_connections
+
+    shutdown_handler.add_cleanup_task(close_db_connections)
 
     # Add Redis cleanup
     try:
         from src.core.config import get_settings
+
         settings = get_settings()
-        if hasattr(settings, 'redis_url') and settings.redis_url:
+        if hasattr(settings, "redis_url") and settings.redis_url:
             import redis.asyncio as redis
+
             redis_client = redis.from_url(settings.redis_url)
             shutdown_handler.add_cleanup_task(redis_client.close)
     except Exception as e:

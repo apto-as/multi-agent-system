@@ -40,6 +40,8 @@ dependencies = [
     "email-validator>=2.1.0",
     "cryptography>=42.0.0",
     "PyJWT>=2.8.0",
+    "hvac>=2.0.0",
+    "bleach[css]>=6.0.0",  # HTML sanitization with CSS support - REQUIRED
     # Background Tasks
     "celery>=5.3.0",
     "redis>=5.0.0",
@@ -131,6 +133,8 @@ strict_equality = true
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+
+[tool.ruff.lint]
 select = [
     "E",    # pycodestyle errors
     "W",    # pycodestyle warnings

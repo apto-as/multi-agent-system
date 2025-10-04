@@ -22,11 +22,13 @@ logger = logging.getLogger(__name__)
 
 class VaultAuthError(SecurityError):
     """Raised when Vault authentication fails"""
+
     pass
 
 
 class VaultConnectionError(SecurityError):
     """Raised when Vault connection fails"""
+
     pass
 
 
@@ -43,9 +45,9 @@ class VaultClient:
         mount_point: str = "tmws",
         max_retries: int = 3,
         retry_delay: float = 1.0,
-        token_renewal_threshold: int = 300  # 5 minutes
+        token_renewal_threshold: int = 300,  # 5 minutes
     ):
-        self.vault_url = vault_url.rstrip('/')
+        self.vault_url = vault_url.rstrip("/")
         self.auth_method = auth_method
         self.mount_point = mount_point
         self.max_retries = max_retries
@@ -88,17 +90,14 @@ class VaultClient:
                 limit=10,
                 limit_per_host=5,
                 keepalive_timeout=30,
-                enable_cleanup_closed=True
+                enable_cleanup_closed=True,
             )
 
             timeout = aiohttp.ClientTimeout(total=30, connect=10)
             self._session = aiohttp.ClientSession(
                 connector=connector,
                 timeout=timeout,
-                headers={
-                    "User-Agent": "TMWS-Vault-Client/3.1",
-                    "X-Vault-Request": "true"
-                }
+                headers={"User-Agent": "TMWS-Vault-Client/3.1", "X-Vault-Request": "true"},
             )
 
             # Test connection
@@ -157,15 +156,11 @@ class VaultClient:
         if not self.role_id or not self.secret_id:
             raise VaultAuthError("AppRole credentials not provided")
 
-        auth_data = {
-            "role_id": self.role_id,
-            "secret_id": self.secret_id
-        }
+        auth_data = {"role_id": self.role_id, "secret_id": self.secret_id}
 
         try:
             async with self._session.post(
-                f"{self.vault_url}/v1/auth/approle/login",
-                json=auth_data
+                f"{self.vault_url}/v1/auth/approle/login", json=auth_data
             ) as response:
                 if response.status != 200:
                     error_text = await response.text()
@@ -195,8 +190,7 @@ class VaultClient:
         try:
             # Verify token
             async with self._session.get(
-                f"{self.vault_url}/v1/auth/token/lookup-self",
-                headers={"X-Vault-Token": self.token}
+                f"{self.vault_url}/v1/auth/token/lookup-self", headers={"X-Vault-Token": self.token}
             ) as response:
                 if response.status != 200:
                     raise VaultAuthError("Token authentication failed")
@@ -210,7 +204,7 @@ class VaultClient:
                 expire_time = data.get("expire_time")
                 if expire_time:
                     self._token_expires_at = datetime.fromisoformat(
-                        expire_time.replace('Z', '+00:00')
+                        expire_time.replace("Z", "+00:00")
                     )
 
                 # Set token in hvac client
@@ -226,14 +220,10 @@ class VaultClient:
             with open("/var/run/secrets/kubernetes.io/serviceaccount/token") as f:
                 jwt_token = f.read().strip()
 
-            auth_data = {
-                "role": "tmws-app",
-                "jwt": jwt_token
-            }
+            auth_data = {"role": "tmws-app", "jwt": jwt_token}
 
             async with self._session.post(
-                f"{self.vault_url}/v1/auth/kubernetes/login",
-                json=auth_data
+                f"{self.vault_url}/v1/auth/kubernetes/login", json=auth_data
             ) as response:
                 if response.status != 200:
                     error_text = await response.text()
@@ -262,9 +252,11 @@ class VaultClient:
             return
 
         # Check if token is expiring soon
-        if (self._token_expires_at and
-            datetime.utcnow() + timedelta(seconds=self.token_renewal_threshold) >= self._token_expires_at):
-
+        if (
+            self._token_expires_at
+            and datetime.utcnow() + timedelta(seconds=self.token_renewal_threshold)
+            >= self._token_expires_at
+        ):
             if self._token_renewable:
                 await self._renew_token()
             else:
@@ -275,8 +267,7 @@ class VaultClient:
         """Renew the current Vault token"""
         try:
             async with self._session.post(
-                f"{self.vault_url}/v1/auth/token/renew-self",
-                headers={"X-Vault-Token": self.token}
+                f"{self.vault_url}/v1/auth/token/renew-self", headers={"X-Vault-Token": self.token}
             ) as response:
                 if response.status != 200:
                     logger.warning("Token renewal failed, re-authenticating")
@@ -297,11 +288,7 @@ class VaultClient:
             await self.authenticate()
 
     async def _make_vault_request(
-        self,
-        method: str,
-        path: str,
-        data: dict | None = None,
-        params: dict | None = None
+        self, method: str, path: str, data: dict | None = None, params: dict | None = None
     ) -> dict[str, Any]:
         """Make a request to Vault with retry logic and authentication"""
         await self._ensure_authenticated()
@@ -314,7 +301,6 @@ class VaultClient:
                 async with self._session.request(
                     method, url, json=data, params=params, headers=headers
                 ) as response:
-
                     if response.status == 403:
                         # Token might be expired, try re-authenticating
                         await self.authenticate()
@@ -323,7 +309,9 @@ class VaultClient:
 
                     if response.status >= 400:
                         error_text = await response.text()
-                        raise SecurityError(f"Vault request failed: {response.status} - {error_text}")
+                        raise SecurityError(
+                            f"Vault request failed: {response.status} - {error_text}"
+                        )
 
                     if response.status == 204:  # No content
                         return {}
@@ -332,9 +320,11 @@ class VaultClient:
 
             except aiohttp.ClientError as e:
                 if attempt < self.max_retries - 1:
-                    await asyncio.sleep(self.retry_delay * (2 ** attempt))
+                    await asyncio.sleep(self.retry_delay * (2**attempt))
                     continue
-                raise VaultConnectionError(f"Vault request failed after {self.max_retries} attempts: {e}")
+                raise VaultConnectionError(
+                    f"Vault request failed after {self.max_retries} attempts: {e}"
+                )
 
         raise VaultConnectionError("Max retries exceeded")
 
@@ -386,7 +376,7 @@ class VaultClient:
             "username": creds_data.get("username"),
             "password": creds_data.get("password"),
             "lease_id": response.get("lease_id"),
-            "lease_duration": response.get("lease_duration")
+            "lease_duration": response.get("lease_duration"),
         }
 
     async def revoke_lease(self, lease_id: str) -> None:
@@ -403,9 +393,7 @@ class VaultClient:
         encoded_plaintext = base64.b64encode(plaintext.encode()).decode()
 
         response = await self._make_vault_request(
-            "POST",
-            f"transit/encrypt/{key_name}",
-            data={"plaintext": encoded_plaintext}
+            "POST", f"transit/encrypt/{key_name}", data={"plaintext": encoded_plaintext}
         )
 
         return response["data"]["ciphertext"]
@@ -415,9 +403,7 @@ class VaultClient:
         import base64
 
         response = await self._make_vault_request(
-            "POST",
-            f"transit/decrypt/{key_name}",
-            data={"ciphertext": ciphertext}
+            "POST", f"transit/decrypt/{key_name}", data={"ciphertext": ciphertext}
         )
 
         encoded_plaintext = response["data"]["plaintext"]
@@ -430,13 +416,10 @@ class VaultClient:
         common_name: str,
         role: str = "tmws-internal",
         alt_names: list[str] | None = None,
-        ttl: str = "24h"
+        ttl: str = "24h",
     ) -> dict[str, str]:
         """Generate a certificate using Vault PKI"""
-        data = {
-            "common_name": common_name,
-            "ttl": ttl
-        }
+        data = {"common_name": common_name, "ttl": ttl}
 
         if alt_names:
             data["alt_names"] = ",".join(alt_names)
@@ -449,7 +432,7 @@ class VaultClient:
             "private_key": cert_data.get("private_key"),
             "ca_chain": cert_data.get("ca_chain"),
             "serial_number": cert_data.get("serial_number"),
-            "lease_id": response.get("lease_id")
+            "lease_id": response.get("lease_id"),
         }
 
     # Health and Status
@@ -465,8 +448,10 @@ class VaultClient:
             return {
                 "status": "healthy",
                 "authenticated": True,
-                "token_expires_at": self._token_expires_at.isoformat() if self._token_expires_at else None,
-                "vault_url": self.vault_url
+                "token_expires_at": self._token_expires_at.isoformat()
+                if self._token_expires_at
+                else None,
+                "vault_url": self.vault_url,
             }
 
         except Exception as e:
@@ -474,7 +459,7 @@ class VaultClient:
                 "status": "unhealthy",
                 "error": str(e),
                 "authenticated": False,
-                "vault_url": self.vault_url
+                "vault_url": self.vault_url,
             }
 
 
@@ -488,11 +473,7 @@ def create_vault_client() -> VaultClient:
     if not vault_url:
         raise ConfigurationError("TMWS_VAULT_URL environment variable is required")
 
-    return VaultClient(
-        vault_url=vault_url,
-        auth_method=auth_method,
-        mount_point=mount_point
-    )
+    return VaultClient(vault_url=vault_url, auth_method=auth_method, mount_point=mount_point)
 
 
 # Global client instance (singleton)

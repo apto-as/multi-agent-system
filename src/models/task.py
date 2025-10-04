@@ -9,7 +9,8 @@ from typing import Any
 from uuid import UUID
 
 import sqlalchemy as sa
-from sqlalchemy import JSON, Boolean, CheckConstraint, DateTime, Float, Index, Integer, Text
+from sqlalchemy import Boolean, CheckConstraint, DateTime, Float, Index, Integer, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -19,6 +20,7 @@ from .base import MetadataMixin, TMWSBase
 
 class TaskStatus(str, Enum):
     """Task execution status."""
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -29,6 +31,7 @@ class TaskStatus(str, Enum):
 
 class TaskPriority(str, Enum):
     """Task priority levels."""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -51,39 +54,24 @@ class Task(TMWSBase, MetadataMixin):
     __tablename__ = "tasks"
 
     # Task identification and content
-    title: Mapped[str] = mapped_column(
-        Text,
-        nullable=False,
-        comment="Task title"
-    )
+    title: Mapped[str] = mapped_column(Text, nullable=False, comment="Task title")
 
     description: Mapped[str] = mapped_column(
-        Text,
-        nullable=False,
-        comment="Detailed task description"
+        Text, nullable=False, comment="Detailed task description"
     )
 
     task_type: Mapped[str] = mapped_column(
-        Text,
-        nullable=False,
-        default="general",
-        index=True,
-        comment="Task type for categorization"
+        Text, nullable=False, default="general", index=True, comment="Task type for categorization"
     )
 
     # Agent assignment (replaces persona assignment)
     assigned_agent_id: Mapped[str | None] = mapped_column(
-        Text,
-        nullable=True,
-        index=True,
-        comment="Primary agent assigned to this task"
+        Text, nullable=True, index=True, comment="Primary agent assigned to this task"
     )
 
     # Collaborative assignment support
     collaborating_agents: Mapped[list[str]] = mapped_column(
-        JSON,
-        default=list,
-        comment="Additional agents collaborating on this task"
+        JSONB, default=list, comment="Additional agents collaborating on this task"
     )
 
     # Namespace and access control
@@ -92,7 +80,7 @@ class Task(TMWSBase, MetadataMixin):
         nullable=False,
         index=True,
         default="default",
-        comment="Namespace for task isolation and organization"
+        comment="Namespace for task isolation and organization",
     )
 
     access_level: Mapped[str] = mapped_column(
@@ -100,7 +88,7 @@ class Task(TMWSBase, MetadataMixin):
         nullable=False,
         default="private",
         index=True,
-        comment="Access level: 'private', 'shared', 'public', 'system'"
+        comment="Access level: 'private', 'shared', 'public', 'system'",
     )
 
     # Task state and priority
@@ -109,7 +97,7 @@ class Task(TMWSBase, MetadataMixin):
         nullable=False,
         default=TaskStatus.PENDING,
         index=True,
-        comment="Current task status"
+        comment="Current task status",
     )
 
     priority: Mapped[TaskPriority] = mapped_column(
@@ -117,161 +105,112 @@ class Task(TMWSBase, MetadataMixin):
         nullable=False,
         default=TaskPriority.MEDIUM,
         index=True,
-        comment="Task priority level"
+        comment="Task priority level",
     )
 
     # Scheduling and timing
     scheduled_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True),
-        nullable=True,
-        comment="Scheduled execution time"
+        DateTime(timezone=True), nullable=True, comment="Scheduled execution time"
     )
 
     started_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True),
-        nullable=True,
-        comment="Task start time"
+        DateTime(timezone=True), nullable=True, comment="Task start time"
     )
 
     completed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True),
-        nullable=True,
-        comment="Task completion time"
+        DateTime(timezone=True), nullable=True, comment="Task completion time"
     )
 
     due_date: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True),
-        nullable=True,
-        comment="Task due date"
+        DateTime(timezone=True), nullable=True, comment="Task due date"
     )
 
     # Task dependencies and relationships
     dependencies: Mapped[list[str]] = mapped_column(
-        JSON,
-        default=list,
-        comment="List of task IDs that must complete before this task"
+        JSONB, default=list, comment="List of task IDs that must complete before this task"
     )
 
     parent_task_id: Mapped[UUID | None] = mapped_column(
         PGUUID(as_uuid=True),
         sa.ForeignKey("tasks.id"),
         nullable=True,
-        comment="Parent task for hierarchical task structures"
+        comment="Parent task for hierarchical task structures",
     )
 
     workflow_id: Mapped[UUID | None] = mapped_column(
-        PGUUID(as_uuid=True),
-        nullable=True,
-        index=True,
-        comment="Associated workflow ID"
+        PGUUID(as_uuid=True), nullable=True, index=True, comment="Associated workflow ID"
     )
 
     # Task configuration and parameters
     task_config: Mapped[dict[str, Any]] = mapped_column(
-        JSON,
-        default=dict,
-        comment="Task-specific configuration parameters"
+        JSONB, default=dict, comment="Task-specific configuration parameters"
     )
 
     input_data: Mapped[dict[str, Any]] = mapped_column(
-        JSON,
-        default=dict,
-        comment="Input data for task execution"
+        JSONB, default=dict, comment="Input data for task execution"
     )
 
     output_data: Mapped[dict[str, Any]] = mapped_column(
-        JSON,
-        default=dict,
-        comment="Output data from task execution"
+        JSONB, default=dict, comment="Output data from task execution"
     )
 
     # Progress and performance tracking
     progress_percentage: Mapped[float] = mapped_column(
-        Float,
-        default=0.0,
-        comment="Task completion percentage (0.0 to 100.0)"
+        Float, default=0.0, comment="Task completion percentage (0.0 to 100.0)"
     )
 
     estimated_duration: Mapped[int | None] = mapped_column(
-        Integer,
-        nullable=True,
-        comment="Estimated duration in seconds"
+        Integer, nullable=True, comment="Estimated duration in seconds"
     )
 
     actual_duration: Mapped[int | None] = mapped_column(
-        Integer,
-        nullable=True,
-        comment="Actual duration in seconds"
+        Integer, nullable=True, comment="Actual duration in seconds"
     )
 
-    retry_count: Mapped[int] = mapped_column(
-        Integer,
-        default=0,
-        comment="Number of retry attempts"
-    )
+    retry_count: Mapped[int] = mapped_column(Integer, default=0, comment="Number of retry attempts")
 
     max_retries: Mapped[int] = mapped_column(
-        Integer,
-        default=3,
-        comment="Maximum number of retry attempts"
+        Integer, default=3, comment="Maximum number of retry attempts"
     )
 
     # Error handling and logging
     error_message: Mapped[str | None] = mapped_column(
-        Text,
-        nullable=True,
-        comment="Error message if task failed"
+        Text, nullable=True, comment="Error message if task failed"
     )
 
     error_details: Mapped[dict[str, Any]] = mapped_column(
-        JSON,
-        default=dict,
-        comment="Detailed error information"
+        JSONB, default=dict, comment="Detailed error information"
     )
 
     execution_log: Mapped[list[dict[str, Any]]] = mapped_column(
-        JSON,
-        default=list,
-        comment="Execution log entries"
+        JSONB, default=list, comment="Execution log entries"
     )
 
     # Tags and categorization
     tags: Mapped[list[str]] = mapped_column(
-        JSON,
-        default=list,
-        comment="User-defined tags for categorization"
+        JSONB, default=list, comment="User-defined tags for categorization"
     )
 
     context_tags: Mapped[list[str]] = mapped_column(
-        JSON,
-        default=list,
-        comment="Contextual tags for enhanced organization"
+        JSONB, default=list, comment="Contextual tags for enhanced organization"
     )
 
     # Resource management
     resource_requirements: Mapped[dict[str, Any]] = mapped_column(
-        JSON,
-        default=dict,
-        comment="Required resources (CPU, memory, etc.)"
+        JSONB, default=dict, comment="Required resources (CPU, memory, etc.)"
     )
 
     resource_usage: Mapped[dict[str, Any]] = mapped_column(
-        JSON,
-        default=dict,
-        comment="Actual resource usage during execution"
+        JSONB, default=dict, comment="Actual resource usage during execution"
     )
 
     # Quality and success metrics
     quality_score: Mapped[float | None] = mapped_column(
-        Float,
-        nullable=True,
-        comment="Task execution quality score (0.0 to 10.0)"
+        Float, nullable=True, comment="Task execution quality score (0.0 to 10.0)"
     )
 
     success_criteria: Mapped[dict[str, Any]] = mapped_column(
-        JSON,
-        default=dict,
-        comment="Criteria for determining task success"
+        JSONB, default=dict, comment="Criteria for determining task success"
     )
 
     # Relationships
@@ -279,73 +218,48 @@ class Task(TMWSBase, MetadataMixin):
         "Agent",
         back_populates="tasks",
         foreign_keys="[Task.assigned_agent_id]",
-        primaryjoin="Task.assigned_agent_id == Agent.agent_id"
+        primaryjoin="Task.assigned_agent_id == Agent.agent_id",
     )
 
     # Self-referential relationship for hierarchical tasks
     children = relationship(
-        "Task",
-        backref="parent",
-        remote_side="Task.id",
-        foreign_keys="[Task.parent_task_id]"
+        "Task", backref="parent", remote_side="Task.id", foreign_keys="[Task.parent_task_id]"
     )
 
     # Table constraints and indexes
     __table_args__ = (
         # Basic validation
-        CheckConstraint(
-            "LENGTH(title) >= 1",
-            name="title_not_empty"
-        ),
-        CheckConstraint(
-            "LENGTH(description) >= 1",
-            name="description_not_empty"
-        ),
-
+        CheckConstraint("LENGTH(title) >= 1", name="title_not_empty"),
+        CheckConstraint("LENGTH(description) >= 1", name="description_not_empty"),
         # Access level validation
         CheckConstraint(
-            "access_level IN ('private', 'shared', 'public', 'system')",
-            name="access_level_check"
+            "access_level IN ('private', 'shared', 'public', 'system')", name="access_level_check"
         ),
-
         # Progress validation
         CheckConstraint(
-            "progress_percentage >= 0.0 AND progress_percentage <= 100.0",
-            name="progress_bounds"
+            "progress_percentage >= 0.0 AND progress_percentage <= 100.0", name="progress_bounds"
         ),
-
         # Duration validation
         CheckConstraint(
             "estimated_duration IS NULL OR estimated_duration > 0",
-            name="estimated_duration_positive"
+            name="estimated_duration_positive",
         ),
         CheckConstraint(
-            "actual_duration IS NULL OR actual_duration >= 0",
-            name="actual_duration_non_negative"
+            "actual_duration IS NULL OR actual_duration >= 0", name="actual_duration_non_negative"
         ),
-
         # Retry validation
-        CheckConstraint(
-            "retry_count >= 0",
-            name="retry_count_non_negative"
-        ),
-        CheckConstraint(
-            "max_retries >= 0",
-            name="max_retries_non_negative"
-        ),
-
+        CheckConstraint("retry_count >= 0", name="retry_count_non_negative"),
+        CheckConstraint("max_retries >= 0", name="max_retries_non_negative"),
         # Quality score validation
         CheckConstraint(
             "quality_score IS NULL OR (quality_score >= 0.0 AND quality_score <= 10.0)",
-            name="quality_score_bounds"
+            name="quality_score_bounds",
         ),
-
         # Timing logic validation
         CheckConstraint(
             "completed_at IS NULL OR started_at IS NULL OR completed_at >= started_at",
-            name="completion_after_start"
+            name="completion_after_start",
         ),
-
         # Composite indexes for common queries
         Index("idx_tasks_agent_status", "assigned_agent_id", "status"),
         Index("idx_tasks_namespace_status", "namespace", "status"),
@@ -356,19 +270,13 @@ class Task(TMWSBase, MetadataMixin):
         Index("idx_tasks_due_date", "due_date", postgresql_using="btree"),
         Index("idx_tasks_progress", "progress_percentage", postgresql_using="btree"),
         Index("idx_tasks_hierarchy", "parent_task_id", "status"),
-
         # Performance indexes
         Index("idx_tasks_performance", "quality_score", "actual_duration"),
         Index("idx_tasks_retry", "retry_count", "max_retries"),
-
-        # Full-text search indexes
-        Index(
-            "idx_tasks_content_search",
-            func.to_tsvector('english', sa.text("title || ' ' || description")),
-            postgresql_using="gin"
-        ),
+        # Full-text search index (PostgreSQL only)
+        # This index is created conditionally based on database type
         Index("idx_tasks_tags", "tags", postgresql_using="gin"),
-        Index("idx_tasks_context_tags", "context_tags", postgresql_using="gin")
+        Index("idx_tasks_context_tags", "context_tags", postgresql_using="gin"),
     )
 
     # Properties and methods
@@ -377,7 +285,10 @@ class Task(TMWSBase, MetadataMixin):
         """Check if task is overdue."""
         if not self.due_date:
             return False
-        return datetime.utcnow() > self.due_date and self.status not in [TaskStatus.COMPLETED, TaskStatus.CANCELLED]
+        return datetime.utcnow() > self.due_date and self.status not in [
+            TaskStatus.COMPLETED,
+            TaskStatus.CANCELLED,
+        ]
 
     @property
     def is_running_late(self) -> bool:
@@ -422,7 +333,9 @@ class Task(TMWSBase, MetadataMixin):
 
         self.add_log_entry("task_started", {"agent_id": agent_id or self.assigned_agent_id})
 
-    def complete_execution(self, output_data: dict[str, Any] = None, quality_score: float = None) -> None:
+    def complete_execution(
+        self, output_data: dict[str, Any] = None, quality_score: float = None
+    ) -> None:
         """Mark task as completed."""
         if self.status != TaskStatus.RUNNING:
             raise ValueError(f"Cannot complete task in status: {self.status}")
@@ -441,11 +354,14 @@ class Task(TMWSBase, MetadataMixin):
         if self.started_at:
             self.actual_duration = int((datetime.utcnow() - self.started_at).total_seconds())
 
-        self.add_log_entry("task_completed", {
-            "output_data_keys": list(output_data.keys()) if output_data else [],
-            "quality_score": quality_score,
-            "actual_duration": self.actual_duration
-        })
+        self.add_log_entry(
+            "task_completed",
+            {
+                "output_data_keys": list(output_data.keys()) if output_data else [],
+                "quality_score": quality_score,
+                "actual_duration": self.actual_duration,
+            },
+        )
 
     def fail_execution(self, error_message: str, error_details: dict[str, Any] = None) -> None:
         """Mark task as failed."""
@@ -457,11 +373,14 @@ class Task(TMWSBase, MetadataMixin):
         if self.started_at:
             self.actual_duration = int((datetime.utcnow() - self.started_at).total_seconds())
 
-        self.add_log_entry("task_failed", {
-            "error_message": error_message,
-            "error_details": error_details,
-            "retry_count": self.retry_count
-        })
+        self.add_log_entry(
+            "task_failed",
+            {
+                "error_message": error_message,
+                "error_details": error_details,
+                "retry_count": self.retry_count,
+            },
+        )
 
     def retry_execution(self) -> bool:
         """Attempt to retry failed task."""
@@ -516,10 +435,7 @@ class Task(TMWSBase, MetadataMixin):
         self.progress_percentage = max(0.0, min(100.0, percentage))
 
         if message:
-            self.add_log_entry("progress_updated", {
-                "percentage": percentage,
-                "message": message
-            })
+            self.add_log_entry("progress_updated", {"percentage": percentage, "message": message})
 
     def add_collaborator(self, agent_id: str) -> bool:
         """Add a collaborating agent to the task."""
@@ -542,7 +458,7 @@ class Task(TMWSBase, MetadataMixin):
         log_entry = {
             "timestamp": datetime.utcnow().isoformat(),
             "event_type": event_type,
-            "details": details or {}
+            "details": details or {},
         }
         self.execution_log.append(log_entry)
 
@@ -561,7 +477,9 @@ class Task(TMWSBase, MetadataMixin):
         if tag and tag not in self.context_tags:
             self.context_tags.append(tag)
 
-    def can_access(self, agent_id: str, agent_namespace: str, agent_access_level: str = "standard") -> bool:
+    def can_access(
+        self, agent_id: str, agent_namespace: str, agent_access_level: str = "standard"
+    ) -> bool:
         """Check if an agent can access this task."""
         # System level access
         if agent_access_level == "admin":
@@ -603,134 +521,90 @@ class TaskTemplate(TMWSBase):
 
     # Template identification
     template_id: Mapped[str] = mapped_column(
-        Text,
-        nullable=False,
-        unique=True,
-        index=True,
-        comment="Unique template identifier"
+        Text, nullable=False, unique=True, index=True, comment="Unique template identifier"
     )
 
-    name: Mapped[str] = mapped_column(
-        Text,
-        nullable=False,
-        comment="Human-readable template name"
-    )
+    name: Mapped[str] = mapped_column(Text, nullable=False, comment="Human-readable template name")
 
     description: Mapped[str | None] = mapped_column(
-        Text,
-        nullable=True,
-        comment="Template description and usage guidelines"
+        Text, nullable=True, comment="Template description and usage guidelines"
     )
 
     # Template structure
     title_template: Mapped[str] = mapped_column(
-        Text,
-        nullable=False,
-        comment="Template title with placeholders"
+        Text, nullable=False, comment="Template title with placeholders"
     )
 
     description_template: Mapped[str] = mapped_column(
-        Text,
-        nullable=False,
-        comment="Template description with placeholders"
+        Text, nullable=False, comment="Template description with placeholders"
     )
 
     required_fields: Mapped[list[str]] = mapped_column(
-        JSON,
-        default=list,
-        comment="Required fields for template instantiation"
+        JSONB, default=list, comment="Required fields for template instantiation"
     )
 
     optional_fields: Mapped[list[str]] = mapped_column(
-        JSON,
-        default=list,
-        comment="Optional fields for template instantiation"
+        JSONB, default=list, comment="Optional fields for template instantiation"
     )
 
     # Template defaults
     default_task_type: Mapped[str] = mapped_column(
-        Text,
-        nullable=False,
-        default="templated",
-        comment="Default task type for instances"
+        Text, nullable=False, default="templated", comment="Default task type for instances"
     )
 
     default_priority: Mapped[TaskPriority] = mapped_column(
         sa.Enum(TaskPriority, values_callable=lambda obj: [e.value for e in obj]),
         nullable=False,
         default=TaskPriority.MEDIUM,
-        comment="Default priority for instances"
+        comment="Default priority for instances",
     )
 
     default_access_level: Mapped[str] = mapped_column(
-        Text,
-        nullable=False,
-        default="private",
-        comment="Default access level for instances"
+        Text, nullable=False, default="private", comment="Default access level for instances"
     )
 
     default_config: Mapped[dict[str, Any]] = mapped_column(
-        JSON,
-        default=dict,
-        comment="Default task configuration"
+        JSONB, default=dict, comment="Default task configuration"
     )
 
     estimated_duration: Mapped[int | None] = mapped_column(
-        Integer,
-        nullable=True,
-        comment="Estimated duration in seconds for template instances"
+        Integer, nullable=True, comment="Estimated duration in seconds for template instances"
     )
 
     # Template metadata
     namespace: Mapped[str] = mapped_column(
-        Text,
-        nullable=False,
-        index=True,
-        default="default",
-        comment="Template namespace"
+        Text, nullable=False, index=True, default="default", comment="Template namespace"
     )
 
     created_by: Mapped[str | None] = mapped_column(
-        Text,
-        nullable=True,
-        comment="Agent ID of template creator"
+        Text, nullable=True, comment="Agent ID of template creator"
     )
 
     is_active: Mapped[bool] = mapped_column(
-        Boolean,
-        default=True,
-        index=True,
-        comment="Whether template is active and available"
+        Boolean, default=True, index=True, comment="Whether template is active and available"
     )
 
     usage_count: Mapped[int] = mapped_column(
-        Integer,
-        default=0,
-        comment="Number of times template has been used"
+        Integer, default=0, comment="Number of times template has been used"
     )
 
     success_rate: Mapped[float] = mapped_column(
-        Float,
-        default=0.0,
-        comment="Success rate of tasks created from this template"
+        Float, default=0.0, comment="Success rate of tasks created from this template"
     )
 
     __table_args__ = (
         CheckConstraint(
             "default_access_level IN ('private', 'shared', 'public', 'system')",
-            name="default_access_level_check"
+            name="default_access_level_check",
         ),
         CheckConstraint(
             "estimated_duration IS NULL OR estimated_duration > 0",
-            name="estimated_duration_positive"
+            name="estimated_duration_positive",
         ),
-        CheckConstraint(
-            "success_rate >= 0.0 AND success_rate <= 1.0",
-            name="success_rate_bounds"
-        ),
+        CheckConstraint("success_rate >= 0.0 AND success_rate <= 1.0", name="success_rate_bounds"),
         Index("idx_task_templates_namespace", "namespace", "is_active"),
         Index("idx_task_templates_usage", "usage_count", postgresql_using="btree"),
-        Index("idx_task_templates_success", "success_rate", postgresql_using="btree")
+        Index("idx_task_templates_success", "success_rate", postgresql_using="btree"),
     )
 
     def instantiate(self, agent_id: str, field_values: dict[str, Any], **kwargs) -> dict[str, Any]:
@@ -754,24 +628,24 @@ class TaskTemplate(TMWSBase):
 
         # Merge default config with provided config
         task_config = self.default_config.copy()
-        task_config.update(kwargs.get('task_config', {}))
+        task_config.update(kwargs.get("task_config", {}))
 
         # Return task creation parameters
         return {
             "title": title,
             "description": description,
-            "task_type": kwargs.get('task_type', self.default_task_type),
+            "task_type": kwargs.get("task_type", self.default_task_type),
             "assigned_agent_id": agent_id,
-            "priority": kwargs.get('priority', self.default_priority),
-            "access_level": kwargs.get('access_level', self.default_access_level),
+            "priority": kwargs.get("priority", self.default_priority),
+            "access_level": kwargs.get("access_level", self.default_access_level),
             "task_config": task_config,
-            "estimated_duration": kwargs.get('estimated_duration', self.estimated_duration),
+            "estimated_duration": kwargs.get("estimated_duration", self.estimated_duration),
             "context_tags": ["templated", self.template_id],
             "metadata": {
                 "template_id": self.template_id,
                 "template_version": "1.0",
-                "field_values": field_values
-            }
+                "field_values": field_values,
+            },
         }
 
     def update_success_rate(self, completed_tasks: int, successful_tasks: int) -> None:
@@ -781,3 +655,35 @@ class TaskTemplate(TMWSBase):
 
     def __repr__(self) -> str:
         return f"<TaskTemplate(template_id='{self.template_id}', name='{self.name}', usage={self.usage_count})>"
+
+
+# Conditional index creation for PostgreSQL full-text search
+# This should be handled by migrations in production
+def create_full_text_search_index(engine):
+    """
+    Create full-text search index for PostgreSQL databases.
+    This function should be called after table creation in PostgreSQL environments.
+    """
+    from sqlalchemy import text
+
+    if "postgresql" in str(engine.dialect):
+        with engine.begin() as conn:
+            # Check if index exists before creating
+            result = conn.execute(
+                text("""
+                SELECT indexname FROM pg_indexes
+                WHERE tablename = 'tasks'
+                AND indexname = 'idx_tasks_content_search'
+            """)
+            )
+
+            if not result.fetchone():
+                # Create the full-text search index
+                conn.execute(
+                    text("""
+                    CREATE INDEX idx_tasks_content_search
+                    ON tasks
+                    USING gin(to_tsvector('english', coalesce(title, '') || ' ' || coalesce(description, '')))
+                """)
+                )
+                print("Created full-text search index for tasks table")

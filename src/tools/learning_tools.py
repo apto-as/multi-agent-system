@@ -14,6 +14,7 @@ from .base_tool import BaseTool
 
 class PatternLearnRequest(BaseModel):
     """Pattern learning parameters."""
+
     pattern_name: str = Field(..., description="Pattern name/identifier")
     pattern_content: str = Field(..., description="Pattern content and description")
     category: str = Field(..., description="Pattern category")
@@ -24,10 +25,13 @@ class PatternLearnRequest(BaseModel):
 
 class PatternApplicationRequest(BaseModel):
     """Pattern application parameters."""
+
     pattern_query: str = Field(..., description="Query to find applicable patterns")
     context: str = Field(..., description="Application context")
     max_patterns: int = Field(default=5, ge=1, le=20, description="Maximum patterns to return")
-    min_similarity: float = Field(default=0.7, ge=0.0, le=1.0, description="Minimum similarity threshold")
+    min_similarity: float = Field(
+        default=0.7, ge=0.0, le=1.0, description="Minimum similarity threshold"
+    )
 
 
 class LearningTools(BaseTool):
@@ -43,7 +47,7 @@ class LearningTools(BaseTool):
             category: str,
             examples: list[str] = None,
             metadata: dict[str, Any] = None,
-            confidence: float = 0.8
+            confidence: float = 0.8,
         ) -> dict[str, Any]:
             """
             Learn and store a new pattern for future application.
@@ -68,12 +72,12 @@ class LearningTools(BaseTool):
                 category=category,
                 examples=examples or [],
                 metadata=metadata or {},
-                confidence=confidence
+                confidence=confidence,
             )
 
             async def _learn_pattern(session, services):
-                memory_service = services['memory_service']
-                vectorization_service = services['vectorization_service']
+                memory_service = services["memory_service"]
+                vectorization_service = services["vectorization_service"]
 
                 # Create comprehensive pattern data
                 pattern_data = {
@@ -85,7 +89,7 @@ class LearningTools(BaseTool):
                     "learned_at": datetime.utcnow().isoformat(),
                     "application_count": 0,
                     "success_rate": 1.0,
-                    **request.metadata
+                    **request.metadata,
                 }
 
                 # Create searchable content for vectorization
@@ -93,7 +97,7 @@ class LearningTools(BaseTool):
                 PATTERN: {request.pattern_name}
                 CATEGORY: {request.category}
                 DESCRIPTION: {request.pattern_content}
-                EXAMPLES: {' | '.join(request.examples)}
+                EXAMPLES: {" | ".join(request.examples)}
                 """
 
                 # Generate vector embedding
@@ -106,7 +110,7 @@ class LearningTools(BaseTool):
                     tags=["pattern", request.category, request.pattern_name, "learning"],
                     metadata=pattern_data,
                     embedding=embedding.tolist(),
-                    importance=0.9  # Patterns are high importance
+                    importance=0.9,  # Patterns are high importance
                 )
 
                 return {
@@ -116,7 +120,7 @@ class LearningTools(BaseTool):
                     "confidence": request.confidence,
                     "examples_count": len(request.examples),
                     "vector_dimensions": len(embedding),
-                    "stored_at": memory.created_at.isoformat()
+                    "stored_at": memory.created_at.isoformat(),
                 }
 
             result = await self.execute_with_session(_learn_pattern)
@@ -124,10 +128,7 @@ class LearningTools(BaseTool):
 
         @mcp.tool()
         async def apply_pattern(
-            pattern_query: str,
-            context: str,
-            max_patterns: int = 5,
-            min_similarity: float = 0.7
+            pattern_query: str, context: str, max_patterns: int = 5, min_similarity: float = 0.7
         ) -> dict[str, Any]:
             """
             Find and apply relevant patterns to a given context.
@@ -148,12 +149,12 @@ class LearningTools(BaseTool):
                 pattern_query=pattern_query,
                 context=context,
                 max_patterns=max_patterns,
-                min_similarity=min_similarity
+                min_similarity=min_similarity,
             )
 
             async def _apply_pattern(session, services):
-                memory_service = services['memory_service']
-                vectorization_service = services['vectorization_service']
+                memory_service = services["memory_service"]
+                vectorization_service = services["vectorization_service"]
 
                 # Create search query combining pattern query and context
                 search_query = f"PATTERN SEARCH: {request.pattern_query} CONTEXT: {request.context}"
@@ -166,7 +167,7 @@ class LearningTools(BaseTool):
                     embedding=query_embedding.tolist(),
                     memory_type="pattern",
                     limit=request.max_patterns,
-                    min_similarity=request.min_similarity
+                    min_similarity=request.min_similarity,
                 )
 
                 if not patterns:
@@ -175,7 +176,7 @@ class LearningTools(BaseTool):
                         "query": request.pattern_query,
                         "context": request.context,
                         "message": "No matching patterns found",
-                        "suggestion": "Consider learning new patterns for this scenario"
+                        "suggestion": "Consider learning new patterns for this scenario",
                     }
 
                 # Process and rank patterns
@@ -188,29 +189,31 @@ class LearningTools(BaseTool):
                     pattern_data["last_applied"] = datetime.utcnow().isoformat()
 
                     # Update memory with new statistics
-                    await memory_service.update_memory(
-                        str(pattern.id),
-                        {"metadata": pattern_data}
-                    )
+                    await memory_service.update_memory(str(pattern.id), {"metadata": pattern_data})
 
-                    applicable_patterns.append({
-                        "pattern_id": str(pattern.id),
-                        "pattern_name": pattern_data.get("pattern_name", "Unknown"),
-                        "category": pattern_data.get("category", "general"),
-                        "pattern_content": pattern_data.get("pattern_content", ""),
-                        "confidence": pattern_data.get("confidence", 0.5),
-                        "similarity": getattr(pattern, 'similarity', 0.0),
-                        "application_count": pattern_data.get("application_count", 0),
-                        "success_rate": pattern_data.get("success_rate", 1.0),
-                        "examples": pattern_data.get("examples", []),
-                        "metadata": {k: v for k, v in pattern_data.items()
-                                  if k not in ["pattern_name", "category", "pattern_content", "examples"]}
-                    })
+                    applicable_patterns.append(
+                        {
+                            "pattern_id": str(pattern.id),
+                            "pattern_name": pattern_data.get("pattern_name", "Unknown"),
+                            "category": pattern_data.get("category", "general"),
+                            "pattern_content": pattern_data.get("pattern_content", ""),
+                            "confidence": pattern_data.get("confidence", 0.5),
+                            "similarity": getattr(pattern, "similarity", 0.0),
+                            "application_count": pattern_data.get("application_count", 0),
+                            "success_rate": pattern_data.get("success_rate", 1.0),
+                            "examples": pattern_data.get("examples", []),
+                            "metadata": {
+                                k: v
+                                for k, v in pattern_data.items()
+                                if k
+                                not in ["pattern_name", "category", "pattern_content", "examples"]
+                            },
+                        }
+                    )
 
                 # Sort by combination of similarity and confidence
                 applicable_patterns.sort(
-                    key=lambda p: (p["similarity"] * 0.6 + p["confidence"] * 0.4),
-                    reverse=True
+                    key=lambda p: (p["similarity"] * 0.6 + p["confidence"] * 0.4), reverse=True
                 )
 
                 return {
@@ -220,14 +223,18 @@ class LearningTools(BaseTool):
                     "pattern_count": len(applicable_patterns),
                     "patterns": applicable_patterns,
                     "application_guidance": {
-                        "recommended_pattern": applicable_patterns[0] if applicable_patterns else None,
+                        "recommended_pattern": applicable_patterns[0]
+                        if applicable_patterns
+                        else None,
                         "confidence_threshold": min_similarity,
-                        "application_notes": f"Found {len(applicable_patterns)} applicable patterns"
-                    }
+                        "application_notes": f"Found {len(applicable_patterns)} applicable patterns",
+                    },
                 }
 
             result = await self.execute_with_session(_apply_pattern)
-            return self.format_success(result, f"Found {result.get('pattern_count', 0)} applicable patterns")
+            return self.format_success(
+                result, f"Found {result.get('pattern_count', 0)} applicable patterns"
+            )
 
         @mcp.tool()
         async def get_pattern_analytics() -> dict[str, Any]:
@@ -240,21 +247,19 @@ class LearningTools(BaseTool):
             Returns:
                 Dict containing comprehensive pattern analytics
             """
+
             async def _get_pattern_analytics(session, services):
-                memory_service = services['memory_service']
+                memory_service = services["memory_service"]
 
                 # Get all pattern memories
                 patterns = await memory_service.search_memories(
                     query="",
                     memory_type="pattern",
-                    limit=1000  # Get all patterns
+                    limit=1000,  # Get all patterns
                 )
 
                 if not patterns:
-                    return {
-                        "total_patterns": 0,
-                        "message": "No patterns learned yet"
-                    }
+                    return {"total_patterns": 0, "message": "No patterns learned yet"}
 
                 # Analyze patterns
                 category_distribution = {}
@@ -308,12 +313,14 @@ class LearningTools(BaseTool):
                         "category": p.metadata_json.get("category", "unknown"),
                         "application_count": p.metadata_json.get("application_count", 0),
                         "success_rate": p.metadata_json.get("success_rate", 1.0),
-                        "confidence": p.metadata_json.get("confidence", 0.5)
+                        "confidence": p.metadata_json.get("confidence", 0.5),
                     }
                     for p in patterns
                 ]
 
-                most_used = sorted(patterns_with_usage, key=lambda x: x["application_count"], reverse=True)[:5]
+                most_used = sorted(
+                    patterns_with_usage, key=lambda x: x["application_count"], reverse=True
+                )[:5]
                 least_used = sorted(patterns_with_usage, key=lambda x: x["application_count"])[:5]
 
                 return {
@@ -322,24 +329,41 @@ class LearningTools(BaseTool):
                         "total_applications": total_applications,
                         "avg_applications_per_pattern": round(avg_applications, 2),
                         "avg_success_rate": round(avg_success_rate, 3),
-                        "knowledge_base_health": "excellent" if avg_success_rate > 0.9 else "good" if avg_success_rate > 0.7 else "needs_improvement"
+                        "knowledge_base_health": "excellent"
+                        if avg_success_rate > 0.9
+                        else "good"
+                        if avg_success_rate > 0.7
+                        else "needs_improvement",
                     },
                     "distribution": {
                         "by_category": category_distribution,
-                        "by_confidence": confidence_distribution
+                        "by_confidence": confidence_distribution,
                     },
                     "usage_patterns": {
                         "most_applied": most_used,
                         "least_applied": least_used,
-                        "unused_patterns": len([p for p in patterns_with_usage if p["application_count"] == 0])
+                        "unused_patterns": len(
+                            [p for p in patterns_with_usage if p["application_count"] == 0]
+                        ),
                     },
                     "learning_timeline": dict(sorted(learning_timeline.items())),
                     "recommendations": {
-                        "high_value_patterns": len([p for p in patterns_with_usage if p["application_count"] > avg_applications and p["success_rate"] > 0.8]),
-                        "patterns_to_review": len([p for p in patterns_with_usage if p["success_rate"] < 0.6]),
-                        "knowledge_gaps": [cat for cat, count in category_distribution.items() if count < 3]
+                        "high_value_patterns": len(
+                            [
+                                p
+                                for p in patterns_with_usage
+                                if p["application_count"] > avg_applications
+                                and p["success_rate"] > 0.8
+                            ]
+                        ),
+                        "patterns_to_review": len(
+                            [p for p in patterns_with_usage if p["success_rate"] < 0.6]
+                        ),
+                        "knowledge_gaps": [
+                            cat for cat, count in category_distribution.items() if count < 3
+                        ],
                     },
-                    "generated_at": datetime.utcnow().isoformat()
+                    "generated_at": datetime.utcnow().isoformat(),
                 }
 
             result = await self.execute_with_session(_get_pattern_analytics)
@@ -350,7 +374,7 @@ class LearningTools(BaseTool):
             pattern_id: str,
             evolution_data: dict[str, Any],
             success_feedback: bool,
-            notes: str | None = None
+            notes: str | None = None,
         ) -> dict[str, Any]:
             """
             Evolve an existing pattern based on usage feedback.
@@ -367,8 +391,9 @@ class LearningTools(BaseTool):
             Returns:
                 Dict containing pattern evolution results
             """
+
             async def _evolve_pattern(session, services):
-                memory_service = services['memory_service']
+                memory_service = services["memory_service"]
 
                 # Get current pattern
                 current_memory = await memory_service.get_memory(pattern_id)
@@ -383,9 +408,13 @@ class LearningTools(BaseTool):
 
                 # Update success rate with new feedback
                 if success_feedback:
-                    new_success_rate = ((current_success_rate * (current_applications - 1)) + 1.0) / current_applications
+                    new_success_rate = (
+                        (current_success_rate * (current_applications - 1)) + 1.0
+                    ) / current_applications
                 else:
-                    new_success_rate = ((current_success_rate * (current_applications - 1)) + 0.0) / current_applications
+                    new_success_rate = (
+                        (current_success_rate * (current_applications - 1)) + 0.0
+                    ) / current_applications
 
                 # Update pattern metadata
                 evolved_metadata = {
@@ -394,21 +423,22 @@ class LearningTools(BaseTool):
                     "last_evolved": datetime.utcnow().isoformat(),
                     "evolution_count": current_metadata.get("evolution_count", 0) + 1,
                     "evolution_notes": notes,
-                    **evolution_data
+                    **evolution_data,
                 }
 
                 # Update confidence based on success rate and application count
                 if current_applications > 5:  # Only adjust confidence after sufficient data
                     if new_success_rate > 0.9:
-                        evolved_metadata["confidence"] = min(1.0, evolved_metadata.get("confidence", 0.8) + 0.1)
+                        evolved_metadata["confidence"] = min(
+                            1.0, evolved_metadata.get("confidence", 0.8) + 0.1
+                        )
                     elif new_success_rate < 0.6:
-                        evolved_metadata["confidence"] = max(0.1, evolved_metadata.get("confidence", 0.8) - 0.1)
+                        evolved_metadata["confidence"] = max(
+                            0.1, evolved_metadata.get("confidence", 0.8) - 0.1
+                        )
 
                 # Update the pattern memory
-                await memory_service.update_memory(
-                    pattern_id,
-                    {"metadata": evolved_metadata}
-                )
+                await memory_service.update_memory(pattern_id, {"metadata": evolved_metadata})
 
                 return {
                     "pattern_id": pattern_id,
@@ -419,16 +449,19 @@ class LearningTools(BaseTool):
                         "previous_confidence": current_metadata.get("confidence", 0.8),
                         "new_confidence": evolved_metadata.get("confidence", 0.8),
                         "evolution_count": evolved_metadata["evolution_count"],
-                        "applications_analyzed": current_applications
+                        "applications_analyzed": current_applications,
                     },
                     "evolution_data": evolution_data,
                     "success_feedback": success_feedback,
                     "notes": notes,
-                    "evolved_at": evolved_metadata["last_evolved"]
+                    "evolved_at": evolved_metadata["last_evolved"],
                 }
 
             result = await self.execute_with_session(_evolve_pattern)
-            return self.format_success(result, f"Pattern evolved - Success rate: {result.get('evolution_summary', {}).get('new_success_rate', 0):.2f}")
+            return self.format_success(
+                result,
+                f"Pattern evolved - Success rate: {result.get('evolution_summary', {}).get('new_success_rate', 0):.2f}",
+            )
 
         @mcp.tool()
         async def suggest_learning_opportunities() -> dict[str, Any]:
@@ -441,15 +474,14 @@ class LearningTools(BaseTool):
             Returns:
                 Dict containing learning opportunity recommendations
             """
+
             async def _suggest_opportunities(session, services):
-                memory_service = services['memory_service']
+                memory_service = services["memory_service"]
 
                 # Analyze current knowledge base
                 all_memories = await memory_service.get_recent_memories(limit=1000)
                 pattern_memories = await memory_service.search_memories(
-                    query="",
-                    memory_type="pattern",
-                    limit=1000
+                    query="", memory_type="pattern", limit=1000
                 )
 
                 # Analyze memory types and topics
@@ -474,29 +506,35 @@ class LearningTools(BaseTool):
                 suggestions = []
 
                 # Suggest patterns for high-frequency, low-pattern topics
-                high_activity_areas = sorted(memory_types.items(), key=lambda x: x[1], reverse=True)[:10]
+                high_activity_areas = sorted(
+                    memory_types.items(), key=lambda x: x[1], reverse=True
+                )[:10]
                 for memory_type, count in high_activity_areas:
                     pattern_count = pattern_categories.get(memory_type, 0)
                     if count > 10 and pattern_count < 3:  # High activity, low pattern coverage
-                        suggestions.append({
-                            "type": "pattern_opportunity",
-                            "area": memory_type,
-                            "priority": "high",
-                            "reason": f"High activity ({count} memories) but low pattern coverage ({pattern_count} patterns)",
-                            "suggested_action": f"Learn patterns for {memory_type} operations"
-                        })
+                        suggestions.append(
+                            {
+                                "type": "pattern_opportunity",
+                                "area": memory_type,
+                                "priority": "high",
+                                "reason": f"High activity ({count} memories) but low pattern coverage ({pattern_count} patterns)",
+                                "suggested_action": f"Learn patterns for {memory_type} operations",
+                            }
+                        )
 
                 # Suggest knowledge consolidation for scattered topics
                 frequent_tags = {tag: count for tag, count in common_tags.items() if count > 5}
                 for tag, count in frequent_tags.items():
                     if tag not in ["pattern", "learning"]:  # Skip meta tags
-                        suggestions.append({
-                            "type": "consolidation_opportunity",
-                            "area": tag,
-                            "priority": "medium",
-                            "reason": f"Frequent topic ({count} occurrences) could benefit from knowledge consolidation",
-                            "suggested_action": f"Create comprehensive patterns or documentation for {tag}"
-                        })
+                        suggestions.append(
+                            {
+                                "type": "consolidation_opportunity",
+                                "area": tag,
+                                "priority": "medium",
+                                "reason": f"Frequent topic ({count} occurrences) could benefit from knowledge consolidation",
+                                "suggested_action": f"Create comprehensive patterns or documentation for {tag}",
+                            }
+                        )
 
                 # Suggest pattern improvement for low-success patterns
                 low_success_patterns = []
@@ -506,21 +544,25 @@ class LearningTools(BaseTool):
                     application_count = metadata.get("application_count", 0)
 
                     if application_count > 3 and success_rate < 0.7:
-                        low_success_patterns.append({
-                            "pattern_name": metadata.get("pattern_name", "Unknown"),
-                            "success_rate": success_rate,
-                            "applications": application_count
-                        })
+                        low_success_patterns.append(
+                            {
+                                "pattern_name": metadata.get("pattern_name", "Unknown"),
+                                "success_rate": success_rate,
+                                "applications": application_count,
+                            }
+                        )
 
                 if low_success_patterns:
-                    suggestions.append({
-                        "type": "improvement_opportunity",
-                        "area": "pattern_optimization",
-                        "priority": "high",
-                        "reason": f"{len(low_success_patterns)} patterns have low success rates",
-                        "suggested_action": "Review and improve low-performing patterns",
-                        "details": low_success_patterns
-                    })
+                    suggestions.append(
+                        {
+                            "type": "improvement_opportunity",
+                            "area": "pattern_optimization",
+                            "priority": "high",
+                            "reason": f"{len(low_success_patterns)} patterns have low success rates",
+                            "suggested_action": "Review and improve low-performing patterns",
+                            "details": low_success_patterns,
+                        }
+                    )
 
                 # Suggest new learning areas based on trends
                 recent_memories = await memory_service.get_recent_memories(limit=100)
@@ -530,18 +572,21 @@ class LearningTools(BaseTool):
                         recent_trends[tag] = recent_trends.get(tag, 0) + 1
 
                 emerging_topics = {
-                    tag: count for tag, count in recent_trends.items()
+                    tag: count
+                    for tag, count in recent_trends.items()
                     if count > 3 and tag not in pattern_categories
                 }
 
                 for topic, count in emerging_topics.items():
-                    suggestions.append({
-                        "type": "emerging_opportunity",
-                        "area": topic,
-                        "priority": "medium",
-                        "reason": f"Emerging topic in recent activity ({count} recent mentions)",
-                        "suggested_action": f"Explore and learn patterns for {topic}"
-                    })
+                    suggestions.append(
+                        {
+                            "type": "emerging_opportunity",
+                            "area": topic,
+                            "priority": "medium",
+                            "reason": f"Emerging topic in recent activity ({count} recent mentions)",
+                            "suggested_action": f"Explore and learn patterns for {topic}",
+                        }
+                    )
 
                 # Sort suggestions by priority
                 priority_order = {"high": 3, "medium": 2, "low": 1}
@@ -553,7 +598,9 @@ class LearningTools(BaseTool):
                         "total_patterns": len(pattern_memories),
                         "memory_types": len(memory_types),
                         "pattern_categories": len(pattern_categories),
-                        "coverage_ratio": len(pattern_categories) / len(memory_types) if memory_types else 0
+                        "coverage_ratio": len(pattern_categories) / len(memory_types)
+                        if memory_types
+                        else 0,
                     },
                     "learning_opportunities": suggestions[:10],  # Top 10 suggestions
                     "opportunity_count": len(suggestions),
@@ -561,8 +608,10 @@ class LearningTools(BaseTool):
                         priority: len([s for s in suggestions if s["priority"] == priority])
                         for priority in ["high", "medium", "low"]
                     },
-                    "generated_at": datetime.utcnow().isoformat()
+                    "generated_at": datetime.utcnow().isoformat(),
                 }
 
             result = await self.execute_with_session(_suggest_opportunities)
-            return self.format_success(result, f"Generated {result.get('opportunity_count', 0)} learning opportunities")
+            return self.format_success(
+                result, f"Generated {result.get('opportunity_count', 0)} learning opportunities"
+            )

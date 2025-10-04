@@ -3,22 +3,20 @@ Agent authentication and authorization for TMWS v2.0.
 Provides secure multi-agent access control.
 """
 
-import secrets
 from datetime import datetime, timedelta
 from typing import Any
 
 import jwt
-from passlib.context import CryptContext
 
 from ..core.config import settings
 from ..models.agent import AccessLevel
+from ..utils.security import generate_api_key, hash_password, verify_password
 
 
 class AgentAuthService:
     """Service for agent authentication and authorization."""
 
     def __init__(self):
-        self.pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
         self.secret_key = settings.TMWS_SECRET_KEY or "dev-secret-key-change-in-production"
         self.algorithm = "HS256"
         self.access_token_expire_minutes = 60
@@ -26,21 +24,18 @@ class AgentAuthService:
 
     def generate_api_key(self) -> str:
         """Generate a secure API key for an agent."""
-        return secrets.token_urlsafe(32)
+        return generate_api_key()
 
     def hash_api_key(self, api_key: str) -> str:
         """Hash an API key for storage."""
-        return self.pwd_context.hash(api_key)
+        return hash_password(api_key)
 
     def verify_api_key(self, plain_api_key: str, hashed_api_key: str) -> bool:
         """Verify an API key against its hash."""
-        return self.pwd_context.verify(plain_api_key, hashed_api_key)
+        return verify_password(plain_api_key, hashed_api_key)
 
     def create_access_token(
-        self,
-        agent_id: str,
-        namespace: str = "default",
-        expires_delta: timedelta | None = None
+        self, agent_id: str, namespace: str = "default", expires_delta: timedelta | None = None
     ) -> str:
         """Create a JWT access token for an agent."""
         if expires_delta:
@@ -73,9 +68,9 @@ class AgentAuthService:
         payload = self.verify_access_token(token)
         if payload is None:
             from fastapi import HTTPException, status
+
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid or expired token"
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token"
             )
         # Add session_id if not present
         if "session_id" not in payload:
@@ -89,7 +84,7 @@ class AgentAuthService:
         memory_agent_id: str,
         memory_namespace: str,
         memory_access_level: AccessLevel,
-        shared_agents: list[str] = None
+        shared_agents: list[str] = None,
     ) -> bool:
         """Check if an agent can access a specific memory."""
 
@@ -136,7 +131,7 @@ class MemoryAccessControl:
         agent_id: str,
         memory_owner_id: str,
         required_permission: str,
-        granted_permissions: int = 1  # Default read-only
+        granted_permissions: int = 1,  # Default read-only
     ) -> bool:
         """Check if agent has required permission on memory."""
 
@@ -162,16 +157,12 @@ class RateLimiter:
     def __init__(self):
         self.limits = {
             "default": {"requests": 1000, "window": 60},  # 1000 req/min
-            "search": {"requests": 100, "window": 60},     # 100 searches/min
-            "write": {"requests": 500, "window": 60},      # 500 writes/min
+            "search": {"requests": 100, "window": 60},  # 100 searches/min
+            "write": {"requests": 500, "window": 60},  # 500 writes/min
         }
         self.agent_requests = {}  # agent_id -> list of timestamps
 
-    def check_rate_limit(
-        self,
-        agent_id: str,
-        operation: str = "default"
-    ) -> bool:
+    def check_rate_limit(self, agent_id: str, operation: str = "default") -> bool:
         """Check if agent is within rate limits."""
 
         limit_config = self.limits.get(operation, self.limits["default"])
@@ -184,8 +175,7 @@ class RateLimiter:
 
         # Clean old requests
         self.agent_requests[agent_id] = [
-            ts for ts in self.agent_requests[agent_id]
-            if ts > window_start
+            ts for ts in self.agent_requests[agent_id] if ts > window_start
         ]
 
         # Check limit
@@ -196,11 +186,7 @@ class RateLimiter:
         self.agent_requests[agent_id].append(now)
         return True
 
-    def get_remaining_requests(
-        self,
-        agent_id: str,
-        operation: str = "default"
-    ) -> int:
+    def get_remaining_requests(self, agent_id: str, operation: str = "default") -> int:
         """Get remaining requests for agent in current window."""
 
         limit_config = self.limits.get(operation, self.limits["default"])
@@ -211,10 +197,7 @@ class RateLimiter:
             return limit_config["requests"]
 
         # Count recent requests
-        recent_requests = [
-            ts for ts in self.agent_requests[agent_id]
-            if ts > window_start
-        ]
+        recent_requests = [ts for ts in self.agent_requests[agent_id] if ts > window_start]
 
         return max(0, limit_config["requests"] - len(recent_requests))
 

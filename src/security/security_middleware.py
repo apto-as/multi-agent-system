@@ -3,98 +3,16 @@ Enhanced Security Middleware for TMWS.
 Implements comprehensive security headers and enhanced CORS handling.
 """
 
+from __future__ import annotations
+
 import time
 
 from fastapi import FastAPI, HTTPException, Request, Response, status
-from fastapi.middleware.base import BaseHTTPMiddleware
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from ..core.config import get_settings
-from .audit_logger_async import AsyncAuditLogger
 from .rate_limiter import RateLimiter
-
-
-class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    """
-    Comprehensive security headers middleware.
-    Implements OWASP security header recommendations.
-    """
-
-    def __init__(self, app: FastAPI):
-        super().__init__(app)
-        self.settings = get_settings()
-
-        # Security headers configuration
-        self.security_headers = {
-            # Prevent XSS attacks
-            "X-Content-Type-Options": "nosniff",
-            "X-Frame-Options": "DENY",
-            "X-XSS-Protection": "1; mode=block",
-
-            # Content Security Policy (strict)
-            "Content-Security-Policy": (
-                "default-src 'self'; "
-                "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
-                "style-src 'self' 'unsafe-inline'; "
-                "img-src 'self' data: https:; "
-                "font-src 'self' data:; "
-                "connect-src 'self' ws: wss:; "
-                "frame-ancestors 'none'; "
-                "base-uri 'self'; "
-                "object-src 'none';"
-            ),
-
-            # Enforce HTTPS
-            "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
-
-            # Referrer policy
-            "Referrer-Policy": "strict-origin-when-cross-origin",
-
-            # Permission policy (restrict dangerous features)
-            "Permissions-Policy": (
-                "camera=(), "
-                "microphone=(), "
-                "geolocation=(), "
-                "payment=(), "
-                "usb=(), "
-                "magnetometer=(), "
-                "gyroscope=(), "
-                "accelerometer=()"
-            ),
-
-            # Server identification
-            "Server": "TMWS-Security/2.0",
-            "X-Powered-By": "TMWS",
-        }
-
-        # Development mode adjustments
-        if self.settings.TMWS_ENVIRONMENT == "development":
-            # Relax CSP for development
-            self.security_headers["Content-Security-Policy"] = (
-                "default-src 'self' 'unsafe-inline' 'unsafe-eval'; "
-                "connect-src 'self' ws: wss: http: https:; "
-                "img-src 'self' data: blob: https:;"
-            )
-            # Remove HSTS in development
-            del self.security_headers["Strict-Transport-Security"]
-
-    async def dispatch(self, request: Request, call_next) -> Response:
-        """Apply security headers to all responses."""
-        start_time = time.time()
-
-        # Process request
-        response = await call_next(request)
-
-        # Add security headers
-        for header_name, header_value in self.security_headers.items():
-            response.headers[header_name] = header_value
-
-        # Add processing time header (for debugging)
-        if self.settings.TMWS_ENVIRONMENT == "development":
-            processing_time = time.time() - start_time
-            response.headers["X-Process-Time"] = str(processing_time)
-
-        return response
 
 
 class UnifiedSecurityMiddleware(BaseHTTPMiddleware):
@@ -107,8 +25,10 @@ class UnifiedSecurityMiddleware(BaseHTTPMiddleware):
         self,
         app: FastAPI,
         rate_limiter: RateLimiter | None = None,
-        audit_logger: AsyncAuditLogger | None = None
+        audit_logger: AsyncAuditLogger | None = None,
     ):
+        from .audit_logger_async import AsyncAuditLogger
+
         super().__init__(app)
         self.settings = get_settings()
         self.rate_limiter = rate_limiter or RateLimiter()
@@ -164,8 +84,7 @@ class UnifiedSecurityMiddleware(BaseHTTPMiddleware):
             # Audit unexpected errors
             await self._audit_system_error(request, e, client_ip, start_time)
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Internal server error"
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
             )
 
     def _should_bypass(self, request: Request) -> bool:
@@ -206,12 +125,17 @@ class UnifiedSecurityMiddleware(BaseHTTPMiddleware):
         if auth_header and auth_header.startswith("Bearer "):
             try:
                 from ..security.jwt_service import verify_and_extract_user
+
                 token = auth_header.split(" ", 1)[1]
                 user_info = verify_and_extract_user(token)
                 if user_info:
                     user_id = user_info.get("user_id")
                     user_roles = user_info.get("roles", [])
-            except Exception:
+            except Exception as e:
+                import logging
+
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Failed to extract JWT user info: {type(e).__name__}: {str(e)}")
                 pass  # Invalid token, continue with IP-based limits
 
         # Try to extract API key info
@@ -219,14 +143,18 @@ class UnifiedSecurityMiddleware(BaseHTTPMiddleware):
         if api_key:
             try:
                 from ..services.auth_service import auth_service
+
                 user, key_record = await auth_service.validate_api_key(
-                    api_key=api_key,
-                    ip_address=client_ip
+                    api_key=api_key, ip_address=client_ip
                 )
                 user_id = str(user.id)
                 user_roles = [role.value for role in user.roles]
                 api_key_scopes = [scope.value for scope in key_record.scopes]
-            except Exception:
+            except Exception as e:
+                import logging
+
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Failed to validate API key: {type(e).__name__}: {str(e)}")
                 pass  # Invalid API key, continue with IP-based limits
 
         # Perform rate limit check
@@ -235,7 +163,7 @@ class UnifiedSecurityMiddleware(BaseHTTPMiddleware):
             endpoint_type=endpoint_type,
             user_id=user_id,
             user_roles=user_roles,
-            api_key_scopes=api_key_scopes
+            api_key_scopes=api_key_scopes,
         )
 
     def _get_endpoint_type(self, request: Request) -> str:
@@ -260,11 +188,7 @@ class UnifiedSecurityMiddleware(BaseHTTPMiddleware):
         return "default"
 
     async def _audit_request(
-        self,
-        request: Request,
-        response: Response,
-        client_ip: str,
-        start_time: float
+        self, request: Request, response: Response, client_ip: str, start_time: float
     ) -> None:
         """Audit successful request."""
         processing_time = time.time() - start_time
@@ -285,15 +209,11 @@ class UnifiedSecurityMiddleware(BaseHTTPMiddleware):
                 "status_code": response.status_code,
                 "processing_time_ms": round(processing_time * 1000, 2),
                 "content_length": response.headers.get("content-length", "0"),
-            }
+            },
         )
 
     async def _audit_security_violation(
-        self,
-        request: Request,
-        exception: HTTPException,
-        client_ip: str,
-        start_time: float
+        self, request: Request, exception: HTTPException, client_ip: str, start_time: float
     ) -> None:
         """Audit security violations."""
         processing_time = time.time() - start_time
@@ -310,15 +230,11 @@ class UnifiedSecurityMiddleware(BaseHTTPMiddleware):
                 "status_code": exception.status_code,
                 "error_detail": exception.detail,
                 "processing_time_ms": round(processing_time * 1000, 2),
-            }
+            },
         )
 
     async def _audit_system_error(
-        self,
-        request: Request,
-        exception: Exception,
-        client_ip: str,
-        start_time: float
+        self, request: Request, exception: Exception, client_ip: str, start_time: float
     ) -> None:
         """Audit system errors."""
         processing_time = time.time() - start_time
@@ -335,7 +251,7 @@ class UnifiedSecurityMiddleware(BaseHTTPMiddleware):
                 "error_type": type(exception).__name__,
                 "error_message": str(exception)[:500],  # Truncate long errors
                 "processing_time_ms": round(processing_time * 1000, 2),
-            }
+            },
         )
 
     def _should_audit(self, request: Request) -> bool:
@@ -353,10 +269,15 @@ class UnifiedSecurityMiddleware(BaseHTTPMiddleware):
         if auth_header and auth_header.startswith("Bearer "):
             try:
                 from ..security.jwt_service import verify_and_extract_user
+
                 token = auth_header.split(" ", 1)[1]
                 user_info = verify_and_extract_user(token)
                 return user_info.get("user_id") if user_info else None
-            except Exception:
+            except Exception as e:
+                import logging
+
+                logger = logging.getLogger(__name__)
+                logger.debug(f"Failed to extract user ID from JWT: {type(e).__name__}: {str(e)}")
                 pass
 
         # Try to extract from API key
@@ -366,7 +287,13 @@ class UnifiedSecurityMiddleware(BaseHTTPMiddleware):
                 # This would require a cache or lightweight validation
                 # For now, return a placeholder
                 return f"api_key:{api_key[:8]}"
-            except Exception:
+            except Exception as e:
+                import logging
+
+                logger = logging.getLogger(__name__)
+                logger.debug(
+                    f"Failed to extract user ID from API key: {type(e).__name__}: {str(e)}"
+                )
                 pass
 
         return None
@@ -394,14 +321,7 @@ class EnhancedCORSMiddleware:
             allow_credentials = True
 
         # Allowed methods (be specific)
-        allowed_methods = [
-            "GET",
-            "POST",
-            "PUT",
-            "DELETE",
-            "PATCH",
-            "OPTIONS"
-        ]
+        allowed_methods = ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
 
         # Allowed headers
         allowed_headers = [
@@ -440,7 +360,7 @@ class EnhancedCORSMiddleware:
 def setup_security_middleware(
     app: FastAPI,
     rate_limiter: RateLimiter | None = None,
-    audit_logger: AsyncAuditLogger | None = None
+    audit_logger: AsyncAuditLogger | None = None,
 ) -> None:
     """
     Set up all security middleware in the correct order.
@@ -456,7 +376,5 @@ def setup_security_middleware(
 
     # 3. Unified Security (rate limiting + audit logging)
     app.add_middleware(
-        UnifiedSecurityMiddleware,
-        rate_limiter=rate_limiter,
-        audit_logger=audit_logger
+        UnifiedSecurityMiddleware, rate_limiter=rate_limiter, audit_logger=audit_logger
     )

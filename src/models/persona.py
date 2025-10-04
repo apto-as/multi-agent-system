@@ -7,7 +7,8 @@ from enum import Enum
 from typing import Any
 
 import sqlalchemy as sa
-from sqlalchemy import JSON, Boolean, DateTime, Index, Text
+from sqlalchemy import Boolean, DateTime, Index, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import MetadataMixin, TMWSBase
@@ -15,6 +16,7 @@ from .base import MetadataMixin, TMWSBase
 
 class PersonaType(str, Enum):
     """Types of Trinitas personas."""
+
     ATHENA = "athena"
     ARTEMIS = "artemis"
     HESTIA = "hestia"
@@ -24,6 +26,7 @@ class PersonaType(str, Enum):
 
 class PersonaRole(str, Enum):
     """Roles of Trinitas personas."""
+
     STRATEGIST = "strategist"
     OPTIMIZER = "optimizer"
     AUDITOR = "auditor"
@@ -41,26 +44,26 @@ class Persona(TMWSBase, MetadataMixin):
     type: Mapped[PersonaType] = mapped_column(
         sa.Enum(PersonaType, values_callable=lambda obj: [e.value for e in obj]),
         nullable=False,
-        index=True
+        index=True,
     )
     role: Mapped[PersonaRole] = mapped_column(
         sa.Enum(PersonaRole, values_callable=lambda obj: [e.value for e in obj]),
         nullable=False,
-        index=True
+        index=True,
     )
 
     # Persona configuration
     display_name: Mapped[str] = mapped_column(Text, nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
-    specialties: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    specialties: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
 
     # Persona behavior configuration
-    config: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
-    preferences: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    config: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    preferences: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
 
     # Status and capabilities
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)
-    capabilities: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    capabilities: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
 
     # Performance metrics
     total_tasks: Mapped[int] = mapped_column(sa.Integer, nullable=False, default=0)
@@ -69,16 +72,14 @@ class Persona(TMWSBase, MetadataMixin):
 
     # Additional timestamps (created_at and updated_at come from TMWSBase)
     last_active_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True),
-        nullable=True,
-        index=True
+        DateTime(timezone=True), nullable=True, index=True
     )
 
     # Indexes for performance
     __table_args__ = (
-        Index('ix_persona_type_active', 'type', 'is_active'),
-        Index('ix_persona_role_active', 'role', 'is_active'),
-        Index('ix_persona_active_last_active', 'is_active', 'last_active_at'),
+        Index("ix_persona_type_active", "type", "is_active"),
+        Index("ix_persona_role_active", "role", "is_active"),
+        Index("ix_persona_active_last_active", "is_active", "last_active_at"),
     )
 
     def __repr__(self) -> str:
@@ -102,9 +103,7 @@ class Persona(TMWSBase, MetadataMixin):
             self.average_response_time = response_time
         else:
             # Exponential moving average
-            self.average_response_time = (
-                0.9 * self.average_response_time + 0.1 * response_time
-            )
+            self.average_response_time = 0.9 * self.average_response_time + 0.1 * response_time
 
         self.last_active_at = datetime.utcnow()
 
@@ -146,14 +145,14 @@ class Persona(TMWSBase, MetadataMixin):
                     "architecture_design",
                     "team_coordination",
                     "stakeholder_management",
-                    "long_term_vision"
+                    "long_term_vision",
                 ],
                 "capabilities": [
                     "system_architecture",
                     "project_planning",
                     "risk_assessment",
                     "resource_optimization",
-                    "stakeholder_communication"
+                    "stakeholder_communication",
                 ],
             },
             {
@@ -167,14 +166,14 @@ class Persona(TMWSBase, MetadataMixin):
                     "code_quality",
                     "technical_excellence",
                     "algorithm_design",
-                    "efficiency_improvement"
+                    "efficiency_improvement",
                 ],
                 "capabilities": [
                     "code_optimization",
                     "performance_tuning",
                     "quality_assurance",
                     "refactoring",
-                    "best_practices"
+                    "best_practices",
                 ],
             },
             {
@@ -188,14 +187,14 @@ class Persona(TMWSBase, MetadataMixin):
                     "vulnerability_assessment",
                     "risk_management",
                     "threat_modeling",
-                    "quality_assurance"
+                    "quality_assurance",
                 ],
                 "capabilities": [
                     "security_audit",
                     "vulnerability_scanning",
                     "risk_analysis",
                     "compliance_checking",
-                    "threat_assessment"
+                    "threat_assessment",
                 ],
             },
             {
@@ -209,14 +208,14 @@ class Persona(TMWSBase, MetadataMixin):
                     "resource_optimization",
                     "parallel_execution",
                     "workflow_orchestration",
-                    "real_time_coordination"
+                    "real_time_coordination",
                 ],
                 "capabilities": [
                     "task_management",
                     "resource_allocation",
                     "parallel_processing",
                     "workflow_automation",
-                    "coordination"
+                    "coordination",
                 ],
             },
             {
@@ -230,14 +229,14 @@ class Persona(TMWSBase, MetadataMixin):
                     "knowledge_management",
                     "information_architecture",
                     "content_organization",
-                    "system_documentation"
+                    "system_documentation",
                 ],
                 "capabilities": [
                     "documentation_generation",
                     "knowledge_archival",
                     "content_creation",
                     "information_structuring",
-                    "API_documentation"
+                    "API_documentation",
                 ],
             },
         ]

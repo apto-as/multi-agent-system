@@ -31,13 +31,13 @@ async def health_check() -> dict[str, Any]:
         "timestamp": datetime.utcnow().isoformat(),
         "service": "TMWS",
         "version": settings.api_version,
-        "environment": settings.environment
+        "environment": settings.environment,
     }
 
 
 @router.get("/detailed")
 async def detailed_health_check(
-    db: AsyncSession = Depends(get_db_session_dependency)
+    db: AsyncSession = Depends(get_db_session_dependency),
 ) -> dict[str, Any]:
     """
     Detailed health check endpoint with database and service status.
@@ -48,11 +48,7 @@ async def detailed_health_check(
     - Middleware status
     - System resources
     """
-    health_status = {
-        "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat(),
-        "checks": {}
-    }
+    health_status = {"status": "healthy", "timestamp": datetime.utcnow().isoformat(), "checks": {}}
 
     # Database health check
     try:
@@ -62,7 +58,7 @@ async def detailed_health_check(
         health_status["checks"]["database"] = {
             "status": "healthy" if db_healthy else "unhealthy",
             "connection": db_healthy,
-            "pool": pool_status
+            "pool": pool_status,
         }
 
         if not db_healthy:
@@ -70,10 +66,7 @@ async def detailed_health_check(
 
     except Exception as e:
         logger.error(f"Database health check failed: {e}")
-        health_status["checks"]["database"] = {
-            "status": "unhealthy",
-            "error": str(e)
-        }
+        health_status["checks"]["database"] = {"status": "unhealthy", "error": str(e)}
         health_status["status"] = "unhealthy"
 
     # Application info
@@ -83,31 +76,19 @@ async def detailed_health_check(
             "version": settings.api_version,
             "environment": settings.environment,
         }
-        health_status["checks"]["application"] = {
-            "status": "healthy",
-            "info": app_info
-        }
+        health_status["checks"]["application"] = {"status": "healthy", "info": app_info}
     except Exception as e:
         logger.error(f"Application info check failed: {e}")
-        health_status["checks"]["application"] = {
-            "status": "unhealthy",
-            "error": str(e)
-        }
+        health_status["checks"]["application"] = {"status": "unhealthy", "error": str(e)}
         health_status["status"] = "unhealthy"
 
     # Middleware status
     try:
         middleware_stats = {"status": "unified_middleware_active"}
-        health_status["checks"]["middleware"] = {
-            "status": "healthy",
-            "stats": middleware_stats
-        }
+        health_status["checks"]["middleware"] = {"status": "healthy", "stats": middleware_stats}
     except Exception as e:
         logger.error(f"Middleware status check failed: {e}")
-        health_status["checks"]["middleware"] = {
-            "status": "unhealthy",
-            "error": str(e)
-        }
+        health_status["checks"]["middleware"] = {"status": "unhealthy", "error": str(e)}
 
     # Configuration validation
     try:
@@ -127,7 +108,7 @@ async def detailed_health_check(
         health_status["checks"]["configuration"] = {
             "status": "healthy" if not config_issues else "degraded",
             "issues": config_issues,
-            "environment": settings.environment
+            "environment": settings.environment,
         }
 
         if config_issues and settings.is_production:
@@ -135,18 +116,13 @@ async def detailed_health_check(
 
     except Exception as e:
         logger.error(f"Configuration check failed: {e}")
-        health_status["checks"]["configuration"] = {
-            "status": "unhealthy",
-            "error": str(e)
-        }
+        health_status["checks"]["configuration"] = {"status": "unhealthy", "error": str(e)}
 
     return health_status
 
 
 @router.get("/ready")
-async def readiness_check(
-    db: AsyncSession = Depends(get_db_session_dependency)
-) -> dict[str, Any]:
+async def readiness_check(db: AsyncSession = Depends(get_db_session_dependency)) -> dict[str, Any]:
     """
     Kubernetes/Docker readiness probe endpoint.
 
@@ -157,8 +133,7 @@ async def readiness_check(
         # Check database connection
         if not await DatabaseHealthCheck.check_connection():
             raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Database not ready"
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database not ready"
             )
 
         # Check critical configuration in production
@@ -166,21 +141,17 @@ async def readiness_check(
             if settings.secret_key == "change-this-in-production-to-a-secure-random-key":
                 raise HTTPException(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail="Insecure configuration detected"
+                    detail="Insecure configuration detected",
                 )
 
-        return {
-            "status": "ready",
-            "timestamp": datetime.utcnow().isoformat()
-        }
+        return {"status": "ready", "timestamp": datetime.utcnow().isoformat()}
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Readiness check failed: {e}")
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Service not ready"
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Service not ready"
         )
 
 
@@ -195,16 +166,14 @@ async def liveness_check() -> dict[str, Any]:
     return {
         "status": "alive",
         "timestamp": datetime.utcnow().isoformat(),
-        "uptime_seconds": (datetime.utcnow() - datetime.utcnow().replace(
-            hour=0, minute=0, second=0, microsecond=0
-        )).total_seconds()
+        "uptime_seconds": (
+            datetime.utcnow() - datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        ).total_seconds(),
     }
 
 
 @router.get("/metrics")
-async def metrics_endpoint(
-    db: AsyncSession = Depends(get_db_session_dependency)
-) -> dict[str, Any]:
+async def metrics_endpoint(db: AsyncSession = Depends(get_db_session_dependency)) -> dict[str, Any]:
     """
     Basic metrics endpoint for monitoring.
 
@@ -222,28 +191,27 @@ async def metrics_endpoint(
             "service": {
                 "name": settings.api_title,
                 "version": settings.api_version,
-                "environment": settings.environment
+                "environment": settings.environment,
             },
             "database": {
                 "pool_size": pool_status.get("pool_size", 0),
                 "connections_in_use": pool_status.get("checked_out", 0),
                 "connections_available": pool_status.get("checked_in", 0),
                 "connections_overflow": pool_status.get("overflow", 0),
-                "connections_invalid": pool_status.get("invalid", 0)
+                "connections_invalid": pool_status.get("invalid", 0),
             },
             "middleware": middleware_stats,
             "configuration": {
                 "rate_limiting_enabled": settings.rate_limit_enabled,
                 "cors_enabled": bool(settings.cors_origins),
-                "debug_mode": settings.is_development
-            }
+                "debug_mode": settings.is_development,
+            },
         }
 
     except Exception as e:
         logger.error(f"Metrics collection failed: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Metrics collection failed"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Metrics collection failed"
         )
 
 
@@ -260,11 +228,11 @@ async def version_info() -> dict[str, Any]:
         "environment": settings.environment,
         "api": {
             "docs_enabled": not settings.is_production,
-            "openapi_enabled": not settings.is_production
+            "openapi_enabled": not settings.is_production,
         },
         "build": {
             "timestamp": datetime.utcnow().isoformat(),
             "python_version": "3.11+",
-            "framework": "FastAPI"
-        }
+            "framework": "FastAPI",
+        },
     }

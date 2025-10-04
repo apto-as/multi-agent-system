@@ -7,7 +7,7 @@ ensuring all methods work correctly and meet performance requirements.
 
 Testing Strategy:
 - All public methods have comprehensive test coverage
-- Edge cases and error conditions thoroughly tested  
+- Edge cases and error conditions thoroughly tested
 - Performance requirements (<200ms) validated
 - Input validation and sanitization verified
 - Database interactions properly mocked where needed
@@ -16,7 +16,7 @@ Testing Strategy:
 
 import asyncio
 from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
 import pytest
@@ -41,14 +41,19 @@ class TestAuthServiceUserCreation:
         """Create AuthService instance for testing."""
         return AuthService()
 
+    @pytest.mark.asyncio
     async def test_create_user_success(self, auth_service):
         """Test successful user creation."""
-        with patch('src.services.auth_service.get_db_session') as mock_db:
+        with patch('src.services.auth_service.get_db_session') as mock_db, \
+             patch('src.services.auth_service.get_audit_logger') as mock_audit:
             mock_session = AsyncMock()
             mock_db.return_value.__aenter__.return_value = mock_session
+            mock_audit.return_value.log_event = AsyncMock()
 
-            # Mock database check for existing users
-            mock_session.execute.return_value.scalar_one_or_none.return_value = None
+            # Mock database check for existing users - return None (no existing user)
+            mock_result = AsyncMock()
+            mock_result.scalar_one_or_none = Mock(return_value=None)
+            mock_session.execute = AsyncMock(return_value=mock_result)
             mock_session.commit = AsyncMock()
             mock_session.refresh = AsyncMock()
 
@@ -70,6 +75,7 @@ class TestAuthServiceUserCreation:
             assert user.password_salt is not None
             assert len(user.password_salt) == 32
 
+    @pytest.mark.asyncio
     async def test_create_user_duplicate_username(self, auth_service):
         """Test user creation with duplicate username."""
         with patch('src.services.auth_service.get_db_session') as mock_db:
@@ -78,7 +84,9 @@ class TestAuthServiceUserCreation:
 
             # Mock existing user found
             existing_user = User(username="testuser", email="other@example.com")
-            mock_session.execute.return_value.scalar_one_or_none.return_value = existing_user
+            mock_result = AsyncMock()
+            mock_result.scalar_one_or_none = Mock(return_value=existing_user)
+            mock_session.execute = AsyncMock(return_value=mock_result)
 
             with pytest.raises(ValueError, match="Username or email already exists"):
                 await auth_service.create_user(
@@ -87,6 +95,7 @@ class TestAuthServiceUserCreation:
                     password="secure_password_123"
                 )
 
+    @pytest.mark.asyncio
     async def test_create_user_invalid_username_length(self, auth_service):
         """Test user creation with invalid username length."""
         # Too short
@@ -105,6 +114,7 @@ class TestAuthServiceUserCreation:
                 password="secure_password_123"
             )
 
+    @pytest.mark.asyncio
     async def test_create_user_weak_password(self, auth_service):
         """Test user creation with weak password."""
         weak_passwords = ["1234567", "short", ""]
@@ -117,13 +127,16 @@ class TestAuthServiceUserCreation:
                     password=weak_password
                 )
 
+    @pytest.mark.asyncio
     async def test_create_user_with_roles(self, auth_service):
         """Test user creation with specific roles."""
         with patch('src.services.auth_service.get_db_session') as mock_db:
             mock_session = AsyncMock()
             mock_db.return_value.__aenter__.return_value = mock_session
 
-            mock_session.execute.return_value.scalar_one_or_none.return_value = None
+            mock_result = AsyncMock()
+            mock_result.scalar_one_or_none = Mock(return_value=None)
+            mock_session.execute = AsyncMock(return_value=mock_result)
             mock_session.commit = AsyncMock()
             mock_session.refresh = AsyncMock()
 
@@ -138,6 +151,46 @@ class TestAuthServiceUserCreation:
             assert UserRole.USER in user.roles
 
 
+@pytest.fixture
+def mock_user():
+    """Create mock user for testing."""
+    password_hash, password_salt = jwt_service.hash_password("test_password")
+
+    user = User(
+        id=uuid4(),
+        username="testuser",
+        email="test@example.com",
+        password_hash=password_hash,
+        password_salt=password_salt,
+        status=UserStatus.ACTIVE,
+        roles=[UserRole.USER],
+        failed_login_attempts=0
+    )
+    return user
+
+
+@pytest.fixture
+def performance_timer():
+    """Create performance timer for testing."""
+    import time
+
+    class Timer:
+        def __init__(self):
+            self.start_time = None
+
+        def start(self):
+            self.start_time = time.perf_counter()
+
+        def stop(self):
+            if self.start_time is None:
+                return 0
+            elapsed = (time.perf_counter() - self.start_time) * 1000  # Convert to milliseconds
+            self.start_time = None
+            return elapsed
+
+    return Timer()
+
+
 @pytest.mark.unit
 class TestAuthServiceAuthentication:
     """Test user authentication functionality."""
@@ -147,23 +200,7 @@ class TestAuthServiceAuthentication:
         """Create AuthService instance for testing."""
         return AuthService()
 
-    @pytest.fixture
-    def mock_user(self):
-        """Create mock user for testing."""
-        password_hash, password_salt = jwt_service.hash_password("test_password")
-
-        user = User(
-            id=uuid4(),
-            username="testuser",
-            email="test@example.com",
-            password_hash=password_hash,
-            password_salt=password_salt,
-            status=UserStatus.ACTIVE,
-            roles=[UserRole.USER],
-            failed_login_attempts=0
-        )
-        return user
-
+    @pytest.mark.asyncio
     async def test_authenticate_user_success(self, auth_service, mock_user):
         """Test successful user authentication."""
         with patch('src.services.auth_service.get_db_session') as mock_db:
@@ -171,7 +208,9 @@ class TestAuthServiceAuthentication:
             mock_db.return_value.__aenter__.return_value = mock_session
 
             # Mock user lookup
-            mock_session.execute.return_value.scalar_one_or_none.return_value = mock_user
+            mock_result = AsyncMock()
+            mock_result.scalar_one_or_none = Mock(return_value=mock_user)
+            mock_session.execute = AsyncMock(return_value=mock_result)
             mock_session.commit = AsyncMock()
 
             user, access_token, refresh_token = await auth_service.authenticate_user(
@@ -189,6 +228,7 @@ class TestAuthServiceAuthentication:
             assert payload is not None
             assert payload['sub'] == str(mock_user.id)
 
+    @pytest.mark.asyncio
     async def test_authenticate_user_not_found(self, auth_service):
         """Test authentication with non-existent user."""
         with patch('src.services.auth_service.get_db_session') as mock_db:
@@ -196,7 +236,9 @@ class TestAuthServiceAuthentication:
             mock_db.return_value.__aenter__.return_value = mock_session
 
             # Mock no user found
-            mock_session.execute.return_value.scalar_one_or_none.return_value = None
+            mock_result = AsyncMock()
+            mock_result.scalar_one_or_none = Mock(return_value=None)
+            mock_session.execute = AsyncMock(return_value=mock_result)
 
             with pytest.raises(InvalidCredentialsError, match="Invalid credentials"):
                 await auth_service.authenticate_user(
@@ -204,13 +246,16 @@ class TestAuthServiceAuthentication:
                     "any_password"
                 )
 
+    @pytest.mark.asyncio
     async def test_authenticate_user_wrong_password(self, auth_service, mock_user):
         """Test authentication with wrong password."""
         with patch('src.services.auth_service.get_db_session') as mock_db:
             mock_session = AsyncMock()
             mock_db.return_value.__aenter__.return_value = mock_session
 
-            mock_session.execute.return_value.scalar_one_or_none.return_value = mock_user
+            mock_result = AsyncMock()
+            mock_result.scalar_one_or_none = Mock(return_value=mock_user)
+            mock_session.execute = AsyncMock(return_value=mock_result)
             mock_session.commit = AsyncMock()
 
             with pytest.raises(InvalidCredentialsError, match="Invalid credentials"):
@@ -222,6 +267,7 @@ class TestAuthServiceAuthentication:
             # Should increment failed attempts
             assert mock_user.failed_login_attempts > 0
 
+    @pytest.mark.asyncio
     async def test_authenticate_locked_account(self, auth_service):
         """Test authentication with locked account."""
         locked_user = User(
@@ -234,7 +280,9 @@ class TestAuthServiceAuthentication:
             mock_session = AsyncMock()
             mock_db.return_value.__aenter__.return_value = mock_session
 
-            mock_session.execute.return_value.scalar_one_or_none.return_value = locked_user
+            mock_result = AsyncMock()
+            mock_result.scalar_one_or_none = Mock(return_value=locked_user)
+            mock_session.execute = AsyncMock(return_value=mock_result)
 
             with pytest.raises(AccountLockedError, match="Account is locked"):
                 await auth_service.authenticate_user(
@@ -242,6 +290,7 @@ class TestAuthServiceAuthentication:
                     "any_password"
                 )
 
+    @pytest.mark.asyncio
     async def test_authenticate_suspended_account(self, auth_service):
         """Test authentication with suspended account."""
         suspended_user = User(
@@ -254,7 +303,9 @@ class TestAuthServiceAuthentication:
             mock_session = AsyncMock()
             mock_db.return_value.__aenter__.return_value = mock_session
 
-            mock_session.execute.return_value.scalar_one_or_none.return_value = suspended_user
+            mock_result = AsyncMock()
+            mock_result.scalar_one_or_none = Mock(return_value=suspended_user)
+            mock_session.execute = AsyncMock(return_value=mock_result)
 
             with pytest.raises(AccountDisabledError, match="Account is disabled"):
                 await auth_service.authenticate_user(
@@ -262,6 +313,7 @@ class TestAuthServiceAuthentication:
                     "any_password"
                 )
 
+    @pytest.mark.asyncio
     @pytest.mark.performance
     async def test_authenticate_performance(self, auth_service, mock_user, performance_timer):
         """Test authentication performance meets <200ms requirement."""
@@ -269,7 +321,9 @@ class TestAuthServiceAuthentication:
             mock_session = AsyncMock()
             mock_db.return_value.__aenter__.return_value = mock_session
 
-            mock_session.execute.return_value.scalar_one_or_none.return_value = mock_user
+            mock_result = AsyncMock()
+            mock_result.scalar_one_or_none = Mock(return_value=mock_user)
+            mock_session.execute = AsyncMock(return_value=mock_result)
             mock_session.commit = AsyncMock()
 
             # Test multiple authentication attempts
@@ -298,6 +352,7 @@ class TestAuthServiceTokenRefresh:
     def auth_service(self):
         return AuthService()
 
+    @pytest.mark.asyncio
     async def test_refresh_token_success(self, auth_service, mock_user):
         """Test successful token refresh."""
         # Create initial tokens
@@ -310,7 +365,9 @@ class TestAuthServiceTokenRefresh:
             mock_db.return_value.__aenter__.return_value = mock_session
 
             # Mock refresh token lookup
-            mock_session.execute.return_value.scalar_one_or_none.return_value = refresh_record
+            mock_result = AsyncMock()
+            mock_result.scalar_one_or_none = Mock(return_value=refresh_record)
+            mock_session.execute = AsyncMock(return_value=mock_result)
             mock_session.commit = AsyncMock()
 
             new_access_token, new_refresh_token = await auth_service.refresh_access_token(
@@ -325,11 +382,13 @@ class TestAuthServiceTokenRefresh:
             assert payload is not None
             assert payload['sub'] == str(mock_user.id)
 
+    @pytest.mark.asyncio
     async def test_refresh_token_invalid_format(self, auth_service):
         """Test refresh with invalid token format."""
         with pytest.raises(TokenExpiredError, match="Invalid refresh token format"):
             await auth_service.refresh_access_token("invalid_token_format")
 
+    @pytest.mark.asyncio
     async def test_refresh_token_not_found(self, auth_service):
         """Test refresh with non-existent token."""
         valid_format_token = "valid_token_id_12345678901234567890.valid_raw_token_part"
@@ -339,7 +398,9 @@ class TestAuthServiceTokenRefresh:
             mock_db.return_value.__aenter__.return_value = mock_session
 
             # Mock no refresh token found
-            mock_session.execute.return_value.scalar_one_or_none.return_value = None
+            mock_result = AsyncMock()
+            mock_result.scalar_one_or_none = Mock(return_value=None)
+            mock_session.execute = AsyncMock(return_value=mock_result)
 
             with pytest.raises(TokenExpiredError, match="Refresh token expired or revoked"):
                 await auth_service.refresh_access_token(valid_format_token)
@@ -353,6 +414,7 @@ class TestAuthServiceAPIKeys:
     def auth_service(self):
         return AuthService()
 
+    @pytest.mark.asyncio
     async def test_create_api_key_success(self, auth_service):
         """Test successful API key creation."""
         user_id = uuid4()
@@ -384,6 +446,7 @@ class TestAuthServiceAPIKeys:
             assert APIKeyScope.WRITE in api_key_record.scopes
             assert api_key_record.user_id == user_id
 
+    @pytest.mark.asyncio
     async def test_create_api_key_with_expiration(self, auth_service):
         """Test API key creation with expiration."""
         user_id = uuid4()
@@ -407,6 +470,7 @@ class TestAuthServiceAPIKeys:
             time_diff = abs((api_key_record.expires_at - expected_expiry).total_seconds())
             assert time_diff < 60
 
+    @pytest.mark.asyncio
     async def test_validate_api_key_success(self, auth_service):
         """Test successful API key validation."""
         # Create mock API key and user
@@ -432,7 +496,9 @@ class TestAuthServiceAPIKeys:
             mock_session = AsyncMock()
             mock_db.return_value.__aenter__.return_value = mock_session
 
-            mock_session.execute.return_value.scalar_one_or_none.return_value = api_key_record
+            mock_result = AsyncMock()
+            mock_result.scalar_one_or_none = Mock(return_value=api_key_record)
+            mock_session.execute = AsyncMock(return_value=mock_result)
             mock_session.commit = AsyncMock()
 
             api_key = f"{key_id}.{raw_key}"
@@ -441,22 +507,27 @@ class TestAuthServiceAPIKeys:
             assert user.id == user_id
             assert key.key_id == key_id
 
+    @pytest.mark.asyncio
     async def test_validate_api_key_invalid_format(self, auth_service):
         """Test API key validation with invalid format."""
         with pytest.raises(InvalidCredentialsError, match="Invalid API key format"):
             await auth_service.validate_api_key("invalid_format")
 
+    @pytest.mark.asyncio
     async def test_validate_api_key_not_found(self, auth_service):
         """Test API key validation with non-existent key."""
         with patch('src.services.auth_service.get_db_session') as mock_db:
             mock_session = AsyncMock()
             mock_db.return_value.__aenter__.return_value = mock_session
 
-            mock_session.execute.return_value.scalar_one_or_none.return_value = None
+            mock_result = AsyncMock()
+            mock_result.scalar_one_or_none = Mock(return_value=None)
+            mock_session.execute = AsyncMock(return_value=mock_result)
 
             with pytest.raises(InvalidCredentialsError, match="Invalid API key"):
                 await auth_service.validate_api_key("nonexistent.key_format")
 
+    @pytest.mark.asyncio
     @pytest.mark.performance
     async def test_validate_api_key_performance(self, auth_service, performance_timer):
         """Test API key validation meets <100ms performance requirement."""
@@ -482,7 +553,9 @@ class TestAuthServiceAPIKeys:
             mock_session = AsyncMock()
             mock_db.return_value.__aenter__.return_value = mock_session
 
-            mock_session.execute.return_value.scalar_one_or_none.return_value = api_key_record
+            mock_result = AsyncMock()
+            mock_result.scalar_one_or_none = Mock(return_value=api_key_record)
+            mock_session.execute = AsyncMock(return_value=mock_result)
             mock_session.commit = AsyncMock()
 
             api_key = f"{key_id}.{raw_key}"
@@ -509,6 +582,7 @@ class TestAuthServicePasswordManagement:
     def auth_service(self):
         return AuthService()
 
+    @pytest.mark.asyncio
     async def test_change_password_success(self, auth_service, mock_user):
         """Test successful password change."""
         with patch('src.services.auth_service.get_db_session') as mock_db:
@@ -533,6 +607,7 @@ class TestAuthServicePasswordManagement:
             # Password changed timestamp should be updated
             assert mock_user.password_changed_at is not None
 
+    @pytest.mark.asyncio
     async def test_change_password_wrong_current(self, auth_service, mock_user):
         """Test password change with wrong current password."""
         with patch('src.services.auth_service.get_db_session') as mock_db:
@@ -548,6 +623,7 @@ class TestAuthServicePasswordManagement:
                     new_password="new_secure_password_123"
                 )
 
+    @pytest.mark.asyncio
     async def test_change_password_weak_new(self, auth_service, mock_user):
         """Test password change with weak new password."""
         with pytest.raises(ValueError, match="Password must be at least"):
@@ -557,6 +633,7 @@ class TestAuthServicePasswordManagement:
                 new_password="weak"
             )
 
+    @pytest.mark.asyncio
     async def test_reset_password_success(self, auth_service):
         """Test successful password reset."""
         user_id = uuid4()
@@ -586,6 +663,7 @@ class TestAuthServiceConcurrency:
     def auth_service(self):
         return AuthService()
 
+    @pytest.mark.asyncio
     async def test_concurrent_user_creation(self, auth_service):
         """Test concurrent user creation handles conflicts properly."""
         with patch('src.services.auth_service.get_db_session') as mock_db:
@@ -616,10 +694,11 @@ class TestAuthServiceConcurrency:
 
             # One should succeed, one should fail with duplicate error
             successful = [r for r in results if isinstance(r, User)]
-            failed = [r for r in results if isinstance(r, (ValueError, Exception))]
+            failed = [r for r in results if isinstance(r, ValueError | Exception)]
 
             assert len(successful) + len(failed) == 2
 
+    @pytest.mark.asyncio
     async def test_concurrent_api_key_validation(self, auth_service):
         """Test concurrent API key validation."""
         # Setup mock data
@@ -644,7 +723,9 @@ class TestAuthServiceConcurrency:
             mock_session = AsyncMock()
             mock_db.return_value.__aenter__.return_value = mock_session
 
-            mock_session.execute.return_value.scalar_one_or_none.return_value = api_key_record
+            mock_result = AsyncMock()
+            mock_result.scalar_one_or_none = Mock(return_value=api_key_record)
+            mock_session.execute = AsyncMock(return_value=mock_result)
             mock_session.commit = AsyncMock()
 
             api_key = f"{key_id}.{raw_key}"

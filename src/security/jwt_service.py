@@ -9,10 +9,10 @@ from typing import Any
 
 import jwt
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
-from passlib.context import CryptContext
 
 from ..core.config import get_settings
 from ..models.user import RefreshToken, User
+from ..utils.security import hash_password_with_salt, verify_password_with_salt
 
 settings = get_settings()
 
@@ -33,15 +33,10 @@ class JWTService:
 
         # Token lifetimes (optimized for performance vs security)
         self.access_token_expire_minutes = 15  # Short-lived for security
-        self.refresh_token_expire_days = 30     # Longer-lived for UX
-        self.api_key_token_expire_hours = 24    # Service tokens
+        self.refresh_token_expire_days = 30  # Longer-lived for UX
+        self.api_key_token_expire_hours = 24  # Service tokens
 
-        # Password hashing
-        self.pwd_context = CryptContext(
-            schemes=["bcrypt"],
-            deprecated="auto",
-            bcrypt__rounds=12  # Balanced performance/security
-        )
+        # Password hashing moved to utils.security for consistency
 
         # Performance optimization: pre-compute common claims
         self._base_claims = {
@@ -50,26 +45,18 @@ class JWTService:
         }
 
     def hash_password(self, password: str) -> tuple[str, str]:
-        """
-        Hash password with salt for secure storage.
-        Returns (hash, salt) tuple.
-        """
-        salt = secrets.token_hex(16)
-        # Add salt to password before hashing for additional security
-        salted_password = f"{password}{salt}"
-        password_hash = self.pwd_context.hash(salted_password)
-        return password_hash, salt
+        """Hash password with salt - delegates to unified security utils."""
+        return hash_password_with_salt(password)
 
     def verify_password(self, password: str, hashed: str, salt: str) -> bool:
-        """Verify password against hash with salt."""
-        salted_password = f"{password}{salt}"
-        return self.pwd_context.verify(salted_password, hashed)
+        """Verify password against hash with salt - delegates to unified security utils."""
+        return verify_password_with_salt(password, hashed, salt)
 
     def create_access_token(
         self,
         user: User,
         additional_claims: dict[str, Any] | None = None,
-        expires_delta: timedelta | None = None
+        expires_delta: timedelta | None = None,
     ) -> str:
         """
         Create JWT access token for user.
@@ -80,18 +67,20 @@ class JWTService:
 
         # Build claims efficiently
         claims = self._base_claims.copy()
-        claims.update({
-            "sub": str(user.id),  # Subject (user ID)
-            "username": user.username,
-            "email": user.email,
-            "roles": [role.value for role in user.roles],
-            "agent_namespace": user.agent_namespace,
-            "preferred_agent_id": user.preferred_agent_id,
-            "iat": now,  # Issued at
-            "exp": expire,  # Expires
-            "jti": secrets.token_urlsafe(16),  # JWT ID for revocation
-            "session_timeout": user.session_timeout_minutes,
-        })
+        claims.update(
+            {
+                "sub": str(user.id),  # Subject (user ID)
+                "username": user.username,
+                "email": user.email,
+                "roles": [role.value for role in user.roles],
+                "agent_namespace": user.agent_namespace,
+                "preferred_agent_id": user.preferred_agent_id,
+                "iat": now,  # Issued at
+                "exp": expire,  # Expires
+                "jti": secrets.token_urlsafe(16),  # JWT ID for revocation
+                "session_timeout": user.session_timeout_minutes,
+            }
+        )
 
         # Add additional claims if provided
         if additional_claims:
@@ -119,10 +108,7 @@ class JWTService:
 
         # Create database record
         refresh_token = RefreshToken(
-            token_id=token_id,
-            token_hash=token_hash,
-            expires_at=expires_at,
-            user_id=user.id
+            token_id=token_id, token_hash=token_hash, expires_at=expires_at, user_id=user.id
         )
 
         # Return token and record
@@ -130,28 +116,26 @@ class JWTService:
         return full_token, refresh_token
 
     def create_api_key_token(
-        self,
-        api_key_id: str,
-        user: User,
-        scopes: list[str],
-        expires_delta: timedelta | None = None
+        self, api_key_id: str, user: User, scopes: list[str], expires_delta: timedelta | None = None
     ) -> str:
         """Create JWT token for API key authentication."""
         now = datetime.now(timezone.utc)
         expire = now + (expires_delta or timedelta(hours=self.api_key_token_expire_hours))
 
         claims = self._base_claims.copy()
-        claims.update({
-            "sub": str(user.id),
-            "username": user.username,
-            "api_key_id": api_key_id,
-            "scopes": scopes,
-            "token_type": "api_key",
-            "agent_namespace": user.agent_namespace,
-            "iat": now,
-            "exp": expire,
-            "jti": secrets.token_urlsafe(16),
-        })
+        claims.update(
+            {
+                "sub": str(user.id),
+                "username": user.username,
+                "api_key_id": api_key_id,
+                "scopes": scopes,
+                "token_type": "api_key",
+                "agent_namespace": user.agent_namespace,
+                "iat": now,
+                "exp": expire,
+                "jti": secrets.token_urlsafe(16),
+            }
+        )
 
         return jwt.encode(claims, self.secret_key, algorithm=self.algorithm)
 
@@ -175,7 +159,7 @@ class JWTService:
                     "verify_iat": True,
                     "verify_aud": True,
                     "verify_iss": True,
-                }
+                },
             )
 
             # Additional validation
@@ -190,8 +174,15 @@ class JWTService:
         except InvalidTokenError:
             # Invalid token format or signature
             return None
-        except Exception:
+        except Exception as e:
             # Unexpected error - log but don't expose details
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.error(
+                f"JWT verification failed with unexpected error: {type(e).__name__}: {str(e)}",
+                exc_info=True,
+            )
             return None
 
     def verify_refresh_token(self, token: str) -> str | None:
@@ -213,14 +204,27 @@ class JWTService:
 
             return token_id
 
-        except Exception:
+        except Exception as e:
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.error(
+                f"Refresh token verification failed: {type(e).__name__}: {str(e)}", exc_info=True
+            )
             return None
 
     def verify_refresh_token_hash(self, raw_token: str, stored_hash: str) -> bool:
         """Verify raw refresh token against stored hash."""
         try:
             return self.pwd_context.verify(raw_token, stored_hash)
-        except Exception:
+        except Exception as e:
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.error(
+                f"Refresh token hash verification failed: {type(e).__name__}: {str(e)}",
+                exc_info=True,
+            )
             return False
 
     def decode_token_unsafe(self, token: str) -> dict[str, Any] | None:
@@ -230,7 +234,11 @@ class JWTService:
         """
         try:
             return jwt.decode(token, options={"verify_signature": False})
-        except Exception:
+        except Exception as e:
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Token decode (unsafe) failed: {type(e).__name__}: {str(e)}")
             return None
 
     def get_token_expiry(self, token: str) -> datetime | None:
@@ -239,7 +247,11 @@ class JWTService:
             payload = self.decode_token_unsafe(token)
             if payload and "exp" in payload:
                 return datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
-        except Exception:
+        except Exception as e:
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Failed to extract token expiry: {type(e).__name__}: {str(e)}")
             pass
         return None
 
@@ -337,11 +349,5 @@ def verify_and_extract_user(token: str) -> dict[str, Any] | None:
     return jwt_service.extract_user_info(payload)
 
 
-def hash_password(password: str) -> tuple[str, str]:
-    """Convenience function for password hashing."""
-    return jwt_service.hash_password(password)
-
-
-def verify_password(password: str, hashed: str, salt: str) -> bool:
-    """Convenience function for password verification."""
-    return jwt_service.verify_password(password, hashed, salt)
+# Global password functions removed - use utils.security directly
+# or access through jwt_service instance

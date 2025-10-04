@@ -22,6 +22,7 @@ Security Requirements Validated:
 """
 
 import asyncio
+import contextlib
 from datetime import datetime, timedelta
 
 import pytest
@@ -99,26 +100,22 @@ class TestPasswordSecurity:
         times_correct = []
         for _ in range(10):
             performance_timer.start()
-            try:
+            with contextlib.suppress(Exception):
                 await auth_service.authenticate_user(
                     test_user_data["username"],
                     test_user_data["password"]
                 )
-            except Exception:
-                pass
             times_correct.append(performance_timer.stop())
 
         # Measure time for incorrect password
         times_incorrect = []
         for _ in range(10):
             performance_timer.start()
-            try:
+            with contextlib.suppress(InvalidCredentialsError):
                 await auth_service.authenticate_user(
                     test_user_data["username"],
                     "wrong_password"
                 )
-            except InvalidCredentialsError:
-                pass
             times_incorrect.append(performance_timer.stop())
 
         # Timing should be similar (within reasonable variance)
@@ -188,7 +185,7 @@ class TestJWTSecurity:
         token = jwt_service.create_access_token(test_user)
 
         # Get original payload
-        original_payload = jwt_service.decode_token_unsafe(token)
+        jwt_service.decode_token_unsafe(token)
 
         # Tamper with payload (change username)
         import base64
@@ -370,7 +367,7 @@ class TestAuthenticationFlows:
     async def test_account_lockout_flow(self, test_user, test_user_data, auth_service: AuthService):
         """Test account lockout after failed attempts."""
         # Make multiple failed login attempts
-        for i in range(5):
+        for _i in range(5):
             with pytest.raises(InvalidCredentialsError):
                 await auth_service.authenticate_user(
                     test_user_data["username"],
@@ -474,13 +471,11 @@ class TestSecurityVulnerabilities:
         # Rapid failed login attempts
         for i in range(10):
             start_time = datetime.now()
-            try:
+            with contextlib.suppress(InvalidCredentialsError, AccountLockedError):
                 await auth_service.authenticate_user(
                     test_user_data["username"],
                     f"wrong_password_{i}"
                 )
-            except (InvalidCredentialsError, AccountLockedError):
-                pass
 
             duration = (datetime.now() - start_time).total_seconds()
             failed_attempts.append(duration)

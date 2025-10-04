@@ -17,10 +17,10 @@ from src.core.config import get_settings
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
 
 def main():
     """Main entry point for TMWS API server."""
@@ -42,8 +42,9 @@ def main():
         host=settings.api_host,
         port=settings.api_port,
         reload=settings.environment == "development",
-        log_level="info"
+        log_level="info",
     )
+
 
 if __name__ == "__main__":
     try:

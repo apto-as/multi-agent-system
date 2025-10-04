@@ -20,5 +20,5 @@ __all__ = [
     "TacticalProcessManager",
     "ServiceState",
     "ProcessPriority",
-    "create_tactical_process_manager"
+    "create_tactical_process_manager",
 ]

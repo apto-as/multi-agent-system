@@ -11,13 +11,10 @@ import re
 from typing import Any
 from urllib.parse import urlparse, urlunparse
 
-try:
-    import bleach
-    from bleach.css_sanitizer import CSSSanitizer
-    BLEACH_AVAILABLE = True
-except ImportError:
-    BLEACH_AVAILABLE = False
-    logging.warning("Bleach library not available. Using basic HTML sanitization.")
+# Bleach is a REQUIRED dependency for security
+# If it's not available, the application must not start
+import bleach
+from bleach.css_sanitizer import CSSSanitizer
 
 logger = logging.getLogger(__name__)
 
@@ -33,34 +30,84 @@ class HTMLSanitizer:
         "strict": {
             "tags": [],  # No HTML allowed
             "attributes": {},
-            "strip": True
+            "strip": True,
         },
         "basic": {
             "tags": ["p", "br", "strong", "em", "u", "s", "a", "ul", "ol", "li"],
             "attributes": {"a": ["href", "title"]},
             "protocols": ["http", "https", "mailto"],
-            "strip": True
+            "strip": True,
         },
         "markdown": {
             "tags": [
-                "p", "br", "strong", "em", "u", "s", "a", "ul", "ol", "li",
-                "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "code", "pre",
-                "hr", "table", "thead", "tbody", "tr", "th", "td"
+                "p",
+                "br",
+                "strong",
+                "em",
+                "u",
+                "s",
+                "a",
+                "ul",
+                "ol",
+                "li",
+                "h1",
+                "h2",
+                "h3",
+                "h4",
+                "h5",
+                "h6",
+                "blockquote",
+                "code",
+                "pre",
+                "hr",
+                "table",
+                "thead",
+                "tbody",
+                "tr",
+                "th",
+                "td",
             ],
-            "attributes": {
-                "a": ["href", "title"],
-                "code": ["class"],
-                "pre": ["class"]
-            },
+            "attributes": {"a": ["href", "title"], "code": ["class"], "pre": ["class"]},
             "protocols": ["http", "https", "mailto"],
-            "strip": True
+            "strip": True,
         },
         "rich": {
             "tags": [
-                "p", "br", "strong", "em", "u", "s", "a", "ul", "ol", "li",
-                "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "code", "pre",
-                "hr", "table", "thead", "tbody", "tr", "th", "td", "img", "figure",
-                "figcaption", "span", "div", "section", "article", "header", "footer"
+                "p",
+                "br",
+                "strong",
+                "em",
+                "u",
+                "s",
+                "a",
+                "ul",
+                "ol",
+                "li",
+                "h1",
+                "h2",
+                "h3",
+                "h4",
+                "h5",
+                "h6",
+                "blockquote",
+                "code",
+                "pre",
+                "hr",
+                "table",
+                "thead",
+                "tbody",
+                "tr",
+                "th",
+                "td",
+                "img",
+                "figure",
+                "figcaption",
+                "span",
+                "div",
+                "section",
+                "article",
+                "header",
+                "footer",
             ],
             "attributes": {
                 "a": ["href", "title", "target", "rel"],
@@ -70,15 +117,25 @@ class HTMLSanitizer:
                 "span": ["class", "style"],
                 "div": ["class", "id"],
                 "section": ["class", "id"],
-                "article": ["class", "id"]
+                "article": ["class", "id"],
             },
             "protocols": ["http", "https", "mailto", "data"],
             "strip": False,
-            "css_sanitizer": CSSSanitizer(allowed_css_properties=[
-                "color", "background-color", "font-size", "font-weight",
-                "text-align", "margin", "padding", "border", "width", "height"
-            ]) if BLEACH_AVAILABLE else None
-        }
+            "css_sanitizer": CSSSanitizer(
+                allowed_css_properties=[
+                    "color",
+                    "background-color",
+                    "font-size",
+                    "font-weight",
+                    "text-align",
+                    "margin",
+                    "padding",
+                    "border",
+                    "width",
+                    "height",
+                ]
+            ),
+        },
     }
 
     def __init__(self, preset: str = "basic", custom_config: dict[str, Any] = None):
@@ -90,11 +147,8 @@ class HTMLSanitizer:
             custom_config: Custom configuration to override preset
         """
 
-        if not BLEACH_AVAILABLE:
-            logger.warning("Bleach not available. HTML sanitization will be limited.")
-            self.bleach_available = False
-        else:
-            self.bleach_available = True
+        # Bleach is always available as it's a required dependency
+        self.bleach_available = True
 
         # Load preset
         if preset in self.PRESETS:
@@ -132,44 +186,40 @@ class HTMLSanitizer:
         if self._contains_suspicious_patterns(html_content):
             logger.warning(f"Suspicious patterns detected in {context}")
 
-        if self.bleach_available:
-            # Use Bleach for sanitization
-            cleaned = bleach.clean(
-                html_content,
-                tags=self.config.get("tags", []),
-                attributes=self.config.get("attributes", {}),
-                protocols=self.config.get("protocols", ["http", "https"]),
-                strip=self.config.get("strip", True),
-                strip_comments=True
-            )
+        # Always use Bleach for sanitization
+        cleaned = bleach.clean(
+            html_content,
+            tags=self.config.get("tags", []),
+            attributes=self.config.get("attributes", {}),
+            protocols=self.config.get("protocols", ["http", "https"]),
+            strip=self.config.get("strip", True),
+            strip_comments=True,
+        )
 
-            # Apply CSS sanitization if configured
-            if "css_sanitizer" in self.config and self.config["css_sanitizer"]:
-                cleaned = self._sanitize_css(cleaned)
+        # Apply CSS sanitization if configured
+        if "css_sanitizer" in self.config and self.config["css_sanitizer"]:
+            cleaned = self._sanitize_css(cleaned)
 
-            return cleaned
-        else:
-            # Fallback to basic sanitization
-            return self._basic_sanitize(html_content)
+        return cleaned
 
     def _contains_suspicious_patterns(self, content: str) -> bool:
         """Check for suspicious patterns that might indicate attack."""
 
         suspicious_patterns = [
-            r'<script[^>]*>',
-            r'javascript:',
-            r'on\w+\s*=',  # Event handlers
-            r'expression\s*\(',  # CSS expression
-            r'import\s*\(',
-            r'@import',
-            r'<iframe',
-            r'<object',
-            r'<embed',
-            r'<applet',
-            r'<meta[^>]*http-equiv',
-            r'<link[^>]*href.*javascript:',
-            r'&#x[0-9a-fA-F]+;',  # Hex entities
-            r'&#\d+;',  # Decimal entities
+            r"<script[^>]*>",
+            r"javascript:",
+            r"on\w+\s*=",  # Event handlers
+            r"expression\s*\(",  # CSS expression
+            r"import\s*\(",
+            r"@import",
+            r"<iframe",
+            r"<object",
+            r"<embed",
+            r"<applet",
+            r"<meta[^>]*http-equiv",
+            r"<link[^>]*href.*javascript:",
+            r"&#x[0-9a-fA-F]+;",  # Hex entities
+            r"&#\d+;",  # Decimal entities
         ]
 
         content_lower = content.lower()
@@ -186,29 +236,33 @@ class HTMLSanitizer:
         """
 
         # Remove script and style elements completely
-        html_content = re.sub(r'<script[^>]*>.*?</script>', '', html_content, flags=re.DOTALL | re.IGNORECASE)
-        html_content = re.sub(r'<style[^>]*>.*?</style>', '', html_content, flags=re.DOTALL | re.IGNORECASE)
+        html_content = re.sub(
+            r"<script[^>]*>.*?</script>", "", html_content, flags=re.DOTALL | re.IGNORECASE
+        )
+        html_content = re.sub(
+            r"<style[^>]*>.*?</style>", "", html_content, flags=re.DOTALL | re.IGNORECASE
+        )
 
         # Remove dangerous event handlers
-        html_content = re.sub(r'on\w+\s*=\s*["\'].*?["\']', '', html_content, flags=re.IGNORECASE)
-        html_content = re.sub(r'on\w+\s*=\s*\S+', '', html_content, flags=re.IGNORECASE)
+        html_content = re.sub(r'on\w+\s*=\s*["\'].*?["\']', "", html_content, flags=re.IGNORECASE)
+        html_content = re.sub(r"on\w+\s*=\s*\S+", "", html_content, flags=re.IGNORECASE)
 
         # Remove javascript: and other dangerous protocols
         for protocol in self.dangerous_protocols:
-            html_content = re.sub(f'{protocol}:', '', html_content, flags=re.IGNORECASE)
+            html_content = re.sub(f"{protocol}:", "", html_content, flags=re.IGNORECASE)
 
         # If strict mode, remove all HTML
         if not self.config.get("tags"):
-            html_content = re.sub(r'<[^>]+>', '', html_content)
+            html_content = re.sub(r"<[^>]+>", "", html_content)
         else:
             # Basic tag filtering
             allowed_tags = self.config.get("tags", [])
             if allowed_tags:
                 # This is a simplified approach - production should use proper parser
-                for match in re.finditer(r'<(/?)(\w+)([^>]*)>', html_content):
+                for match in re.finditer(r"<(/?)(\w+)([^>]*)>", html_content):
                     tag = match.group(2).lower()
                     if tag not in allowed_tags:
-                        html_content = html_content.replace(match.group(0), '')
+                        html_content = html_content.replace(match.group(0), "")
 
         return html_content
 
@@ -218,7 +272,7 @@ class HTMLSanitizer:
         Requires Bleach with CSS sanitizer.
         """
 
-        if not self.bleach_available or "css_sanitizer" not in self.config:
+        if "css_sanitizer" not in self.config:
             return html_content
 
         css_sanitizer = self.config["css_sanitizer"]
@@ -233,7 +287,7 @@ class HTMLSanitizer:
             r'style\s*=\s*["\']([^"\']*)["\']',
             sanitize_style_attr,
             html_content,
-            flags=re.IGNORECASE
+            flags=re.IGNORECASE,
         )
 
         return html_content
@@ -262,7 +316,7 @@ class HTMLSanitizer:
 
             # Default to https if no scheme
             if not parsed.scheme:
-                parsed = parsed._replace(scheme='https')
+                parsed = parsed._replace(scheme="https")
 
             # Validate allowed protocols
             allowed_protocols = self.config.get("protocols", ["http", "https"])
@@ -295,19 +349,7 @@ class HTMLSanitizer:
             Plain text content
         """
 
-        if self.bleach_available:
-            return bleach.clean(html_content, tags=[], strip=True)
-        else:
-            # Basic regex stripping
-            text = re.sub(r'<[^>]+>', '', html_content)
-            # Decode HTML entities
-            text = re.sub(r'&amp;', '&', text)
-            text = re.sub(r'&lt;', '<', text)
-            text = re.sub(r'&gt;', '>', text)
-            text = re.sub(r'&quot;', '"', text)
-            text = re.sub(r'&#39;', "'", text)
-            text = re.sub(r'&nbsp;', ' ', text)
-            return text
+        return bleach.clean(html_content, tags=[], strip=True)
 
     def escape_html(self, text: str) -> str:
         """
@@ -320,17 +362,8 @@ class HTMLSanitizer:
             Escaped text safe for HTML display
         """
 
-        if self.bleach_available:
-            # Use Bleach's escaping
-            return bleach.clean(text, tags=[], strip=False)
-        else:
-            # Manual escaping
-            text = text.replace('&', '&amp;')
-            text = text.replace('<', '&lt;')
-            text = text.replace('>', '&gt;')
-            text = text.replace('"', '&quot;')
-            text = text.replace("'", '&#39;')
-            return text
+        # Use Bleach's escaping
+        return bleach.clean(text, tags=[], strip=False)
 
     def validate_html_structure(self, html_content: str) -> tuple[bool, list[str]]:
         """
@@ -346,13 +379,13 @@ class HTMLSanitizer:
         issues = []
 
         # Check for unclosed tags
-        open_tags = re.findall(r'<(\w+)[^>]*>', html_content)
-        close_tags = re.findall(r'</(\w+)>', html_content)
+        open_tags = re.findall(r"<(\w+)[^>]*>", html_content)
+        close_tags = re.findall(r"</(\w+)>", html_content)
 
         # Simple validation - not perfect but catches common issues
         tag_stack = []
         for tag in open_tags:
-            if tag.lower() not in ['br', 'hr', 'img', 'input', 'meta', 'link']:
+            if tag.lower() not in ["br", "hr", "img", "input", "meta", "link"]:
                 tag_stack.append(tag)
 
         for tag in close_tags:
@@ -369,7 +402,7 @@ class HTMLSanitizer:
             issues.append("Contains suspicious patterns that may indicate XSS attempt")
 
         # Check for nested forms (invalid HTML)
-        if re.search(r'<form[^>]*>.*<form[^>]*>', html_content, re.DOTALL | re.IGNORECASE):
+        if re.search(r"<form[^>]*>.*<form[^>]*>", html_content, re.DOTALL | re.IGNORECASE):
             issues.append("Nested forms detected (invalid HTML)")
 
         return len(issues) == 0, issues
@@ -382,11 +415,7 @@ markdown_sanitizer = HTMLSanitizer(preset="markdown")
 rich_sanitizer = HTMLSanitizer(preset="rich")
 
 
-def sanitize_html(
-    content: str,
-    level: str = "basic",
-    custom_config: dict[str, Any] = None
-) -> str:
+def sanitize_html(content: str, level: str = "basic", custom_config: dict[str, Any] = None) -> str:
     """
     Convenience function for HTML sanitization.
 
@@ -408,7 +437,7 @@ def sanitize_html(
         "strict": strict_sanitizer,
         "basic": basic_sanitizer,
         "markdown": markdown_sanitizer,
-        "rich": rich_sanitizer
+        "rich": rich_sanitizer,
     }
 
     sanitizer = sanitizers.get(level, basic_sanitizer)

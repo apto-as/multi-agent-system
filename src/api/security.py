@@ -9,15 +9,12 @@ from typing import Any
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import jwt
-from passlib.context import CryptContext
 
 from ..core.config import get_settings
 from ..models.agent import Agent
+from ..utils.security import hash_password, verify_password
 
 logger = logging.getLogger(__name__)
-
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # JWT Bearer token authentication
 security = HTTPBearer(auto_error=False)  # Make authentication optional
@@ -41,18 +38,9 @@ class SecurityConfig:
     REQUIRE_LOWERCASE = True
 
 
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a password against its hash."""
-    try:
-        return pwd_context.verify(plain_password, hashed_password)
-    except Exception as e:
-        logger.error(f"Password verification error: {e}")
-        return False
-
-
-def get_password_hash(password: str) -> str:
-    """Generate password hash."""
-    return pwd_context.hash(password)
+# Password functions are now imported from utils.security
+# Aliases for backward compatibility
+get_password_hash = hash_password
 
 
 def validate_password_strength(password: str) -> tuple[bool, list[str]]:
@@ -65,7 +53,9 @@ def validate_password_strength(password: str) -> tuple[bool, list[str]]:
     issues = []
 
     if len(password) < SecurityConfig.MIN_PASSWORD_LENGTH:
-        issues.append(f"Password must be at least {SecurityConfig.MIN_PASSWORD_LENGTH} characters long")
+        issues.append(
+            f"Password must be at least {SecurityConfig.MIN_PASSWORD_LENGTH} characters long"
+        )
 
     if SecurityConfig.REQUIRE_LOWERCASE and not any(c.islower() for c in password):
         issues.append("Password must contain at least one lowercase letter")
@@ -76,7 +66,9 @@ def validate_password_strength(password: str) -> tuple[bool, list[str]]:
     if SecurityConfig.REQUIRE_NUMBERS and not any(c.isdigit() for c in password):
         issues.append("Password must contain at least one number")
 
-    if SecurityConfig.REQUIRE_SPECIAL_CHARS and not any(c in "!@#$%^&*()_+-=[]{}|;:,.<>?" for c in password):
+    if SecurityConfig.REQUIRE_SPECIAL_CHARS and not any(
+        c in "!@#$%^&*()_+-=[]{}|;:,.<>?" for c in password
+    ):
         issues.append("Password must contain at least one special character")
 
     # Check for common weak patterns
@@ -87,10 +79,7 @@ def validate_password_strength(password: str) -> tuple[bool, list[str]]:
     return len(issues) == 0, issues
 
 
-def create_access_token(
-    data: dict[str, Any],
-    expires_delta: timedelta | None = None
-) -> str:
+def create_access_token(data: dict[str, Any], expires_delta: timedelta | None = None) -> str:
     """
     Create JWT access token.
 
@@ -108,24 +97,18 @@ def create_access_token(
     else:
         expire = datetime.utcnow() + timedelta(minutes=SecurityConfig.ACCESS_TOKEN_EXPIRE_MINUTES)
 
-    to_encode.update({
-        "exp": expire,
-        "iat": datetime.utcnow(),
-        "type": "access_token"
-    })
+    to_encode.update({"exp": expire, "iat": datetime.utcnow(), "type": "access_token"})
 
     try:
         encoded_jwt = jwt.encode(
-            to_encode,
-            SecurityConfig.SECRET_KEY,
-            algorithm=SecurityConfig.ALGORITHM
+            to_encode, SecurityConfig.SECRET_KEY, algorithm=SecurityConfig.ALGORITHM
         )
         return encoded_jwt
     except Exception as e:
         logger.error(f"Token creation error: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Could not create access token"
+            detail="Could not create access token",
         )
 
 
@@ -144,9 +127,7 @@ def verify_token(token: str) -> dict[str, Any]:
     """
     try:
         payload = jwt.decode(
-            token,
-            SecurityConfig.SECRET_KEY,
-            algorithms=[SecurityConfig.ALGORITHM]
+            token, SecurityConfig.SECRET_KEY, algorithms=[SecurityConfig.ALGORITHM]
         )
 
         # Validate token type
@@ -191,7 +172,7 @@ def verify_token(token: str) -> dict[str, Any]:
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials | None = Depends(security)
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
 ) -> dict[str, Any]:
     """
     Get current user from JWT token.
@@ -215,13 +196,13 @@ async def get_current_user(
     if not settings.auth_enabled:
         # Development/testing mode - return mock user
         return {
-            "user_id": "dev_user",
+            "id": "dev_user",  # Consistent with production 'id' field
             "username": "developer",
             "role": "admin",
             "roles": ["admin", "developer"],
             "permissions": ["*"],  # All permissions in dev mode
             "is_active": True,
-            "auth_mode": "development"
+            "auth_mode": "development",
         }
 
     # Production authentication enabled - require valid credentials
@@ -250,8 +231,9 @@ async def get_current_user(
         "roles": payload.get("roles", []),
         "permissions": payload.get("permissions", []),
         "token_data": payload,
-        "auth_mode": "production"
+        "auth_mode": "production",
     }
+
 
 # WebSocket Security Functions
 async def verify_agent_token_ws(websocket) -> str | None:
@@ -310,16 +292,17 @@ async def get_current_agent_ws(websocket) -> Agent:
                 namespace=namespace,
                 display_name=f"Dev Agent ({agent_id})",
                 capabilities=["memory", "task", "workflow"],
-                access_level="team"
+                access_level="team",
             )
 
         # Production authentication
         agent_id = await verify_agent_token_ws(websocket)
         if not agent_id:
             from fastapi import HTTPException, status
+
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid or missing authentication token"
+                detail="Invalid or missing authentication token",
             )
 
         # Load agent from service
@@ -330,16 +313,14 @@ async def get_current_agent_ws(websocket) -> Agent:
             namespace="authenticated",
             display_name=f"Agent {agent_id}",
             capabilities=["memory", "task", "workflow"],
-            access_level="team"
+            access_level="team",
         )
 
     except Exception as e:
         logger.error(f"WebSocket agent authentication failed: {e}")
         from fastapi import HTTPException, status
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Authentication failed"
-        )
+
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Authentication failed")
 
 
 def require_permission(permission: str):
@@ -352,8 +333,9 @@ def require_permission(permission: str):
     Returns:
         Dependency function
     """
+
     async def permission_checker(
-        current_user: dict[str, Any] = Depends(get_current_user)
+        current_user: dict[str, Any] = Depends(get_current_user),
     ) -> dict[str, Any]:
         # Development mode grants all permissions
         if current_user.get("auth_mode") == "development":
@@ -368,8 +350,7 @@ def require_permission(permission: str):
         # Standard permission check
         if permission not in user_permissions and "admin" not in current_user.get("roles", []):
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Permission required: {permission}"
+                status_code=status.HTTP_403_FORBIDDEN, detail=f"Permission required: {permission}"
             )
 
         return current_user
@@ -387,8 +368,9 @@ def require_role(role: str):
     Returns:
         Dependency function
     """
+
     async def role_checker(
-        current_user: dict[str, Any] = Depends(get_current_user)
+        current_user: dict[str, Any] = Depends(get_current_user),
     ) -> dict[str, Any]:
         # Development mode grants all roles
         if current_user.get("auth_mode") == "development":
@@ -398,8 +380,7 @@ def require_role(role: str):
 
         if role not in user_roles:
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Role required: {role}"
+                status_code=status.HTTP_403_FORBIDDEN, detail=f"Role required: {role}"
             )
 
         return current_user
@@ -416,16 +397,12 @@ class SecurityHeaders:
         return {
             # Prevent MIME type sniffing
             "X-Content-Type-Options": "nosniff",
-
             # Prevent clickjacking
             "X-Frame-Options": "DENY",
-
             # XSS protection
             "X-XSS-Protection": "1; mode=block",
-
             # HSTS (HTTPS only)
             "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
-
             # Content Security Policy
             "Content-Security-Policy": (
                 "default-src 'self'; "
@@ -436,10 +413,8 @@ class SecurityHeaders:
                 "connect-src 'self'; "
                 "frame-ancestors 'none';"
             ),
-
             # Referrer policy
             "Referrer-Policy": "strict-origin-when-cross-origin",
-
             # Feature policy
             "Permissions-Policy": (
                 "geolocation=(), "
@@ -472,49 +447,12 @@ def get_auth_status() -> dict[str, Any]:
             "Production authentication enabled - JWT tokens required"
             if settings.auth_enabled
             else "Development mode - no authentication required"
-        )
+        ),
     }
 
 
-def sanitize_input(input_string: str, max_length: int = 1000) -> str:
-    """
-    Sanitize user input.
-
-    Args:
-        input_string: Input to sanitize
-        max_length: Maximum allowed length
-
-    Returns:
-        Sanitized input string
-
-    Raises:
-        HTTPException: If input is invalid
-    """
-    if not input_string:
-        return ""
-
-    # Check length
-    if len(input_string) > max_length:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Input too long. Maximum {max_length} characters allowed."
-        )
-
-    # Remove potential XSS attempts
-    dangerous_patterns = ["<script", "javascript:", "onload=", "onerror=", "eval("]
-    input_lower = input_string.lower()
-
-    for pattern in dangerous_patterns:
-        if pattern in input_lower:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Input contains potentially dangerous content"
-            )
-
-    # Basic sanitization - remove control characters
-    sanitized = "".join(char for char in input_string if ord(char) >= 32 or char in "\n\r\t")
-
-    return sanitized.strip()
+# NOTE: sanitize_input has been moved to security.validators for consolidation
+# Import from there: from ...security.validators import sanitize_input
 
 
 # Export public interface
@@ -530,6 +468,5 @@ __all__ = [
     "require_role",
     "SecurityHeaders",
     "get_auth_status",
-    "sanitize_input",
-    "security"  # HTTPBearer instance
+    "security",  # HTTPBearer instance
 ]

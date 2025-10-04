@@ -24,33 +24,33 @@ class AgentRegistryService:
 
     # Security: Whitelist of allowed environment variable patterns
     ALLOWED_ENV_PATTERNS = [
-        r'^TMWS_AGENT_ID$',
-        r'^MCP_AGENT_ID$',
-        r'^CLAUDE_AGENT_ID$',
-        r'^OPENAI_AGENT_ID$',
-        r'^ANTHROPIC_AGENT_ID$',
+        r"^TMWS_AGENT_ID$",
+        r"^MCP_AGENT_ID$",
+        r"^CLAUDE_AGENT_ID$",
+        r"^OPENAI_AGENT_ID$",
+        r"^ANTHROPIC_AGENT_ID$",
     ]
 
     # Security: Agent ID validation pattern
-    AGENT_ID_PATTERN = re.compile(r'^[a-zA-Z0-9][a-zA-Z0-9\-_\.]{2,63}$')
+    AGENT_ID_PATTERN = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9\-_\.]{2,63}$")
 
     # Agent type detection patterns
     AGENT_TYPE_PATTERNS = {
-        'anthropic_llm': ['claude', 'anthropic'],
-        'openai_llm': ['gpt', 'openai', 'chatgpt'],
-        'google_llm': ['gemini', 'bard', 'palm'],
-        'meta_llm': ['llama', 'meta'],
-        'custom_agent': []  # Default
+        "anthropic_llm": ["claude", "anthropic"],
+        "openai_llm": ["gpt", "openai", "chatgpt"],
+        "google_llm": ["gemini", "bard", "palm"],
+        "meta_llm": ["llama", "meta"],
+        "custom_agent": [],  # Default
     }
 
     def __init__(self):
         self.session: AsyncSession | None = None
         self.cached_agent_id: str | None = None
         self.statistics: dict[str, Any] = {
-            'total_registrations': 0,
-            'auto_registrations': 0,
-            'failed_attempts': 0,
-            'last_registration': None
+            "total_registrations": 0,
+            "auto_registrations": 0,
+            "failed_attempts": 0,
+            "last_registration": None,
         }
 
     async def initialize(self, session: AsyncSession = None):
@@ -76,7 +76,7 @@ class AgentRegistryService:
             pattern_re = re.compile(pattern)
             for env_key in os.environ:
                 if pattern_re.match(env_key):
-                    agent_id = os.environ.get(env_key, '').strip()
+                    agent_id = os.environ.get(env_key, "").strip()
 
                     # Validate agent ID format
                     if self._validate_agent_id(agent_id):
@@ -110,10 +110,28 @@ class AgentRegistryService:
 
         # Additional security checks
         dangerous_patterns = [
-            '../', '..\\', '%2e%2e', '%252e',  # Path traversal
-            ';', '--', '/*', '*/', 'union', 'select',  # SQL injection
-            '<', '>', '"', "'", '&', '|', '$', '`',  # Command injection
-            '\x00', '\n', '\r', '\t',  # Control characters
+            "../",
+            "..\\",
+            "%2e%2e",
+            "%252e",  # Path traversal
+            ";",
+            "--",
+            "/*",
+            "*/",
+            "union",
+            "select",  # SQL injection
+            "<",
+            ">",
+            '"',
+            "'",
+            "&",
+            "|",
+            "$",
+            "`",  # Command injection
+            "\x00",
+            "\n",
+            "\r",
+            "\t",  # Control characters
         ]
 
         agent_id_lower = agent_id.lower()
@@ -134,20 +152,20 @@ class AgentRegistryService:
                 if pattern in agent_id_lower:
                     return agent_type
 
-        return 'custom_agent'
+        return "custom_agent"
 
     def _generate_display_name(self, agent_id: str) -> str:
         """Generate a human-friendly display name from agent ID."""
 
         # Remove common prefixes/suffixes
         display = agent_id
-        for prefix in ['agent-', 'ai-', 'bot-']:
+        for prefix in ["agent-", "ai-", "bot-"]:
             if display.lower().startswith(prefix):
-                display = display[len(prefix):]
+                display = display[len(prefix) :]
 
         # Convert to title case
-        display = display.replace('-', ' ').replace('_', ' ')
-        display = ' '.join(word.capitalize() for word in display.split())
+        display = display.replace("-", " ").replace("_", " ")
+        display = " ".join(word.capitalize() for word in display.split())
 
         return display or f"Agent {agent_id[:8]}"
 
@@ -156,7 +174,7 @@ class AgentRegistryService:
         agent_id: str,
         capabilities: dict[str, Any] | None = None,
         namespace: str = "default",
-        auto_create: bool = True
+        auto_create: bool = True,
     ) -> Agent | None:
         """
         Ensure agent exists, creating if necessary.
@@ -174,14 +192,12 @@ class AgentRegistryService:
         # Validate agent ID
         if not self._validate_agent_id(agent_id):
             logger.error(f"Invalid agent ID: {agent_id}")
-            self.statistics['failed_attempts'] += 1
+            self.statistics["failed_attempts"] += 1
             return None
 
         try:
             # Check if agent exists
-            result = await self.session.execute(
-                select(Agent).where(Agent.agent_id == agent_id)
-            )
+            result = await self.session.execute(select(Agent).where(Agent.agent_id == agent_id))
             agent = result.scalar_one_or_none()
 
             if agent:
@@ -202,16 +218,16 @@ class AgentRegistryService:
                     capabilities=capabilities or {},
                     status=AgentStatus.ACTIVE,
                     health_score=1.0,
-                    default_access_level=AccessLevel.PRIVATE
+                    default_access_level=AccessLevel.PRIVATE,
                 )
 
                 self.session.add(agent)
                 await self.session.commit()
 
                 logger.info(f"Auto-registered new agent: {agent_id}")
-                self.statistics['auto_registrations'] += 1
-                self.statistics['total_registrations'] += 1
-                self.statistics['last_registration'] = datetime.utcnow()
+                self.statistics["auto_registrations"] += 1
+                self.statistics["total_registrations"] += 1
+                self.statistics["last_registration"] = datetime.utcnow()
             else:
                 logger.warning(f"Agent not found and auto-create disabled: {agent_id}")
                 return None
@@ -221,58 +237,58 @@ class AgentRegistryService:
         except Exception as e:
             logger.error(f"Error ensuring agent {agent_id}: {e}")
             await self.session.rollback()
-            self.statistics['failed_attempts'] += 1
+            self.statistics["failed_attempts"] += 1
             raise TMWSException(f"Failed to ensure agent: {e}")
 
     async def get_agent_statistics(self, agent_id: str) -> dict[str, Any]:
         """Get detailed statistics for an agent."""
 
         if not self._validate_agent_id(agent_id):
-            return {'error': 'Invalid agent ID'}
+            return {"error": "Invalid agent ID"}
 
         try:
             # Get agent
-            result = await self.session.execute(
-                select(Agent).where(Agent.agent_id == agent_id)
-            )
+            result = await self.session.execute(select(Agent).where(Agent.agent_id == agent_id))
             agent = result.scalar_one_or_none()
 
             if not agent:
-                return {'error': 'Agent not found'}
+                return {"error": "Agent not found"}
 
             # Calculate statistics
             stats = {
-                'agent_id': agent.agent_id,
-                'display_name': agent.display_name,
-                'agent_type': agent.agent_type,
-                'namespace': agent.namespace,
-                'status': agent.status.value,
-                'health_score': agent.health_score,
-                'total_memories': agent.total_memories,
-                'total_tasks': agent.total_tasks,
-                'success_rate': agent.success_rate,
-                'average_response_time_ms': agent.average_response_time_ms,
-                'created_at': agent.created_at.isoformat() if agent.created_at else None,
-                'last_active_at': agent.last_active_at.isoformat() if agent.last_active_at else None,
-                'capabilities': agent.capabilities,
-                'access_stats': {
-                    'default_access_level': agent.default_access_level.value,
-                    'total_accesses': getattr(agent, 'total_accesses', 0)
-                }
+                "agent_id": agent.agent_id,
+                "display_name": agent.display_name,
+                "agent_type": agent.agent_type,
+                "namespace": agent.namespace,
+                "status": agent.status.value,
+                "health_score": agent.health_score,
+                "total_memories": agent.total_memories,
+                "total_tasks": agent.total_tasks,
+                "success_rate": agent.success_rate,
+                "average_response_time_ms": agent.average_response_time_ms,
+                "created_at": agent.created_at.isoformat() if agent.created_at else None,
+                "last_active_at": agent.last_active_at.isoformat()
+                if agent.last_active_at
+                else None,
+                "capabilities": agent.capabilities,
+                "access_stats": {
+                    "default_access_level": agent.default_access_level.value,
+                    "total_accesses": getattr(agent, "total_accesses", 0),
+                },
             }
 
             return stats
 
         except Exception as e:
             logger.error(f"Error getting statistics for {agent_id}: {e}")
-            return {'error': str(e)}
+            return {"error": str(e)}
 
     async def list_agents(
         self,
         namespace: str | None = None,
         agent_type: str | None = None,
         status: AgentStatus | None = None,
-        limit: int = 100
+        limit: int = 100,
     ) -> list[Agent]:
         """List agents with optional filters."""
 
@@ -290,11 +306,7 @@ class AgentRegistryService:
         result = await self.session.execute(query)
         return result.scalars().all()
 
-    async def update_agent_capabilities(
-        self,
-        agent_id: str,
-        capabilities: dict[str, Any]
-    ) -> bool:
+    async def update_agent_capabilities(self, agent_id: str, capabilities: dict[str, Any]) -> bool:
         """Update agent capabilities."""
 
         if not self._validate_agent_id(agent_id):
@@ -304,10 +316,7 @@ class AgentRegistryService:
             result = await self.session.execute(
                 update(Agent)
                 .where(Agent.agent_id == agent_id)
-                .values(
-                    capabilities=capabilities,
-                    updated_at=datetime.utcnow()
-                )
+                .values(capabilities=capabilities, updated_at=datetime.utcnow())
             )
             await self.session.commit()
             return result.rowcount > 0
@@ -322,9 +331,9 @@ class AgentRegistryService:
 
         return {
             **self.statistics,
-            'cached_agent_id': self.cached_agent_id,
-            'active_agents': await self._count_active_agents(),
-            'timestamp': datetime.utcnow().isoformat()
+            "cached_agent_id": self.cached_agent_id,
+            "active_agents": await self._count_active_agents(),
+            "timestamp": datetime.utcnow().isoformat(),
         }
 
     async def _count_active_agents(self) -> int:
@@ -332,9 +341,11 @@ class AgentRegistryService:
 
         try:
             from sqlalchemy import func
+
             result = await self.session.execute(
                 select(func.count(Agent.id)).where(Agent.status == AgentStatus.ACTIVE)
             )
             return result.scalar() or 0
-        except:
+        except Exception as e:
+            logger.error(f"Failed to get active agent count: {e}")
             return 0

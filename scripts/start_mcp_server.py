@@ -18,6 +18,8 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root / "src"))
 
+import contextlib
+
 from src.core.exceptions import TMWSException
 from src.integration.fastapi_mcp_bridge import create_tmws_app
 from src.mcp_server import TMWSFastMCPServer, create_server
@@ -26,10 +28,10 @@ from src.mcp_server import TMWSFastMCPServer, create_server
 class TMWSServerManager:
     """
     Server manager for TMWS with multiple deployment modes.
-    
+
     Supports:
     - Pure MCP mode (FastMCP only)
-    - FastAPI mode (REST API with MCP integration) 
+    - FastAPI mode (REST API with MCP integration)
     - Hybrid mode (Both protocols simultaneously)
     """
 
@@ -132,10 +134,8 @@ class TMWSServerManager:
             # Cancel remaining tasks
             for task in pending:
                 task.cancel()
-                try:
+                with contextlib.suppress(asyncio.CancelledError):
                     await task
-                except asyncio.CancelledError:
-                    pass
 
             # Check for exceptions in completed tasks
             for task in done:
@@ -167,7 +167,7 @@ class TMWSServerManager:
     def run(self, mode: str = "mcp", host: str = "0.0.0.0", port: int = 8000) -> None:
         """
         Run server in specified mode.
-        
+
         Args:
             mode: Server mode (mcp, fastapi, hybrid)
             host: Host address for FastAPI server
@@ -200,7 +200,7 @@ def main():
         epilog="""
 Server Modes:
   mcp      - Pure FastMCP server for MCP protocol clients
-  fastapi  - REST API server with MCP integration  
+  fastapi  - REST API server with MCP integration
   hybrid   - Both MCP and FastAPI servers simultaneously
 
 Examples:

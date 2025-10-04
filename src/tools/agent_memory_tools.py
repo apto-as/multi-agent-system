@@ -5,7 +5,7 @@ These tools allow external agents to interact with the memory system via MCP pro
 
 from typing import Any
 
-from fastmcp import Tool
+from fastmcp.tools import Tool
 
 
 class AgentMemoryTools:
@@ -23,7 +23,7 @@ class AgentMemoryTools:
         access_level: str = "private",
         tags: list[str] = None,
         context: dict[str, Any] = None,
-        importance: float = 0.5
+        importance: float = 0.5,
     ) -> dict[str, Any]:
         """
         Create a new memory for an agent.
@@ -44,13 +44,13 @@ class AgentMemoryTools:
             access_level=access_level,
             tags=tags or [],
             context=context or {},
-            importance_score=importance
+            importance_score=importance,
         )
 
         return {
             "success": True,
             "memory_id": str(memory.id),
-            "message": "Memory created successfully"
+            "message": "Memory created successfully",
         }
 
     async def search_memories_tool(
@@ -60,7 +60,7 @@ class AgentMemoryTools:
         namespace: str = "default",
         limit: int = 10,
         include_shared: bool = True,
-        min_importance: float = 0.0
+        min_importance: float = 0.0,
     ) -> dict[str, Any]:
         """
         Search memories using semantic search.
@@ -83,7 +83,7 @@ class AgentMemoryTools:
             namespace=namespace,
             limit=limit,
             include_shared=include_shared,
-            min_importance=min_importance
+            min_importance=min_importance,
         )
 
         # Filter based on access permissions
@@ -95,31 +95,25 @@ class AgentMemoryTools:
                 memory_agent_id=memory.agent_id,
                 memory_namespace=memory.namespace,
                 memory_access_level=memory.access_level,
-                shared_agents=memory.shared_with_agents
+                shared_agents=memory.shared_with_agents,
             ):
-                accessible_results.append({
-                    "id": str(memory.id),
-                    "content": memory.content,
-                    "summary": memory.summary,
-                    "agent_id": memory.agent_id,
-                    "importance": memory.importance_score,
-                    "relevance": memory.relevance_score,
-                    "tags": memory.tags,
-                    "created_at": memory.created_at.isoformat() if memory.created_at else None
-                })
+                accessible_results.append(
+                    {
+                        "id": str(memory.id),
+                        "content": memory.content,
+                        "summary": memory.summary,
+                        "agent_id": memory.agent_id,
+                        "importance": memory.importance_score,
+                        "relevance": memory.relevance_score,
+                        "tags": memory.tags,
+                        "created_at": memory.created_at.isoformat() if memory.created_at else None,
+                    }
+                )
 
-        return {
-            "success": True,
-            "count": len(accessible_results),
-            "memories": accessible_results
-        }
+        return {"success": True, "count": len(accessible_results), "memories": accessible_results}
 
     async def share_memory_tool(
-        self,
-        agent_id: str,
-        memory_id: str,
-        share_with_agents: list[str],
-        permission: str = "read"
+        self, agent_id: str, memory_id: str, share_with_agents: list[str], permission: str = "read"
     ) -> dict[str, Any]:
         """
         Share a memory with other agents.
@@ -138,22 +132,17 @@ class AgentMemoryTools:
 
         # Update sharing
         await self.memory_service.share_memory(
-            memory_id=memory_id,
-            shared_with_agents=share_with_agents,
-            permission=permission
+            memory_id=memory_id, shared_with_agents=share_with_agents, permission=permission
         )
 
-        return {
-            "success": True,
-            "message": f"Memory shared with {len(share_with_agents)} agents"
-        }
+        return {"success": True, "message": f"Memory shared with {len(share_with_agents)} agents"}
 
     async def consolidate_memories_tool(
         self,
         agent_id: str,
         memory_ids: list[str],
         consolidation_type: str = "summary",
-        namespace: str = "default"
+        namespace: str = "default",
     ) -> dict[str, Any]:
         """
         Consolidate multiple memories into a single memory.
@@ -182,7 +171,7 @@ class AgentMemoryTools:
                 memory_agent_id=memory.agent_id,
                 memory_namespace=memory.namespace,
                 memory_access_level=memory.access_level,
-                shared_agents=memory.shared_with_agents
+                shared_agents=memory.shared_with_agents,
             ):
                 memories.append(memory)
 
@@ -191,16 +180,14 @@ class AgentMemoryTools:
 
         # Perform consolidation
         consolidated = await self.memory_service.consolidate_memories(
-            agent_id=agent_id,
-            memories=memories,
-            consolidation_type=consolidation_type
+            agent_id=agent_id, memories=memories, consolidation_type=consolidation_type
         )
 
         return {
             "success": True,
             "consolidated_memory_id": str(consolidated.id),
             "source_count": len(memories),
-            "message": f"Consolidated {len(memories)} memories"
+            "message": f"Consolidated {len(memories)} memories",
         }
 
     async def get_memory_patterns_tool(
@@ -208,7 +195,7 @@ class AgentMemoryTools:
         agent_id: str,
         pattern_type: str | None = None,
         namespace: str = "default",
-        min_confidence: float = 0.5
+        min_confidence: float = 0.5,
     ) -> dict[str, Any]:
         """
         Get learning patterns extracted from agent's memories.
@@ -228,25 +215,23 @@ class AgentMemoryTools:
             agent_id=agent_id,
             namespace=namespace,
             pattern_type=pattern_type,
-            min_confidence=min_confidence
+            min_confidence=min_confidence,
         )
 
         pattern_list = []
         for pattern in patterns:
-            pattern_list.append({
-                "id": str(pattern.id),
-                "type": pattern.pattern_type,
-                "confidence": pattern.confidence,
-                "frequency": pattern.frequency,
-                "data": pattern.pattern_data,
-                "memory_count": len(pattern.memory_ids)
-            })
+            pattern_list.append(
+                {
+                    "id": str(pattern.id),
+                    "type": pattern.pattern_type,
+                    "confidence": pattern.confidence,
+                    "frequency": pattern.frequency,
+                    "data": pattern.pattern_data,
+                    "memory_count": len(pattern.memory_ids),
+                }
+            )
 
-        return {
-            "success": True,
-            "count": len(pattern_list),
-            "patterns": pattern_list
-        }
+        return {"success": True, "count": len(pattern_list), "patterns": pattern_list}
 
     async def _validate_agent(self, agent_id: str, namespace: str) -> bool:
         """Validate agent exists and is active."""
@@ -266,14 +251,17 @@ class AgentMemoryTools:
                         "agent_id": {"type": "string", "description": "Agent identifier"},
                         "content": {"type": "string", "description": "Memory content"},
                         "namespace": {"type": "string", "default": "default"},
-                        "access_level": {"type": "string", "enum": ["private", "team", "shared", "public"]},
+                        "access_level": {
+                            "type": "string",
+                            "enum": ["private", "team", "shared", "public"],
+                        },
                         "tags": {"type": "array", "items": {"type": "string"}},
                         "context": {"type": "object"},
-                        "importance": {"type": "number", "minimum": 0, "maximum": 1}
+                        "importance": {"type": "number", "minimum": 0, "maximum": 1},
                     },
-                    "required": ["agent_id", "content"]
+                    "required": ["agent_id", "content"],
                 },
-                func=self.create_memory_tool
+                func=self.create_memory_tool,
             ),
             Tool(
                 name="memory_search",
@@ -286,11 +274,11 @@ class AgentMemoryTools:
                         "namespace": {"type": "string", "default": "default"},
                         "limit": {"type": "integer", "default": 10},
                         "include_shared": {"type": "boolean", "default": True},
-                        "min_importance": {"type": "number", "minimum": 0, "maximum": 1}
+                        "min_importance": {"type": "number", "minimum": 0, "maximum": 1},
                     },
-                    "required": ["agent_id", "query"]
+                    "required": ["agent_id", "query"],
                 },
-                func=self.search_memories_tool
+                func=self.search_memories_tool,
             ),
             Tool(
                 name="memory_share",
@@ -301,11 +289,11 @@ class AgentMemoryTools:
                         "agent_id": {"type": "string", "description": "Owner agent identifier"},
                         "memory_id": {"type": "string", "description": "Memory ID to share"},
                         "share_with_agents": {"type": "array", "items": {"type": "string"}},
-                        "permission": {"type": "string", "enum": ["read", "write", "delete"]}
+                        "permission": {"type": "string", "enum": ["read", "write", "delete"]},
                     },
-                    "required": ["agent_id", "memory_id", "share_with_agents"]
+                    "required": ["agent_id", "memory_id", "share_with_agents"],
                 },
-                func=self.share_memory_tool
+                func=self.share_memory_tool,
             ),
             Tool(
                 name="memory_consolidate",
@@ -315,12 +303,15 @@ class AgentMemoryTools:
                     "properties": {
                         "agent_id": {"type": "string", "description": "Agent identifier"},
                         "memory_ids": {"type": "array", "items": {"type": "string"}},
-                        "consolidation_type": {"type": "string", "enum": ["summary", "merge", "compress"]},
-                        "namespace": {"type": "string", "default": "default"}
+                        "consolidation_type": {
+                            "type": "string",
+                            "enum": ["summary", "merge", "compress"],
+                        },
+                        "namespace": {"type": "string", "default": "default"},
                     },
-                    "required": ["agent_id", "memory_ids"]
+                    "required": ["agent_id", "memory_ids"],
                 },
-                func=self.consolidate_memories_tool
+                func=self.consolidate_memories_tool,
             ),
             Tool(
                 name="memory_patterns",
@@ -329,12 +320,15 @@ class AgentMemoryTools:
                     "type": "object",
                     "properties": {
                         "agent_id": {"type": "string", "description": "Agent identifier"},
-                        "pattern_type": {"type": "string", "enum": ["sequence", "correlation", "cluster"]},
+                        "pattern_type": {
+                            "type": "string",
+                            "enum": ["sequence", "correlation", "cluster"],
+                        },
                         "namespace": {"type": "string", "default": "default"},
-                        "min_confidence": {"type": "number", "minimum": 0, "maximum": 1}
+                        "min_confidence": {"type": "number", "minimum": 0, "maximum": 1},
                     },
-                    "required": ["agent_id"]
+                    "required": ["agent_id"],
                 },
-                func=self.get_memory_patterns_tool
-            )
+                func=self.get_memory_patterns_tool,
+            ),
         ]

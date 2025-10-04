@@ -12,12 +12,12 @@ from typing import Any, TypeVar
 
 from ..services.batch_service import batch_service
 from ..services.learning_service import LearningService
-from .database_enhanced import db_manager
+from .database import get_db_session_dependency as db_manager
 from .exceptions import ServiceError
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class ServiceRegistry:
@@ -29,19 +29,12 @@ class ServiceRegistry:
         self._initialized: dict[str, bool] = {}
         self._health_status: dict[str, dict[str, Any]] = {}
 
-    def register(self,
-                 name: str,
-                 service: Any,
-                 dependencies: list[str] | None = None) -> None:
+    def register(self, name: str, service: Any, dependencies: list[str] | None = None) -> None:
         """Register a service with optional dependencies."""
         self._services[name] = service
         self._dependencies[name] = dependencies or []
         self._initialized[name] = False
-        self._health_status[name] = {
-            "status": "unknown",
-            "last_check": None,
-            "error": None
-        }
+        self._health_status[name] = {"status": "unknown", "last_check": None, "error": None}
         logger.debug(f"Registered service: {name}")
 
     def get(self, name: str) -> Any:
@@ -72,11 +65,7 @@ class ServiceRegistry:
 
     def update_health_status(self, name: str, status: str, error: str | None = None) -> None:
         """Update service health status."""
-        self._health_status[name] = {
-            "status": status,
-            "last_check": datetime.now(),
-            "error": error
-        }
+        self._health_status[name] = {"status": status, "last_check": datetime.now(), "error": error}
 
     def get_service_names(self) -> list[str]:
         """Get all registered service names."""
@@ -116,7 +105,7 @@ class ServiceManager:
         self.registry.register("agent", None, ["database"])  # Will be created with session
         self.registry.register("learning", LearningService(), ["database"])
         self.registry.register("memory", None, ["database"])  # Will be created with session
-        self.registry.register("task", None, ["database"])   # Will be created with session
+        self.registry.register("task", None, ["database"])  # Will be created with session
 
         logger.info("Core services registered")
 
@@ -197,17 +186,20 @@ class ServiceManager:
 
         # Handle session-dependent services
         if service is None and service_name in ["agent", "memory", "task"]:
-            from ..core.database_v2 import get_async_session
+            from ..core.database import get_db_session
 
-            async with get_async_session() as session:
+            async with get_db_session() as session:
                 if service_name == "agent":
                     from ..services.agent_service import AgentService
+
                     return AgentService(session)
                 elif service_name == "memory":
                     from ..services.memory_service import MemoryService
+
                     return MemoryService(session)
                 elif service_name == "task":
                     from ..services.task_service import TaskService
+
                     return TaskService(session)
 
         return service
@@ -220,7 +212,7 @@ class ServiceManager:
             yield service
         finally:
             # Cleanup if needed
-            if hasattr(service, 'close'):
+            if hasattr(service, "close"):
                 await service.close()
 
     async def health_check_all(self) -> dict[str, dict[str, Any]]:
@@ -232,15 +224,13 @@ class ServiceManager:
                 health_result = await self._health_check_service(service_name)
                 health_results[service_name] = health_result
                 self.registry.update_health_status(
-                    service_name,
-                    health_result["status"],
-                    health_result.get("error")
+                    service_name, health_result["status"], health_result.get("error")
                 )
             except Exception as e:
                 health_result = {
                     "status": "unhealthy",
                     "error": str(e),
-                    "last_check": datetime.now()
+                    "last_check": datetime.now(),
                 }
                 health_results[service_name] = health_result
                 self.registry.update_health_status(service_name, "unhealthy", str(e))
@@ -256,14 +246,14 @@ class ServiceManager:
         status = {
             "initialized": self._initialized,
             "total_services": len(self.registry.get_service_names()),
-            "services": {}
+            "services": {},
         }
 
         for service_name in self.registry.get_service_names():
             status["services"][service_name] = {
                 "initialized": self.registry.is_initialized(service_name),
                 "health": self.registry.get_health_status(service_name),
-                "dependencies": self.registry.get_dependencies(service_name)
+                "dependencies": self.registry.get_dependencies(service_name),
             }
 
         return status
@@ -285,7 +275,9 @@ class ServiceManager:
             # Visit all dependencies first
             for dependency in self.registry.get_dependencies(service_name):
                 if dependency not in self.registry.get_service_names():
-                    raise ServiceError(f"Missing dependency '{dependency}' for service '{service_name}'")
+                    raise ServiceError(
+                        f"Missing dependency '{dependency}' for service '{service_name}'"
+                    )
                 dfs(dependency)
 
             temp_visited.remove(service_name)
@@ -314,9 +306,9 @@ class ServiceManager:
                 await service.initialize(workload_type="mixed")
             elif service_name == "batch":
                 await service.start()
-            elif hasattr(service, 'initialize'):
+            elif hasattr(service, "initialize"):
                 await service.initialize()
-            elif hasattr(service, 'start'):
+            elif hasattr(service, "start"):
                 await service.start()
 
             self.registry.set_initialized(service_name, True)
@@ -345,11 +337,11 @@ class ServiceManager:
                 await service.close()
             elif service_name == "batch":
                 await service.stop(timeout)
-            elif hasattr(service, 'shutdown'):
+            elif hasattr(service, "shutdown"):
                 await service.shutdown(timeout)
-            elif hasattr(service, 'stop'):
+            elif hasattr(service, "stop"):
                 await service.stop(timeout)
-            elif hasattr(service, 'close'):
+            elif hasattr(service, "close"):
                 await service.close()
 
             self.registry.set_initialized(service_name, False)
@@ -364,10 +356,7 @@ class ServiceManager:
     async def _health_check_service(self, service_name: str) -> dict[str, Any]:
         """Perform health check on a single service."""
         if not self.registry.is_initialized(service_name):
-            return {
-                "status": "not_initialized",
-                "last_check": datetime.now()
-            }
+            return {"status": "not_initialized", "last_check": datetime.now()}
 
         service = self.registry.get(service_name)
 
@@ -378,39 +367,36 @@ class ServiceManager:
                 return {
                     "status": health_data.get("status", "unknown"),
                     "details": health_data,
-                    "last_check": datetime.now()
+                    "last_check": datetime.now(),
                 }
             elif service_name == "batch":
                 metrics = await service.get_performance_metrics()
                 return {
                     "status": "healthy" if metrics["active_jobs"] >= 0 else "unhealthy",
                     "details": metrics,
-                    "last_check": datetime.now()
+                    "last_check": datetime.now(),
                 }
-            elif hasattr(service, 'health_check'):
+            elif hasattr(service, "health_check"):
                 health_data = await service.health_check()
                 return {
                     "status": "healthy" if health_data.get("healthy", True) else "unhealthy",
                     "details": health_data,
-                    "last_check": datetime.now()
+                    "last_check": datetime.now(),
                 }
             else:
                 # Basic service availability check
                 return {
                     "status": "healthy",
                     "details": {"type": type(service).__name__},
-                    "last_check": datetime.now()
+                    "last_check": datetime.now(),
                 }
 
         except Exception as e:
-            return {
-                "status": "unhealthy",
-                "error": str(e),
-                "last_check": datetime.now()
-            }
+            return {"status": "unhealthy", "error": str(e), "last_check": datetime.now()}
 
     async def _start_health_monitoring(self) -> None:
         """Start background health monitoring."""
+
         async def health_monitor():
             while self._initialized:
                 try:
@@ -427,6 +413,7 @@ class ServiceManager:
 
     def _setup_signal_handlers(self) -> None:
         """Setup signal handlers for graceful shutdown."""
+
         def signal_handler(signum, frame):
             logger.info(f"Received signal {signum}, initiating graceful shutdown...")
             asyncio.create_task(self.shutdown_all())
@@ -435,7 +422,7 @@ class ServiceManager:
         signal.signal(signal.SIGINT, signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)
 
-        if hasattr(signal, 'SIGHUP'):
+        if hasattr(signal, "SIGHUP"):
             signal.signal(signal.SIGHUP, signal_handler)
 
 

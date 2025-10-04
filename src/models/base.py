@@ -9,21 +9,11 @@ from uuid import UUID, uuid4
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
-from sqlalchemy.ext.declarative import declared_attr
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
-
-class Base(DeclarativeBase):
-    """Base class for all database models."""
-
-    @declared_attr
-    def __tablename__(cls):
-        """Generate table name from class name."""
-        name = cls.__name__.lower()
-        # Convert CamelCase to snake_case
-        import re
-        return re.sub(r'(?<!^)(?=[A-Z])', '_', name).lower()
+# Import Base from core.database to ensure consistency across the application
+from src.core.database import Base
 
 
 class UUIDMixin:
@@ -34,7 +24,7 @@ class UUIDMixin:
         primary_key=True,
         default=uuid4,
         nullable=False,
-        comment="Primary key UUID"
+        comment="Primary key UUID",
     )
 
 
@@ -45,7 +35,7 @@ class TimestampMixin:
         sa.DateTime(timezone=True),
         nullable=False,
         server_default=func.current_timestamp(),
-        comment="Record creation timestamp"
+        comment="Record creation timestamp",
     )
 
     updated_at: Mapped[datetime] = mapped_column(
@@ -53,7 +43,7 @@ class TimestampMixin:
         nullable=False,
         server_default=func.current_timestamp(),
         onupdate=func.current_timestamp(),
-        comment="Record last update timestamp"
+        comment="Record last update timestamp",
     )
 
 
@@ -66,7 +56,7 @@ class MetadataMixin:
         nullable=False,
         default=dict,
         server_default=sa.text("'{}'::jsonb"),
-        comment="JSON metadata"
+        comment="JSON metadata",
     )
 
 
@@ -90,7 +80,7 @@ class TMWSBase(Base, UUIDMixin, TimestampMixin):
     def update_from_dict(self, data: dict[str, Any]) -> None:
         """Update model from dictionary."""
         for key, value in data.items():
-            if hasattr(self, key) and key not in ('id', 'created_at'):
+            if hasattr(self, key) and key not in ("id", "created_at"):
                 setattr(self, key, value)
 
     def __repr__(self) -> str:

@@ -15,15 +15,16 @@ from sqlalchemy.orm import selectinload
 
 from ..core.exceptions import NotFoundError, ValidationError
 from ..models import Persona, Task
+from .base_service import BaseService
 
 logger = logging.getLogger(__name__)
 
 
-class TaskService:
+class TaskService(BaseService):
     """Service for managing tasks."""
 
     def __init__(self, session: AsyncSession):
-        self.session = session
+        super().__init__(session)
 
     async def create_task(
         self,
@@ -33,13 +34,15 @@ class TaskService:
         priority: str = "medium",
         assigned_persona_id: UUID | None = None,
         dependencies: list[str] = None,
-        metadata: dict[str, Any] = None
+        metadata: dict[str, Any] = None,
     ) -> Task:
         """Create a new task with circular dependency checking."""
         # Validate priority
         valid_priorities = ["low", "medium", "high", "critical"]
         if priority not in valid_priorities:
-            raise ValidationError(f"Invalid priority: {priority}. Must be one of {valid_priorities}")
+            raise ValidationError(
+                f"Invalid priority: {priority}. Must be one of {valid_priorities}"
+            )
 
         # Validate persona if assigned
         if assigned_persona_id:
@@ -52,7 +55,7 @@ class TaskService:
         # Check for circular dependencies before creating
         if dependencies:
             # Create temporary task ID for validation
-            temp_task_id = UUID('00000000-0000-0000-0000-000000000000')
+            temp_task_id = UUID("00000000-0000-0000-0000-000000000000")
             if await self._would_create_circular_dependency(temp_task_id, dependencies):
                 raise ValidationError("Cannot create task: would create circular dependency")
 
@@ -65,7 +68,7 @@ class TaskService:
             progress=0.0,
             assigned_persona_id=assigned_persona_id,
             dependencies=dependencies or [],
-            metadata_json=metadata or {}
+            metadata_json=metadata or {},
         )
 
         self.session.add(task)
@@ -78,17 +81,11 @@ class TaskService:
     async def get_task(self, task_id: UUID) -> Task | None:
         """Get a task by ID."""
         result = await self.session.execute(
-            select(Task)
-            .where(Task.id == task_id)
-            .options(selectinload(Task.assigned_persona))
+            select(Task).where(Task.id == task_id).options(selectinload(Task.assigned_persona))
         )
         return result.scalar_one_or_none()
 
-    async def update_task(
-        self,
-        task_id: UUID,
-        updates: dict[str, Any]
-    ) -> Task:
+    async def update_task(self, task_id: UUID, updates: dict[str, Any]) -> Task:
         """Update an existing task."""
         task = await self.get_task(task_id)
         if not task:
@@ -96,19 +93,30 @@ class TaskService:
 
         # Update allowed fields
         allowed_fields = [
-            'title', 'description', 'task_type', 'priority', 'status',
-            'progress', 'assigned_persona_id', 'dependencies', 'result',
-            'metadata_json', 'started_at', 'completed_at'
+            "title",
+            "description",
+            "task_type",
+            "priority",
+            "status",
+            "progress",
+            "assigned_persona_id",
+            "dependencies",
+            "result",
+            "metadata_json",
+            "started_at",
+            "completed_at",
         ]
 
         for key, value in updates.items():
             if key in allowed_fields:
                 # Special handling for dependencies to check circular refs
-                if key == 'dependencies' and value:
+                if key == "dependencies" and value:
                     if await self._would_create_circular_dependency(task_id, value):
-                        raise ValidationError("Cannot update task: would create circular dependency")
+                        raise ValidationError(
+                            "Cannot update task: would create circular dependency"
+                        )
                 # Special handling for status changes
-                elif key == 'status':
+                elif key == "status":
                     await self._handle_status_change(task, value)
                 else:
                     setattr(task, key, value)
@@ -158,7 +166,7 @@ class TaskService:
         task_type: str = None,
         assigned_persona_id: UUID = None,
         limit: int = 50,
-        offset: int = 0
+        offset: int = 0,
     ) -> list[Task]:
         """List tasks with filters."""
         stmt = select(Task).options(selectinload(Task.assigned_persona))
@@ -182,7 +190,7 @@ class TaskService:
             (Task.priority == "high", 2),
             (Task.priority == "medium", 3),
             (Task.priority == "low", 4),
-            else_=5
+            else_=5,
         )
 
         stmt = stmt.order_by(priority_order, Task.created_at.desc())
@@ -194,9 +202,7 @@ class TaskService:
         return tasks
 
     async def get_pending_tasks(
-        self,
-        assigned_persona_id: UUID = None,
-        limit: int = 10
+        self, assigned_persona_id: UUID = None, limit: int = 10
     ) -> list[Task]:
         """Get pending tasks, optionally filtered by persona."""
         conditions = [Task.status == "pending"]
@@ -244,33 +250,29 @@ class TaskService:
     async def get_task_stats(self) -> dict[str, Any]:
         """Get task statistics."""
         # Count by status
-        status_counts_stmt = select(
-            Task.status,
-            func.count(Task.id).label('count')
-        ).group_by(Task.status)
+        status_counts_stmt = select(Task.status, func.count(Task.id).label("count")).group_by(
+            Task.status
+        )
 
         status_counts_result = await self.session.execute(status_counts_stmt)
         status_counts = {row.status: row.count for row in status_counts_result}
 
         # Count by priority
-        priority_counts_stmt = select(
-            Task.priority,
-            func.count(Task.id).label('count')
-        ).group_by(Task.priority)
+        priority_counts_stmt = select(Task.priority, func.count(Task.id).label("count")).group_by(
+            Task.priority
+        )
 
         priority_counts_result = await self.session.execute(priority_counts_stmt)
         priority_counts = {row.priority: row.count for row in priority_counts_result}
 
         # Average completion time for completed tasks
         completion_time_stmt = select(
-            func.avg(
-                func.extract('epoch', Task.completed_at - Task.started_at)
-            )
+            func.avg(func.extract("epoch", Task.completed_at - Task.started_at))
         ).where(
             and_(
                 Task.status == "completed",
                 Task.started_at.isnot(None),
-                Task.completed_at.isnot(None)
+                Task.completed_at.isnot(None),
             )
         )
 
@@ -283,13 +285,13 @@ class TaskService:
             "active_tasks": status_counts.get("pending", 0) + status_counts.get("in_progress", 0),
             "completed_tasks": status_counts.get("completed", 0),
             "failed_tasks": status_counts.get("failed", 0),
-            "avg_completion_time_seconds": float(avg_completion_seconds) if avg_completion_seconds else None
+            "avg_completion_time_seconds": float(avg_completion_seconds)
+            if avg_completion_seconds
+            else None,
         }
 
     async def _would_create_circular_dependency(
-        self,
-        task_id: UUID,
-        new_dependencies: list[str]
+        self, task_id: UUID, new_dependencies: list[str]
     ) -> bool:
         """Check if adding dependencies would create a circular dependency."""
         # Build dependency graph
@@ -380,10 +382,7 @@ class TaskService:
         for task_id, deps in graph.items():
             for dep in deps:
                 if dep not in all_task_ids:
-                    orphaned.append({
-                        "task_id": task_id,
-                        "missing_dependency": dep
-                    })
+                    orphaned.append({"task_id": task_id, "missing_dependency": dep})
 
         # Calculate dependency depth for each task
         depths = {}
@@ -424,5 +423,5 @@ class TaskService:
             "task_count": len(graph),
             "max_dependency_depth": max(depths.values()) if depths else 0,
             "dependency_depths": depths,
-            "is_valid": not has_cycle and len(orphaned) == 0
+            "is_valid": not has_cycle and len(orphaned) == 0,
         }

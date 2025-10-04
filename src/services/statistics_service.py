@@ -43,9 +43,7 @@ class StatisticsService:
 
         try:
             # Get agent
-            result = await self.session.execute(
-                select(Agent).where(Agent.agent_id == agent_id)
-            )
+            result = await self.session.execute(select(Agent).where(Agent.agent_id == agent_id))
             agent = result.scalar_one_or_none()
 
             if not agent:
@@ -62,7 +60,7 @@ class StatisticsService:
                 "learning_stats": await self._get_learning_stats(agent_id),
                 "time_series": await self._get_time_series_data(agent_id),
                 "collaboration_stats": await self._get_collaboration_stats(agent_id),
-                "collected_at": datetime.utcnow().isoformat()
+                "collected_at": datetime.utcnow().isoformat(),
             }
 
             return metrics
@@ -83,7 +81,7 @@ class StatisticsService:
             "average_response_time_ms": agent.average_response_time_ms,
             "created_at": agent.created_at.isoformat() if agent.created_at else None,
             "last_active_at": agent.last_active_at.isoformat() if agent.last_active_at else None,
-            "uptime_hours": self._calculate_uptime(agent.created_at, agent.last_active_at)
+            "uptime_hours": self._calculate_uptime(agent.created_at, agent.last_active_at),
         }
 
     async def _get_memory_stats(self, agent_id: str) -> dict[str, Any]:
@@ -129,14 +127,14 @@ class StatisticsService:
         importance_result = await self.session.execute(
             select(
                 func.case(
-                    (Memory.importance_score < 0.33, 'low'),
-                    (Memory.importance_score < 0.67, 'medium'),
-                    else_='high'
-                ).label('importance_level'),
-                func.count(Memory.id)
+                    (Memory.importance_score < 0.33, "low"),
+                    (Memory.importance_score < 0.67, "medium"),
+                    else_="high",
+                ).label("importance_level"),
+                func.count(Memory.id),
             )
             .where(Memory.agent_id == agent_id)
-            .group_by('importance_level')
+            .group_by("importance_level")
         )
         importance_dist = dict(importance_result)
 
@@ -147,7 +145,7 @@ class StatisticsService:
             "top_tags": top_tags,
             "importance_distribution": importance_dist,
             "shared_memory_count": await self._count_shared_memories(agent_id),
-            "consolidated_memory_count": await self._count_consolidated_memories(agent_id)
+            "consolidated_memory_count": await self._count_consolidated_memories(agent_id),
         }
 
     async def _get_access_patterns(self, agent_id: str) -> dict[str, Any]:
@@ -162,11 +160,7 @@ class StatisticsService:
         )
 
         top_accessed = [
-            {
-                "id": str(mem_id),
-                "preview": content,
-                "access_count": count
-            }
+            {"id": str(mem_id), "preview": content, "access_count": count}
             for mem_id, content, count in most_accessed
         ]
 
@@ -185,11 +179,9 @@ class StatisticsService:
         # Recent access activity
         recent_cutoff = datetime.utcnow() - timedelta(days=7)
         recent_result = await self.session.execute(
-            select(func.count(Memory.id))
-            .where(and_(
-                Memory.agent_id == agent_id,
-                Memory.accessed_at >= recent_cutoff
-            ))
+            select(func.count(Memory.id)).where(
+                and_(Memory.agent_id == agent_id, Memory.accessed_at >= recent_cutoff)
+            )
         )
         recent_accesses = recent_result.scalar() or 0
 
@@ -197,7 +189,7 @@ class StatisticsService:
             "top_accessed_memories": top_accessed,
             "hourly_access_distribution": hourly_distribution,
             "recent_accesses_7d": recent_accesses,
-            "peak_access_hours": self._find_peak_hours(hourly_distribution)
+            "peak_access_hours": self._find_peak_hours(hourly_distribution),
         }
 
     async def _get_performance_metrics(self, agent: Agent) -> dict[str, Any]:
@@ -208,7 +200,7 @@ class StatisticsService:
             "success_rate": agent.success_rate,
             "health_score": agent.health_score,
             "reliability_score": self._calculate_reliability(agent),
-            "efficiency_score": self._calculate_efficiency(agent)
+            "efficiency_score": self._calculate_efficiency(agent),
         }
 
     async def _get_learning_stats(self, agent_id: str) -> dict[str, Any]:
@@ -216,8 +208,7 @@ class StatisticsService:
 
         # Pattern count
         pattern_result = await self.session.execute(
-            select(func.count(MemoryPattern.id))
-            .where(MemoryPattern.agent_id == agent_id)
+            select(func.count(MemoryPattern.id)).where(MemoryPattern.agent_id == agent_id)
         )
         total_patterns = pattern_result.scalar() or 0
 
@@ -231,8 +222,7 @@ class StatisticsService:
 
         # Average pattern confidence
         avg_confidence_result = await self.session.execute(
-            select(func.avg(MemoryPattern.confidence))
-            .where(MemoryPattern.agent_id == agent_id)
+            select(func.avg(MemoryPattern.confidence)).where(MemoryPattern.agent_id == agent_id)
         )
         avg_confidence = avg_confidence_result.scalar() or 0
 
@@ -241,7 +231,7 @@ class StatisticsService:
             "pattern_type_distribution": pattern_types,
             "average_pattern_confidence": float(avg_confidence) if avg_confidence else 0,
             "active_patterns": await self._count_active_patterns(agent_id),
-            "learning_velocity": await self._calculate_learning_velocity(agent_id)
+            "learning_velocity": await self._calculate_learning_velocity(agent_id),
         }
 
     async def _get_time_series_data(self, agent_id: str, days: int = 30) -> dict[str, Any]:
@@ -259,18 +249,14 @@ class StatisticsService:
         """)
 
         daily_result = await self.session.execute(
-            daily_query,
-            {"agent_id": agent_id, "cutoff": cutoff}
+            daily_query, {"agent_id": agent_id, "cutoff": cutoff}
         )
 
-        daily_memories = {
-            str(date): count
-            for date, count in daily_result
-        }
+        daily_memories = {str(date): count for date, count in daily_result}
 
         return {
             "daily_memory_creation": daily_memories,
-            "trend": self._calculate_trend(daily_memories)
+            "trend": self._calculate_trend(daily_memories),
         }
 
     async def _get_collaboration_stats(self, agent_id: str) -> dict[str, Any]:
@@ -308,15 +294,16 @@ class StatisticsService:
 
         collaborator_result = await self.session.execute(collaborator_query, {"agent_id": agent_id})
         top_collaborators = [
-            {"agent_id": agent, "shared_count": count}
-            for agent, count in collaborator_result
+            {"agent_id": agent, "shared_count": count} for agent, count in collaborator_result
         ]
 
         return {
             "memories_shared": memories_shared,
             "memories_received": memories_received,
-            "collaboration_score": self._calculate_collaboration_score(memories_shared, memories_received),
-            "top_collaborators": top_collaborators
+            "collaboration_score": self._calculate_collaboration_score(
+                memories_shared, memories_received
+            ),
+            "top_collaborators": top_collaborators,
         }
 
     # Helper methods
@@ -338,17 +325,16 @@ class StatisticsService:
         max_count = max(hourly_distribution.values())
         threshold = max_count * 0.8  # Within 80% of peak
 
-        return [
-            hour for hour, count in hourly_distribution.items()
-            if count >= threshold
-        ]
+        return [hour for hour, count in hourly_distribution.items() if count >= threshold]
 
     def _calculate_reliability(self, agent: Agent) -> float:
         """Calculate reliability score (0-1)."""
         factors = [
             agent.success_rate,
             agent.health_score,
-            1.0 if agent.average_response_time_ms and agent.average_response_time_ms < 1000 else 0.5
+            1.0
+            if agent.average_response_time_ms and agent.average_response_time_ms < 1000
+            else 0.5,
         ]
         return sum(factors) / len(factors)
 
@@ -370,11 +356,9 @@ class StatisticsService:
     async def _count_shared_memories(self, agent_id: str) -> int:
         """Count memories shared by agent."""
         result = await self.session.execute(
-            select(func.count(Memory.id))
-            .where(and_(
-                Memory.agent_id == agent_id,
-                Memory.access_level != 'private'
-            ))
+            select(func.count(Memory.id)).where(
+                and_(Memory.agent_id == agent_id, Memory.access_level != "private")
+            )
         )
         return result.scalar() or 0
 
@@ -391,11 +375,9 @@ class StatisticsService:
     async def _count_active_patterns(self, agent_id: str) -> int:
         """Count active patterns."""
         result = await self.session.execute(
-            select(func.count(MemoryPattern.id))
-            .where(and_(
-                MemoryPattern.agent_id == agent_id,
-                MemoryPattern.is_active
-            ))
+            select(func.count(MemoryPattern.id)).where(
+                and_(MemoryPattern.agent_id == agent_id, MemoryPattern.is_active)
+            )
         )
         return result.scalar() or 0
 
@@ -404,11 +386,9 @@ class StatisticsService:
         # Get patterns from last 30 days
         cutoff = datetime.utcnow() - timedelta(days=30)
         result = await self.session.execute(
-            select(func.count(MemoryPattern.id))
-            .where(and_(
-                MemoryPattern.agent_id == agent_id,
-                MemoryPattern.created_at >= cutoff
-            ))
+            select(func.count(MemoryPattern.id)).where(
+                and_(MemoryPattern.agent_id == agent_id, MemoryPattern.created_at >= cutoff)
+            )
         )
         pattern_count = result.scalar() or 0
         return pattern_count / 30.0

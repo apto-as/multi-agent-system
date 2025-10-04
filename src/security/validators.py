@@ -35,50 +35,86 @@ class InputValidator:
 
     # Dangerous patterns that should never be allowed
     DANGEROUS_PATTERNS = [
-        r'<script[^>]*>.*?</script>',  # Script tags
-        r'javascript:',               # JavaScript URLs
-        r'vbscript:',                # VBScript URLs
-        r'onload\s*=',               # Event handlers
-        r'onerror\s*=',
-        r'onclick\s*=',
-        r'onmouseover\s*=',
-        r'eval\s*\(',                # Code execution
-        r'exec\s*\(',
-        r'system\s*\(',
-        r'shell_exec\s*\(',
-        r'\.\./',                    # Directory traversal
-        r'\.\.\%2f',                 # Encoded directory traversal
-        r'\.\.\%5c',                 # Windows directory traversal
-        r'%00',                      # Null byte injection
-        r'<\s*iframe[^>]*>',         # Iframe injection
-        r'<\s*object[^>]*>',         # Object injection
-        r'<\s*embed[^>]*>',          # Embed injection
+        r"<script[^>]*>.*?</script>",  # Script tags
+        r"javascript:",  # JavaScript URLs
+        r"vbscript:",  # VBScript URLs
+        r"onload\s*=",  # Event handlers
+        r"onerror\s*=",
+        r"onclick\s*=",
+        r"onmouseover\s*=",
+        r"eval\s*\(",  # Code execution
+        r"exec\s*\(",
+        r"system\s*\(",
+        r"shell_exec\s*\(",
+        r"\.\./",  # Directory traversal
+        r"\.\.\%2f",  # Encoded directory traversal
+        r"\.\.\%5c",  # Windows directory traversal
+        r"%00",  # Null byte injection
+        r"<\s*iframe[^>]*>",  # Iframe injection
+        r"<\s*object[^>]*>",  # Object injection
+        r"<\s*embed[^>]*>",  # Embed injection
     ]
 
     # SQL keywords that might indicate injection
     SQL_KEYWORDS = [
-        'SELECT', 'INSERT', 'UPDATE', 'DELETE', 'DROP', 'CREATE', 'ALTER',
-        'EXEC', 'EXECUTE', 'UNION', 'JOIN', 'WHERE', 'ORDER BY', 'GROUP BY',
-        'HAVING', 'TRUNCATE', 'REPLACE', 'MERGE', 'CALL', 'EXPLAIN', 'ANALYZE'
+        "SELECT",
+        "INSERT",
+        "UPDATE",
+        "DELETE",
+        "DROP",
+        "CREATE",
+        "ALTER",
+        "EXEC",
+        "EXECUTE",
+        "UNION",
+        "JOIN",
+        "WHERE",
+        "ORDER BY",
+        "GROUP BY",
+        "HAVING",
+        "TRUNCATE",
+        "REPLACE",
+        "MERGE",
+        "CALL",
+        "EXPLAIN",
+        "ANALYZE",
     ]
 
     # Common weak passwords to reject
     WEAK_PASSWORDS = [
-        'password', '123456', 'qwerty', 'admin', 'root', 'user',
-        'guest', 'test', 'demo', 'password123', 'admin123', 'root123',
-        '12345678', 'password1', 'welcome', 'login', 'pass', '1234567890'
+        "password",
+        "123456",
+        "qwerty",
+        "admin",
+        "root",
+        "user",
+        "guest",
+        "test",
+        "demo",
+        "password123",
+        "admin123",
+        "root123",
+        "12345678",
+        "password1",
+        "welcome",
+        "login",
+        "pass",
+        "1234567890",
     ]
 
     def __init__(self, config: dict[str, Any] = None):
         """Initialize validator with configuration."""
         self.config = config or {}
-        self.max_lengths = self.config.get('max_lengths', {
-            'username': 64,
-            'email': 256,
-            'text_field': 1000,
-            'content_field': 10000,
-            'query_string': 500,
-        })
+        self.max_lengths = self.config.get(
+            "max_lengths",
+            {
+                "username": 64,
+                "email": 256,
+                "text_field": 1000,
+                "content_field": 10000,
+                "query_string": 500,
+            },
+        )
 
     def validate_string(
         self,
@@ -86,7 +122,7 @@ class InputValidator:
         field_name: str = "input",
         max_length: int = None,
         allow_html: bool = False,
-        required: bool = True
+        required: bool = True,
     ) -> str:
         """
         Comprehensive string validation.
@@ -117,8 +153,7 @@ class InputValidator:
 
         if len(value) > max_length:
             raise ValidationError(
-                f"{field_name} exceeds maximum length of {max_length} characters",
-                field_name, value
+                f"{field_name} exceeds maximum length of {max_length} characters", field_name, value
             )
 
         # Check for dangerous patterns
@@ -150,14 +185,11 @@ class InputValidator:
         email = email.strip().lower()
 
         # Length check
-        if len(email) > self.max_lengths.get('email', 256):
-            raise ValidationError(
-                f"{field_name} exceeds maximum length",
-                field_name, email
-            )
+        if len(email) > self.max_lengths.get("email", 256):
+            raise ValidationError(f"{field_name} exceeds maximum length", field_name, email)
 
         # Basic email pattern
-        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        email_pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
         if not re.match(email_pattern, email):
             raise ValidationError(f"Invalid {field_name} format", field_name, email)
 
@@ -190,16 +222,16 @@ class InputValidator:
             issues.append("Password must be at least 12 characters long")
 
         # Character requirements
-        if not re.search(r'[a-z]', password):
+        if not re.search(r"[a-z]", password):
             issues.append("Password must contain at least one lowercase letter")
 
-        if not re.search(r'[A-Z]', password):
+        if not re.search(r"[A-Z]", password):
             issues.append("Password must contain at least one uppercase letter")
 
-        if not re.search(r'\d', password):
+        if not re.search(r"\d", password):
             issues.append("Password must contain at least one number")
 
-        if not re.search(r'[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]', password):
+        if not re.search(r"[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]", password):
             issues.append("Password must contain at least one special character")
 
         # Check for weak passwords
@@ -211,7 +243,7 @@ class InputValidator:
             issues.append("Password cannot contain username")
 
         # Check for repeated characters
-        if re.search(r'(.)\1{2,}', password):
+        if re.search(r"(.)\1{2,}", password):
             issues.append("Password cannot contain 3 or more repeated characters")
 
         if issues:
@@ -239,12 +271,11 @@ class InputValidator:
         url = url.strip()
 
         # Check for dangerous protocols
-        dangerous_protocols = ['javascript:', 'vbscript:', 'data:', 'file:']
+        dangerous_protocols = ["javascript:", "vbscript:", "data:", "file:"]
         for protocol in dangerous_protocols:
             if url.lower().startswith(protocol):
                 raise ValidationError(
-                    f"{field_name} uses dangerous protocol: {protocol}",
-                    field_name, url
+                    f"{field_name} uses dangerous protocol: {protocol}", field_name, url
                 )
 
         # Parse URL
@@ -254,11 +285,8 @@ class InputValidator:
             raise ValidationError(f"Invalid {field_name} format: {e}", field_name, url)
 
         # Check scheme
-        if parsed.scheme not in ['http', 'https']:
-            raise ValidationError(
-                f"{field_name} must use HTTP or HTTPS",
-                field_name, url
-            )
+        if parsed.scheme not in ["http", "https"]:
+            raise ValidationError(f"{field_name} must use HTTP or HTTPS", field_name, url)
 
         return url
 
@@ -294,7 +322,7 @@ class InputValidator:
         data: dict[str, Any],
         field_name: str,
         required_fields: list[str] = None,
-        max_depth: int = 10
+        max_depth: int = 10,
     ) -> dict[str, Any]:
         """
         Validate JSON field data.
@@ -317,8 +345,7 @@ class InputValidator:
         # Check depth
         if self._get_dict_depth(data) > max_depth:
             raise ValidationError(
-                f"{field_name} exceeds maximum nesting depth of {max_depth}",
-                field_name, data
+                f"{field_name} exceeds maximum nesting depth of {max_depth}", field_name, data
             )
 
         # Check required fields
@@ -326,8 +353,7 @@ class InputValidator:
             missing_fields = [field for field in required_fields if field not in data]
             if missing_fields:
                 raise ValidationError(
-                    f"{field_name} missing required fields: {missing_fields}",
-                    field_name, data
+                    f"{field_name} missing required fields: {missing_fields}", field_name, data
                 )
 
         # Recursively validate string values
@@ -339,8 +365,7 @@ class InputValidator:
             if re.search(pattern, value, re.IGNORECASE):
                 logger.warning(f"Dangerous pattern detected in {field_name}: {pattern}")
                 raise ValidationError(
-                    f"{field_name} contains potentially dangerous content",
-                    field_name, value
+                    f"{field_name} contains potentially dangerous content", field_name, value
                 )
 
     def _sanitize_text(self, text: str) -> str:
@@ -349,7 +374,7 @@ class InputValidator:
         text = html.escape(text)
 
         # Remove control characters except common whitespace
-        text = ''.join(char for char in text if ord(char) >= 32 or char in '\n\r\t')
+        text = "".join(char for char in text if ord(char) >= 32 or char in "\n\r\t")
 
         return text.strip()
 
@@ -364,9 +389,7 @@ class InputValidator:
             return depth
 
         return max(
-            self._get_dict_depth(value, depth + 1)
-            if isinstance(value, dict)
-            else depth + 1
+            self._get_dict_depth(value, depth + 1) if isinstance(value, dict) else depth + 1
             for value in d.values()
         )
 
@@ -400,19 +423,21 @@ class SQLInjectionValidator:
 
     # Dangerous SQL patterns
     SQL_INJECTION_PATTERNS = [
-        r'\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|EXECUTE)\b',
-        r'\b(UNION|JOIN)\b.*\b(SELECT|FROM)\b',
+        r"\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|EXECUTE)\b",
+        r"\b(UNION|JOIN)\b.*\b(SELECT|FROM)\b",
         r'[\'";]\s*(OR|AND)\s*[\'"]?\w*[\'"]?\s*=\s*[\'"]?\w*[\'"]?',
         r'\b(OR|AND)\b\s+[\'"]?\d+[\'"]?\s*=\s*[\'"]?\d+[\'"]?',
         r'[\'"];.*?--',
-        r'/\*.*?\*/',
-        r'\bxp_cmdshell\b',
-        r'\bsp_executesql\b',
-        r';.*\b(SELECT|INSERT|UPDATE|DELETE)\b',
+        r"/\*.*?\*/",
+        r"\bxp_cmdshell\b",
+        r"\bsp_executesql\b",
+        r";.*\b(SELECT|INSERT|UPDATE|DELETE)\b",
     ]
 
     def __init__(self):
-        self.compiled_patterns = [re.compile(pattern, re.IGNORECASE) for pattern in self.SQL_INJECTION_PATTERNS]
+        self.compiled_patterns = [
+            re.compile(pattern, re.IGNORECASE) for pattern in self.SQL_INJECTION_PATTERNS
+        ]
 
     def validate_query_parameter(self, value: str, parameter_name: str = "parameter") -> str:
         """
@@ -437,7 +462,8 @@ class SQLInjectionValidator:
                 logger.critical(f"SQL injection attempt detected in {parameter_name}: {value}")
                 raise ValidationError(
                     f"{parameter_name} contains potentially dangerous SQL content",
-                    parameter_name, value
+                    parameter_name,
+                    value,
                 )
 
         # Additional checks for common injection techniques
@@ -449,20 +475,16 @@ class SQLInjectionValidator:
 
     def _check_sql_comment_injection(self, value: str, parameter_name: str) -> None:
         """Check for SQL comment-based injection."""
-        if re.search(r'--.*|/\*.*?\*/', value, re.IGNORECASE | re.DOTALL):
+        if re.search(r"--.*|/\*.*?\*/", value, re.IGNORECASE | re.DOTALL):
             logger.critical(f"SQL comment injection detected in {parameter_name}")
-            raise ValidationError(
-                f"{parameter_name} contains SQL comments",
-                parameter_name, value
-            )
+            raise ValidationError(f"{parameter_name} contains SQL comments", parameter_name, value)
 
     def _check_union_injection(self, value: str, parameter_name: str) -> None:
         """Check for UNION-based injection."""
-        if re.search(r'\bUNION\b.*\bSELECT\b', value, re.IGNORECASE):
+        if re.search(r"\bUNION\b.*\bSELECT\b", value, re.IGNORECASE):
             logger.critical(f"UNION injection detected in {parameter_name}")
             raise ValidationError(
-                f"{parameter_name} contains UNION SQL injection",
-                parameter_name, value
+                f"{parameter_name} contains UNION SQL injection", parameter_name, value
             )
 
     def _check_boolean_injection(self, value: str, parameter_name: str) -> None:
@@ -470,15 +492,14 @@ class SQLInjectionValidator:
         boolean_patterns = [
             r"'\s*(OR|AND)\s*'1'\s*=\s*'1",
             r'"\s*(OR|AND)\s*"1"\s*=\s*"1',
-            r'\b(OR|AND)\s+1\s*=\s*1\b',
+            r"\b(OR|AND)\s+1\s*=\s*1\b",
         ]
 
         for pattern in boolean_patterns:
             if re.search(pattern, value, re.IGNORECASE):
                 logger.critical(f"Boolean injection detected in {parameter_name}")
                 raise ValidationError(
-                    f"{parameter_name} contains boolean SQL injection",
-                    parameter_name, value
+                    f"{parameter_name} contains boolean SQL injection", parameter_name, value
                 )
 
 
@@ -492,9 +513,7 @@ class VectorValidator:
         self.max_dimensions = max_dimensions
 
     def validate_vector(
-        self,
-        vector: list[float] | np.ndarray,
-        expected_dimensions: int = None
+        self, vector: list[float] | np.ndarray, expected_dimensions: int = None
     ) -> list[float]:
         """
         Validate embedding vector.
@@ -523,13 +542,15 @@ class VectorValidator:
         if len(vector) > self.max_dimensions:
             raise ValidationError(
                 f"Vector dimensions ({len(vector)}) exceed maximum ({self.max_dimensions})",
-                "vector", vector
+                "vector",
+                vector,
             )
 
         if expected_dimensions and len(vector) != expected_dimensions:
             raise ValidationError(
                 f"Vector dimensions ({len(vector)}) don't match expected ({expected_dimensions})",
-                "vector", vector
+                "vector",
+                vector,
             )
 
         # Validate each component
@@ -562,8 +583,7 @@ class VectorValidator:
 
         if len(text) > max_length:
             raise ValidationError(
-                f"Text length ({len(text)}) exceeds maximum ({max_length})",
-                "text", text
+                f"Text length ({len(text)}) exceeds maximum ({max_length})", "text", text
             )
 
         # Use InputValidator for basic sanitization
@@ -576,21 +596,18 @@ class VectorValidator:
             value = float(component)
         except (ValueError, TypeError):
             raise ValidationError(
-                f"Vector component at index {index} must be a number",
-                f"vector[{index}]", component
+                f"Vector component at index {index} must be a number", f"vector[{index}]", component
             )
 
         # Check for NaN and infinite values
         if np.isnan(value):
             raise ValidationError(
-                f"Vector component at index {index} is NaN",
-                f"vector[{index}]", value
+                f"Vector component at index {index} is NaN", f"vector[{index}]", value
             )
 
         if np.isinf(value):
             raise ValidationError(
-                f"Vector component at index {index} is infinite",
-                f"vector[{index}]", value
+                f"Vector component at index {index} is infinite", f"vector[{index}]", value
             )
 
         # Check for reasonable bounds
@@ -613,3 +630,53 @@ class VectorValidator:
         norm = sum(v * v for v in vector) ** 0.5
         if norm > 100 or norm < 0.01:
             logger.warning(f"Unusual vector norm: {norm}")
+
+
+# Global convenience functions for common operations
+def sanitize_input(text: str, field_name: str = "input", allow_html: bool = False) -> str:
+    """
+    Global convenience function for input sanitization.
+
+    Args:
+        text: Text to sanitize
+        field_name: Field name for error reporting
+        allow_html: Whether to allow HTML content
+
+    Returns:
+        Sanitized text
+    """
+    if not text:
+        return ""
+
+    validator = InputValidator()
+    return validator.validate_string(text, field_name, allow_html=allow_html, required=False)
+
+
+def validate_agent_id(agent_id: str) -> str:
+    """
+    Validate agent ID format.
+
+    Args:
+        agent_id: Agent ID to validate
+
+    Returns:
+        Validated agent ID
+
+    Raises:
+        ValidationError: If agent ID is invalid
+    """
+    if not agent_id:
+        raise ValidationError("Agent ID is required")
+
+    # Agent ID format: alphanumeric, hyphens, underscores, 3-64 chars
+    if not re.match(r"^[a-zA-Z][a-zA-Z0-9_-]{2,63}$", agent_id):
+        raise ValidationError(
+            "Agent ID must be 3-64 characters, start with a letter, "
+            "and contain only letters, numbers, hyphens, and underscores"
+        )
+
+    # Check for dangerous patterns
+    validator = InputValidator()
+    validator._check_dangerous_patterns(agent_id, "agent_id")
+
+    return agent_id.lower()

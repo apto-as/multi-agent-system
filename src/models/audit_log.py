@@ -1,6 +1,7 @@
 from enum import Enum
 
-from sqlalchemy import JSON, Boolean, Column, DateTime, Enum, Index, Integer, String
+from sqlalchemy import Boolean, Column, DateTime, Index, Integer, String
+from sqlalchemy.dialects.postgresql import JSONB
 
 from ..core.database import Base
 
@@ -58,6 +59,7 @@ class SecurityEventType(Enum):
 
 class SecurityEventSeverity(Enum):
     """Security event severity levels."""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -66,7 +68,8 @@ class SecurityEventSeverity(Enum):
 
 class SecurityAuditLog(Base):
     """Database model for security audit logs."""
-    __tablename__ = 'security_audit_logs'
+
+    __tablename__ = "security_audit_logs"
 
     id = Column(Integer, primary_key=True)
     event_type = Column(String(50), nullable=False, index=True)
@@ -80,8 +83,8 @@ class SecurityAuditLog(Base):
     user_agent = Column(String(500))
     referer = Column(String(500))
     message = Column(String(1000))
-    details = Column(JSON)
-    location = Column(JSON)
+    details = Column(JSONB)
+    location = Column(JSONB)
     risk_score = Column(Integer, default=0, index=True)
     blocked = Column(Boolean, default=False)
     event_hash = Column(String(16), index=True)

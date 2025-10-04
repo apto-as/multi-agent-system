@@ -14,18 +14,19 @@ from uuid import uuid4
 
 from sqlalchemy import and_, delete, func, select, text, update
 
-from ..core.database_enhanced import get_async_session
+from ..core.database import get_db_session
 from ..core.exceptions import ValidationError
 from ..models.agent import Agent
 from ..models.memory import Memory
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class BatchOperationType(str, Enum):
     """Types of batch operations."""
+
     CREATE = "create"
     UPDATE = "update"
     DELETE = "delete"
@@ -36,6 +37,7 @@ class BatchOperationType(str, Enum):
 
 class BatchPriority(str, Enum):
     """Batch processing priorities."""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -45,6 +47,7 @@ class BatchPriority(str, Enum):
 
 class BatchJobStatus(str, Enum):
     """Batch job execution statuses."""
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -56,16 +59,18 @@ class BatchJobStatus(str, Enum):
 class BatchJob:
     """Represents a batch processing job."""
 
-    def __init__(self,
-                 job_id: str,
-                 operation_type: BatchOperationType,
-                 items: list[dict[str, Any]],
-                 processor_func: Callable,
-                 priority: BatchPriority = BatchPriority.MEDIUM,
-                 batch_size: int = 100,
-                 max_retries: int = 3,
-                 timeout_seconds: int = 300,
-                 metadata: dict[str, Any] | None = None):
+    def __init__(
+        self,
+        job_id: str,
+        operation_type: BatchOperationType,
+        items: list[dict[str, Any]],
+        processor_func: Callable,
+        priority: BatchPriority = BatchPriority.MEDIUM,
+        batch_size: int = 100,
+        max_retries: int = 3,
+        timeout_seconds: int = 300,
+        metadata: dict[str, Any] | None = None,
+    ):
         self.job_id = job_id
         self.operation_type = operation_type
         self.items = items
@@ -110,7 +115,11 @@ class BatchJob:
     @property
     def is_completed(self) -> bool:
         """Check if job is completed (successfully or with failures)."""
-        return self.status in [BatchJobStatus.COMPLETED, BatchJobStatus.FAILED, BatchJobStatus.CANCELLED]
+        return self.status in [
+            BatchJobStatus.COMPLETED,
+            BatchJobStatus.FAILED,
+            BatchJobStatus.CANCELLED,
+        ]
 
     @property
     def execution_time(self) -> timedelta | None:
@@ -136,11 +145,13 @@ class BatchJob:
             "created_at": self.created_at.isoformat(),
             "started_at": self.started_at.isoformat() if self.started_at else None,
             "completed_at": self.completed_at.isoformat() if self.completed_at else None,
-            "execution_time_seconds": self.execution_time.total_seconds() if self.execution_time else None,
+            "execution_time_seconds": self.execution_time.total_seconds()
+            if self.execution_time
+            else None,
             "current_retry": self.current_retry,
             "max_retries": self.max_retries,
             "error_messages": self.error_messages[-10:],  # Last 10 errors
-            "metadata": self.metadata
+            "metadata": self.metadata,
         }
 
 
@@ -157,11 +168,13 @@ class BatchProcessor:
     - Progress tracking and analytics
     """
 
-    def __init__(self,
-                 max_concurrent_jobs: int = 5,
-                 max_concurrent_batches: int = 10,
-                 memory_limit_mb: int = 1024,
-                 adaptive_batch_sizing: bool = True):
+    def __init__(
+        self,
+        max_concurrent_jobs: int = 5,
+        max_concurrent_batches: int = 10,
+        memory_limit_mb: int = 1024,
+        adaptive_batch_sizing: bool = True,
+    ):
         self.max_concurrent_jobs = max_concurrent_jobs
         self.max_concurrent_batches = max_concurrent_batches
         self.memory_limit_mb = memory_limit_mb
@@ -183,7 +196,7 @@ class BatchProcessor:
             "total_processing_time": 0.0,
             "average_job_time": 0.0,
             "average_items_per_second": 0.0,
-            "error_rate": 0.0
+            "error_rate": 0.0,
         }
 
     async def start(self) -> None:
@@ -231,7 +244,9 @@ class BatchProcessor:
         self.jobs[job.job_id] = job
         await self.job_queue.put(job)
 
-        logger.info(f"Submitted batch job {job.job_id}: {job.operation_type} with {job.total_items} items")
+        logger.info(
+            f"Submitted batch job {job.job_id}: {job.operation_type} with {job.total_items} items"
+        )
         return job.job_id
 
     async def get_job_status(self, job_id: str) -> dict[str, Any] | None:
@@ -266,7 +281,7 @@ class BatchProcessor:
             "total_jobs": len(self.jobs),
             "memory_limit_mb": self.memory_limit_mb,
             "max_concurrent_jobs": self.max_concurrent_jobs,
-            "max_concurrent_batches": self.max_concurrent_batches
+            "max_concurrent_batches": self.max_concurrent_batches,
         }
 
     async def _process_jobs(self) -> None:
@@ -327,10 +342,14 @@ class BatchProcessor:
             # Update job status
             if job.processed_count == job.total_items:
                 job.status = BatchJobStatus.COMPLETED
-                logger.info(f"Completed batch job {job.job_id}: {job.success_count}/{job.total_items} successful")
+                logger.info(
+                    f"Completed batch job {job.job_id}: {job.success_count}/{job.total_items} successful"
+                )
             else:
                 job.status = BatchJobStatus.FAILED
-                logger.error(f"Failed batch job {job.job_id}: {job.success_count}/{job.total_items} successful")
+                logger.error(
+                    f"Failed batch job {job.job_id}: {job.success_count}/{job.total_items} successful"
+                )
 
         except asyncio.CancelledError:
             job.status = BatchJobStatus.CANCELLED
@@ -353,12 +372,10 @@ class BatchProcessor:
         # Create batch processing tasks
         batch_tasks = []
         for i in range(0, job.total_items, job.batch_size):
-            batch_items = job.items[i:i + job.batch_size]
+            batch_items = job.items[i : i + job.batch_size]
             batch_id = f"{job.job_id}_batch_{i // job.batch_size + 1}"
 
-            task = asyncio.create_task(
-                self._process_batch(job, batch_id, batch_items, i)
-            )
+            task = asyncio.create_task(self._process_batch(job, batch_id, batch_items, i))
             batch_tasks.append(task)
 
         # Process batches with controlled concurrency
@@ -375,11 +392,9 @@ class BatchProcessor:
                 except Exception as e:
                     logger.warning(f"Progress callback error: {e}")
 
-    async def _process_batch(self,
-                           job: BatchJob,
-                           batch_id: str,
-                           items: list[dict[str, Any]],
-                           start_index: int) -> None:
+    async def _process_batch(
+        self, job: BatchJob, batch_id: str, items: list[dict[str, Any]], start_index: int
+    ) -> None:
         """Process a single batch with controlled concurrency."""
         async with self.batch_semaphore:
             batch_start_time = datetime.now()
@@ -398,11 +413,11 @@ class BatchProcessor:
 
                 # Count successes and failures
                 for i, result in enumerate(results or []):
-                    if result.get('success', False):
+                    if result.get("success", False):
                         batch_success_count += 1
                     else:
                         batch_failure_count += 1
-                        error_msg = result.get('error', 'Unknown error')
+                        error_msg = result.get("error", "Unknown error")
                         job.error_messages.append(f"Item {start_index + i}: {error_msg}")
 
             except Exception as e:
@@ -416,7 +431,9 @@ class BatchProcessor:
             job.failure_count += batch_failure_count
 
             batch_time = (datetime.now() - batch_start_time).total_seconds()
-            logger.debug(f"Processed batch {batch_id}: {batch_success_count}/{len(items)} successful in {batch_time:.2f}s")
+            logger.debug(
+                f"Processed batch {batch_id}: {batch_success_count}/{len(items)} successful in {batch_time:.2f}s"
+            )
 
     async def _calculate_optimal_batch_size(self, job: BatchJob) -> int:
         """Calculate optimal batch size based on job characteristics and system performance."""
@@ -429,7 +446,7 @@ class BatchProcessor:
             BatchOperationType.DELETE: 1.2,
             BatchOperationType.PROCESS: 0.6,
             BatchOperationType.ANALYZE: 0.4,
-            BatchOperationType.MIGRATE: 0.5
+            BatchOperationType.MIGRATE: 0.5,
         }
 
         multiplier = operation_multipliers.get(job.operation_type, 1.0)
@@ -440,7 +457,7 @@ class BatchProcessor:
             BatchPriority.MEDIUM: 1.0,
             BatchPriority.HIGH: 0.8,
             BatchPriority.URGENT: 0.6,
-            BatchPriority.CRITICAL: 0.4
+            BatchPriority.CRITICAL: 0.4,
         }
 
         priority_multiplier = priority_multipliers.get(job.priority, 1.0)
@@ -480,9 +497,10 @@ class BatchProcessor:
                 else:
                     alpha = 0.1
                     self.performance_metrics["average_items_per_second"] = (
-                        (1 - alpha) * self.performance_metrics["average_items_per_second"] +
-                        alpha * items_per_second
-                    )
+                        1 - alpha
+                    ) * self.performance_metrics[
+                        "average_items_per_second"
+                    ] + alpha * items_per_second
 
         # Update error rate
         if job.processed_count > 0:
@@ -492,9 +510,9 @@ class BatchProcessor:
 
             # Weighted average
             self.performance_metrics["error_rate"] = (
-                (current_error_rate * (total_items - job.processed_count) +
-                 job_error_rate * job.processed_count) / total_items
-            )
+                current_error_rate * (total_items - job.processed_count)
+                + job_error_rate * job.processed_count
+            ) / total_items
 
 
 class BatchService:
@@ -513,51 +531,57 @@ class BatchService:
         """Stop the batch service."""
         await self.processor.stop(timeout)
 
-    async def batch_create_memories(self,
-                                  memories_data: list[dict[str, Any]],
-                                  agent_id: str | None = None,
-                                  namespace: str = "default",
-                                  batch_size: int = 100) -> str:
+    async def batch_create_memories(
+        self,
+        memories_data: list[dict[str, Any]],
+        agent_id: str | None = None,
+        namespace: str = "default",
+        batch_size: int = 100,
+    ) -> str:
         """Batch create memories with optimized processing."""
 
-        async def memory_processor(items: list[dict[str, Any]], metadata: dict[str, Any]) -> list[dict[str, Any]]:
+        async def memory_processor(
+            items: list[dict[str, Any]], metadata: dict[str, Any]
+        ) -> list[dict[str, Any]]:
             results = []
 
-            async with get_async_session() as session:
+            async with get_db_session() as session:
                 for item in items:
                     try:
                         memory = Memory(
-                            content=item['content'],
-                            agent_id=item.get('agent_id', agent_id),
-                            namespace=item.get('namespace', namespace),
-                            importance=item.get('importance', 0.5),
-                            memory_type=item.get('memory_type', 'episodic'),
-                            access_level=item.get('access_level', 'private'),
-                            context_tags=item.get('context_tags', []),
-                            learning_weight=item.get('learning_weight', 1.0)
+                            content=item["content"],
+                            agent_id=item.get("agent_id", agent_id),
+                            namespace=item.get("namespace", namespace),
+                            importance=item.get("importance", 0.5),
+                            memory_type=item.get("memory_type", "episodic"),
+                            access_level=item.get("access_level", "private"),
+                            context_tags=item.get("context_tags", []),
+                            learning_weight=item.get("learning_weight", 1.0),
                         )
 
                         session.add(memory)
-                        results.append({'success': True, 'memory_id': None})  # Will be set after flush
+                        results.append(
+                            {"success": True, "memory_id": None}
+                        )  # Will be set after flush
 
                     except Exception as e:
-                        results.append({'success': False, 'error': str(e)})
+                        results.append({"success": False, "error": str(e)})
 
                 try:
                     await session.flush()
                     # Update memory IDs in results
                     success_idx = 0
                     for _i, result in enumerate(results):
-                        if result['success']:
+                        if result["success"]:
                             # This is a simplified approach - in practice, you'd track the created memories
                             success_idx += 1
 
                 except Exception as e:
                     # Mark all as failed if commit fails
                     for result in results:
-                        if result['success']:
-                            result['success'] = False
-                            result['error'] = f"Batch commit failed: {e}"
+                        if result["success"]:
+                            result["success"] = False
+                            result["error"] = f"Batch commit failed: {e}"
 
             return results
 
@@ -567,39 +591,47 @@ class BatchService:
             items=memories_data,
             processor_func=memory_processor,
             batch_size=batch_size,
-            metadata={'agent_id': agent_id, 'namespace': namespace}
+            metadata={"agent_id": agent_id, "namespace": namespace},
         )
 
         return await self.processor.submit_job(job)
 
-    async def batch_update_agent_performance(self,
-                                           performance_updates: list[dict[str, Any]],
-                                           batch_size: int = 50) -> str:
+    async def batch_update_agent_performance(
+        self, performance_updates: list[dict[str, Any]], batch_size: int = 50
+    ) -> str:
         """Batch update agent performance metrics."""
 
-        async def performance_processor(items: list[dict[str, Any]], metadata: dict[str, Any]) -> list[dict[str, Any]]:
+        async def performance_processor(
+            items: list[dict[str, Any]], metadata: dict[str, Any]
+        ) -> list[dict[str, Any]]:
             results = []
 
-            async with get_async_session() as session:
+            async with get_db_session() as session:
                 for item in items:
                     try:
-                        agent_id = item['agent_id']
-                        performance_data = item['performance_data']
+                        agent_id = item["agent_id"]
+                        performance_data = item["performance_data"]
 
                         # Update agent performance
                         await session.execute(
-                            update(Agent).where(Agent.agent_id == agent_id).values(
-                                total_requests=Agent.total_requests + performance_data.get('requests', 0),
-                                successful_requests=Agent.successful_requests + performance_data.get('successful', 0),
-                                failed_requests=Agent.failed_requests + performance_data.get('failed', 0),
-                                total_tokens_used=Agent.total_tokens_used + performance_data.get('tokens', 0),
-                                total_cost=Agent.total_cost + performance_data.get('cost', 0.0),
-                                last_request_at=func.now()
+                            update(Agent)
+                            .where(Agent.agent_id == agent_id)
+                            .values(
+                                total_requests=Agent.total_requests
+                                + performance_data.get("requests", 0),
+                                successful_requests=Agent.successful_requests
+                                + performance_data.get("successful", 0),
+                                failed_requests=Agent.failed_requests
+                                + performance_data.get("failed", 0),
+                                total_tokens_used=Agent.total_tokens_used
+                                + performance_data.get("tokens", 0),
+                                total_cost=Agent.total_cost + performance_data.get("cost", 0.0),
+                                last_request_at=func.now(),
                             )
                         )
 
                         # Update average response time with exponential moving average
-                        if 'response_time' in performance_data:
+                        if "response_time" in performance_data:
                             await session.execute(
                                 text("""
                                 UPDATE agents
@@ -610,15 +642,17 @@ class BatchService:
                                 WHERE agent_id = :agent_id
                                 """),
                                 {
-                                    'agent_id': agent_id,
-                                    'response_time': performance_data['response_time']
-                                }
+                                    "agent_id": agent_id,
+                                    "response_time": performance_data["response_time"],
+                                },
                             )
 
-                        results.append({'success': True, 'agent_id': agent_id})
+                        results.append({"success": True, "agent_id": agent_id})
 
                     except Exception as e:
-                        results.append({'success': False, 'error': str(e), 'agent_id': item.get('agent_id')})
+                        results.append(
+                            {"success": False, "error": str(e), "agent_id": item.get("agent_id")}
+                        )
 
             return results
 
@@ -627,30 +661,34 @@ class BatchService:
             operation_type=BatchOperationType.UPDATE,
             items=performance_updates,
             processor_func=performance_processor,
-            batch_size=batch_size
+            batch_size=batch_size,
         )
 
         return await self.processor.submit_job(job)
 
-    async def batch_cleanup_expired_memories(self,
-                                           days_threshold: int = 30,
-                                           batch_size: int = 200) -> str:
+    async def batch_cleanup_expired_memories(
+        self, days_threshold: int = 30, batch_size: int = 200
+    ) -> str:
         """Batch cleanup expired memories based on retention policy."""
 
-        async def cleanup_processor(items: list[dict[str, Any]], metadata: dict[str, Any]) -> list[dict[str, Any]]:
+        async def cleanup_processor(
+            items: list[dict[str, Any]], metadata: dict[str, Any]
+        ) -> list[dict[str, Any]]:
             results = []
 
-            async with get_async_session() as session:
-                threshold_date = datetime.now() - timedelta(days=metadata['days_threshold'])
+            async with get_db_session() as session:
+                threshold_date = datetime.now() - timedelta(days=metadata["days_threshold"])
 
                 # Find expired memories
                 expired_memories = await session.execute(
-                    select(Memory.id).where(
+                    select(Memory.id)
+                    .where(
                         and_(
-                            Memory.retention_policy == 'temporary',
-                            Memory.expires_at < threshold_date
+                            Memory.retention_policy == "temporary",
+                            Memory.expires_at < threshold_date,
                         )
-                    ).limit(len(items))
+                    )
+                    .limit(len(items))
                 )
 
                 memory_ids = [row.id for row in expired_memories]
@@ -661,19 +699,21 @@ class BatchService:
                         delete(Memory).where(Memory.id.in_(memory_ids))
                     )
 
-                    results.append({
-                        'success': True,
-                        'deleted_count': deleted_count.rowcount,
-                        'memory_ids': [str(mid) for mid in memory_ids]
-                    })
+                    results.append(
+                        {
+                            "success": True,
+                            "deleted_count": deleted_count.rowcount,
+                            "memory_ids": [str(mid) for mid in memory_ids],
+                        }
+                    )
 
                 except Exception as e:
-                    results.append({'success': False, 'error': str(e)})
+                    results.append({"success": False, "error": str(e)})
 
             return results
 
         # Create dummy items for batch processing (actual work is done in processor)
-        dummy_items = [{'batch': i} for i in range((batch_size + 99) // 100)]
+        dummy_items = [{"batch": i} for i in range((batch_size + 99) // 100)]
 
         job = BatchJob(
             job_id=f"batch_cleanup_{uuid4().hex[:8]}",
@@ -681,7 +721,7 @@ class BatchService:
             items=dummy_items,
             processor_func=cleanup_processor,
             batch_size=1,  # Process one "batch" at a time
-            metadata={'days_threshold': days_threshold}
+            metadata={"days_threshold": days_threshold},
         )
 
         return await self.processor.submit_job(job)

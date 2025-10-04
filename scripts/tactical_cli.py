@@ -113,7 +113,7 @@ class TacticalCLI:
             print("║ Individual Service Status:                                       ║")
             for service_name, service_info in services.items():
                 state = service_info.get("state", "unknown").upper()
-                restart_count = service_info.get("restart_count", 0)
+                service_info.get("restart_count", 0)
                 cpu = service_info.get("metrics", {}).get("cpu_percent", 0.0)
                 memory = service_info.get("metrics", {}).get("memory_mb", 0.0)
 
@@ -218,20 +218,20 @@ async def main():
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # Status command
-    status_parser = subparsers.add_parser("status", help="Get tactical status")
+    subparsers.add_parser("status", help="Get tactical status")
 
     # Health command
-    health_parser = subparsers.add_parser("health", help="Get health check")
+    subparsers.add_parser("health", help="Get health check")
 
     # Metrics command
-    metrics_parser = subparsers.add_parser("metrics", help="Get detailed metrics")
+    subparsers.add_parser("metrics", help="Get detailed metrics")
 
     # Restart command
     restart_parser = subparsers.add_parser("restart", help="Restart a service")
     restart_parser.add_argument("service", help="Service name to restart")
 
     # Optimize command
-    optimize_parser = subparsers.add_parser("optimize", help="Run performance optimization")
+    subparsers.add_parser("optimize", help="Run performance optimization")
 
     # Set mode command
     mode_parser = subparsers.add_parser("mode", help="Set tactical mode")

@@ -1,0 +1,292 @@
+# Pattern Definitions for TMWS v2.2.0
+# Optimized for 40% token reduction and <200ms execution
+
+# ============================================================================
+# INFRASTRUCTURE PATTERNS - Fast execution (<50ms)
+# ============================================================================
+
+infrastructure_patterns:
+  - name: execute_mcp_tool
+    pattern_type: infrastructure
+    trigger_pattern: '(run|execute|call)\s+(tool|mcp|function)'
+    cost_tokens: 50
+    priority: 10
+    cache_ttl: 300
+    metadata:
+      category: tool_execution
+      description: Execute MCP tool directly without memory lookup
+      example_queries:
+        - "execute the memory search tool"
+        - "run semantic analysis function"
+        - "call the vector search tool"
+
+  - name: system_command
+    pattern_type: infrastructure
+    trigger_pattern: '(install|setup|configure|init)\s+\w+'
+    cost_tokens: 40
+    priority: 9
+    cache_ttl: 600
+    metadata:
+      category: system_setup
+      description: System-level operations that don't need memory
+      example_queries:
+        - "install redis dependencies"
+        - "setup database connection"
+        - "configure logging system"
+
+  - name: health_check
+    pattern_type: infrastructure
+    trigger_pattern: '(check|test|verify|status)\s+(health|connection|service)'
+    cost_tokens: 30
+    priority: 8
+    cache_ttl: 60
+    metadata:
+      category: monitoring
+      description: Fast health and status checks
+      example_queries:
+        - "check database health"
+        - "verify service status"
+        - "test redis connection"
+
+  - name: quick_calculation
+    pattern_type: infrastructure
+    trigger_pattern: '(calculate|compute|count)\s+\w+'
+    cost_tokens: 35
+    priority: 7
+    cache_ttl: 300
+    metadata:
+      category: computation
+      description: Simple calculations without memory lookup
+      example_queries:
+        - "calculate execution time"
+        - "compute token usage"
+        - "count active connections"
+
+# ============================================================================
+# MEMORY PATTERNS - Medium execution (<100ms)
+# ============================================================================
+
+memory_patterns:
+  - name: recall_memory
+    pattern_type: memory
+    trigger_pattern: '(recall|retrieve|get|fetch)\s+(memory|memories|history)'
+    cost_tokens: 100
+    priority: 9
+    cache_ttl: 300
+    metadata:
+      category: memory_retrieval
+      description: Retrieve memories from database
+      optimization: Uses index on (persona_id, memory_type)
+      example_queries:
+        - "recall memories about performance optimization"
+        - "retrieve past security findings"
+        - "get architecture decisions"
+
+  - name: store_memory
+    pattern_type: memory
+    trigger_pattern: '(store|save|remember|record)\s+'
+    cost_tokens: 80
+    priority: 8
+    cache_ttl: 0  # Don't cache write operations
+    metadata:
+      category: memory_storage
+      description: Store new memory with embeddings
+      optimization: Batch processing for multiple memories
+      example_queries:
+        - "store this optimization pattern"
+        - "remember this security vulnerability"
+        - "record architecture decision"
+
+  - name: search_by_tag
+    pattern_type: memory
+    trigger_pattern: 'tag(ged)?\s+(with|as)\s+\w+'
+    cost_tokens: 90
+    priority: 7
+    cache_ttl: 300
+    metadata:
+      category: memory_search
+      description: Search memories by tag
+      optimization: Uses GIN index on tags array
+      example_queries:
+        - "find memories tagged with security"
+        - "search tag performance"
+        - "get all memories tagged critical"
+
+  - name: filter_by_importance
+    pattern_type: memory
+    trigger_pattern: '(important|critical|high\s+priority)\s+(memories|items)'
+    cost_tokens: 85
+    priority: 6
+    cache_ttl: 300
+    metadata:
+      category: memory_filter
+      description: Filter memories by importance score
+      optimization: Uses index on importance DESC
+      example_queries:
+        - "get important memories"
+        - "show critical items"
+        - "list high priority memories"
+
+# ============================================================================
+# HYBRID PATTERNS - Comprehensive execution (<200ms)
+# ============================================================================
+
+hybrid_patterns:
+  - name: semantic_search
+    pattern_type: hybrid
+    trigger_pattern: '(find|search|look\s+for)\s+(similar|related|like)'
+    cost_tokens: 150
+    priority: 10
+    cache_ttl: 300
+    metadata:
+      category: semantic_search
+      description: Combine vector search with keyword matching
+      optimization: Parallel execution of vector and text search
+      example_queries:
+        - "find similar optimization patterns"
+        - "search for related security issues"
+        - "look for like architecture decisions"
+
+  - name: analyze_codebase
+    pattern_type: hybrid
+    trigger_pattern: 'analyze|investigate|examine\s+.*(code|system|architecture)'
+    cost_tokens: 200
+    priority: 9
+    cache_ttl: 600
+    metadata:
+      category: analysis
+      description: Deep analysis combining tools and memories
+      optimization: Uses both MCP tools and memory retrieval
+      example_queries:
+        - "analyze the authentication system"
+        - "investigate performance bottlenecks"
+        - "examine security architecture"
+
+  - name: compare_patterns
+    pattern_type: hybrid
+    trigger_pattern: 'compare\s+\w+\s+(with|to|against)\s+\w+'
+    cost_tokens: 180
+    priority: 8
+    cache_ttl: 300
+    metadata:
+      category: comparison
+      description: Compare different items using memory and context
+      optimization: Parallel retrieval and comparison
+      example_queries:
+        - "compare current implementation with previous"
+        - "compare security approach to best practices"
+        - "compare performance with benchmarks"
+
+  - name: aggregate_insights
+    pattern_type: hybrid
+    trigger_pattern: '(summarize|aggregate|combine)\s+(all|multiple)\s+\w+'
+    cost_tokens: 170
+    priority: 7
+    cache_ttl: 300
+    metadata:
+      category: aggregation
+      description: Aggregate insights from multiple sources
+      optimization: Batch queries with single DB round-trip
+      example_queries:
+        - "summarize all security findings"
+        - "aggregate performance metrics"
+        - "combine optimization insights"
+
+  - name: temporal_analysis
+    pattern_type: hybrid
+    trigger_pattern: '(recent|latest|past|historical)\s+\w+'
+    cost_tokens: 160
+    priority: 6
+    cache_ttl: 300
+    metadata:
+      category: temporal
+      description: Time-based analysis with context
+      optimization: Uses timestamp indexes
+      example_queries:
+        - "show recent security issues"
+        - "analyze latest optimizations"
+        - "review past architecture decisions"
+
+  - name: contextual_recommendation
+    pattern_type: hybrid
+    trigger_pattern: '(recommend|suggest|advise)\s+(on|for|about)\s+\w+'
+    cost_tokens: 190
+    priority: 5
+    cache_ttl: 300
+    metadata:
+      category: recommendation
+      description: Context-aware recommendations
+      optimization: Uses similarity search + heuristics
+      example_queries:
+        - "recommend optimization strategies"
+        - "suggest security improvements"
+        - "advise on architecture changes"
+
+# ============================================================================
+# PERFORMANCE TARGETS
+# ============================================================================
+
+performance_targets:
+  infrastructure:
+    p50: 25  # 50th percentile: 25ms
+    p95: 50  # 95th percentile: 50ms
+    p99: 75  # 99th percentile: 75ms
+
+  memory:
+    p50: 50   # 50th percentile: 50ms
+    p95: 100  # 95th percentile: 100ms
+    p99: 150  # 99th percentile: 150ms
+
+  hybrid:
+    p50: 100  # 50th percentile: 100ms
+    p95: 200  # 95th percentile: 200ms
+    p99: 300  # 99th percentile: 300ms
+
+# ============================================================================
+# CACHE CONFIGURATION
+# ============================================================================
+
+cache_config:
+  infrastructure:
+    ttl: 300  # 5 minutes
+    max_size: 500
+
+  memory:
+    ttl: 300  # 5 minutes
+    max_size: 1000
+
+  hybrid:
+    ttl: 600  # 10 minutes
+    max_size: 200
+
+# ============================================================================
+# OPTIMIZATION NOTES
+# ============================================================================
+
+optimization_notes: |
+  Pattern Execution Optimization Strategy:
+
+  1. FAST PATH (Infrastructure):
+     - No database queries
+     - Direct MCP tool calls
+     - Target: <50ms
+
+  2. MEDIUM PATH (Memory):
+     - Single optimized query
+     - Index-backed lookups
+     - Target: <100ms
+
+  3. COMPREHENSIVE PATH (Hybrid):
+     - Parallel execution
+     - Combined analysis
+     - Target: <200ms
+
+  4. CACHING STRATEGY:
+     - 80%+ hit rate target
+     - TTL-based invalidation
+     - LRU eviction
+
+  5. QUERY OPTIMIZATION:
+     - Index hints
+     - Batch operations
+     - Connection pooling

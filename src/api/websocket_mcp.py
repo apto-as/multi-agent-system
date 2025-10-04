@@ -4,6 +4,7 @@ WebSocket MCP Endpoint for TMWS v2.2.0
 Enables multiple Claude Code instances to share a single server
 """
 
+import asyncio
 import json
 import logging
 import time
@@ -14,7 +15,7 @@ from typing import Any
 import jwt
 from fastapi import Depends, WebSocket, WebSocketDisconnect, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 from src.core.config import get_settings
 from src.core.database import get_db_session_dependency as get_db
@@ -29,8 +30,10 @@ settings = get_settings()
 # Security
 security = HTTPBearer(auto_error=False)
 
+
 class MCPMessage(BaseModel):
     """MCP Protocol Message"""
+
     jsonrpc: str = Field(default="2.0", pattern="^2\\.0$")
     id: str | None = Field(None, max_length=36, pattern="^[a-zA-Z0-9-_]+$")
     method: str | None = Field(None, max_length=50, pattern="^[a-zA-Z_][a-zA-Z0-9_/]*$")
@@ -38,7 +41,8 @@ class MCPMessage(BaseModel):
     result: Any | None = None
     error: dict[str, Any] | None = None
 
-    @validator('params')
+    @field_validator("params")
+    @classmethod
     def validate_params_size(cls, v):
         if v and len(json.dumps(v)) > 64 * 1024:  # 64KB limit
             raise ValueError("Parameters too large")
@@ -47,6 +51,7 @@ class MCPMessage(BaseModel):
 
 class WebSocketSession:
     """WebSocket client session"""
+
     def __init__(self, session_id: str, websocket: WebSocket, agent_id: str):
         self.session_id = session_id
         self.websocket = websocket
@@ -62,7 +67,7 @@ class WebSocketSession:
 
 
 class ConnectionManager:
-    """Manages WebSocket connections for multiple clients"""
+    """Manages WebSocket connections for multiple clients with thread safety"""
 
     def __init__(self):
         # Active connections: session_id -> WebSocketSession
@@ -71,80 +76,91 @@ class ConnectionManager:
         self.agent_sessions: dict[str, set[str]] = {}
         # Rate limiting: ip -> List[timestamp]
         self.rate_limits: dict[str, list] = {}
+        # Locks for thread safety
+        self._connections_lock = asyncio.Lock()
+        self._rate_limit_lock = asyncio.Lock()
 
     async def connect(self, websocket: WebSocket, agent_id: str) -> str:
-        """Accept new WebSocket connection"""
+        """Accept new WebSocket connection with thread safety"""
         await websocket.accept()
 
         session_id = str(uuid.uuid4())
         session = WebSocketSession(session_id, websocket, agent_id)
 
-        self.active_connections[session_id] = session
+        async with self._connections_lock:
+            self.active_connections[session_id] = session
 
-        if agent_id not in self.agent_sessions:
-            self.agent_sessions[agent_id] = set()
-        self.agent_sessions[agent_id].add(session_id)
+            if agent_id not in self.agent_sessions:
+                self.agent_sessions[agent_id] = set()
+            self.agent_sessions[agent_id].add(session_id)
 
         logger.info(f"WebSocket connected: session={session_id}, agent={agent_id}")
         return session_id
 
-    def disconnect(self, session_id: str):
-        """Remove WebSocket connection"""
-        if session_id in self.active_connections:
-            session = self.active_connections[session_id]
+    async def disconnect(self, session_id: str):
+        """Remove WebSocket connection with thread safety"""
+        async with self._connections_lock:
+            if session_id in self.active_connections:
+                session = self.active_connections[session_id]
 
-            # Remove from agent sessions
-            if session.agent_id in self.agent_sessions:
-                self.agent_sessions[session.agent_id].discard(session_id)
-                if not self.agent_sessions[session.agent_id]:
-                    del self.agent_sessions[session.agent_id]
+                # Remove from agent sessions
+                if session.agent_id in self.agent_sessions:
+                    self.agent_sessions[session.agent_id].discard(session_id)
+                    if not self.agent_sessions[session.agent_id]:
+                        del self.agent_sessions[session.agent_id]
 
-            del self.active_connections[session_id]
-            logger.info(f"WebSocket disconnected: session={session_id}")
+                del self.active_connections[session_id]
+                logger.info(f"WebSocket disconnected: session={session_id}")
 
     async def send_message(self, session_id: str, message: dict):
-        """Send message to specific client"""
-        if session_id in self.active_connections:
-            session = self.active_connections[session_id]
-            await session.websocket.send_json(message)
-            session.update_activity()
+        """Send message to specific client with thread safety"""
+        async with self._connections_lock:
+            if session_id in self.active_connections:
+                session = self.active_connections[session_id]
+                await session.websocket.send_json(message)
+                session.update_activity()
 
     async def broadcast_to_agent(self, agent_id: str, message: dict):
-        """Broadcast message to all sessions of an agent"""
-        if agent_id in self.agent_sessions:
-            for session_id in self.agent_sessions[agent_id]:
-                await self.send_message(session_id, message)
+        """Broadcast message to all sessions of an agent with thread safety"""
+        session_ids = []
+        async with self._connections_lock:
+            if agent_id in self.agent_sessions:
+                # Copy the set to avoid modification during iteration
+                session_ids = list(self.agent_sessions[agent_id])
 
-    def get_session_stats(self) -> dict:
-        """Get connection statistics"""
-        return {
-            "total_connections": len(self.active_connections),
-            "unique_agents": len(self.agent_sessions),
-            "sessions_by_agent": {
-                agent: len(sessions)
-                for agent, sessions in self.agent_sessions.items()
+        # Send messages outside the lock to avoid blocking
+        for session_id in session_ids:
+            await self.send_message(session_id, message)
+
+    async def get_session_stats(self) -> dict:
+        """Get connection statistics with thread safety"""
+        async with self._connections_lock:
+            return {
+                "total_connections": len(self.active_connections),
+                "unique_agents": len(self.agent_sessions),
+                "sessions_by_agent": {
+                    agent: len(sessions) for agent, sessions in self.agent_sessions.items()
+                },
             }
-        }
 
-    def check_rate_limit(self, client_ip: str) -> bool:
-        """Check if client exceeds rate limit"""
+    async def check_rate_limit(self, client_ip: str) -> bool:
+        """Check if client exceeds rate limit with thread safety"""
         now = time.time()
         minute_ago = now - 60
 
-        if client_ip not in self.rate_limits:
-            self.rate_limits[client_ip] = []
+        async with self._rate_limit_lock:
+            if client_ip not in self.rate_limits:
+                self.rate_limits[client_ip] = []
 
-        # Clean old requests
-        self.rate_limits[client_ip] = [
-            t for t in self.rate_limits[client_ip] if t > minute_ago
-        ]
+            # Clean old requests
+            self.rate_limits[client_ip] = [t for t in self.rate_limits[client_ip] if t > minute_ago]
 
-        # Check rate limit (60 requests per minute)
-        if len(self.rate_limits[client_ip]) >= 60:
-            return False
+            # Check rate limit (60 requests per minute)
+            if len(self.rate_limits[client_ip]) >= 60:
+                return False
 
-        self.rate_limits[client_ip].append(now)
-        return True
+            self.rate_limits[client_ip].append(now)
+            return True
 
 
 # Global connection manager
@@ -188,11 +204,7 @@ class MCPHandler:
 
             result = await handler(message.params or {}, session)
 
-            return {
-                "jsonrpc": "2.0",
-                "id": message.id,
-                "result": result
-            }
+            return {"jsonrpc": "2.0", "id": message.id, "result": result}
 
         except Exception as e:
             logger.error(f"Error handling MCP request: {e}")
@@ -202,8 +214,8 @@ class MCPHandler:
                 "error": {
                     "code": -32603,
                     "message": "Internal error",
-                    "data": str(e) if settings.environment == "development" else None
-                }
+                    "data": str(e) if settings.environment == "development" else None,
+                },
             }
 
     async def handle_initialize(self, params: dict, session: WebSocketSession) -> dict:
@@ -217,8 +229,8 @@ class MCPHandler:
                 "resources": True,
                 "memory": True,
                 "tasks": True,
-                "workflows": True
-            }
+                "workflows": True,
+            },
         }
 
     async def handle_list_tools(self, params: dict, session: WebSocketSession) -> dict:
@@ -231,9 +243,9 @@ class MCPHandler:
                     "type": "object",
                     "properties": {
                         "content": {"type": "string"},
-                        "importance": {"type": "number", "minimum": 0, "maximum": 1}
-                    }
-                }
+                        "importance": {"type": "number", "minimum": 0, "maximum": 1},
+                    },
+                },
             },
             {
                 "name": "search_memories",
@@ -242,9 +254,9 @@ class MCPHandler:
                     "type": "object",
                     "properties": {
                         "query": {"type": "string"},
-                        "limit": {"type": "integer", "minimum": 1, "maximum": 100}
-                    }
-                }
+                        "limit": {"type": "integer", "minimum": 1, "maximum": 100},
+                    },
+                },
             },
             {
                 "name": "create_task",
@@ -254,10 +266,10 @@ class MCPHandler:
                     "properties": {
                         "title": {"type": "string"},
                         "description": {"type": "string"},
-                        "priority": {"type": "string", "enum": ["low", "medium", "high", "urgent"]}
-                    }
-                }
-            }
+                        "priority": {"type": "string", "enum": ["low", "medium", "high", "urgent"]},
+                    },
+                },
+            },
         ]
         return {"tools": tools}
 
@@ -271,7 +283,7 @@ class MCPHandler:
                 content=tool_args.get("content"),
                 importance=tool_args.get("importance", 0.5),
                 agent_id=session.agent_id,
-                metadata={"session_id": session.session_id}
+                metadata={"session_id": session.session_id},
             )
             return {"success": True, "memory_id": str(memory.id)}
 
@@ -279,7 +291,7 @@ class MCPHandler:
             memories = await self.memory_service.search_memories(
                 query=tool_args.get("query"),
                 limit=tool_args.get("limit", 10),
-                agent_id=session.agent_id
+                agent_id=session.agent_id,
             )
             return {"memories": [m.to_dict() for m in memories]}
 
@@ -288,7 +300,7 @@ class MCPHandler:
                 title=tool_args.get("title"),
                 description=tool_args.get("description"),
                 priority=tool_args.get("priority", "medium"),
-                assigned_persona=session.agent_id
+                assigned_persona=session.agent_id,
             )
             return {"success": True, "task_id": str(task.id)}
 
@@ -298,17 +310,14 @@ class MCPHandler:
     async def handle_list_resources(self, params: dict, session: WebSocketSession) -> dict:
         """List available resources"""
         # Return agent's memories as resources
-        memories = await self.memory_service.list_memories(
-            agent_id=session.agent_id,
-            limit=100
-        )
+        memories = await self.memory_service.list_memories(agent_id=session.agent_id, limit=100)
 
         resources = [
             {
                 "uri": f"memory://{m.id}",
                 "name": f"Memory {m.id[:8]}",
                 "mimeType": "text/plain",
-                "description": m.content[:100]
+                "description": m.content[:100],
             }
             for m in memories
         ]
@@ -328,7 +337,7 @@ class MCPHandler:
                     "uri": uri,
                     "mimeType": "text/plain",
                     "content": memory.content,
-                    "metadata": memory.metadata
+                    "metadata": memory.metadata,
                 }
 
         raise ValueError(f"Resource not found: {uri}")
@@ -339,16 +348,14 @@ class MCPHandler:
             content=params.get("content"),
             importance=params.get("importance", 0.5),
             agent_id=session.agent_id,
-            metadata=params.get("metadata", {})
+            metadata=params.get("metadata", {}),
         )
         return {"memory_id": str(memory.id), "created_at": memory.created_at.isoformat()}
 
     async def handle_search_memory(self, params: dict, session: WebSocketSession) -> dict:
         """Search memories (direct method)"""
         memories = await self.memory_service.search_memories(
-            query=params.get("query"),
-            limit=params.get("limit", 10),
-            agent_id=session.agent_id
+            query=params.get("query"), limit=params.get("limit", 10), agent_id=session.agent_id
         )
         return {"memories": [m.to_dict() for m in memories]}
 
@@ -360,16 +367,14 @@ class MCPHandler:
     async def handle_list_tasks(self, params: dict, session: WebSocketSession) -> dict:
         """List tasks"""
         tasks = await self.task_service.list_tasks(
-            assigned_persona=session.agent_id,
-            limit=params.get("limit", 50)
+            assigned_persona=session.agent_id, limit=params.get("limit", 50)
         )
         return {"tasks": [t.to_dict() for t in tasks]}
 
     async def handle_execute_workflow(self, params: dict, session: WebSocketSession) -> dict:
         """Execute workflow"""
         workflow = await self.workflow_service.execute_workflow(
-            workflow_id=params.get("workflow_id"),
-            parameters=params.get("parameters", {})
+            workflow_id=params.get("workflow_id"), parameters=params.get("parameters", {})
         )
         return workflow.to_dict()
 
@@ -380,7 +385,7 @@ class MCPHandler:
             "session_id": session.session_id,
             "connected_at": session.connected_at.isoformat(),
             "request_count": session.request_count,
-            "server_stats": manager.get_session_stats()
+            "server_stats": manager.get_session_stats(),
         }
 
 
@@ -393,21 +398,13 @@ async def verify_token(credentials: HTTPAuthorizationCredentials | None = None) 
         return None
 
     try:
-        payload = jwt.decode(
-            credentials.credentials,
-            settings.secret_key,
-            algorithms=["HS256"]
-        )
+        payload = jwt.decode(credentials.credentials, settings.secret_key, algorithms=["HS256"])
         return payload.get("sub")  # Return agent_id
     except jwt.InvalidTokenError:
         return None
 
 
-async def websocket_endpoint(
-    websocket: WebSocket,
-    db=Depends(get_db),
-    agent_id: str | None = None
-):
+async def websocket_endpoint(websocket: WebSocket, db=Depends(get_db), agent_id: str | None = None):
     """WebSocket endpoint for MCP protocol"""
 
     # Extract agent_id from headers or query params
@@ -416,13 +413,14 @@ async def websocket_endpoint(
 
     # Rate limiting check
     client_ip = websocket.client.host
-    if not manager.check_rate_limit(client_ip):
+    if not await manager.check_rate_limit(client_ip):
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Rate limit exceeded")
         return
 
     # Connect client
     session_id = await manager.connect(websocket, agent_id)
-    session = manager.active_connections[session_id]
+    async with manager._connections_lock:
+        session = manager.active_connections.get(session_id)
 
     # Create handler
     async with get_db() as db_session:
@@ -430,15 +428,18 @@ async def websocket_endpoint(
 
         try:
             # Send welcome message
-            await manager.send_message(session_id, {
-                "jsonrpc": "2.0",
-                "method": "welcome",
-                "params": {
-                    "message": f"Connected to TMWS v{settings.api_version}",
-                    "session_id": session_id,
-                    "agent_id": agent_id
-                }
-            })
+            await manager.send_message(
+                session_id,
+                {
+                    "jsonrpc": "2.0",
+                    "method": "welcome",
+                    "params": {
+                        "message": f"Connected to TMWS v{settings.api_version}",
+                        "session_id": session_id,
+                        "agent_id": agent_id,
+                    },
+                },
+            )
 
             # Message loop
             while True:
@@ -449,14 +450,13 @@ async def websocket_endpoint(
                 try:
                     message = MCPMessage(**data)
                 except ValueError as e:
-                    await manager.send_message(session_id, {
-                        "jsonrpc": "2.0",
-                        "error": {
-                            "code": -32700,
-                            "message": "Parse error",
-                            "data": str(e)
-                        }
-                    })
+                    await manager.send_message(
+                        session_id,
+                        {
+                            "jsonrpc": "2.0",
+                            "error": {"code": -32700, "message": "Parse error", "data": str(e)},
+                        },
+                    )
                     continue
 
                 # Handle request
@@ -466,12 +466,12 @@ async def websocket_endpoint(
                 await manager.send_message(session_id, response)
 
         except WebSocketDisconnect:
-            manager.disconnect(session_id)
+            await manager.disconnect(session_id)
             logger.info(f"Client {session_id} disconnected normally")
 
         except Exception as e:
             logger.error(f"WebSocket error for {session_id}: {e}")
-            manager.disconnect(session_id)
+            await manager.disconnect(session_id)
             await websocket.close(code=status.WS_1011_INTERNAL_ERROR)
 
 
@@ -480,8 +480,8 @@ async def get_websocket_stats():
     """Get WebSocket connection statistics"""
     return {
         "status": "healthy",
-        "stats": manager.get_session_stats(),
-        "timestamp": datetime.now(timezone.utc).isoformat()
+        "stats": await manager.get_session_stats(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -489,13 +489,15 @@ async def list_active_sessions():
     """List active WebSocket sessions"""
     sessions = []
     for session_id, session in manager.active_connections.items():
-        sessions.append({
-            "session_id": session_id,
-            "agent_id": session.agent_id,
-            "connected_at": session.connected_at.isoformat(),
-            "last_activity": session.last_activity.isoformat(),
-            "request_count": session.request_count
-        })
+        sessions.append(
+            {
+                "session_id": session_id,
+                "agent_id": session.agent_id,
+                "connected_at": session.connected_at.isoformat(),
+                "last_activity": session.last_activity.isoformat(),
+                "request_count": session.request_count,
+            }
+        )
 
     return {"sessions": sessions}
 

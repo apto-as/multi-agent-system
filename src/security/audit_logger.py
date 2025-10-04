@@ -1,7 +1,5 @@
 import hashlib
-import json
 import logging
-from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -15,40 +13,9 @@ from sqlalchemy.orm import sessionmaker
 from ..core.config import get_settings
 from ..core.database import Base
 from ..models.audit_log import SecurityAuditLog, SecurityEventSeverity, SecurityEventType
+from .security_event import SecurityEvent
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class SecurityEvent:
-    """Security event data structure."""
-    event_type: SecurityEventType
-    severity: SecurityEventSeverity
-    timestamp: datetime
-    client_ip: str
-    user_id: str | None = None
-    session_id: str | None = None
-    endpoint: str | None = None
-    method: str | None = None
-    user_agent: str | None = None
-    referer: str | None = None
-    message: str | None = None
-    details: dict[str, Any] | None = None
-    location: dict[str, str] | None = None
-    risk_score: int | None = None
-    blocked: bool = False
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary for storage."""
-        data = asdict(self)
-        data['event_type'] = self.event_type.value
-        data['severity'] = self.severity.value
-        data['timestamp'] = self.timestamp.isoformat()
-        return data
-
-    def to_json(self) -> str:
-        """Convert to JSON string."""
-        return json.dumps(self.to_dict(), default=str, ensure_ascii=False)
 
 
 class SecurityAuditLogger:
@@ -72,13 +39,9 @@ class SecurityAuditLogger:
 
         # Risk scoring patterns
         self.risk_patterns = {
-            'high_risk_ips': set(),  # Known bad IPs
-            'suspicious_user_agents': [
-                'sqlmap', 'nikto', 'burp', 'nessus', 'openvas'
-            ],
-            'attack_endpoints': [
-                'admin', 'wp-admin', 'phpmyadmin', '.env', 'config'
-            ]
+            "high_risk_ips": set(),  # Known bad IPs
+            "suspicious_user_agents": ["sqlmap", "nikto", "burp", "nessus", "openvas"],
+            "attack_endpoints": ["admin", "wp-admin", "phpmyadmin", ".env", "config"],
         }
 
     def _init_database(self) -> None:
@@ -117,7 +80,7 @@ class SecurityAuditLogger:
         user_id: str | None = None,
         session_id: str | None = None,
         details: dict[str, Any] | None = None,
-        blocked: bool = False
+        blocked: bool = False,
     ) -> SecurityEvent:
         """
         Log a security event.
@@ -148,15 +111,15 @@ class SecurityAuditLogger:
             session_id=session_id,
             message=message,
             details=details or {},
-            blocked=blocked
+            blocked=blocked,
         )
 
         # Extract request information
         if request:
             event.endpoint = str(request.url.path)
             event.method = request.method
-            event.user_agent = request.headers.get('User-Agent')
-            event.referer = request.headers.get('Referer')
+            event.user_agent = request.headers.get("User-Agent")
+            event.referer = request.headers.get("Referer")
 
         # Add location information
         event.location = await self._get_location_info(client_ip)
@@ -187,15 +150,13 @@ class SecurityAuditLogger:
             session = self.session_maker()
             try:
                 # Check if similar event already exists recently
-                existing = session.query(SecurityAuditLog).filter_by(
-                    event_hash=event_hash
-                ).first()
+                existing = session.query(SecurityAuditLog).filter_by(event_hash=event_hash).first()
 
                 if existing:
                     # Update existing event (increment counter in details)
                     details = existing.details or {}
-                    details['count'] = details.get('count', 1) + 1
-                    details['last_occurrence'] = event.timestamp.isoformat()
+                    details["count"] = details.get("count", 1) + 1
+                    details["last_occurrence"] = event.timestamp.isoformat()
                     existing.details = details
                 else:
                     # Create new event
@@ -215,7 +176,7 @@ class SecurityAuditLogger:
                         location=event.location,
                         risk_score=event.risk_score,
                         blocked=event.blocked,
-                        event_hash=event_hash
+                        event_hash=event_hash,
                     )
                     session.add(audit_log)
 
@@ -241,15 +202,17 @@ class SecurityAuditLogger:
         try:
             response = self.geoip_reader.city(ip_address)
             return {
-                'country': response.country.name or 'Unknown',
-                'country_code': response.country.iso_code or 'XX',
-                'city': response.city.name or 'Unknown',
-                'region': response.subdivisions.most_specific.name or 'Unknown',
-                'latitude': str(response.location.latitude) if response.location.latitude else None,
-                'longitude': str(response.location.longitude) if response.location.longitude else None
+                "country": response.country.name or "Unknown",
+                "country_code": response.country.iso_code or "XX",
+                "city": response.city.name or "Unknown",
+                "region": response.subdivisions.most_specific.name or "Unknown",
+                "latitude": str(response.location.latitude) if response.location.latitude else None,
+                "longitude": str(response.location.longitude)
+                if response.location.longitude
+                else None,
             }
         except (geoip2.errors.AddressNotFoundError, geoip2.errors.GeoIP2Error):
-            return {'country': 'Unknown', 'country_code': 'XX'}
+            return {"country": "Unknown", "country_code": "XX"}
         except Exception as e:
             logger.warning(f"GeoIP lookup failed for {ip_address}: {e}")
             return None
@@ -273,30 +236,30 @@ class SecurityAuditLogger:
         score = base_scores.get(event.event_type, 30)  # Default paranoid score
 
         # Increase score based on patterns
-        if event.client_ip in self.risk_patterns['high_risk_ips']:
+        if event.client_ip in self.risk_patterns["high_risk_ips"]:
             score += 30
 
         if event.user_agent:
-            for suspicious_ua in self.risk_patterns['suspicious_user_agents']:
+            for suspicious_ua in self.risk_patterns["suspicious_user_agents"]:
                 if suspicious_ua.lower() in event.user_agent.lower():
                     score += 25
                     break
 
         if event.endpoint:
-            for attack_endpoint in self.risk_patterns['attack_endpoints']:
+            for attack_endpoint in self.risk_patterns["attack_endpoints"]:
                 if attack_endpoint.lower() in event.endpoint.lower():
                     score += 20
                     break
 
         # Increase score for repeat offenders
-        if event.details and event.details.get('count', 1) > 1:
-            score += min(event.details['count'] * 5, 30)
+        if event.details and event.details.get("count", 1) > 1:
+            score += min(event.details["count"] * 5, 30)
 
         # Location-based scoring
         if event.location:
             # Increase score for high-risk countries (placeholder logic)
-            high_risk_countries = ['XX', 'Unknown']  # Unknown/blocked countries
-            if event.location.get('country_code') in high_risk_countries:
+            high_risk_countries = ["XX", "Unknown"]  # Unknown/blocked countries
+            if event.location.get("country_code") in high_risk_countries:
                 score += 15
 
         return min(score, 100)  # Cap at 100
@@ -307,7 +270,7 @@ class SecurityAuditLogger:
             SecurityEventSeverity.LOW: logging.INFO,
             SecurityEventSeverity.MEDIUM: logging.WARNING,
             SecurityEventSeverity.HIGH: logging.ERROR,
-            SecurityEventSeverity.CRITICAL: logging.CRITICAL
+            SecurityEventSeverity.CRITICAL: logging.CRITICAL,
         }.get(event.severity, logging.INFO)
 
         message = (
@@ -317,7 +280,7 @@ class SecurityAuditLogger:
             f"{event.message}"
         )
 
-        logger.log(log_level, message, extra={'security_event': event.to_dict()})
+        logger.log(log_level, message, extra={"security_event": event.to_dict()})
 
     async def _check_alert_conditions(self, event: SecurityEvent) -> None:
         """Check if event should trigger alerts."""
@@ -330,8 +293,11 @@ class SecurityAuditLogger:
             await self._send_alert(event, f"High-risk security event (score: {event.risk_score})")
 
         # Multiple failed attempts
-        if (event.event_type == SecurityEventType.LOGIN_FAILED and
-            event.details and event.details.get('count', 1) >= 5):
+        if (
+            event.event_type == SecurityEventType.LOGIN_FAILED
+            and event.details
+            and event.details.get("count", 1) >= 5
+        ):
             await self._send_alert(event, "Brute force attack detected")
 
         # DDoS detection
@@ -357,7 +323,7 @@ class SecurityAuditLogger:
         client_ip: str | None = None,
         user_id: str | None = None,
         start_time: datetime | None = None,
-        end_time: datetime | None = None
+        end_time: datetime | None = None,
     ) -> list[dict[str, Any]]:
         """
         Retrieve security events with filtering.
@@ -407,18 +373,18 @@ class SecurityAuditLogger:
                 # Convert to dict
                 return [
                     {
-                        'id': event.id,
-                        'event_type': event.event_type,
-                        'severity': event.severity,
-                        'timestamp': event.timestamp.isoformat(),
-                        'client_ip': event.client_ip,
-                        'user_id': event.user_id,
-                        'endpoint': event.endpoint,
-                        'message': event.message,
-                        'details': event.details,
-                        'location': event.location,
-                        'risk_score': event.risk_score,
-                        'blocked': event.blocked
+                        "id": event.id,
+                        "event_type": event.event_type,
+                        "severity": event.severity,
+                        "timestamp": event.timestamp.isoformat(),
+                        "client_ip": event.client_ip,
+                        "user_id": event.user_id,
+                        "endpoint": event.endpoint,
+                        "message": event.message,
+                        "details": event.details,
+                        "location": event.location,
+                        "risk_score": event.risk_score,
+                        "blocked": event.blocked,
                     }
                     for event in events
                 ]
@@ -441,40 +407,47 @@ class SecurityAuditLogger:
                 from sqlalchemy import func
 
                 # Total events by severity
-                severity_stats = session.query(
-                    SecurityAuditLog.severity,
-                    func.count(SecurityAuditLog.id)
-                ).group_by(SecurityAuditLog.severity).all()
+                severity_stats = (
+                    session.query(SecurityAuditLog.severity, func.count(SecurityAuditLog.id))
+                    .group_by(SecurityAuditLog.severity)
+                    .all()
+                )
 
                 # Events by type (top 10)
-                type_stats = session.query(
-                    SecurityAuditLog.event_type,
-                    func.count(SecurityAuditLog.id)
-                ).group_by(SecurityAuditLog.event_type).order_by(
-                    func.count(SecurityAuditLog.id).desc()
-                ).limit(10).all()
+                type_stats = (
+                    session.query(SecurityAuditLog.event_type, func.count(SecurityAuditLog.id))
+                    .group_by(SecurityAuditLog.event_type)
+                    .order_by(func.count(SecurityAuditLog.id).desc())
+                    .limit(10)
+                    .all()
+                )
 
                 # Top attacking IPs
-                ip_stats = session.query(
-                    SecurityAuditLog.client_ip,
-                    func.count(SecurityAuditLog.id)
-                ).group_by(SecurityAuditLog.client_ip).order_by(
-                    func.count(SecurityAuditLog.id).desc()
-                ).limit(10).all()
+                ip_stats = (
+                    session.query(SecurityAuditLog.client_ip, func.count(SecurityAuditLog.id))
+                    .group_by(SecurityAuditLog.client_ip)
+                    .order_by(func.count(SecurityAuditLog.id).desc())
+                    .limit(10)
+                    .all()
+                )
 
                 # Recent critical events count
                 twenty_four_hours_ago = datetime.utcnow() - timedelta(hours=24)
-                critical_count = session.query(SecurityAuditLog).filter(
-                    SecurityAuditLog.severity == 'critical',
-                    SecurityAuditLog.timestamp >= twenty_four_hours_ago
-                ).count()
+                critical_count = (
+                    session.query(SecurityAuditLog)
+                    .filter(
+                        SecurityAuditLog.severity == "critical",
+                        SecurityAuditLog.timestamp >= twenty_four_hours_ago,
+                    )
+                    .count()
+                )
 
                 return {
-                    'total_events': session.query(SecurityAuditLog).count(),
-                    'critical_events_24h': critical_count,
-                    'events_by_severity': dict(severity_stats),
-                    'events_by_type': dict(type_stats),
-                    'top_attacking_ips': dict(ip_stats),
+                    "total_events": session.query(SecurityAuditLog).count(),
+                    "critical_events_24h": critical_count,
+                    "events_by_severity": dict(severity_stats),
+                    "events_by_type": dict(type_stats),
+                    "top_attacking_ips": dict(ip_stats),
                 }
 
             finally:
@@ -487,6 +460,7 @@ class SecurityAuditLogger:
 
 # Global audit logger instance
 _audit_logger: SecurityAuditLogger | None = None
+
 
 def get_audit_logger() -> SecurityAuditLogger:
     """Get global audit logger instance."""

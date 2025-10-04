@@ -9,7 +9,6 @@ import uuid
 
 import asyncpg
 import pytest
-
 import pytest_asyncio
 
 from src.core.cache import CacheDecorator, CacheManager
@@ -149,7 +148,7 @@ class TestMultiInstanceCoordination:
         )
 
         assert result["status"] == "stored"
-        memory_id = result["memory_id"]
+        result["memory_id"]
 
         # Server 2 should be able to search it
         search_result = await server2.search_global_memories(
@@ -418,7 +417,7 @@ class TestPerformanceMetrics:
 
         # Check pool stats were recorded
         async with db_pool.acquire() as conn:
-            stats = await conn.fetchrow("""
+            await conn.fetchrow("""
                 SELECT * FROM connection_stats
                 WHERE instance_id = $1
                 ORDER BY recorded_at DESC

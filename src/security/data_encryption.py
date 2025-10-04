@@ -31,15 +31,17 @@ logger = logging.getLogger(__name__)
 
 class EncryptionLevel(Enum):
     """Data encryption levels based on sensitivity."""
-    NONE = "none"              # Public data
-    BASIC = "basic"            # Standard symmetric encryption
-    ENHANCED = "enhanced"      # Key rotation + stronger algorithms
-    MAXIMUM = "maximum"        # Multi-layer encryption + HSM keys
+
+    NONE = "none"  # Public data
+    BASIC = "basic"  # Standard symmetric encryption
+    ENHANCED = "enhanced"  # Key rotation + stronger algorithms
+    MAXIMUM = "maximum"  # Multi-layer encryption + HSM keys
     QUANTUM_SAFE = "quantum_safe"  # Post-quantum cryptography
 
 
 class DataClassification(Enum):
     """Data classification for encryption policy."""
+
     PUBLIC = "public"
     INTERNAL = "internal"
     CONFIDENTIAL = "confidential"
@@ -57,22 +59,19 @@ class EncryptionKeyManager:
 
         # Argon2 for key derivation (memory-hard, resistant to GPU attacks)
         self.password_hasher = argon2.PasswordHasher(
-            time_cost=3,      # Number of iterations
-            memory_cost=65536, # Memory usage in KiB (64 MB)
-            parallelism=1,    # Number of parallel threads
-            hash_len=32,      # Length of hash in bytes
-            salt_len=16       # Length of salt in bytes
+            time_cost=3,  # Number of iterations
+            memory_cost=65536,  # Memory usage in KiB (64 MB)
+            parallelism=1,  # Number of parallel threads
+            hash_len=32,  # Length of hash in bytes
+            salt_len=16,  # Length of salt in bytes
         )
 
     def _generate_master_key(self) -> str:
         """Generate cryptographically secure master key."""
-        return base64.urlsafe_b64encode(secrets.token_bytes(32)).decode('utf-8')
+        return base64.urlsafe_b64encode(secrets.token_bytes(32)).decode("utf-8")
 
     def derive_key(
-        self,
-        context: str,
-        agent_id: str,
-        key_purpose: str = "data_encryption"
+        self, context: str, agent_id: str, key_purpose: str = "data_encryption"
     ) -> bytes:
         """
         Derive encryption key for specific context and agent.
@@ -99,9 +98,9 @@ class EncryptionKeyManager:
             length=32,
             salt=salt,
             n=2**14,  # CPU/memory cost parameter
-            r=8,      # Block size parameter
-            p=1,      # Parallelization parameter
-            backend=default_backend()
+            r=8,  # Block size parameter
+            p=1,  # Parallelization parameter
+            backend=default_backend(),
         )
 
         derived_key = kdf.derive(self.master_key.encode())
@@ -116,21 +115,20 @@ class EncryptionKeyManager:
         rotated_keys = []
 
         for cache_key, (key, created_at) in list(self.key_cache.items()):
-            should_rotate = (
-                force or
-                datetime.utcnow() - created_at > self.key_rotation_interval
-            )
+            should_rotate = force or datetime.utcnow() - created_at > self.key_rotation_interval
 
             if should_rotate:
                 # Generate new key
-                context, agent_id, purpose = cache_key.split(':', 2)
+                context, agent_id, purpose = cache_key.split(":", 2)
                 self.derive_key(context, agent_id, purpose)
 
-                rotated_keys.append({
-                    "key_id": cache_key,
-                    "rotated_at": datetime.utcnow().isoformat(),
-                    "old_key_hash": hashlib.sha256(key).hexdigest()[:16]
-                })
+                rotated_keys.append(
+                    {
+                        "key_id": cache_key,
+                        "rotated_at": datetime.utcnow().isoformat(),
+                        "old_key_hash": hashlib.sha256(key).hexdigest()[:16],
+                    }
+                )
 
         logger.info(f"Rotated {len(rotated_keys)} encryption keys")
         return {"rotated_keys": rotated_keys}
@@ -141,9 +139,10 @@ class EncryptionKeyManager:
             "total_keys": len(self.key_cache),
             "rotation_interval_days": self.key_rotation_interval.days,
             "keys_due_rotation": sum(
-                1 for _, (_, created) in self.key_cache.items()
+                1
+                for _, (_, created) in self.key_cache.items()
                 if datetime.utcnow() - created > self.key_rotation_interval
-            )
+            ),
         }
 
 
@@ -159,7 +158,7 @@ class FieldEncryption:
         data: str | bytes | dict | list,
         field_name: str,
         agent_id: str,
-        classification: DataClassification = DataClassification.CONFIDENTIAL
+        classification: DataClassification = DataClassification.CONFIDENTIAL,
     ) -> dict[str, Any]:
         """
         Encrypt individual field with metadata.
@@ -169,16 +168,16 @@ class FieldEncryption:
         """
         # Convert data to bytes
         if isinstance(data, str):
-            data_bytes = data.encode('utf-8')
+            data_bytes = data.encode("utf-8")
             data_type = "string"
         elif isinstance(data, bytes):
             data_bytes = data
             data_type = "bytes"
         elif isinstance(data, dict | list):
-            data_bytes = json.dumps(data).encode('utf-8')
+            data_bytes = json.dumps(data).encode("utf-8")
             data_type = "json"
         else:
-            data_bytes = str(data).encode('utf-8')
+            data_bytes = str(data).encode("utf-8")
             data_type = "string"
 
         # Derive encryption key
@@ -199,23 +198,23 @@ class FieldEncryption:
             "data_type": data_type,
             "classification": classification.value,
             "encryption_version": "1.0",
-            "key_context": context
+            "key_context": context,
         }
 
         # Store metadata for decryption
-        field_id = hashlib.sha256(f"{agent_id}:{field_name}:{metadata['encrypted_at']}".encode()).hexdigest()[:16]
+        field_id = hashlib.sha256(
+            f"{agent_id}:{field_name}:{metadata['encrypted_at']}".encode()
+        ).hexdigest()[:16]
         self.encryption_metadata[field_id] = metadata
 
         return {
             "field_id": field_id,
-            "encrypted_data": base64.urlsafe_b64encode(encrypted_data).decode('utf-8'),
-            "metadata": metadata
+            "encrypted_data": base64.urlsafe_b64encode(encrypted_data).decode("utf-8"),
+            "metadata": metadata,
         }
 
     async def decrypt_field(
-        self,
-        encrypted_field: dict[str, Any],
-        requesting_agent: str
+        self, encrypted_field: dict[str, Any], requesting_agent: str
     ) -> str | bytes | dict | list:
         """
         Decrypt field data with access control.
@@ -234,14 +233,13 @@ class FieldEncryption:
         # Access control check
         if metadata["agent_id"] != requesting_agent:
             # TODO: Implement cross-agent access policies
-            logger.warning(f"Agent {requesting_agent} attempted to decrypt data owned by {metadata['agent_id']}")
+            logger.warning(
+                f"Agent {requesting_agent} attempted to decrypt data owned by {metadata['agent_id']}"
+            )
             raise PermissionError("Access denied: Cannot decrypt data from different agent")
 
         # Derive decryption key
-        encryption_key = self.key_manager.derive_key(
-            metadata["key_context"],
-            metadata["agent_id"]
-        )
+        encryption_key = self.key_manager.derive_key(metadata["key_context"], metadata["agent_id"])
 
         # Decrypt
         fernet = Fernet(base64.urlsafe_b64encode(encryption_key))
@@ -250,13 +248,13 @@ class FieldEncryption:
         # Convert back to original type
         data_type = metadata["data_type"]
         if data_type == "string":
-            return decrypted_bytes.decode('utf-8')
+            return decrypted_bytes.decode("utf-8")
         elif data_type == "bytes":
             return decrypted_bytes
         elif data_type == "json":
-            return json.loads(decrypted_bytes.decode('utf-8'))
+            return json.loads(decrypted_bytes.decode("utf-8"))
         else:
-            return decrypted_bytes.decode('utf-8')
+            return decrypted_bytes.decode("utf-8")
 
 
 class MemoryEncryption:
@@ -266,11 +264,7 @@ class MemoryEncryption:
         self.key_manager = key_manager
         self.field_encryption = FieldEncryption(key_manager)
 
-    async def encrypt_memory(
-        self,
-        memory_data: dict[str, Any],
-        agent_id: str
-    ) -> dict[str, Any]:
+    async def encrypt_memory(self, memory_data: dict[str, Any], agent_id: str) -> dict[str, Any]:
         """
         Encrypt sensitive memory fields.
 
@@ -284,10 +278,7 @@ class MemoryEncryption:
         # Encrypt main content
         if "content" in memory_data and memory_data["content"]:
             encrypted_content = await self.field_encryption.encrypt_field(
-                memory_data["content"],
-                "content",
-                agent_id,
-                DataClassification.CONFIDENTIAL
+                memory_data["content"], "content", agent_id, DataClassification.CONFIDENTIAL
             )
             encrypted_memory["encrypted_content"] = encrypted_content
             encrypted_memory.pop("content", None)  # Remove plaintext
@@ -300,10 +291,7 @@ class MemoryEncryption:
             for key in sensitive_keys:
                 if key in metadata:
                     encrypted_meta = await self.field_encryption.encrypt_field(
-                        metadata[key],
-                        f"metadata_{key}",
-                        agent_id,
-                        DataClassification.INTERNAL
+                        metadata[key], f"metadata_{key}", agent_id, DataClassification.INTERNAL
                     )
                     if "encrypted_metadata" not in encrypted_memory:
                         encrypted_memory["encrypted_metadata"] = {}
@@ -313,10 +301,7 @@ class MemoryEncryption:
         # Encrypt embeddings if present
         if "embeddings" in memory_data and memory_data["embeddings"]:
             encrypted_embeddings = await self.field_encryption.encrypt_field(
-                memory_data["embeddings"],
-                "embeddings",
-                agent_id,
-                DataClassification.INTERNAL
+                memory_data["embeddings"], "embeddings", agent_id, DataClassification.INTERNAL
             )
             encrypted_memory["encrypted_embeddings"] = encrypted_embeddings
             encrypted_memory.pop("embeddings", None)
@@ -328,9 +313,7 @@ class MemoryEncryption:
         return encrypted_memory
 
     async def decrypt_memory(
-        self,
-        encrypted_memory: dict[str, Any],
-        requesting_agent: str
+        self, encrypted_memory: dict[str, Any], requesting_agent: str
     ) -> dict[str, Any]:
         """Decrypt memory data for authorized agent."""
         if not encrypted_memory.get("is_encrypted", False):
@@ -341,8 +324,7 @@ class MemoryEncryption:
         # Decrypt main content
         if "encrypted_content" in encrypted_memory:
             content = await self.field_encryption.decrypt_field(
-                encrypted_memory["encrypted_content"],
-                requesting_agent
+                encrypted_memory["encrypted_content"], requesting_agent
             )
             decrypted_memory["content"] = content
             decrypted_memory.pop("encrypted_content", None)
@@ -354,8 +336,7 @@ class MemoryEncryption:
 
             for key, encrypted_field in encrypted_memory["encrypted_metadata"].items():
                 decrypted_value = await self.field_encryption.decrypt_field(
-                    encrypted_field,
-                    requesting_agent
+                    encrypted_field, requesting_agent
                 )
                 decrypted_memory["metadata"][key] = decrypted_value
 
@@ -364,8 +345,7 @@ class MemoryEncryption:
         # Decrypt embeddings
         if "encrypted_embeddings" in encrypted_memory:
             embeddings = await self.field_encryption.decrypt_field(
-                encrypted_memory["encrypted_embeddings"],
-                requesting_agent
+                encrypted_memory["encrypted_embeddings"], requesting_agent
             )
             decrypted_memory["embeddings"] = embeddings
             decrypted_memory.pop("encrypted_embeddings", None)
@@ -383,9 +363,7 @@ class TransportEncryption:
     def __init__(self):
         # Generate ephemeral keys for session
         self._private_key = rsa.generate_private_key(
-            public_exponent=65537,
-            key_size=2048,
-            backend=default_backend()
+            public_exponent=65537, key_size=2048, backend=default_backend()
         )
         self._public_key = self._private_key.public_key()
 
@@ -395,28 +373,25 @@ class TransportEncryption:
         """Get public key for key exchange."""
         return self._public_key.serialize(
             encoding=serialization.Encoding.PEM,
-            format=serialization.PublicFormat.SubjectPublicKeyInfo
-        ).decode('utf-8')
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+        ).decode("utf-8")
 
     def add_peer_key(self, agent_id: str, public_key_pem: str):
         """Add peer's public key for secure communication."""
         public_key = serialization.load_pem_public_key(
-            public_key_pem.encode(),
-            backend=default_backend()
+            public_key_pem.encode(), backend=default_backend()
         )
         self.peer_keys[agent_id] = public_key
 
     async def encrypt_message(
-        self,
-        message: dict[str, Any],
-        recipient_agent: str
+        self, message: dict[str, Any], recipient_agent: str
     ) -> dict[str, Any]:
         """Encrypt message for specific recipient agent."""
         if recipient_agent not in self.peer_keys:
             raise ValueError(f"No public key available for agent {recipient_agent}")
 
         # Serialize message
-        message_bytes = json.dumps(message).encode('utf-8')
+        message_bytes = json.dumps(message).encode("utf-8")
 
         # Generate symmetric key for this message
         symmetric_key = secrets.token_bytes(32)
@@ -430,33 +405,26 @@ class TransportEncryption:
         encrypted_key = recipient_public_key.encrypt(
             symmetric_key,
             padding.OAEP(
-                mgf=padding.MGF1(algorithm=hashes.SHA256()),
-                algorithm=hashes.SHA256(),
-                label=None
-            )
+                mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None
+            ),
         )
 
         return {
-            "encrypted_message": base64.urlsafe_b64encode(encrypted_message).decode('utf-8'),
-            "encrypted_key": base64.urlsafe_b64encode(encrypted_key).decode('utf-8'),
+            "encrypted_message": base64.urlsafe_b64encode(encrypted_message).decode("utf-8"),
+            "encrypted_key": base64.urlsafe_b64encode(encrypted_key).decode("utf-8"),
             "timestamp": datetime.utcnow().isoformat(),
-            "recipient": recipient_agent
+            "recipient": recipient_agent,
         }
 
-    async def decrypt_message(
-        self,
-        encrypted_envelope: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def decrypt_message(self, encrypted_envelope: dict[str, Any]) -> dict[str, Any]:
         """Decrypt received message."""
         # Decrypt symmetric key with our private key
         encrypted_key = base64.urlsafe_b64decode(encrypted_envelope["encrypted_key"])
         symmetric_key = self._private_key.decrypt(
             encrypted_key,
             padding.OAEP(
-                mgf=padding.MGF1(algorithm=hashes.SHA256()),
-                algorithm=hashes.SHA256(),
-                label=None
-            )
+                mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None
+            ),
         )
 
         # Decrypt message with symmetric key
@@ -465,7 +433,7 @@ class TransportEncryption:
         decrypted_bytes = fernet.decrypt(encrypted_message)
 
         # Parse message
-        message = json.loads(decrypted_bytes.decode('utf-8'))
+        message = json.loads(decrypted_bytes.decode("utf-8"))
 
         return message
 
@@ -485,7 +453,7 @@ class EncryptionService:
             DataClassification.INTERNAL: EncryptionLevel.BASIC,
             DataClassification.CONFIDENTIAL: EncryptionLevel.ENHANCED,
             DataClassification.RESTRICTED: EncryptionLevel.MAXIMUM,
-            DataClassification.TOP_SECRET: EncryptionLevel.QUANTUM_SAFE
+            DataClassification.TOP_SECRET: EncryptionLevel.QUANTUM_SAFE,
         }
 
     def get_encryption_level(self, classification: DataClassification) -> EncryptionLevel:
@@ -497,7 +465,7 @@ class EncryptionService:
         data: dict[str, Any],
         data_type: str,
         agent_id: str,
-        classification: DataClassification = DataClassification.CONFIDENTIAL
+        classification: DataClassification = DataClassification.CONFIDENTIAL,
     ) -> dict[str, Any]:
         """
         Encrypt agent data based on type and classification.
@@ -524,10 +492,7 @@ class EncryptionService:
             for field_name, field_value in data.items():
                 if field_value and not field_name.startswith("_"):  # Skip private/system fields
                     encrypted_field = await self.field_encryption.encrypt_field(
-                        field_value,
-                        field_name,
-                        agent_id,
-                        classification
+                        field_value, field_name, agent_id, classification
                     )
                     encrypted_fields[f"encrypted_{field_name}"] = encrypted_field
                 else:
@@ -536,17 +501,11 @@ class EncryptionService:
             return encrypted_fields
 
     async def decrypt_agent_data(
-        self,
-        encrypted_data: dict[str, Any],
-        data_type: str,
-        requesting_agent: str
+        self, encrypted_data: dict[str, Any], data_type: str, requesting_agent: str
     ) -> dict[str, Any]:
         """Decrypt agent data with access control."""
         if data_type == "memory":
-            return await self.memory_encryption.decrypt_memory(
-                encrypted_data,
-                requesting_agent
-            )
+            return await self.memory_encryption.decrypt_memory(encrypted_data, requesting_agent)
         else:
             # Generic field-level decryption
             decrypted_data = {}
@@ -554,8 +513,7 @@ class EncryptionService:
                 if field_name.startswith("encrypted_"):
                     original_field_name = field_name[10:]  # Remove "encrypted_" prefix
                     decrypted_value = await self.field_encryption.decrypt_field(
-                        field_value,
-                        requesting_agent
+                        field_value, requesting_agent
                     )
                     decrypted_data[original_field_name] = decrypted_value
                 else:
@@ -570,16 +528,15 @@ class EncryptionService:
         return {
             "key_management": key_info,
             "encryption_policies": {
-                cls.value: level.value
-                for cls, level in self.encryption_policies.items()
+                cls.value: level.value for cls, level in self.encryption_policies.items()
             },
             "transport_encryption": {
                 "peer_keys_count": len(self.transport_encryption.peer_keys),
-                "public_key_available": True
+                "public_key_available": True,
             },
             "field_encryption": {
                 "metadata_entries": len(self.field_encryption.encryption_metadata)
-            }
+            },
         }
 
 
@@ -597,5 +554,5 @@ __all__ = [
     "MemoryEncryption",
     "TransportEncryption",
     "EncryptionService",
-    "create_encryption_service"
+    "create_encryption_service",
 ]

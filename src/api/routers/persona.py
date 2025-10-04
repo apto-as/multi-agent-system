@@ -22,6 +22,7 @@ router = APIRouter()
 # Response Models
 class PersonaResponse(BaseModel):
     """Persona response model."""
+
     id: str
     name: str
     type: str
@@ -39,15 +40,14 @@ class PersonaResponse(BaseModel):
     updated_at: datetime
     last_active_at: datetime | None
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 @router.get("/", response_model=list[PersonaResponse])
 async def list_personas(
     active_only: bool = True,
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict[str, Any] = Depends(get_current_user)
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> list[PersonaResponse]:
     """
     List all available personas.
@@ -74,8 +74,8 @@ async def list_personas(
             PersonaResponse(
                 id=str(persona.id),
                 name=persona.name,
-                type=persona.type.value if hasattr(persona.type, 'value') else persona.type,
-                role=persona.role.value if hasattr(persona.role, 'value') else persona.role,
+                type=persona.type.value if hasattr(persona.type, "value") else persona.type,
+                role=persona.role.value if hasattr(persona.role, "value") else persona.role,
                 display_name=persona.display_name,
                 description=persona.description,
                 specialties=persona.specialties,
@@ -87,7 +87,7 @@ async def list_personas(
                 average_response_time=persona.average_response_time,
                 created_at=persona.created_at,
                 updated_at=persona.updated_at,
-                last_active_at=persona.last_active_at
+                last_active_at=persona.last_active_at,
             )
             for persona in personas
         ]
@@ -95,8 +95,7 @@ async def list_personas(
     except Exception as e:
         logger.error(f"Failed to list personas: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve personas"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve personas"
         )
 
 
@@ -104,7 +103,7 @@ async def list_personas(
 async def get_persona(
     persona_name: str,
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict[str, Any] = Depends(get_current_user)
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> PersonaResponse:
     """
     Get a specific persona by name.
@@ -118,15 +117,12 @@ async def get_persona(
         Persona data
     """
     try:
-        result = await db.execute(
-            select(Persona).where(Persona.name == persona_name)
-        )
+        result = await db.execute(select(Persona).where(Persona.name == persona_name))
         persona = result.scalar_one_or_none()
 
         if not persona:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Persona '{persona_name}' not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail=f"Persona '{persona_name}' not found"
             )
 
         return PersonaResponse.from_orm(persona)
@@ -136,15 +132,14 @@ async def get_persona(
     except Exception as e:
         logger.error(f"Failed to get persona {persona_name}: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve persona"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve persona"
         )
 
 
 @router.post("/initialize", status_code=status.HTTP_201_CREATED)
 async def initialize_default_personas(
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict[str, Any] = Depends(get_current_user)
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
     """
     Initialize default Trinitas personas.
@@ -165,7 +160,7 @@ async def initialize_default_personas(
             return {
                 "message": "Personas already initialized",
                 "count": len(existing_personas),
-                "personas": [p.name for p in existing_personas]
+                "personas": [p.name for p in existing_personas],
             }
 
         # Create default personas
@@ -184,7 +179,7 @@ async def initialize_default_personas(
         return {
             "message": "Default personas initialized successfully",
             "count": len(created_personas),
-            "personas": created_personas
+            "personas": created_personas,
         }
 
     except Exception as e:
@@ -192,7 +187,7 @@ async def initialize_default_personas(
         logger.error(f"Failed to initialize personas: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to initialize personas"
+            detail="Failed to initialize personas",
         )
 
 
@@ -200,7 +195,7 @@ async def initialize_default_personas(
 async def get_persona_stats(
     persona_name: str,
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict[str, Any] = Depends(get_current_user)
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
     """
     Get detailed statistics for a specific persona.
@@ -214,15 +209,12 @@ async def get_persona_stats(
         Persona statistics
     """
     try:
-        result = await db.execute(
-            select(Persona).where(Persona.name == persona_name)
-        )
+        result = await db.execute(select(Persona).where(Persona.name == persona_name))
         persona = result.scalar_one_or_none()
 
         if not persona:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Persona '{persona_name}' not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail=f"Persona '{persona_name}' not found"
             )
 
         return {
@@ -239,7 +231,9 @@ async def get_persona_stats(
             },
             "activity": {
                 "is_active": persona.is_active,
-                "last_active_at": persona.last_active_at.isoformat() if persona.last_active_at else None,
+                "last_active_at": persona.last_active_at.isoformat()
+                if persona.last_active_at
+                else None,
                 "created_at": persona.created_at.isoformat(),
                 "updated_at": persona.updated_at.isoformat(),
             },
@@ -247,7 +241,7 @@ async def get_persona_stats(
                 "specialties": persona.specialties,
                 "capabilities": persona.capabilities,
             },
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
 
     except HTTPException:
@@ -256,5 +250,5 @@ async def get_persona_stats(
         logger.error(f"Failed to get persona stats for {persona_name}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve persona statistics"
+            detail="Failed to retrieve persona statistics",
         )

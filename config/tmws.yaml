@@ -52,6 +52,52 @@ logging:
 vector:
   dimension: 384
   model: "all-MiniLM-L6-v2"
+
+# GenAI Toolbox Integration
+genai_toolbox:
+  enabled: true
+  binary_path: "${GENAI_TOOLBOX_PATH}"  # Path to GenAI Toolbox binary
+  auto_detect: true  # Auto-detect GenAI Toolbox installation
+  sidecar_mode: true  # Run tools as sidecar processes
+
+  # Tool-specific configurations
+  tools:
+    genai-chat:
+      enabled: true
+      provider: "openai"
+      model: "gpt-4o-mini"
+      max_tokens: 4000
+
+    genai-image:
+      enabled: true
+      provider: "dall-e"
+      size: "1024x1024"
+      quality: "standard"
+
+    genai-code:
+      enabled: true
+      language: "auto"
+      style: "production"
+      max_lines: 500
+
+    genai-document:
+      enabled: true
+      format: "markdown"
+      style: "technical"
+      max_length: 10000
+
+  # Performance settings
+  performance:
+    max_concurrent_processes: 4
+    process_timeout_seconds: 300
+    memory_limit_mb: 512
+    enable_monitoring: true
+
+  # Integration settings
+  integration:
+    store_results_in_memory: true
+    memory_importance_default: 0.7
+    enable_cost_tracking: true
   
 # Environment-specific overrides
 environments:

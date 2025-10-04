@@ -29,87 +29,68 @@ class APIAuditLog(TMWSBase):
     __tablename__ = "api_audit_log"
 
     # API call identification - matches spec exactly
-    endpoint: Mapped[str] = mapped_column(
-        String(255),
-        nullable=False,
-        comment="API endpoint path"
-    )
+    endpoint: Mapped[str] = mapped_column(String(255), nullable=False, comment="API endpoint path")
 
     method: Mapped[str] = mapped_column(
-        String(10),
-        nullable=False,
-        comment="HTTP method (GET, POST, PUT, DELETE, PATCH)"
+        String(10), nullable=False, comment="HTTP method (GET, POST, PUT, DELETE, PATCH)"
     )
 
     # Request/Response data - exact spec
     request_body: Mapped[dict[str, Any] | None] = mapped_column(
-        JSONB,
-        nullable=True,
-        comment="Request body in JSON format"
+        JSONB, nullable=True, comment="Request body in JSON format"
     )
 
     response_status: Mapped[int | None] = mapped_column(
-        Integer,
-        nullable=True,
-        comment="HTTP response status code"
+        Integer, nullable=True, comment="HTTP response status code"
     )
 
     response_body: Mapped[dict[str, Any] | None] = mapped_column(
-        JSONB,
-        nullable=True,
-        comment="Response body in JSON format"
+        JSONB, nullable=True, comment="Response body in JSON format"
     )
 
     # User tracking - exact spec
     user_id: Mapped[str | None] = mapped_column(
-        String(100),
-        nullable=True,
-        comment="User identifier who made the request"
+        String(100), nullable=True, comment="User identifier who made the request"
     )
 
     ip_address: Mapped[IPv4Address | IPv6Address | None] = mapped_column(
-        INET,
-        nullable=True,
-        comment="Client IP address"
+        INET, nullable=True, comment="Client IP address"
     )
 
     # Performance tracking - exact spec
     duration_ms: Mapped[int | None] = mapped_column(
-        Integer,
-        nullable=True,
-        comment="Request processing duration in milliseconds"
+        Integer, nullable=True, comment="Request processing duration in milliseconds"
     )
 
     # Table constraints - exact spec
     __table_args__ = (
-        CheckConstraint(
-            "method IN ('GET', 'POST', 'PUT', 'DELETE', 'PATCH')",
-            name="chk_method"
-        ),
+        CheckConstraint("method IN ('GET', 'POST', 'PUT', 'DELETE', 'PATCH')", name="chk_method"),
         # Indexes for performance - matching spec exactly
         Index("idx_api_audit_log_endpoint", "endpoint"),
         Index("idx_api_audit_log_created_at", "created_at", postgresql_ops={"created_at": "DESC"}),
         Index("idx_api_audit_log_user_id", "user_id"),
     )
 
-    @validates('method')
+    @validates("method")
     def validate_method(self, key: str, method: str) -> str:
         """Validate HTTP method."""
-        allowed_methods = {'GET', 'POST', 'PUT', 'DELETE', 'PATCH'}
+        allowed_methods = {"GET", "POST", "PUT", "DELETE", "PATCH"}
         method_upper = method.upper()
         if method_upper not in allowed_methods:
             raise ValueError(f"Method must be one of: {allowed_methods}")
         return method_upper
 
-    @validates('response_status')
+    @validates("response_status")
     def validate_response_status(self, key: str, status: int | None) -> int | None:
         """Validate HTTP response status code."""
         if status is not None and not (100 <= status <= 599):
             raise ValueError("Response status must be between 100 and 599")
         return status
 
-    @validates('ip_address')
-    def validate_ip_address(self, key: str, ip_addr: str | None) -> IPv4Address | IPv6Address | None:
+    @validates("ip_address")
+    def validate_ip_address(
+        self, key: str, ip_addr: str | None
+    ) -> IPv4Address | IPv6Address | None:
         """Validate and convert IP address."""
         if ip_addr is None:
             return None
@@ -120,7 +101,9 @@ class APIAuditLog(TMWSBase):
         except ValueError as e:
             raise ValueError(f"Invalid IP address: {e}")
 
-    def set_request_data(self, endpoint: str, method: str, body: dict[str, Any] | None = None) -> None:
+    def set_request_data(
+        self, endpoint: str, method: str, body: dict[str, Any] | None = None
+    ) -> None:
         """Set request data with validation."""
         self.endpoint = endpoint
         self.method = method
@@ -195,67 +178,87 @@ class APIAuditLog(TMWSBase):
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary with enhanced audit information."""
         result = super().to_dict()
-        result.update({
-            "duration_seconds": self.duration_seconds,
-            "is_error": self.is_error,
-            "is_success": self.is_success,
-            "response_category": self.response_category,
-            "ip_address": str(self.ip_address) if self.ip_address else None,
-        })
+        result.update(
+            {
+                "duration_seconds": self.duration_seconds,
+                "is_error": self.is_error,
+                "is_success": self.is_success,
+                "response_category": self.response_category,
+                "ip_address": str(self.ip_address) if self.ip_address else None,
+            }
+        )
         return result
 
     def __repr__(self) -> str:
         """Enhanced string representation."""
         status_str = f", status={self.response_status}" if self.response_status else ""
         duration_str = f", duration={self.duration_ms}ms" if self.duration_ms else ""
-        return (f"<APIAuditLog(id={self.id}, method={self.method}, "
-                f"endpoint='{self.endpoint}'{status_str}{duration_str})>")
+        return (
+            f"<APIAuditLog(id={self.id}, method={self.method}, "
+            f"endpoint='{self.endpoint}'{status_str}{duration_str})>"
+        )
 
     @classmethod
-    def log_request(cls, endpoint: str, method: str, user_id: str | None = None,
-                   ip_address: str | None = None, request_body: dict[str, Any] | None = None) -> "APIAuditLog":
+    def log_request(
+        cls,
+        endpoint: str,
+        method: str,
+        user_id: str | None = None,
+        ip_address: str | None = None,
+        request_body: dict[str, Any] | None = None,
+    ) -> "APIAuditLog":
         """Create a new audit log entry for a request."""
         log_entry = cls(
             endpoint=endpoint,
             method=method.upper(),
             user_id=user_id,
             ip_address=ip_address,
-            request_body=request_body
+            request_body=request_body,
         )
         return log_entry
 
     @classmethod
     def get_by_endpoint(cls, session, endpoint: str, limit: int = 100) -> list["APIAuditLog"]:
         """Get audit logs for specific endpoint."""
-        return (session.query(cls)
-                .filter(cls.endpoint == endpoint)
-                .order_by(cls.created_at.desc())
-                .limit(limit)
-                .all())
+        return (
+            session.query(cls)
+            .filter(cls.endpoint == endpoint)
+            .order_by(cls.created_at.desc())
+            .limit(limit)
+            .all()
+        )
 
     @classmethod
     def get_by_user(cls, session, user_id: str, limit: int = 100) -> list["APIAuditLog"]:
         """Get audit logs for specific user."""
-        return (session.query(cls)
-                .filter(cls.user_id == user_id)
-                .order_by(cls.created_at.desc())
-                .limit(limit)
-                .all())
+        return (
+            session.query(cls)
+            .filter(cls.user_id == user_id)
+            .order_by(cls.created_at.desc())
+            .limit(limit)
+            .all()
+        )
 
     @classmethod
     def get_errors(cls, session, limit: int = 100) -> list["APIAuditLog"]:
         """Get error responses (status >= 400)."""
-        return (session.query(cls)
-                .filter(cls.response_status >= 400)
-                .order_by(cls.created_at.desc())
-                .limit(limit)
-                .all())
+        return (
+            session.query(cls)
+            .filter(cls.response_status >= 400)
+            .order_by(cls.created_at.desc())
+            .limit(limit)
+            .all()
+        )
 
     @classmethod
-    def get_slow_requests(cls, session, threshold_ms: int = 1000, limit: int = 100) -> list["APIAuditLog"]:
+    def get_slow_requests(
+        cls, session, threshold_ms: int = 1000, limit: int = 100
+    ) -> list["APIAuditLog"]:
         """Get slow requests above threshold."""
-        return (session.query(cls)
-                .filter(cls.duration_ms > threshold_ms)
-                .order_by(cls.duration_ms.desc())
-                .limit(limit)
-                .all())
+        return (
+            session.query(cls)
+            .filter(cls.duration_ms > threshold_ms)
+            .order_by(cls.duration_ms.desc())
+            .limit(limit)
+            .all()
+        )
