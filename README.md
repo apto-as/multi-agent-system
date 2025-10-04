@@ -10,22 +10,31 @@ A unified memory and workflow service for AI agents, providing database-level sh
 
 ## 🚀 Quick Start
 
-### One-Command Setup (Recommended)
+### インストール方法の選択
+
+| 方法 | 推奨用途 | 所要時間 | ドキュメント |
+|-----|---------|---------|------------|
+| **uvx** (推奨) | 本番・安定版 | 1-2分 | [INSTALL_UVX.md](INSTALL_UVX.md) |
+| **自動セットアップ** | ローカル開発 | 5-10分 | [QUICKSTART.md](QUICKSTART.md) |
+| **手動セットアップ** | カスタマイズ | 10-15分 | [INSTALL.md](INSTALL.md) |
+
+### uvxで即座に起動（最速）
 
 ```bash
-# Install and run directly with uvx
-uvx --from git+https://github.com/apto-as/tmws.git@v2.2.0 tmws
-```
+# 1. PostgreSQL準備
+brew install postgresql@17
+brew services start postgresql@17
 
-### Database Setup
+# 2. データベース作成
+createdb tmws_db
+psql tmws_db -c "CREATE EXTENSION IF NOT EXISTS vector;"
 
-```bash
-# Quick setup for development
-./scripts/setup_db_quick.sh
+# 3. 環境変数設定
+export TMWS_DATABASE_URL="postgresql://$(whoami)@localhost:5432/tmws_db"
+export TMWS_SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))")
 
-# Or manual setup
-createdb tmws
-psql tmws -c "CREATE EXTENSION IF NOT EXISTS vector;"
+# 4. uvxで起動（インストール不要）
+uvx --from git+https://github.com/apto-as/tmws.git tmws
 ```
 
 ## Features
@@ -41,63 +50,82 @@ psql tmws -c "CREATE EXTENSION IF NOT EXISTS vector;"
 - ⚡ **Connection Pooling**: PgBouncer integration for efficient database access
 - 🚀 **Performance**: Sub-100ms vector search with IVFFlat indexing
 
-## Prerequisites
-
-### PostgreSQL Setup
-
-TMWS requires PostgreSQL with pgvector extension:
-
-```bash
-# 1. Create database and user
-createdb tmws
-createuser tmws_user
-
-# 2. Set password for user
-psql postgres -c "ALTER USER tmws_user WITH PASSWORD 'tmws_password';"
-
-# 3. Grant privileges
-psql postgres -c "GRANT ALL PRIVILEGES ON DATABASE tmws TO tmws_user;"
-
-# 4. Enable required extensions
-PGPASSWORD=tmws_password psql -U tmws_user -d tmws -c "CREATE EXTENSION IF NOT EXISTS vector;"
-PGPASSWORD=tmws_password psql -U tmws_user -d tmws -c "CREATE EXTENSION IF NOT EXISTS pg_trgm;"
-
-# 5. Create database tables
-python setup_database.py
-```
-
-### Environment Configuration
-
-Copy `.env.example` to `.env` and configure:
-
-```bash
-# Copy example environment file
-cp .env.example .env
-
-# Edit .env with your settings
-# Key configurations:
-# - TMWS_DATABASE_URL=postgresql://tmws_user:tmws_password@localhost:5432/tmws
-# - TMWS_AGENT_ID=athena-conductor
-# - TMWS_AGENT_NAMESPACE=trinitas
-```
-
-## Installation & Usage
-
-Each Claude Code instance runs its own MCP server process, sharing state through PostgreSQL:
-
-### Configure Claude Code
-
-Add to your Claude Code config:
+### 方法2: uv run（ローカル開発）
 
 ```json
 {
   "mcpServers": {
     "tmws": {
-      "type": "stdio",
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/path/to/tmws",
+        "run",
+        "tmws"
+      ],
+      "env": {
+        "TMWS_DATABASE_URL": "postgresql://tmws_user:tmws_password@localhost:5432/tmws_db",
+        "TMWS_SECRET_KEY": "your-secret-key-here",
+        "TMWS_ENVIRONMENT": "development"
+      }
+    }
+  }
+}
+```
+
+詳細は [docs/MCP_INTEGRATION.md](docs/MCP_INTEGRATION.md) を参照。
+
+---
+
+## 🧠 利用可能なMCPツール
+
+- **メモリ管理**: `store_memory`, `recall_memory`, `update_memory`, `delete_memory`
+- **タスク管理**: `create_task`, `update_task`, `complete_task`, `list_tasks`
+- **ワークフロー**: `create_workflow`, `execute_workflow`, `workflow_status`
+- **システム**: `health_check`, `get_stats`, `register_agent`, `switch_agent`
+
+詳細は [docs/MCP_INTEGRATION.md](docs/MCP_INTEGRATION.md) を参照。
+
+---
+
+## 📋 必須要件
+
+- **Python**: 3.10以上（推奨: 3.11+）
+- **PostgreSQL**: 17.x + pgvector拡張
+- **uv**: 0.1.0以上（推奨インストーラー）
+- **OS**: macOS / Linux / Windows
+
+## 📖 ドキュメント
+
+### インストール
+- [INSTALL_UVX.md](INSTALL_UVX.md) - **uvx推奨インストール**（最速・最新版）
+- [QUICKSTART.md](QUICKSTART.md) - 5分クイックスタート
+- [INSTALL.md](INSTALL.md) - 詳細な手動インストール
+
+### MCP統合
+- [docs/MCP_INTEGRATION.md](docs/MCP_INTEGRATION.md) - **Claude Desktop統合ガイド**
+- [docs/MCP_TOOLS_REFERENCE.md](docs/MCP_TOOLS_REFERENCE.md) - MCPツールリファレンス
+
+### その他
+- [docs/API_AUTHENTICATION.md](docs/API_AUTHENTICATION.md) - API認証設定
+- [docs/TRINITAS_INTEGRATION.md](docs/TRINITAS_INTEGRATION.md) - Trinitas統合
+
+---
+
+## 🔌 Claude Desktop統合
+
+### 方法1: uvx（推奨）
+
+`.claude/mcp_config.json` に追加:
+
+```json
+{
+  "mcpServers": {
+    "tmws": {
       "command": "uvx",
       "args": ["--from", "git+https://github.com/apto-as/tmws.git", "tmws"],
       "env": {
-        "TMWS_DATABASE_URL": "postgresql://tmws_user:tmws_password@localhost:5432/tmws",
+        "TMWS_DATABASE_URL": "postgresql://tmws_user:tmws_password@localhost:5432/tmws_db",
         "TMWS_AGENT_ID": "athena-conductor-1"  // Unique per instance
       }
     }
