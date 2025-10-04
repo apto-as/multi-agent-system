@@ -166,9 +166,9 @@ def upgrade():
     # Create vector index for semantic search
     op.execute("CREATE INDEX ix_memory_embedding ON memories_v2 USING ivfflat (embedding vector_cosine_ops)")
 
-    # Create GIN indexes for JSON fields
-    op.execute("CREATE INDEX ix_memory_tags ON memories_v2 USING gin (tags)")
-    op.execute("CREATE INDEX ix_memory_context ON memories_v2 USING gin (context)")
+    # Create GIN indexes for JSON fields (with operator class)
+    op.execute("CREATE INDEX ix_memory_tags ON memories_v2 USING gin (tags jsonb_path_ops)")
+    op.execute("CREATE INDEX ix_memory_context ON memories_v2 USING gin (context jsonb_path_ops)")
 
     # 5. Create memory sharing table
     op.create_table('memory_sharing',
