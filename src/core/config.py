@@ -54,6 +54,24 @@ class Settings(BaseSettings):
     db_pool_pre_ping: bool = Field(default=True)
     db_pool_recycle: int = Field(default=3600, ge=300, le=86400)
 
+    # ==== HYBRID CLOUD-LOCAL DATABASE ====
+    cloud_database_url: str = Field(
+        default="",
+        description="Cloud PostgreSQL URL for global/shared memories (optional)",
+    )
+    local_database_url: str = Field(
+        default="sqlite+aiosqlite:///./tmws_local.db",
+        description="Local database URL for project/private memories",
+    )
+    cloud_ssl_cert_path: str = Field(
+        default="",
+        description="Path to SSL certificate for cloud database connection",
+    )
+    hybrid_mode_enabled: bool = Field(
+        default=False,
+        description="Enable hybrid cloud-local storage (feature flag)",
+    )
+
     # ==== API CONFIGURATION ====
     api_host: str = Field(default="127.0.0.1")  # Secure default: localhost only
     api_port: int = Field(default=8000, ge=1024, le=65535)
