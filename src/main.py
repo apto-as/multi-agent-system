@@ -31,6 +31,19 @@ def main():
     logger.info(f"Environment: {settings.environment}")
     logger.info(f"Vector Model: {settings.embedding_model}")
     logger.info(f"Vector Dimension: {settings.vector_dimension}")
+
+    # Security validation summary (Pydantic validators already ran)
+    if settings.environment == "production":
+        logger.info("🔒 Production Security Status:")
+        logger.info(f"  ✓ Authentication: {settings.auth_enabled}")
+        logger.info(f"  ✓ Rate Limiting: {settings.rate_limit_enabled}")
+        logger.info(f"  ✓ Security Headers: {settings.security_headers_enabled}")
+        logger.info(f"  ✓ Audit Logging: {settings.audit_log_enabled}")
+        logger.info(f"  ✓ SECRET_KEY Length: {len(settings.secret_key)} chars")
+    elif settings.environment == "development":
+        logger.warning("⚠️  Development Mode: Some security features may be disabled")
+        logger.warning(f"  Authentication: {settings.auth_enabled}")
+
     logger.info("=" * 50)
 
     # Create FastAPI app
