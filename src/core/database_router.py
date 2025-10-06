@@ -50,6 +50,8 @@ class DatabaseRouter:
                         "jit": "off",
                     },
                     "command_timeout": 60,
+                    # Supabase Connection Pooler (transaction mode) requires this
+                    "statement_cache_size": 0,
                 },
             }
 
