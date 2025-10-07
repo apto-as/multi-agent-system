@@ -37,10 +37,7 @@ class PatternPermission:
             return False
 
         # Check agent whitelist (empty means all allowed)
-        if self.allowed_agents and agent_id not in self.allowed_agents:
-            return False
-
-        return True
+        return not (self.allowed_agents and agent_id not in self.allowed_agents)
 
 
 class PatternAuthManager:

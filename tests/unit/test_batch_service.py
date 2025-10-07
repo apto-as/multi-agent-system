@@ -4,18 +4,21 @@ Tests all batch processing functionality with performance optimizations.
 """
 
 import asyncio
-import pytest
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, Mock, patch
-from uuid import UUID, uuid4
+from uuid import uuid4
 
-from src.services.batch_service import (
-    BatchJob, BatchProcessor, BatchService, BatchOperationType,
-    BatchPriority, BatchJobStatus
-)
+import pytest
+
 from src.core.exceptions import ValidationError
-from src.models.memory import Memory
-from src.models.agent import Agent
+from src.services.batch_service import (
+    BatchJob,
+    BatchJobStatus,
+    BatchOperationType,
+    BatchPriority,
+    BatchProcessor,
+    BatchService,
+)
 
 
 class TestBatchJob:

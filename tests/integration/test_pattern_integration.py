@@ -18,27 +18,24 @@ Strategic Focus:
 """
 
 import asyncio
+import builtins
+import contextlib
 import random
 import time
-from concurrent.futures import ThreadPoolExecutor
-from typing import List, Dict, Any
 from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-from httpx import AsyncClient
 
 from src.api.app import create_app
 from src.core.cache import CacheManager
 from src.core.database import get_db_session
 from src.services.pattern_execution_service import (
     ExecutionMode,
+    PatternDefinition,
     PatternExecutionEngine,
     PatternRegistry,
-    PatternDefinition,
-    PatternType,
 )
-
 
 # ============================================================================
 # FIXTURES
@@ -211,7 +208,7 @@ class TestMultiAgentConcurrency:
             assert avg_latency < 300, f"Average latency {avg_latency:.1f}ms exceeds 300ms"
             assert total_time < 30, f"Total execution time {total_time:.1f}s exceeds 30s"
 
-            print(f"\n📊 50-Agent Concurrency Test Results:")
+            print("\n📊 50-Agent Concurrency Test Results:")
             print(f"  Total requests: {total_requests}")
             print(f"  Success rate: {success_rate:.1f}%")
             print(f"  Avg latency: {avg_latency:.1f}ms")
@@ -237,7 +234,7 @@ class TestMultiAgentConcurrency:
             )
 
             # First execution - populate cache
-            initial_result = await engine.execute(
+            await engine.execute(
                 "execute tool test",
                 use_cache=True
             )
@@ -265,7 +262,7 @@ class TestMultiAgentConcurrency:
             flat_results = [r for session in all_results for r in session]
 
             # All should have same pattern name (coherent)
-            pattern_names = set(r['pattern_name'] for r in flat_results)
+            pattern_names = {r['pattern_name'] for r in flat_results}
             assert len(pattern_names) == 1, f"Cache incoherent: {pattern_names}"
 
             # Most should be cache hits (after first)
@@ -273,7 +270,7 @@ class TestMultiAgentConcurrency:
             cache_hit_rate = (cache_hits / len(flat_results)) * 100
             assert cache_hit_rate > 70, f"Cache hit rate {cache_hit_rate:.1f}% too low"
 
-            print(f"\n🔄 Cache Coherency Test:")
+            print("\n🔄 Cache Coherency Test:")
             print(f"  Total accesses: {len(flat_results)}")
             print(f"  Pattern coherency: ✓ (single pattern: {pattern_names.pop()})")
             print(f"  Cache hit rate: {cache_hit_rate:.1f}%")
@@ -325,8 +322,8 @@ class TestMultiAgentConcurrency:
         assert successes >= 48, f"Only {successes}/50 requests succeeded"
         assert elapsed < 60, f"Pool stress test took {elapsed:.1f}s (timeout concern)"
 
-        print(f"\n💾 Database Pool Stress Test:")
-        print(f"  Concurrent requests: 50")
+        print("\n💾 Database Pool Stress Test:")
+        print("  Concurrent requests: 50")
         print(f"  Successes: {successes}")
         print(f"  Exceptions: {exceptions}")
         print(f"  Total time: {elapsed:.2f}s")
@@ -383,10 +380,10 @@ class TestWebSocketMCPIntegration:
                 assert "success" in result
                 assert "execution_time_ms" in result
 
-            print(f"\n🔌 WebSocket Pattern Execution:")
+            print("\n🔌 WebSocket Pattern Execution:")
             print(f"  Session ID: {session_id}")
-            print(f"  Response received: ✓")
-            print(f"  MCP compliant: ✓")
+            print("  Response received: ✓")
+            print("  MCP compliant: ✓")
 
     async def test_backward_compatibility_with_existing_mcp_tools(self, app_client):
         """
@@ -401,7 +398,7 @@ class TestWebSocketMCPIntegration:
 
         with app_client.websocket_connect(f"/ws/mcp?agent_id={agent_id}") as ws:
             # Receive welcome
-            welcome = ws.receive_json()
+            ws.receive_json()
 
             # Test existing MCP tool (e.g., memory operations)
             ws.send_json({
@@ -419,9 +416,9 @@ class TestWebSocketMCPIntegration:
             response = ws.receive_json()
             assert response.get("jsonrpc") == "2.0"
 
-            print(f"\n✅ Backward Compatibility:")
-            print(f"  Existing MCP tools: ✓")
-            print(f"  No interference: ✓")
+            print("\n✅ Backward Compatibility:")
+            print("  Existing MCP tools: ✓")
+            print("  No interference: ✓")
 
     async def test_multi_client_websocket_pattern_execution(self, app_client):
         """
@@ -467,17 +464,15 @@ class TestWebSocketMCPIntegration:
             successful = sum(1 for r in responses if "result" in r)
             assert successful >= 8, f"Only {successful}/10 WebSocket clients succeeded"
 
-            print(f"\n🔀 Multi-Client WebSocket Test:")
-            print(f"  Concurrent clients: 10")
+            print("\n🔀 Multi-Client WebSocket Test:")
+            print("  Concurrent clients: 10")
             print(f"  Successful responses: {successful}")
 
         finally:
             # Cleanup
             for conn in connections:
-                try:
+                with contextlib.suppress(builtins.BaseException):
                     conn['ws'].close()
-                except:
-                    pass
 
 
 # ============================================================================
@@ -531,8 +526,8 @@ class TestDatabaseIntegration:
             assert p95_latency < 500, f"P95 latency {p95_latency:.1f}ms > 500ms"
             assert successes >= 48, f"Only {successes}/50 vector searches succeeded"
 
-            print(f"\n🔍 pgvector Performance Under Load:")
-            print(f"  Concurrent queries: 50")
+            print("\n🔍 pgvector Performance Under Load:")
+            print("  Concurrent queries: 50")
             print(f"  Avg latency: {avg_latency:.1f}ms")
             print(f"  P95 latency: {p95_latency:.1f}ms")
             print(f"  Success rate: {successes}/50")
@@ -582,10 +577,10 @@ class TestDatabaseIntegration:
             assert exceptions == 0, f"Transaction isolation failed: {exceptions} exceptions"
             assert successes >= 18, f"Only {successes}/20 transactions succeeded"
 
-            print(f"\n🔒 Transaction Isolation Test:")
-            print(f"  Concurrent updates: 20")
+            print("\n🔒 Transaction Isolation Test:")
+            print("  Concurrent updates: 20")
             print(f"  Successes: {successes}")
-            print(f"  Isolation maintained: ✓")
+            print("  Isolation maintained: ✓")
 
 
 # ============================================================================
@@ -628,10 +623,10 @@ class TestRedisCacheIntegration:
             result3 = await engine.execute("execute tool test", use_cache=True)
             assert not result3.cache_hit
 
-            print(f"\n🗑️ Cache Invalidation Test:")
-            print(f"  Initial: cache miss ✓")
-            print(f"  Second: cache hit ✓")
-            print(f"  After invalidation: cache miss ✓")
+            print("\n🗑️ Cache Invalidation Test:")
+            print("  Initial: cache miss ✓")
+            print("  Second: cache hit ✓")
+            print("  After invalidation: cache miss ✓")
 
     async def test_redis_cluster_failover(self, integration_cache):
         """
@@ -660,9 +655,9 @@ class TestRedisCacheIntegration:
             # Restore Redis
             integration_cache.redis = original_redis
 
-            print(f"\n🔄 Redis Failover Test:")
-            print(f"  Execution without Redis: ✓")
-            print(f"  Graceful degradation: ✓")
+            print("\n🔄 Redis Failover Test:")
+            print("  Execution without Redis: ✓")
+            print("  Graceful degradation: ✓")
 
 
 # ============================================================================
@@ -706,7 +701,7 @@ class TestPerformanceIntegration:
                     }
                 })
 
-                response = ws.receive_json()
+                ws.receive_json()
                 latency = (time.perf_counter() - start) * 1000
                 latencies.append(latency)
 
@@ -720,7 +715,7 @@ class TestPerformanceIntegration:
         assert p95 < 250, f"P95 latency {p95:.1f}ms exceeds 250ms target"
         assert avg < 150, f"Average latency {avg:.1f}ms exceeds 150ms target"
 
-        print(f"\n⚡ End-to-End Latency (100 requests):")
+        print("\n⚡ End-to-End Latency (100 requests):")
         print(f"  Average: {avg:.1f}ms")
         print(f"  P50: {p50:.1f}ms")
         print(f"  P95: {p95:.1f}ms")
@@ -776,7 +771,7 @@ class TestPerformanceIntegration:
             assert actual_rps >= 90, f"Throughput {actual_rps:.1f} RPS below 90 RPS target"
             assert successes >= total_requests * 0.95, f"Success rate too low: {successes}/{total_requests}"
 
-            print(f"\n📈 Throughput Test:")
+            print("\n📈 Throughput Test:")
             print(f"  Duration: {elapsed:.2f}s")
             print(f"  Total requests: {total_requests}")
             print(f"  Successes: {successes}")
@@ -826,7 +821,7 @@ class TestPerformanceIntegration:
 
             assert reduction >= 40, f"Token reduction {reduction:.1f}% below 40% target"
 
-            print(f"\n💰 Token Reduction Validation:")
+            print("\n💰 Token Reduction Validation:")
             print(f"  Pattern tokens: {total_pattern_tokens}")
             print(f"  LLM baseline: {total_llm_tokens}")
             print(f"  Reduction: {reduction:.1f}%")
@@ -864,8 +859,8 @@ class TestErrorRecoveryIntegration:
             result = await engine.execute("recall memory test")
             assert result.success or result.error is not None
 
-            print(f"\n🔌 Database Recovery Test:")
-            print(f"  Error handling: ✓")
+            print("\n🔌 Database Recovery Test:")
+            print("  Error handling: ✓")
 
     async def test_pattern_execution_timeout_handling(
         self,
@@ -880,9 +875,9 @@ class TestErrorRecoveryIntegration:
         # Would test patterns that take too long
         # Implementation depends on timeout configuration
 
-        print(f"\n⏱️ Timeout Handling Test:")
-        print(f"  Timeout detection: ✓")
-        print(f"  Graceful failure: ✓")
+        print("\n⏱️ Timeout Handling Test:")
+        print("  Timeout detection: ✓")
+        print("  Graceful failure: ✓")
 
 
 if __name__ == "__main__":

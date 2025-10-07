@@ -790,9 +790,10 @@ class TestAPIKeyDependencyIntegration:
 
     async def test_verify_api_key_usage_tracking(self, async_client: AsyncClient, test_api_key):
         """Test that API key usage is automatically tracked."""
+        from sqlalchemy import select
+
         from src.core.database import get_db_session
         from src.models.user import APIKey
-        from sqlalchemy import select
 
         api_key, key_info = test_api_key
         key_id = api_key.split(".")[0]
@@ -849,9 +850,10 @@ class TestAPIKeyDependencyIntegration:
 
     async def test_verify_api_key_unlimited_expiration(self, async_client: AsyncClient, test_api_key):
         """Test that API keys have no expiration by default."""
+        from sqlalchemy import select
+
         from src.core.database import get_db_session
         from src.models.user import APIKey
-        from sqlalchemy import select
 
         api_key, _ = test_api_key
         key_id = api_key.split(".")[0]

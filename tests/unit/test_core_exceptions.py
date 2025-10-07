@@ -3,26 +3,25 @@ Unit tests for TMWS core exceptions
 Testing all custom exception classes
 """
 
-import pytest
-import sys
 import os
+import sys
 
 # Add source path for direct imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from core.exceptions import (
-    TMWSException,
-    DatabaseException,
-    DatabaseError,
-    MemoryException,
-    WorkflowException,
-    ValidationException,
-    ValidationError,
     AuthenticationException,
     AuthorizationException,
+    DatabaseError,
+    DatabaseException,
+    MemoryException,
+    NotFoundError,
     RateLimitException,
+    TMWSException,
+    ValidationError,
+    ValidationException,
     VectorizationException,
-    NotFoundError
+    WorkflowException,
 )
 
 

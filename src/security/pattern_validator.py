@@ -171,9 +171,8 @@ class PatternDataValidator:
 
         # Check metadata values for dangerous content
         for key, value in metadata.items():
-            if isinstance(value, str):
-                if self.dangerous_python_regex.search(value):
-                    errors.append(f"Dangerous code detected in metadata['{key}']: {value}")
+            if isinstance(value, str) and self.dangerous_python_regex.search(value):
+                errors.append(f"Dangerous code detected in metadata['{key}']: {value}")
 
         return {"errors": errors, "warnings": warnings}
 

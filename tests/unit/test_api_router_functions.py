@@ -8,18 +8,13 @@ focusing on business logic, validation, and error handling.
 
 import uuid
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
-import pytest
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # Import router functions directly
-from src.api.routers.health import (
-    health_check,
-    liveness_check,
-    version_info
-)
+from src.api.routers.health import health_check, liveness_check, version_info
 
 
 class TestHealthRouterFunctions:
@@ -42,7 +37,7 @@ class TestHealthRouterFunctions:
         assert result["status"] == "alive"
         assert "timestamp" in result
         assert "uptime_seconds" in result
-        assert isinstance(result["uptime_seconds"], (int, float))
+        assert isinstance(result["uptime_seconds"], int | float)
         assert result["uptime_seconds"] >= 0
 
     async def test_version_info_function(self):
@@ -132,7 +127,7 @@ class TestErrorHandlingLogic:
 
     def test_http_exception_creation(self):
         """Test HTTPException creation patterns."""
-        from fastapi import HTTPException, status
+        from fastapi import status
 
         # 404 Not Found
         not_found = HTTPException(
@@ -164,7 +159,7 @@ class TestErrorHandlingLogic:
 
         try:
             await mock_operation_that_fails()
-            assert False, "Should have raised exception"
+            raise AssertionError("Should have raised exception")
         except Exception as e:
             # This is the pattern used in routers
             error_message = f"Operation failed: {e}"
@@ -177,8 +172,9 @@ class TestDatabasePatterns:
 
     async def test_query_building_pattern(self):
         """Test SQLAlchemy query building pattern."""
-        from sqlalchemy import select, and_
-        from src.models.task import Task, TaskStatus, TaskPriority
+        from sqlalchemy import and_, select
+
+        from src.models.task import Task, TaskPriority, TaskStatus
 
         # Basic query
         query = select(Task)
@@ -322,11 +318,7 @@ class TestDependencyInjection:
 
     def test_dependency_functions_exist(self):
         """Test that dependency functions can be imported."""
-        from src.api.dependencies import (
-            get_current_user,
-            get_task_service,
-            get_workflow_service
-        )
+        from src.api.dependencies import get_current_user, get_task_service, get_workflow_service
 
         assert get_current_user is not None
         assert get_task_service is not None
@@ -344,7 +336,7 @@ class TestUtilityFunctions:
 
     def test_datetime_operations(self):
         """Test datetime operations used in routers."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         # UTC now (used in routers)
         now = datetime.utcnow()
@@ -396,7 +388,7 @@ class TestModelIntegration:
 
     def test_task_model_import(self):
         """Test Task model can be imported and used."""
-        from src.models.task import Task, TaskStatus, TaskPriority
+        from src.models.task import Task, TaskPriority, TaskStatus
 
         assert Task is not None
         assert TaskStatus is not None

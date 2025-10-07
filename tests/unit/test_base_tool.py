@@ -3,9 +3,10 @@ Unit tests for BaseTool class
 Testing common functionality without database dependencies
 """
 
+from unittest.mock import Mock
+
 import pytest
-from unittest.mock import Mock, AsyncMock
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
 
 from src.tools.base_tool import BaseTool
 

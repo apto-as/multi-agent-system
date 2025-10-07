@@ -218,7 +218,7 @@ class MCPHandler:
                 },
             }
 
-    async def handle_initialize(self, params: dict, session: WebSocketSession) -> dict:
+    async def handle_initialize(self, _params: dict, _session: WebSocketSession) -> dict:
         """Handle initialization request"""
         return {
             "protocolVersion": "1.0",
@@ -233,7 +233,7 @@ class MCPHandler:
             },
         }
 
-    async def handle_list_tools(self, params: dict, session: WebSocketSession) -> dict:
+    async def handle_list_tools(self, _params: dict, _session: WebSocketSession) -> dict:
         """List available MCP tools"""
         tools = [
             {
@@ -307,7 +307,7 @@ class MCPHandler:
         else:
             raise ValueError(f"Unknown tool: {tool_name}")
 
-    async def handle_list_resources(self, params: dict, session: WebSocketSession) -> dict:
+    async def handle_list_resources(self, _params: dict, session: WebSocketSession) -> dict:
         """List available resources"""
         # Return agent's memories as resources
         memories = await self.memory_service.list_memories(agent_id=session.agent_id, limit=100)
@@ -324,7 +324,7 @@ class MCPHandler:
 
         return {"resources": resources}
 
-    async def handle_get_resource(self, params: dict, session: WebSocketSession) -> dict:
+    async def handle_get_resource(self, params: dict, _session: WebSocketSession) -> dict:
         """Get specific resource"""
         uri = params.get("uri")
 
@@ -359,7 +359,7 @@ class MCPHandler:
         )
         return {"memories": [m.to_dict() for m in memories]}
 
-    async def handle_create_task(self, params: dict, session: WebSocketSession) -> dict:
+    async def handle_create_task(self, params: dict, _session: WebSocketSession) -> dict:
         """Create task (direct method)"""
         task = await self.task_service.create_task(**params)
         return task.to_dict()
@@ -371,14 +371,14 @@ class MCPHandler:
         )
         return {"tasks": [t.to_dict() for t in tasks]}
 
-    async def handle_execute_workflow(self, params: dict, session: WebSocketSession) -> dict:
+    async def handle_execute_workflow(self, params: dict, _session: WebSocketSession) -> dict:
         """Execute workflow"""
         workflow = await self.workflow_service.execute_workflow(
             workflow_id=params.get("workflow_id"), parameters=params.get("parameters", {})
         )
         return workflow.to_dict()
 
-    async def handle_agent_info(self, params: dict, session: WebSocketSession) -> dict:
+    async def handle_agent_info(self, _params: dict, session: WebSocketSession) -> dict:
         """Get agent information"""
         return {
             "agent_id": session.agent_id,
@@ -404,7 +404,7 @@ async def verify_token(credentials: HTTPAuthorizationCredentials | None = None) 
         return None
 
 
-async def websocket_endpoint(websocket: WebSocket, db=Depends(get_db), agent_id: str | None = None):
+async def websocket_endpoint(websocket: WebSocket, _db=Depends(get_db), agent_id: str | None = None):
     """WebSocket endpoint for MCP protocol"""
 
     # Extract agent_id from headers or query params

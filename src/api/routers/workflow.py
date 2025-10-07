@@ -19,7 +19,7 @@ from ...models.workflow import Workflow, WorkflowStatus
 from ...security.validators import InputValidator
 from ...services.workflow_history_service import WorkflowHistoryService
 from ...services.workflow_service import WorkflowService
-from ..dependencies import require_scope, get_workflow_service
+from ..dependencies import get_workflow_service, require_scope
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

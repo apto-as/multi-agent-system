@@ -24,15 +24,13 @@ Performance Requirements:
 
 import asyncio
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any
 
 import pytest
 from fastapi import status
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from src.models.workflow import Workflow, WorkflowStatus
 
 
 @pytest.mark.integration
@@ -191,7 +189,7 @@ class TestWorkflowAPIIntegration:
 
             # Update status if not pending
             if workflow_data["status"] != "pending":
-                update_data = {"status": workflow_data["status"]}
+                {"status": workflow_data["status"]}
                 # Note: This would normally be done by the workflow service
                 # For testing, we'll directly update via the API
 
@@ -696,7 +694,7 @@ class TestWorkflowErrorHandling:
         assert second_cancel.status_code == status.HTTP_400_BAD_REQUEST
 
         # Try to execute cancelled workflow (should work - creates new execution)
-        new_exec = await async_client.post(f"/api/v1/workflows/{workflow_id}/execute")
+        await async_client.post(f"/api/v1/workflows/{workflow_id}/execute")
         # This behavior depends on implementation - cancelled workflows might be re-executable
 
 

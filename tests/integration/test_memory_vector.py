@@ -7,8 +7,8 @@ import numpy as np
 import pytest
 from sqlalchemy import text
 
-from src.models.memory import Memory, MemoryConsolidation
 from src.models.agent import AccessLevel
+from src.models.memory import Memory, MemoryConsolidation
 
 
 @pytest.mark.database

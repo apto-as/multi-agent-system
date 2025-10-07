@@ -10,9 +10,9 @@ from unittest.mock import AsyncMock
 import pytest
 import pytest_asyncio
 from fastapi.testclient import TestClient
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
-from sqlalchemy import text
 
 # Set test environment
 os.environ["TMWS_ENVIRONMENT"] = "test"
@@ -35,18 +35,6 @@ from src.core.config import get_settings
 from src.core.database import Base, get_db_session_dependency
 
 # Import all models to ensure Base.metadata discovers them
-from src.models import (
-    Agent, AgentNamespace, AgentTeam,
-    APIAuditLog,
-    LearningPattern,
-    Memory, MemoryConsolidation, MemoryPattern, MemorySharing,
-    Persona, PersonaRole, PersonaType,
-    SecurityAuditLog, SecurityEventSeverity, SecurityEventType,
-    Task, TaskPriority, TaskStatus,
-    User,
-    Workflow, WorkflowStatus, WorkflowType,
-    WorkflowExecution, WorkflowExecutionLog, WorkflowSchedule, WorkflowStepExecution,
-)
 from src.models.user import UserRole
 
 # Get test settings
@@ -89,7 +77,7 @@ async def postgresql_engine():
     if not TEST_USE_POSTGRESQL:
         pytest.skip("PostgreSQL tests require TEST_USE_POSTGRESQL=true")
 
-    settings = get_settings()
+    get_settings()
     engine = create_async_engine(
         "postgresql+asyncpg://tmws_user:tmws_password@localhost:5433/tmws_test",
         poolclass=NullPool,
@@ -133,7 +121,7 @@ async def client(test_session):
 @pytest_asyncio.fixture
 async def async_client(test_session):
     """Create async test client for E2E tests."""
-    from httpx import AsyncClient, ASGITransport
+    from httpx import ASGITransport, AsyncClient
 
     from src.api.app import create_app
     app = create_app()
@@ -148,11 +136,11 @@ async def async_client(test_session):
 async def authenticated_client(client, test_session):
     """Create authenticated test client."""
     # Create test user and get token
-    from src.models.user import UserRole, UserStatus
-    from src.utils.security import hash_password_with_salt
-    from src.models.user import User
-    from src.services.jwt_service import JWTService
     from datetime import datetime, timezone
+
+    from src.models.user import User, UserRole, UserStatus
+    from src.services.jwt_service import JWTService
+    from src.utils.security import hash_password_with_salt
 
     # Create test user directly in test session
     password_hash, password_salt = hash_password_with_salt("TestPassword123!")
@@ -190,9 +178,10 @@ async def authenticated_client(client, test_session):
 @pytest_asyncio.fixture
 async def test_user(test_session, test_user_data):
     """Create a test user in the database."""
-    from src.utils.security import hash_password_with_salt
-    from src.models.user import User, UserStatus
     from datetime import datetime, timezone
+
+    from src.models.user import User, UserStatus
+    from src.utils.security import hash_password_with_salt
 
     # Create test user directly in test session
     password_hash, password_salt = hash_password_with_salt(test_user_data["password"])
@@ -229,9 +218,11 @@ async def test_api_key(test_user, test_session):
         - No rate limiting (unlimited requests)
         - Scopes: READ, WRITE, ADMIN (full access)
     """
-    from src.models.user import APIKey, APIKeyScope
     import secrets
+
     from passlib.context import CryptContext
+
+    from src.models.user import APIKey, APIKeyScope
 
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 

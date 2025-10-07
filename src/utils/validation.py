@@ -184,7 +184,7 @@ def validate_importance_score(score: float) -> tuple[bool, list[str]]:
     """
     issues = []
 
-    if not isinstance(score, (int, float)):
+    if not isinstance(score, int | float):
         issues.append("Importance score must be a number")
         return False, issues
 
