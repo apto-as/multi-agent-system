@@ -367,7 +367,7 @@ async def delete_agent(
 async def activate_agent(
     agent_id: str,
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict[str, Any] = Depends(get_current_user),
+    _current_user: dict[str, Any] = Depends(get_current_user),
 ) -> AgentResponse:
     """Activate a deactivated agent."""
     agent_service = AgentService(db)
@@ -408,7 +408,7 @@ async def deactivate_agent(
 async def get_agent_stats(
     agent_id: str,
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict[str, Any] = Depends(get_current_user),
+    _current_user: dict[str, Any] = Depends(get_current_user),
 ) -> AgentStatsResponse:
     """Get comprehensive statistics for an agent."""
     agent_service = AgentService(db)
@@ -426,7 +426,7 @@ async def get_agent_stats(
 async def update_performance_metrics(
     agent_id: str,
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict[str, Any] = Depends(get_current_user),
+    _current_user: dict[str, Any] = Depends(get_current_user),
 ):
     """Update agent performance metrics based on recent activity."""
     agent_service = AgentService(db)

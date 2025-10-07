@@ -44,13 +44,9 @@ class StorageLocation(str, Enum):
 
 def get_storage_location(scope: MemoryScope) -> StorageLocation:
     """Determine storage location based on scope."""
-    if scope == MemoryScope.GLOBAL:
+    if scope == MemoryScope.GLOBAL or scope == MemoryScope.SHARED:
         return StorageLocation.CLOUD
-    elif scope == MemoryScope.SHARED:
-        return StorageLocation.CLOUD
-    elif scope == MemoryScope.PROJECT:
-        return StorageLocation.LOCAL
-    elif scope == MemoryScope.PRIVATE:
+    elif scope == MemoryScope.PROJECT or scope == MemoryScope.PRIVATE:
         return StorageLocation.LOCAL
     else:
         # Default to local for unknown scopes (security first)

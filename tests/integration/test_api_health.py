@@ -24,12 +24,10 @@ Performance Requirements:
 
 import asyncio
 from datetime import datetime
-from typing import Any
 
 import pytest
 from fastapi import status
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
 
 
 @pytest.mark.integration
@@ -193,7 +191,7 @@ class TestHealthAPIIntegration:
         assert data["status"] == "alive"
         assert "timestamp" in data
         assert "uptime_seconds" in data
-        assert isinstance(data["uptime_seconds"], (int, float))
+        assert isinstance(data["uptime_seconds"], int | float)
         assert data["uptime_seconds"] >= 0
 
     async def test_liveness_check_lightweight(self, async_client: AsyncClient):
@@ -521,7 +519,7 @@ class TestHealthMonitoringIntegration:
                          "connections_overflow", "connections_invalid"]
 
         for field in numeric_fields:
-            assert isinstance(db_metrics[field], (int, float))
+            assert isinstance(db_metrics[field], int | float)
             assert db_metrics[field] >= 0
 
     async def test_health_status_codes_for_monitoring(self, async_client: AsyncClient):

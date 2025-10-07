@@ -23,15 +23,12 @@ Performance Requirements:
 
 import asyncio
 import uuid
-from datetime import datetime, timedelta
 from typing import Any
 
 import pytest
 from fastapi import status
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from src.models.task import Task, TaskPriority, TaskStatus
 
 
 @pytest.mark.integration

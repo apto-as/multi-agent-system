@@ -7,18 +7,23 @@ Target: 265 lines of 0% coverage code - MAXIMUM IMPACT!
 """
 
 import asyncio
-import pytest
-import signal
-from datetime import datetime
-from unittest.mock import AsyncMock, Mock, patch, MagicMock
 from contextlib import suppress
+from datetime import datetime
+from unittest.mock import AsyncMock, Mock, patch
 
-from src.core.service_manager import (
-    ServiceRegistry, ServiceManager, service_manager,
-    initialize_services, shutdown_services, get_service,
-    health_check, get_service_status, service_context
-)
+import pytest
+
 from src.core.exceptions import ServiceError
+from src.core.service_manager import (
+    ServiceManager,
+    ServiceRegistry,
+    get_service,
+    get_service_status,
+    health_check,
+    initialize_services,
+    service_context,
+    shutdown_services,
+)
 
 
 class TestServiceRegistry:
@@ -594,8 +599,8 @@ class TestServiceManager:
         manager._initialized = True
 
         # Mock the monitoring loop
-        with patch.object(manager, 'health_check_all', new_callable=AsyncMock) as mock_health_check:
-            with patch('asyncio.sleep', new_callable=AsyncMock) as mock_sleep:
+        with patch.object(manager, 'health_check_all', new_callable=AsyncMock):
+            with patch('asyncio.sleep', new_callable=AsyncMock):
                 # Run one iteration and then cancel
                 async def health_monitor():
                     await manager.health_check_all()

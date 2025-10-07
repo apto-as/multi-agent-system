@@ -3,14 +3,15 @@ Comprehensive unit tests for LearningService with 100% coverage.
 Tests all learning pattern management functionality with performance optimizations.
 """
 
-import pytest
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, Mock, patch
-from uuid import UUID, uuid4
+from uuid import uuid4
 
-from src.services.learning_service import LearningService
+import pytest
+
 from src.core.exceptions import NotFoundError, PermissionError, ValidationError
-from src.models.learning_pattern import LearningPattern, PatternUsageHistory
+from src.models.learning_pattern import LearningPattern
+from src.services.learning_service import LearningService
 
 
 class TestLearningService:
@@ -144,7 +145,7 @@ class TestCreatePattern:
         created_pattern.id = uuid4()
         created_pattern.pattern_name = sample_pattern_data["pattern_name"]
 
-        result = await learning_service.create_pattern(**sample_pattern_data)
+        await learning_service.create_pattern(**sample_pattern_data)
 
         mock_session.add.assert_called_once()
         mock_session.flush.assert_called_once()
@@ -460,7 +461,7 @@ class TestUsePattern:
         mock_result.scalar_one_or_none.return_value = mock_pattern
         mock_session.execute.return_value = mock_result
 
-        result = await learning_service.use_pattern(
+        await learning_service.use_pattern(
             pattern_id=mock_pattern.id,
             using_agent_id="test_agent",
             success=True

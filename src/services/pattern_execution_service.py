@@ -35,7 +35,7 @@ from ..core.config import get_settings
 from ..core.database import get_db_session
 from ..core.exceptions import NotFoundError, ValidationError
 from ..models import Memory
-from ..security.audit_logger_async import AsyncSecurityAuditLogger, get_audit_logger
+from ..security.audit_logger_async import get_audit_logger
 from ..security.pattern_auth import pattern_auth_manager
 from ..security.pattern_validator import pattern_validator
 

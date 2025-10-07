@@ -4,13 +4,15 @@ Testing graceful shutdown functionality
 """
 
 import asyncio
+import os
 import signal
-import pytest
-from unittest.mock import Mock, AsyncMock, patch
 
 # Import the class directly to avoid circular dependencies
 import sys
-import os
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from core.graceful_shutdown import GracefulShutdownHandler, add_cleanup_task, wait_for_shutdown

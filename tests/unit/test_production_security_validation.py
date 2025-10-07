@@ -165,9 +165,8 @@ class TestDatabaseURLValidation:
         env = PRODUCTION_BASE_ENV.copy()
         env["TMWS_DATABASE_URL"] = ""
 
-        with patch.dict(os.environ, env, clear=True):
-            with pytest.raises(ValidationError):
-                Settings()
+        with patch.dict(os.environ, env, clear=True), pytest.raises(ValidationError):
+            Settings()
 
 
 class TestCORSValidation:

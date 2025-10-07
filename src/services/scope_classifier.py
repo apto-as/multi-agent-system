@@ -89,10 +89,7 @@ class ProjectContextDetector:
     @classmethod
     def is_project_specific(cls, content: str) -> bool:
         """Check if content is project-specific."""
-        for pattern in cls.PROJECT_INDICATORS:
-            if re.search(pattern, content, re.MULTILINE):
-                return True
-        return False
+        return any(re.search(pattern, content, re.MULTILINE) for pattern in cls.PROJECT_INDICATORS)
 
 
 class KnowledgeTypeClassifier:

@@ -3,13 +3,14 @@ Integration tests for Memory service with PostgreSQL backend.
 Tests the complete memory service functionality including vector operations.
 """
 
-import numpy as np
-import pytest
 from unittest.mock import AsyncMock, patch
 
-from src.services.memory_service import MemoryService
-from src.models.memory import Memory
+import numpy as np
+import pytest
+
 from src.models.agent import AccessLevel
+from src.models.memory import Memory
+from src.services.memory_service import MemoryService
 
 
 @pytest.mark.database

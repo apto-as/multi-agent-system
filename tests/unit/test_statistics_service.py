@@ -3,14 +3,14 @@ Comprehensive unit tests for StatisticsService with 100% coverage.
 Tests all statistics collection and analysis functionality.
 """
 
-import pytest
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
-from src.services.statistics_service import StatisticsService
+import pytest
+
 from src.models.agent import Agent
-from src.models.memory import Memory, MemoryPattern
+from src.services.statistics_service import StatisticsService
 
 
 class TestStatisticsService:
@@ -229,8 +229,8 @@ class TestMemoryStats:
         ]
 
         # Mock helper methods
-        with patch.object(statistics_service, '_count_shared_memories', return_value=75) as mock_shared, \
-             patch.object(statistics_service, '_count_consolidated_memories', return_value=25) as mock_consolidated:
+        with patch.object(statistics_service, '_count_shared_memories', return_value=75), \
+             patch.object(statistics_service, '_count_consolidated_memories', return_value=25):
 
             result = await statistics_service._get_memory_stats("test_agent")
 
@@ -306,7 +306,7 @@ class TestAccessPatterns:
             recent_result
         ]
 
-        with patch.object(statistics_service, '_find_peak_hours', return_value=[14, 15]) as mock_peak:
+        with patch.object(statistics_service, '_find_peak_hours', return_value=[14, 15]):
             result = await statistics_service._get_access_patterns("test_agent")
 
             assert len(result["top_accessed_memories"]) == 1
@@ -392,8 +392,8 @@ class TestLearningStats:
             confidence_result
         ]
 
-        with patch.object(statistics_service, '_count_active_patterns', return_value=35) as mock_active, \
-             patch.object(statistics_service, '_calculate_learning_velocity', return_value=1.5) as mock_velocity:
+        with patch.object(statistics_service, '_count_active_patterns', return_value=35), \
+             patch.object(statistics_service, '_calculate_learning_velocity', return_value=1.5):
 
             result = await statistics_service._get_learning_stats("test_agent")
 

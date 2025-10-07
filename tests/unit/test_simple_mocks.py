@@ -15,8 +15,7 @@ Coverage Strategy:
 
 import uuid
 from datetime import datetime, timedelta
-from unittest.mock import MagicMock, patch, call
-from typing import Dict, List, Any
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -306,7 +305,7 @@ class TestMemoryServiceLogic:
         """Test memory search scoring logic."""
         def calculate_relevance_score(query_embedding, memory_embedding, importance):
             # Mock similarity calculation
-            similarity = sum(a * b for a, b in zip(query_embedding, memory_embedding))
+            similarity = sum(a * b for a, b in zip(query_embedding, memory_embedding, strict=False))
             # Boost by importance
             return similarity * (1 + importance * 0.5)
 
@@ -370,18 +369,21 @@ class TestHealthCheckLogic:
                 }
 
         # Healthy component
-        healthy_check = lambda: True
+        def healthy_check():
+            return True
         health_result = check_component_health("database", healthy_check)
         assert health_result["status"] == "healthy"
         assert "error" not in health_result
 
         # Unhealthy component
-        unhealthy_check = lambda: False
+        def unhealthy_check():
+            return False
         health_result = check_component_health("cache", unhealthy_check)
         assert health_result["status"] == "unhealthy"
 
         # Error in component
-        error_check = lambda: exec('raise Exception("Connection failed")')
+        def error_check():
+            return exec('raise Exception("Connection failed")')
         health_result = check_component_health("external_api", error_check)
         assert health_result["status"] == "unhealthy"
         assert "error" in health_result

@@ -3,10 +3,9 @@ Unit tests for HTMLSanitizer
 Testing HTML sanitization functionality
 """
 
-import pytest
-from unittest.mock import patch, Mock
-import sys
 import os
+import sys
+from unittest.mock import patch
 
 # Add source path for direct imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -32,7 +31,7 @@ class TestHTMLSanitizerInitialization:
         """Test that presets have required structure."""
         sanitizer = HTMLSanitizer()
 
-        for preset_name, preset in sanitizer.PRESETS.items():
+        for _preset_name, preset in sanitizer.PRESETS.items():
             assert 'tags' in preset
             assert 'attributes' in preset
             assert isinstance(preset['tags'], list)
@@ -105,7 +104,7 @@ class TestHTMLSanitizerBasicSanitization:
 
     def test_url_validation_basic(self):
         """Test basic URL validation functionality."""
-        sanitizer = HTMLSanitizer()
+        HTMLSanitizer()
 
         # Test safe URLs
         safe_urls = [
@@ -163,7 +162,7 @@ class TestHTMLSanitizerTextProcessing:
             'javascript:',
             'vbscript:',
             'data:text/html',
-            'on\w+\s*=',  # event handlers like onclick=
+            r'on\w+\s*=',  # event handlers like onclick=
             '<script',
             '</script>',
             '<iframe',
@@ -171,7 +170,6 @@ class TestHTMLSanitizerTextProcessing:
             '<embed'
         ]
 
-        import re
 
         for pattern in dangerous_patterns[:3]:  # Test first 3 as strings
             text = f"Some text with {pattern} dangerous content"
@@ -201,7 +199,7 @@ class TestHTMLSanitizerEdgeCases:
 
     def test_empty_input(self):
         """Test sanitization of empty input."""
-        sanitizer = HTMLSanitizer()
+        HTMLSanitizer()
 
         empty_inputs = ['', None, '   ', '\n\n\n']
 
@@ -217,7 +215,7 @@ class TestHTMLSanitizerEdgeCases:
 
     def test_very_long_input(self):
         """Test handling of very long input."""
-        sanitizer = HTMLSanitizer()
+        HTMLSanitizer()
 
         # Create long input
         long_input = '<p>' + 'A' * 10000 + '</p>'
@@ -370,7 +368,6 @@ class TestHTMLSanitizerIntegration:
     def test_preset_comparison(self):
         """Test different presets on same content."""
         sanitizer = HTMLSanitizer()
-        test_html = '<h1>Title</h1><p>Para with <strong>bold</strong> and <a href="https://example.com">link</a></p>'
 
         # Different presets should handle content differently
         strict = sanitizer.PRESETS['strict']

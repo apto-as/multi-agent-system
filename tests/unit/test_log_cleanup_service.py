@@ -5,14 +5,12 @@ Tests all log management and cleanup functionality.
 Strategic coverage implementation by Hera for 80% target achievement.
 """
 
-import pytest
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, Mock, patch
-from uuid import uuid4
 
-from src.services.log_cleanup_service import (
-    LogCleanupService, LogLevel, SystemLog
-)
+import pytest
+
+from src.services.log_cleanup_service import LogCleanupService, LogLevel, SystemLog
 
 
 class TestLogLevel:
@@ -104,7 +102,7 @@ class TestLogCleanupService:
         mock_log.message = "Test message"
         mock_log.context = {"key": "value"}
 
-        result = await log_cleanup_service.log_event(
+        await log_cleanup_service.log_event(
             level=LogLevel.INFO,
             message="Test message",
             component="test",
@@ -509,7 +507,7 @@ class TestLogCleanupServiceIntegration:
         # Set up execute calls
         execute_calls = [count_mock] + batches + [Mock()] * len(batches)
         # Only test DEBUG level to keep test simple
-        for level in [LogLevel.INFO, LogLevel.WARNING, LogLevel.ERROR, LogLevel.CRITICAL]:
+        for _level in [LogLevel.INFO, LogLevel.WARNING, LogLevel.ERROR, LogLevel.CRITICAL]:
             execute_calls.append(Mock(scalar=lambda: 0))  # No logs for other levels
 
         log_cleanup_service.session.execute.side_effect = execute_calls

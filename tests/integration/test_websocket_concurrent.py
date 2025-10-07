@@ -3,13 +3,10 @@ Integration test for WebSocket concurrent connections.
 Tests multiple terminal simultaneous connections from the same agent.
 """
 
-import asyncio
-import json
 import uuid
 
 import pytest
 from fastapi.testclient import TestClient
-from websockets import connect as websocket_connect
 
 from src.api.app import create_app
 from src.core.config import get_settings
@@ -72,8 +69,8 @@ async def test_concurrent_message_handling():
         welcome1 = ws1.receive_json()
         welcome2 = ws2.receive_json()
 
-        session1 = welcome1["params"]["session_id"]
-        session2 = welcome2["params"]["session_id"]
+        welcome1["params"]["session_id"]
+        welcome2["params"]["session_id"]
 
         # Send concurrent messages
         messages_to_send = 10
@@ -118,7 +115,7 @@ async def test_broadcast_to_agent_sessions():
     with TestClient(app) as client:
         # Create 3 connections for the same agent
         connections = []
-        for i in range(3):
+        for _i in range(3):
             ws = client.websocket_connect(f"/ws/mcp?agent_id={agent_id}")
             # Receive welcome
             ws.receive_json()
@@ -155,7 +152,7 @@ async def test_connection_cleanup_on_disconnect():
 
     with TestClient(app) as client:
         # Create and immediately close connections
-        for i in range(5):
+        for _i in range(5):
             ws = client.websocket_connect(f"/ws/mcp?agent_id={agent_id}")
             welcome = ws.receive_json()
             session_id = welcome["params"]["session_id"]
@@ -187,7 +184,7 @@ async def test_rate_limiting_per_ip():
         for i in range(10):
             try:
                 ws = client.websocket_connect(f"/ws/mcp?agent_id=rate-test-{i}")
-                welcome = ws.receive_json()
+                ws.receive_json()
                 connections.append(ws)
             except Exception:
                 # Rate limit might kick in

@@ -3,12 +3,11 @@ Integration tests for API Key Management endpoints.
 Tests user self-service API key creation, listing, and revocation.
 """
 
+
 import pytest
 from fastapi import status
-from uuid import uuid4
 
-from src.models.user import APIKeyScope, User, UserRole
-
+from src.models.user import APIKeyScope, UserRole
 
 pytestmark = pytest.mark.asyncio
 

@@ -3,25 +3,21 @@ Unit tests for Pattern Execution Service
 Tests performance, correctness, and edge cases
 """
 
-import asyncio
 import re
 import time
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from src.core.cache import CacheManager
 from src.services.pattern_execution_service import (
     ExecutionMode,
-    ExecutionResult,
     HybridDecisionRouter,
     PatternDefinition,
     PatternExecutionEngine,
     PatternRegistry,
     PatternType,
-    RoutingDecision,
 )
-
 
 # ============================================================================
 # FIXTURES
@@ -239,12 +235,12 @@ class TestPatternRegistry:
         # First call - cache miss
         start = time.perf_counter()
         pattern1 = pattern_registry.find_matching_pattern(query)
-        time1 = time.perf_counter() - start
+        time.perf_counter() - start
 
         # Second call - cache hit
         start = time.perf_counter()
         pattern2 = pattern_registry.find_matching_pattern(query)
-        time2 = time.perf_counter() - start
+        time.perf_counter() - start
 
         # Should be same pattern
         assert pattern1 == pattern2
@@ -459,7 +455,7 @@ class TestPatternExecutionEngine:
         query = "execute tool"
 
         # Execute with cache
-        result1 = await engine.execute(query, use_cache=True)
+        await engine.execute(query, use_cache=True)
 
         # Execute without cache
         result2 = await engine.execute(query, use_cache=False)
