@@ -77,8 +77,8 @@ class ServiceConfig:
     dependencies: list[str] = field(default_factory=list)
 
 
-class ServiceManager(ABC):
-    """Abstract base for service management"""
+class BaseProcessManager(ABC):
+    """Abstract base for process-level service management"""
 
     def __init__(self, config: ServiceConfig):
         self.config = config
@@ -122,7 +122,7 @@ class ServiceManager(ABC):
         return self.state in [ServiceState.FAILED, ServiceState.UNHEALTHY]
 
 
-class FastMCPManager(ServiceManager):
+class FastMCPManager(BaseProcessManager):
     """FastMCP service manager"""
 
     def __init__(self, mcp_server, config: ServiceConfig):
@@ -227,7 +227,7 @@ class FastMCPManager(ServiceManager):
             return self.metrics
 
 
-class FastAPIManager(ServiceManager):
+class FastAPIManager(BaseProcessManager):
     """FastAPI service manager"""
 
     def __init__(self, app, config: ServiceConfig, host: str = "0.0.0.0", port: int = 8000):
@@ -346,7 +346,7 @@ class TacticalProcessManager:
     """
 
     def __init__(self):
-        self.services: dict[str, ServiceManager] = {}
+        self.services: dict[str, BaseProcessManager] = {}
         self.is_running = False
         self._monitoring_task = None
         self._shutdown_event = asyncio.Event()
@@ -368,7 +368,7 @@ class TacticalProcessManager:
 
         logger.info("[TACTICAL] Process Manager initialized")
 
-    def register_service(self, name: str, service_manager: ServiceManager):
+    def register_service(self, name: str, service_manager: BaseProcessManager):
         """Register a service for management"""
         self.services[name] = service_manager
         self._ipc_channels[name] = asyncio.Queue()
