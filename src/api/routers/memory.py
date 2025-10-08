@@ -24,7 +24,21 @@ router = APIRouter()
 
 
 # Request/Response Models
-class MemoryCreate(BaseModel):
+
+# Base model with common string sanitization
+class SanitizedStringModel(BaseModel):
+    """Base model with automatic string sanitization for common fields."""
+
+    @field_validator("content", "persona", "category", "query", mode="before", check_fields=False)
+    @classmethod
+    def sanitize_strings(cls, v):
+        """Sanitize string fields to prevent XSS and injection attacks."""
+        if isinstance(v, str):
+            return sanitize_input(v)
+        return v
+
+
+class MemoryCreate(SanitizedStringModel):
     """Memory creation request."""
 
     content: str = Field(..., min_length=1, max_length=10000)
@@ -35,15 +49,8 @@ class MemoryCreate(BaseModel):
     is_learned: bool = Field(False)
     metadata: dict[str, Any] | None = Field(default_factory=dict)
 
-    @field_validator("content", "persona", "category", mode="before")
-    @classmethod
-    def sanitize_strings(cls, v):
-        if isinstance(v, str):
-            return sanitize_input(v)
-        return v
 
-
-class MemoryUpdate(BaseModel):
+class MemoryUpdate(SanitizedStringModel):
     """Memory update request."""
 
     content: str | None = Field(None, min_length=1, max_length=10000)
@@ -54,15 +61,8 @@ class MemoryUpdate(BaseModel):
     is_learned: bool | None = None
     metadata: dict[str, Any] | None = None
 
-    @field_validator("content", "persona", "category", mode="before")
-    @classmethod
-    def sanitize_strings(cls, v):
-        if isinstance(v, str):
-            return sanitize_input(v)
-        return v
 
-
-class MemorySearch(BaseModel):
+class MemorySearch(SanitizedStringModel):
     """Memory search request."""
 
     query: str | None = Field(None, max_length=1000)
@@ -78,13 +78,6 @@ class MemorySearch(BaseModel):
     min_similarity: float = Field(
         0.7, ge=0.0, le=1.0, description="Minimum similarity for semantic search"
     )
-
-    @field_validator("query", "persona", "category", mode="before")
-    @classmethod
-    def sanitize_strings(cls, v):
-        if isinstance(v, str):
-            return sanitize_input(v)
-        return v
 
 
 class MemoryResponse(BaseModel):
