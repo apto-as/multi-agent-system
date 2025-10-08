@@ -4,7 +4,6 @@ Provides common functionality for all service classes
 """
 
 import logging
-from abc import ABC
 from typing import Any, TypeVar
 from uuid import UUID
 
@@ -18,7 +17,7 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T")
 
 
-class BaseService(ABC):
+class BaseService:
     """Base service class with common database operations."""
 
     def __init__(self, session: AsyncSession):

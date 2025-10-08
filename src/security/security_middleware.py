@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from ..core.config import get_settings
+from .audit_logger_async import AsyncAuditLogger
 from .rate_limiter import RateLimiter
 
 
@@ -27,8 +28,6 @@ class UnifiedSecurityMiddleware(BaseHTTPMiddleware):
         rate_limiter: RateLimiter | None = None,
         audit_logger: AsyncAuditLogger | None = None,
     ):
-        from .audit_logger_async import AsyncAuditLogger
-
         super().__init__(app)
         self.settings = get_settings()
         self.rate_limiter = rate_limiter or RateLimiter()
@@ -372,7 +371,8 @@ def setup_security_middleware(
     EnhancedCORSMiddleware.setup_cors(app, settings)
 
     # 2. Security Headers (applied to all responses)
-    app.add_middleware(SecurityHeadersMiddleware)
+    # TODO: Implement SecurityHeadersMiddleware or integrate into UnifiedSecurityMiddleware
+    # app.add_middleware(SecurityHeadersMiddleware)
 
     # 3. Unified Security (rate limiting + audit logging)
     app.add_middleware(

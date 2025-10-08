@@ -362,7 +362,7 @@ class RateLimiter:
                     self.global_stats["total_requests"] < limit.requests // 2
                 )  # 50% stricter limit
 
-    async def _check_ip_limit(self, client_stats: ClientStats, endpoint_type: str) -> bool:
+    async def _check_ip_limit(self, client_stats: ClientStats, _endpoint_type: str) -> bool:
         """Check IP-based rate limit."""
         limit = self.rate_limits.get("per_ip", self.rate_limits["per_ip"])
         now = datetime.utcnow()
@@ -407,7 +407,7 @@ class RateLimiter:
 
         return True
 
-    async def _check_user_limit(self, user_id: str, endpoint_type: str) -> bool:
+    async def _check_user_limit(self, user_id: str, _endpoint_type: str) -> bool:
         """Check user-based rate limit."""
         if not self.redis_client:
             return True  # Skip if no Redis

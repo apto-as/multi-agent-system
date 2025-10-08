@@ -98,7 +98,7 @@ class TaskTools(BaseTool):
                 due_date=parsed_due_date,
             )
 
-            async def _create_task(session, services):
+            async def _create_task(_session, services):
                 task_service = services["task_service"]
 
                 task = await task_service.create_task(
@@ -161,7 +161,7 @@ class TaskTools(BaseTool):
                 task_id=task_id, status=status, progress=progress, result=result
             )
 
-            async def _update_task_status(session, services):
+            async def _update_task_status(_session, services):
                 task_service = services["task_service"]
 
                 updates = {"status": request.status}
@@ -216,7 +216,7 @@ class TaskTools(BaseTool):
                 Dict containing comprehensive task information
             """
 
-            async def _get_task_status(session, services):
+            async def _get_task_status(_session, services):
                 task_service = services["task_service"]
                 task = await task_service.get_task(task_id)
 
@@ -297,7 +297,7 @@ class TaskTools(BaseTool):
                 Dict containing filtered task list with summary statistics
             """
 
-            async def _list_tasks(session, services):
+            async def _list_tasks(_session, services):
                 task_service = services["task_service"]
 
                 filters = {}
@@ -378,7 +378,7 @@ class TaskTools(BaseTool):
                 Dict containing assignment confirmation and details
             """
 
-            async def _assign_task(session, services):
+            async def _assign_task(_session, services):
                 task_service = services["task_service"]
                 persona_service = services["persona_service"]
 
@@ -436,7 +436,7 @@ class TaskTools(BaseTool):
                 Dict containing completion confirmation and metrics
             """
 
-            async def _complete_task(session, services):
+            async def _complete_task(_session, services):
                 task_service = services["task_service"]
 
                 # Get current task to calculate duration
@@ -509,7 +509,7 @@ class TaskTools(BaseTool):
                 Dict containing comprehensive task analytics
             """
 
-            async def _get_task_analytics(session, services):
+            async def _get_task_analytics(_session, services):
                 task_service = services["task_service"]
 
                 # Get overall statistics

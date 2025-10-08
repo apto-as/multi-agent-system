@@ -30,7 +30,7 @@ def _setup_connection_events(engine) -> None:
     """Setup connection pool events for monitoring, security, and performance tracking."""
 
     @event.listens_for(engine.sync_engine, "connect")
-    def set_sqlite_pragma(dbapi_connection, connection_record):
+    def set_sqlite_pragma(dbapi_connection, _connection_record):
         """Optimize connection settings."""
         if "sqlite" in str(engine.url):
             cursor = dbapi_connection.cursor()
@@ -39,7 +39,7 @@ def _setup_connection_events(engine) -> None:
             cursor.close()
 
     @event.listens_for(engine.sync_engine, "checkout")
-    def receive_checkout(dbapi_connection, connection_record, connection_proxy):
+    def receive_checkout(_dbapi_connection, connection_record, _connection_proxy):
         """Monitor connection checkout and detect slow queries."""
         connection_record.info["checkout_time"] = sa.func.now()
         logger.debug(
@@ -47,7 +47,7 @@ def _setup_connection_events(engine) -> None:
         )
 
     @event.listens_for(engine.sync_engine, "checkin")
-    def receive_checkin(dbapi_connection, connection_record):
+    def receive_checkin(_dbapi_connection, connection_record):
         """Monitor connection checkin and track connection lifetime."""
         if "checkout_time" in connection_record.info:
             # Track connection usage time for performance monitoring

@@ -304,7 +304,7 @@ class SecurityAuditLogger:
         if event.event_type == SecurityEventType.DDOS_DETECTED:
             await self._send_alert(event, "DDoS attack in progress")
 
-    async def _send_alert(self, event: SecurityEvent, alert_message: str) -> None:
+    async def _send_alert(self, _event: SecurityEvent, alert_message: str) -> None:
         """Send security alert (placeholder implementation)."""
         logger.critical(f"SECURITY ALERT: {alert_message}")
 

@@ -434,7 +434,7 @@ class AuthService:
                 f"Password must be at least {self.password_min_length} characters long"
             )
 
-        password_hash, password_salt = hash_password(new_password)
+        password_hash, password_salt = hash_password_with_salt(new_password)
 
         async with get_db_session() as session:
             await session.execute(

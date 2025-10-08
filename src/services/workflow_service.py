@@ -282,11 +282,10 @@ class WorkflowService(BaseService):
 
             # Check condition if present
             condition = step.get("condition")
-            if condition:
-                if not await self._evaluate_condition(condition, context, results):
-                    logger.info(f"Skipping step {step_name} due to condition")
-                    results[step_name] = {"status": "skipped"}
-                    continue
+            if condition and not await self._evaluate_condition(condition, context, results):
+                logger.info(f"Skipping step {step_name} due to condition")
+                results[step_name] = {"status": "skipped"}
+                continue
 
             # Execute step
             step_result = await self._execute_step_action(step, context, results)
@@ -394,7 +393,7 @@ class WorkflowService(BaseService):
             return "continue"
 
     async def queue_workflow_execution(
-        self, workflow_id: UUID, input_data: dict[str, Any] = None
+        self, workflow_id: UUID, _input_data: dict[str, Any] = None
     ) -> str:
         """Queue a workflow for asynchronous execution."""
         workflow = await self.get_workflow(workflow_id)
@@ -410,7 +409,7 @@ class WorkflowService(BaseService):
         return execution_id
 
     async def get_workflow_executions(
-        self, workflow_id: UUID, limit: int = 10
+        self, _workflow_id: UUID, _limit: int = 10
     ) -> list[dict[str, Any]]:
         """Get recent workflow executions."""
         # In a real implementation, this would query an executions table

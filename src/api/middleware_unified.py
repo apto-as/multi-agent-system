@@ -205,12 +205,11 @@ class UnifiedSecurityMiddleware(BaseHTTPMiddleware):
             return False
 
         # Check for required headers in production
-        if settings.is_production:
+        if settings.is_production and request.method in ["POST", "PUT", "PATCH"]:
             # Require proper content-type for POST/PUT/PATCH
-            if request.method in ["POST", "PUT", "PATCH"]:
-                content_type = request.headers.get("Content-Type", "")
-                if not content_type:
-                    return False
+            content_type = request.headers.get("Content-Type", "")
+            if not content_type:
+                return False
 
         return True
 

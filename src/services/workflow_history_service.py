@@ -334,7 +334,7 @@ class WorkflowHistoryService:
                     "message": log.message,
                     "component": log.component,
                 }
-                for log in sorted(execution.logs, key=lambda l: l.timestamp)
+                for log in sorted(execution.logs, key=lambda log_entry: log_entry.timestamp)
             ]
 
         return details

@@ -37,7 +37,7 @@ async def list_tasks(
     user_and_key: tuple[User | None, APIKey | None] = Depends(
         require_scope(APIKeyScope.READ)
     ),
-    task_service: TaskService = Depends(get_task_service),
+    _task_service: TaskService = Depends(get_task_service),
 ) -> dict[str, Any]:
     """
     Get list of tasks with optional filtering.
@@ -189,7 +189,7 @@ async def update_task(
     user_and_key: tuple[User | None, APIKey | None] = Depends(
         require_scope(APIKeyScope.WRITE)
     ),
-    task_service: TaskService = Depends(get_task_service),
+    _task_service: TaskService = Depends(get_task_service),
 ) -> dict[str, Any]:
     """
     Update an existing task.

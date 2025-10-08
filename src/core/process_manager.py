@@ -623,7 +623,7 @@ class TacticalProcessManager:
     async def setup_signal_handlers(self):
         """Setup graceful shutdown signal handlers"""
 
-        def signal_handler(signum, frame):
+        def signal_handler(signum, _frame):
             logger.info(f"[TACTICAL] Received signal {signum} - initiating shutdown")
             asyncio.create_task(self.shutdown_all_services())
 

@@ -126,12 +126,11 @@ class PatternDataValidator:
             errors.append(f"Missing required fields: {missing_fields}")
 
         # 3. Validate pattern name (alphanumeric + underscore only)
-        if "name" in pattern_data:
-            if not re.match(r"^[a-zA-Z0-9_]+$", pattern_data["name"]):
-                errors.append(
-                    f"Invalid pattern name '{pattern_data['name']}'. "
-                    f"Only alphanumeric and underscore allowed."
-                )
+        if "name" in pattern_data and not re.match(r"^[a-zA-Z0-9_]+$", pattern_data["name"]):
+            errors.append(
+                f"Invalid pattern name '{pattern_data['name']}'. "
+                f"Only alphanumeric and underscore allowed."
+            )
 
         # 4. Validate trigger pattern for ReDoS vulnerabilities
         if "trigger_pattern" in pattern_data:
@@ -220,14 +219,13 @@ class PatternDataValidator:
                 errors.append(f"Dangerous SQL keyword '{keyword}' not allowed in patterns")
 
         # 3. Ensure parameterized queries (look for placeholders)
-        if "'" in query or '"' in query:
+        if ("'" in query or '"' in query) and not ("$" in query or "?" in query):
             # Check if quotes are used for string literals (dangerous)
             # Should use $1, $2 (PostgreSQL) or ? (SQLite) placeholders
-            if not ("$" in query or "?" in query):
-                errors.append(
-                    "SQL query appears to use string literals. "
-                    "Use parameterized queries with $1, $2, etc."
-                )
+            errors.append(
+                "SQL query appears to use string literals. "
+                "Use parameterized queries with $1, $2, etc."
+            )
 
         # 4. Check for comment attacks (-- or /* */)
         if "--" in query or "/*" in query:

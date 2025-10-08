@@ -150,7 +150,7 @@ class RBACEngine(PolicyEngine):
         }
 
     async def evaluate(
-        self, context: AccessContext, policies: list[AccessPolicy]
+        self, context: AccessContext, _policies: list[AccessPolicy]
     ) -> AccessDecision:
         """Evaluate using RBAC rules."""
         # Get agent role (simplified - in real implementation, would query database)

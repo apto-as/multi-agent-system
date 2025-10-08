@@ -73,7 +73,7 @@ class WorkflowTools(BaseTool):
                 timeout_minutes=timeout_minutes,
             )
 
-            async def _create_workflow(session, services):
+            async def _create_workflow(_session, services):
                 workflow_service = services["workflow_service"]
 
                 # Validate workflow steps
@@ -147,7 +147,7 @@ class WorkflowTools(BaseTool):
                 execution_context=execution_context,
             )
 
-            async def _execute_workflow(session, services):
+            async def _execute_workflow(_session, services):
                 workflow_service = services["workflow_service"]
 
                 if request.async_execution:
@@ -205,7 +205,7 @@ class WorkflowTools(BaseTool):
                 Dict containing comprehensive workflow information
             """
 
-            async def _get_workflow_status(session, services):
+            async def _get_workflow_status(_session, services):
                 workflow_service = services["workflow_service"]
                 workflow = await workflow_service.get_workflow(workflow_id)
 
@@ -284,7 +284,7 @@ class WorkflowTools(BaseTool):
                 Dict containing filtered workflow list
             """
 
-            async def _list_workflows(session, services):
+            async def _list_workflows(_session, services):
                 workflow_service = services["workflow_service"]
 
                 filters = {}
@@ -360,7 +360,7 @@ class WorkflowTools(BaseTool):
                 Dict containing updated workflow information
             """
 
-            async def _update_workflow(session, services):
+            async def _update_workflow(_session, services):
                 workflow_service = services["workflow_service"]
 
                 updates = {}
@@ -427,7 +427,7 @@ class WorkflowTools(BaseTool):
                 Dict containing cancellation confirmation
             """
 
-            async def _cancel_execution(session, services):
+            async def _cancel_execution(_session, services):
                 workflow_service = services["workflow_service"]
 
                 result = await workflow_service.cancel_workflow_execution(execution_id)
@@ -459,7 +459,7 @@ class WorkflowTools(BaseTool):
                 Dict containing detailed execution logs
             """
 
-            async def _get_execution_logs(session, services):
+            async def _get_execution_logs(_session, services):
                 workflow_service = services["workflow_service"]
 
                 execution = await workflow_service.get_workflow_execution(execution_id)
@@ -506,7 +506,7 @@ class WorkflowTools(BaseTool):
                 Dict containing comprehensive workflow analytics
             """
 
-            async def _get_workflow_analytics(session, services):
+            async def _get_workflow_analytics(_session, services):
                 workflow_service = services["workflow_service"]
 
                 # Get overall statistics

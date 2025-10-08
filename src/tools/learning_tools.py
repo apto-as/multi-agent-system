@@ -75,7 +75,7 @@ class LearningTools(BaseTool):
                 confidence=confidence,
             )
 
-            async def _learn_pattern(session, services):
+            async def _learn_pattern(_session, services):
                 memory_service = services["memory_service"]
                 vectorization_service = services["vectorization_service"]
 
@@ -152,7 +152,7 @@ class LearningTools(BaseTool):
                 min_similarity=min_similarity,
             )
 
-            async def _apply_pattern(session, services):
+            async def _apply_pattern(_session, services):
                 memory_service = services["memory_service"]
                 vectorization_service = services["vectorization_service"]
 
@@ -248,7 +248,7 @@ class LearningTools(BaseTool):
                 Dict containing comprehensive pattern analytics
             """
 
-            async def _get_pattern_analytics(session, services):
+            async def _get_pattern_analytics(_session, services):
                 memory_service = services["memory_service"]
 
                 # Get all pattern memories
@@ -392,7 +392,7 @@ class LearningTools(BaseTool):
                 Dict containing pattern evolution results
             """
 
-            async def _evolve_pattern(session, services):
+            async def _evolve_pattern(_session, services):
                 memory_service = services["memory_service"]
 
                 # Get current pattern
@@ -475,7 +475,7 @@ class LearningTools(BaseTool):
                 Dict containing learning opportunity recommendations
             """
 
-            async def _suggest_opportunities(session, services):
+            async def _suggest_opportunities(_session, services):
                 memory_service = services["memory_service"]
 
                 # Analyze current knowledge base

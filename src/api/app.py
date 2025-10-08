@@ -19,7 +19,7 @@ settings = get_settings()
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_app: FastAPI):
     """
     Application lifespan manager.
     Handles startup and shutdown events.
@@ -189,7 +189,7 @@ TMWS supports two authentication methods:
 
     # Global exception handlers
     @app.exception_handler(404)
-    async def not_found_handler(request: Request, exc: HTTPException):
+    async def not_found_handler(request: Request, _exc: HTTPException):
         """Handle 404 errors."""
         return JSONResponse(
             status_code=404,

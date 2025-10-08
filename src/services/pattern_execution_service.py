@@ -306,7 +306,7 @@ class HybridDecisionRouter:
         self,
         query: str,
         execution_mode: ExecutionMode = ExecutionMode.BALANCED,
-        context: dict[str, Any] | None = None,
+        _context: dict[str, Any] | None = None,
     ) -> RoutingDecision:
         """
         Route query to optimal execution path
@@ -388,7 +388,7 @@ class HybridDecisionRouter:
 
     def _balanced_routing(
         self,
-        query: str,
+        _query: str,
         has_infra_keywords: bool,
         has_memory_keywords: bool,
         has_hybrid_keywords: bool,
@@ -793,7 +793,7 @@ class PatternExecutionEngine:
         )
 
     async def _execute_infrastructure(
-        self, pattern: PatternDefinition, query: str, context: dict[str, Any] | None
+        self, pattern: PatternDefinition, query: str, _context: dict[str, Any] | None
     ) -> dict[str, Any]:
         """
         Execute infrastructure pattern (MCP tools, fast operations)
@@ -811,7 +811,7 @@ class PatternExecutionEngine:
         }
 
     async def _execute_memory(
-        self, pattern: PatternDefinition, query: str, context: dict[str, Any] | None
+        self, pattern: PatternDefinition, query: str, _context: dict[str, Any] | None
     ) -> dict[str, Any]:
         """
         Execute memory pattern (database queries)
