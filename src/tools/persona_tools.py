@@ -74,7 +74,7 @@ class PersonaTools(BaseTool):
                 metadata=metadata or {},
             )
 
-            async def _create_persona(session, services):
+            async def _create_persona(_session, services):
                 persona_service = services["persona_service"]
 
                 persona = await persona_service.create_persona(
@@ -115,7 +115,7 @@ class PersonaTools(BaseTool):
                 Dict containing complete persona information
             """
 
-            async def _get_persona(session, services):
+            async def _get_persona(_session, services):
                 persona_service = services["persona_service"]
                 persona = await persona_service.get_persona(persona_id)
 
@@ -167,7 +167,7 @@ class PersonaTools(BaseTool):
                 Dict containing list of personas with optional statistics
             """
 
-            async def _list_personas(session, services):
+            async def _list_personas(_session, services):
                 persona_service = services["persona_service"]
                 personas = await persona_service.list_personas(active_only=active_only, limit=limit)
 
@@ -244,7 +244,7 @@ class PersonaTools(BaseTool):
                 is_active=is_active,
             )
 
-            async def _update_persona(session, services):
+            async def _update_persona(_session, services):
                 persona_service = services["persona_service"]
 
                 updates = {}
@@ -292,7 +292,7 @@ class PersonaTools(BaseTool):
                 Dict confirming deletion with cleanup summary
             """
 
-            async def _delete_persona(session, services):
+            async def _delete_persona(_session, services):
                 persona_service = services["persona_service"]
                 memory_service = services["memory_service"]
                 task_service = services["task_service"]
@@ -327,7 +327,7 @@ class PersonaTools(BaseTool):
                 Dict containing capability catalog with usage metrics
             """
 
-            async def _get_capabilities(session, services):
+            async def _get_capabilities(_session, services):
                 persona_service = services["persona_service"]
 
                 # Get all personas to analyze capabilities
@@ -379,7 +379,7 @@ class PersonaTools(BaseTool):
                 Dict containing matching personas and their details
             """
 
-            async def _find_by_capability(session, services):
+            async def _find_by_capability(_session, services):
                 persona_service = services["persona_service"]
 
                 personas = await persona_service.find_personas_by_capability(capability)

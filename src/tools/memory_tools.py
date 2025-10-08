@@ -85,7 +85,7 @@ class MemoryTools(BaseTool):
                 importance=importance,
             )
 
-            async def _create_memory(session, services):
+            async def _create_memory(_session, services):
                 memory_service = services["memory_service"]
                 vectorization_service = services["vectorization_service"]
 
@@ -152,7 +152,7 @@ class MemoryTools(BaseTool):
                 min_similarity=min_similarity,
             )
 
-            async def _recall_memory(session, services):
+            async def _recall_memory(_session, services):
                 memory_service = services["memory_service"]
 
                 if request.semantic_search:
@@ -231,7 +231,7 @@ class MemoryTools(BaseTool):
                 importance=importance,
             )
 
-            async def _update_memory(session, services):
+            async def _update_memory(_session, services):
                 memory_service = services["memory_service"]
 
                 updates = {}
@@ -280,7 +280,7 @@ class MemoryTools(BaseTool):
                 Dict confirming deletion
             """
 
-            async def _delete_memory(session, services):
+            async def _delete_memory(_session, services):
                 memory_service = services["memory_service"]
                 await memory_service.delete_memory(memory_id)
 
@@ -300,7 +300,7 @@ class MemoryTools(BaseTool):
                 Dict containing comprehensive memory statistics
             """
 
-            async def _get_memory_stats(session, services):
+            async def _get_memory_stats(_session, services):
                 memory_service = services["memory_service"]
 
                 total_memories = await memory_service.count_memories()
@@ -343,7 +343,7 @@ class MemoryTools(BaseTool):
                 Dict containing optimization results and performance metrics
             """
 
-            async def _optimize_vectors(session, services):
+            async def _optimize_vectors(session, _services):
                 # Analyze current vector statistics
                 result = await session.execute("""
                     SELECT

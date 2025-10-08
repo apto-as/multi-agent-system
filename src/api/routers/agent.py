@@ -276,10 +276,9 @@ async def list_agents(
     agent_service = AgentService(db)
 
     # Apply namespace filtering based on user permissions
-    if current_user.get("access_level") != "admin":
+    if current_user.get("access_level") != "admin" and not namespace:
         # Non-admin users can only see agents in their namespace or public ones
-        if not namespace:
-            namespace = current_user.get("namespace", "default")
+        namespace = current_user.get("namespace", "default")
 
     agents = await agent_service.list_agents(
         namespace=namespace,
@@ -447,7 +446,7 @@ async def get_agent_memories(
     limit: int = Query(100, ge=1, le=500, description="Maximum number of results"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict[str, Any] = Depends(get_current_user),
+    _current_user: dict[str, Any] = Depends(get_current_user),
 ):
     """Get memories associated with an agent."""
     agent_service = AgentService(db)
@@ -489,7 +488,7 @@ async def get_agent_tasks(
     limit: int = Query(100, ge=1, le=500, description="Maximum number of results"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict[str, Any] = Depends(get_current_user),
+    _current_user: dict[str, Any] = Depends(get_current_user),
 ):
     """Get tasks associated with an agent."""
     agent_service = AgentService(db)
@@ -528,7 +527,7 @@ async def search_agents(
     agent_type: str | None = Query(None, description="Filter by agent type"),
     limit: int = Query(20, ge=1, le=50, description="Maximum number of results"),
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict[str, Any] = Depends(get_current_user),
+    _current_user: dict[str, Any] = Depends(get_current_user),
 ) -> list[AgentResponse]:
     """Search agents by name, capabilities, or other attributes."""
     agent_service = AgentService(db)
@@ -547,7 +546,7 @@ async def get_recommended_agents(
     namespace: str | None = Query(None, description="Filter by namespace"),
     limit: int = Query(10, ge=1, le=20, description="Maximum number of results"),
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict[str, Any] = Depends(get_current_user),
+    _current_user: dict[str, Any] = Depends(get_current_user),
 ) -> list[AgentResponse]:
     """Get recommended agents based on requirements."""
     agent_service = AgentService(db)
@@ -607,7 +606,7 @@ async def list_namespaces(
     limit: int = Query(50, ge=1, le=100, description="Maximum number of results"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict[str, Any] = Depends(get_current_user),
+    _current_user: dict[str, Any] = Depends(get_current_user),
 ):
     """List namespaces."""
     agent_service = AgentService(db)
@@ -637,7 +636,7 @@ async def list_namespaces(
 async def create_team(
     team_data: TeamCreateRequest,
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict[str, Any] = Depends(get_current_user),
+    _current_user: dict[str, Any] = Depends(get_current_user),
 ):
     """Create a new team."""
     agent_service = AgentService(db)
@@ -672,7 +671,7 @@ async def add_agent_to_team(
     team_id: str,
     agent_id: str,
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict[str, Any] = Depends(get_current_user),
+    _current_user: dict[str, Any] = Depends(get_current_user),
 ):
     """Add an agent to a team."""
     agent_service = AgentService(db)
@@ -695,7 +694,7 @@ async def remove_agent_from_team(
     team_id: str,
     agent_id: str,
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict[str, Any] = Depends(get_current_user),
+    _current_user: dict[str, Any] = Depends(get_current_user),
 ):
     """Remove an agent from a team."""
     agent_service = AgentService(db)

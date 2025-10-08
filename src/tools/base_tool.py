@@ -9,6 +9,7 @@ from typing import Any, TypeVar
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..core.database import get_db_session
 from ..services.memory_service import MemoryService
 from ..services.persona_service import PersonaService
 from ..services.task_service import TaskService
@@ -61,7 +62,7 @@ class BaseTool(ABC):
             Dict containing execution result or error
         """
         try:
-            async with async_session_maker() as session:
+            async with get_db_session() as session:
                 services = await self.get_services(session)
                 return await func(session, services, *args, **kwargs)
         except Exception as e:

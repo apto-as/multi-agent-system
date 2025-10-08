@@ -139,7 +139,7 @@ class MCPCompatibilityBridge:
 
         for tool_name, tool_func in all_tools.items():
             # Create a wrapper that handles both sync and async calls harmoniously
-            async def wrapped_tool(*args, tool_func=tool_func, **kwargs):
+            async def wrapped_tool(*args, tool_func=tool_func, tool_name=tool_name, **kwargs):
                 try:
                     # Try WebSocket first if available
                     if self.connection_established and self.websocket_client:

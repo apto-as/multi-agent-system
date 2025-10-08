@@ -541,7 +541,7 @@ class BatchService:
         """Batch create memories with optimized processing."""
 
         async def memory_processor(
-            items: list[dict[str, Any]], metadata: dict[str, Any]
+            items: list[dict[str, Any]], _metadata: dict[str, Any]
         ) -> list[dict[str, Any]]:
             results = []
 
@@ -602,7 +602,7 @@ class BatchService:
         """Batch update agent performance metrics."""
 
         async def performance_processor(
-            items: list[dict[str, Any]], metadata: dict[str, Any]
+            items: list[dict[str, Any]], _metadata: dict[str, Any]
         ) -> list[dict[str, Any]]:
             results = []
 

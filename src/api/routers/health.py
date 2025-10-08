@@ -37,7 +37,7 @@ async def health_check() -> dict[str, Any]:
 
 @router.get("/detailed")
 async def detailed_health_check(
-    db: AsyncSession = Depends(get_db_session_dependency),
+    _db: AsyncSession = Depends(get_db_session_dependency),
 ) -> dict[str, Any]:
     """
     Detailed health check endpoint with database and service status.
@@ -122,7 +122,7 @@ async def detailed_health_check(
 
 
 @router.get("/ready")
-async def readiness_check(db: AsyncSession = Depends(get_db_session_dependency)) -> dict[str, Any]:
+async def readiness_check(_db: AsyncSession = Depends(get_db_session_dependency)) -> dict[str, Any]:
     """
     Kubernetes/Docker readiness probe endpoint.
 
@@ -137,12 +137,11 @@ async def readiness_check(db: AsyncSession = Depends(get_db_session_dependency))
             )
 
         # Check critical configuration in production
-        if settings.is_production:
-            if settings.secret_key == "change-this-in-production-to-a-secure-random-key":
-                raise HTTPException(
-                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail="Insecure configuration detected",
-                )
+        if settings.is_production and settings.secret_key == "change-this-in-production-to-a-secure-random-key":
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Insecure configuration detected",
+            )
 
         return {"status": "ready", "timestamp": datetime.utcnow().isoformat()}
 
@@ -173,7 +172,7 @@ async def liveness_check() -> dict[str, Any]:
 
 
 @router.get("/metrics")
-async def metrics_endpoint(db: AsyncSession = Depends(get_db_session_dependency)) -> dict[str, Any]:
+async def metrics_endpoint(_db: AsyncSession = Depends(get_db_session_dependency)) -> dict[str, Any]:
     """
     Basic metrics endpoint for monitoring.
 

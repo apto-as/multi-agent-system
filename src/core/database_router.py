@@ -143,11 +143,8 @@ class DatabaseRouter:
         """
         # Determine which database to use
         if location is None:
-            if scope is None:
-                # Default to local for safety
-                location = StorageLocation.LOCAL
-            else:
-                location = get_storage_location(scope)
+            # Default to local for safety if scope is None
+            location = StorageLocation.LOCAL if scope is None else get_storage_location(scope)
 
         # Get appropriate session maker
         if location == StorageLocation.CLOUD:

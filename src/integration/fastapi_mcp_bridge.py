@@ -73,7 +73,7 @@ class TMWSFastAPIApp:
         logger.info("TMWS FastAPI-MCP Bridge initialized")
 
     @asynccontextmanager
-    async def lifespan(self, app: FastAPI):
+    async def lifespan(self, _app: FastAPI):
         """FastAPI lifespan manager with MCP server integration."""
         try:
             # Startup
@@ -422,7 +422,7 @@ class TMWSFastAPIApp:
             return {"success": False, "error": str(e), "tool_name": tool_name}
 
     async def _execute_diagnostic_tool(
-        self, tool_name: str, parameters: dict[str, Any]
+        self, tool_name: str, _parameters: dict[str, Any]
     ) -> dict[str, Any]:
         """Execute diagnostic tools that are registered in the MCP server."""
         try:

@@ -221,7 +221,7 @@ async def logout_agent(
 
 @router.get("/agents")
 async def list_agents(
-    current_agent: CurrentAgent,
+    _current_agent: CurrentAgent,
     _=Depends(require_system_agent),
     authenticator: AgentAuthService = Depends(get_agent_authenticator),
 ):
@@ -285,7 +285,7 @@ async def create_access_policy(
 
 @router.get("/policies")
 async def list_access_policies(
-    current_agent: CurrentAgent,
+    _current_agent: CurrentAgent,
     _=Depends(require_system_agent),
     access_control: AccessControlManager = Depends(get_access_control),
 ):
@@ -345,7 +345,7 @@ async def delete_access_policy(
 
 @router.get("/stats", response_model=SecurityStatsResponse)
 async def get_security_stats(
-    current_agent: CurrentAgent,
+    _current_agent: CurrentAgent,
     _=Depends(require_system_agent),
     authenticator: AgentAuthService = Depends(get_agent_authenticator),
     access_control: AccessControlManager = Depends(get_access_control),
@@ -388,7 +388,7 @@ async def get_security_stats(
 
 @router.get("/audit")
 async def get_audit_log(
-    current_agent: CurrentAgent,
+    _current_agent: CurrentAgent,
     _=Depends(require_system_agent),
     limit: int = 100,
     event_type: str | None = None,

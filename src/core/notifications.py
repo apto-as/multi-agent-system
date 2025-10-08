@@ -195,7 +195,7 @@ class NotificationCoordinator:
         return {
             **self.stats,
             "active_channels": len(self.active_channels),
-            "listener_count": sum(len(l) for l in self.listeners.values()),
+            "listener_count": sum(len(listeners) for listeners in self.listeners.values()),
         }
 
 

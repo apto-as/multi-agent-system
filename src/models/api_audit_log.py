@@ -72,7 +72,7 @@ class APIAuditLog(TMWSBase):
     )
 
     @validates("method")
-    def validate_method(self, key: str, method: str) -> str:
+    def validate_method(self, _key: str, method: str) -> str:
         """Validate HTTP method."""
         allowed_methods = {"GET", "POST", "PUT", "DELETE", "PATCH"}
         method_upper = method.upper()
@@ -81,7 +81,7 @@ class APIAuditLog(TMWSBase):
         return method_upper
 
     @validates("response_status")
-    def validate_response_status(self, key: str, status: int | None) -> int | None:
+    def validate_response_status(self, _key: str, status: int | None) -> int | None:
         """Validate HTTP response status code."""
         if status is not None and not (100 <= status <= 599):
             raise ValueError("Response status must be between 100 and 599")
@@ -89,7 +89,7 @@ class APIAuditLog(TMWSBase):
 
     @validates("ip_address")
     def validate_ip_address(
-        self, key: str, ip_addr: str | None
+        self, _key: str, ip_addr: str | None
     ) -> IPv4Address | IPv6Address | None:
         """Validate and convert IP address."""
         if ip_addr is None:

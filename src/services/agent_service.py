@@ -641,7 +641,7 @@ class AgentService:
 
     async def get_recommended_agents(
         self,
-        task_type: str = None,
+        _task_type: str = None,
         capabilities: list[str] = None,
         namespace: str = None,
         limit: int = 10,
@@ -668,9 +668,9 @@ class AgentService:
                 score += agent.performance_score * 0.3
 
                 # Capability matching score
-                if required_capabilities and agent.capabilities:
+                if capabilities and agent.capabilities:
                     agent_caps = set(agent.capabilities.get("skills", []))
-                    required_caps = set(required_capabilities)
+                    required_caps = set(capabilities)
                     if required_caps:
                         overlap = len(agent_caps & required_caps)
                         total = len(required_caps)

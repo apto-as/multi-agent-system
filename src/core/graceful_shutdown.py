@@ -77,7 +77,7 @@ shutdown_handler = GracefulShutdownHandler()
 
 
 @asynccontextmanager
-async def lifespan_handler(app):
+async def lifespan_handler(_app):
     """
     FastAPI lifespan context manager for graceful startup and shutdown.
     """

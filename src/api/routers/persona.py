@@ -47,7 +47,7 @@ class PersonaResponse(BaseModel):
 async def list_personas(
     active_only: bool = True,
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict[str, Any] = Depends(get_current_user),
+    _current_user: dict[str, Any] = Depends(get_current_user),
 ) -> list[PersonaResponse]:
     """
     List all available personas.
@@ -103,7 +103,7 @@ async def list_personas(
 async def get_persona(
     persona_name: str,
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict[str, Any] = Depends(get_current_user),
+    _current_user: dict[str, Any] = Depends(get_current_user),
 ) -> PersonaResponse:
     """
     Get a specific persona by name.
@@ -195,7 +195,7 @@ async def initialize_default_personas(
 async def get_persona_stats(
     persona_name: str,
     db: AsyncSession = Depends(get_db_session_dependency),
-    current_user: dict[str, Any] = Depends(get_current_user),
+    _current_user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
     """
     Get detailed statistics for a specific persona.

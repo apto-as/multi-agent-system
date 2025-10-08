@@ -296,7 +296,7 @@ class SystemTools(BaseTool):
                 vacuum_database=vacuum_database,
             )
 
-            async def _optimize_system(session, services):
+            async def _optimize_system(session, _services):
                 optimization_results = {
                     "started_at": datetime.utcnow().isoformat(),
                     "operations": {},
@@ -623,7 +623,7 @@ class SystemTools(BaseTool):
                 Dict containing system configuration details
             """
 
-            async def _get_system_config(session, services):
+            async def _get_system_config(_session, _services):
                 # Basic system information
                 config_info = {
                     "version": "1.0.0",
@@ -674,7 +674,7 @@ class SystemTools(BaseTool):
                 Dict containing restart results for each service
             """
 
-            async def _restart_services(session, services):
+            async def _restart_services(_session, _services):
                 # This is a placeholder implementation
                 # In a real system, this would need proper service management
 

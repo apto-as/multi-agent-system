@@ -174,9 +174,8 @@ class MemoryService:
         stmt = stmt.limit(limit)
 
         # Add index hint for better performance
-        if self.session.bind and hasattr(self.session.bind, "dialect"):
-            if "postgresql" in str(self.session.bind.dialect.name):
-                stmt = stmt.execution_options(postgresql_use_index="memories_embedding_idx")
+        if self.session.bind and hasattr(self.session.bind, "dialect") and "postgresql" in str(self.session.bind.dialect.name):
+            stmt = stmt.execution_options(postgresql_use_index="memories_embedding_idx")
 
         result = await self.session.execute(stmt)
         results = result.all()
