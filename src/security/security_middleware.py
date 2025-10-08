@@ -11,6 +11,7 @@ from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from ..api.security import SecurityHeaders
 from ..core.config import get_settings
 from .audit_logger_async import AsyncAuditLogger
 from .rate_limiter import RateLimiter
@@ -69,6 +70,12 @@ class UnifiedSecurityMiddleware(BaseHTTPMiddleware):
 
             # Process request
             response = await call_next(request)
+
+            # Add security headers if enabled
+            if self.settings.security_headers_enabled:
+                security_headers = SecurityHeaders.get_security_headers()
+                for header_name, header_value in security_headers.items():
+                    response.headers[header_name] = header_value
 
             # Audit successful requests (async, non-blocking)
             await self._audit_request(request, response, client_ip, start_time)
@@ -371,8 +378,8 @@ def setup_security_middleware(
     EnhancedCORSMiddleware.setup_cors(app, settings)
 
     # 2. Security Headers (applied to all responses)
-    # TODO: Implement SecurityHeadersMiddleware or integrate into UnifiedSecurityMiddleware
-    # app.add_middleware(SecurityHeadersMiddleware)
+    # Security headers are now integrated into UnifiedSecurityMiddleware
+    # See UnifiedSecurityMiddleware.dispatch() for implementation
 
     # 3. Unified Security (rate limiting + audit logging)
     app.add_middleware(
