@@ -1,19 +1,17 @@
 [project]
 name = "tmws"
-version = "2.1.0"
-description = "Trinitas Memory & Workflow Service - Multi-instance AI agent coordination platform"
+version = "3.0.0"
+description = "TMWS - MCP-Native Memory SDK for AI Code Assistants"
 authors = [
     {name = "Trinitas Development Team", email = "dev@trinitas.ai"}
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
-    # MCP Server dependencies
+    # MCP Server dependencies (v3.0: MCP only)
     "fastmcp>=0.1.0",
     "mcp>=0.9.0",
     "ttl-cache>=1.3.0",
-    # Core dependencies (kept for bridge pattern)
-    "fastapi>=0.110.0",
-    "uvicorn[standard]>=0.27.0",
+    # Core dependencies
     "websockets>=12.0",
     "pydantic>=2.5.0",
     "pydantic-settings>=2.0.0",
@@ -24,8 +22,11 @@ dependencies = [
     "psycopg2-binary>=2.9.7",
     "pgvector>=0.2.4",
     "greenlet>=3.0.0",
-    # Vector search
+    # Vector search (v2.3.0: ChromaDB + Multilingual-E5)
+    "chromadb>=0.4.22",
     "sentence-transformers>=2.2.0",
+    "transformers>=4.35.0",
+    "torch>=2.0.0",
     "numpy>=1.24.0",
     # Utilities
     "python-dotenv>=1.0.0",
@@ -47,8 +48,6 @@ dependencies = [
     "redis>=5.0.0",
     # Monitoring
     "prometheus-client>=0.19.0",
-    # Production server
-    "gunicorn>=21.0.0",
     "watchfiles>=0.20.0",
     # Required by starlette
     "itsdangerous>=2.0.0",
@@ -61,7 +60,7 @@ dependencies = [
 
 [project.scripts]
 tmws = "src.mcp_server:main"
-tmws-api = "src.main:main"
+tmws-mcp-server = "src.mcp_server:main"
 
 [project.optional-dependencies]
 dev = [
@@ -85,7 +84,6 @@ dev = [
 monitoring = [
     "opentelemetry-api>=1.22.0",
     "opentelemetry-sdk>=1.22.0",
-    "opentelemetry-instrumentation-fastapi>=0.43b0",
 ]
 
 [build-system]
