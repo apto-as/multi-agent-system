@@ -1,22 +1,19 @@
 """
 TMWS - Trinitas Memory & Workflow Service
-Enhanced with Bellona's Tactical Coordination System
+MCP-only architecture (v2.2.6+)
 """
 
-__version__ = "2.1.0"
+__version__ = "2.2.6"
 
-# Core tactical coordination exports
+# Core process management exports
 from .core.process_manager import (
     ProcessPriority,
     ServiceState,
     TacticalProcessManager,
     create_tactical_process_manager,
 )
-from .core.tactical_coordinator import TacticalCoordinator, create_tactical_coordinator
 
 __all__ = [
-    "TacticalCoordinator",
-    "create_tactical_coordinator",
     "TacticalProcessManager",
     "ServiceState",
     "ProcessPriority",

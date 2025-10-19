@@ -40,7 +40,9 @@ from tests.test_config import (
 class TestCompleteUserJourney:
     """Test complete user journey from registration to API usage."""
 
-    async def test_user_registration_to_api_usage_workflow(self, async_client: AsyncClient, performance_timer):
+    async def test_user_registration_to_api_usage_workflow(
+        self, async_client: AsyncClient, performance_timer
+    ):
         """Test complete workflow: Register -> Login -> Create API Key -> Use API."""
 
         # Step 1: User Registration
@@ -49,7 +51,7 @@ class TestCompleteUserJourney:
             "username": "e2e_user",
             "email": "e2e@example.com",
             "password": "secure_password_123",
-            "full_name": "E2E Test User"
+            "full_name": "E2E Test User",
         }
 
         register_response = await async_client.post("/auth/register", json=user_data)
@@ -67,16 +69,16 @@ class TestCompleteUserJourney:
             min_time_ms=registration_time,
             iterations=1,
             requirement_ms=500,  # Registration can be slower
-            passed=registration_time < 500
+            passed=registration_time < 500,
         )
         test_collector.add_performance_result(perf_result)
 
         # Step 2: User Login
         performance_timer.start()
-        login_response = await async_client.post("/auth/login", json={
-            "username": user_data["username"],
-            "password": user_data["password"]
-        })
+        login_response = await async_client.post(
+            "/auth/login",
+            json={"username": user_data["username"], "password": user_data["password"]},
+        )
         login_time = performance_timer.stop()
 
         assert login_response.status_code == status.HTTP_200_OK
@@ -92,7 +94,7 @@ class TestCompleteUserJourney:
             min_time_ms=login_time,
             iterations=1,
             requirement_ms=200,
-            passed=login_time < 200
+            passed=login_time < 200,
         )
         test_collector.add_performance_result(perf_result)
 
@@ -103,7 +105,7 @@ class TestCompleteUserJourney:
             "name": "E2E Test API Key",
             "description": "For end-to-end testing",
             "scopes": ["read", "write"],
-            "expires_days": 30
+            "expires_days": 30,
         }
 
         performance_timer.start()
@@ -123,7 +125,7 @@ class TestCompleteUserJourney:
             min_time_ms=api_key_time,
             iterations=1,
             requirement_ms=200,
-            passed=api_key_time < 200
+            passed=api_key_time < 200,
         )
         test_collector.add_performance_result(perf_result)
 
@@ -148,7 +150,7 @@ class TestCompleteUserJourney:
             min_time_ms=api_usage_time,
             iterations=1,
             requirement_ms=100,
-            passed=api_usage_time < 100
+            passed=api_usage_time < 100,
         )
         test_collector.add_performance_result(perf_result)
 
@@ -157,7 +159,7 @@ class TestCompleteUserJourney:
             "content": "E2E test memory content",
             "importance": 0.8,
             "tags": ["e2e", "test"],
-            "metadata": {"source": "workflow_test"}
+            "metadata": {"source": "workflow_test"},
         }
 
         performance_timer.start()
@@ -185,14 +187,14 @@ class TestCompleteUserJourney:
                 min_time_ms=min(memory_create_time, memory_retrieve_time),
                 iterations=2,
                 requirement_ms=200,
-                passed=memory_create_time < 200 and memory_retrieve_time < 200
+                passed=memory_create_time < 200 and memory_retrieve_time < 200,
             )
             test_collector.add_performance_result(perf_result)
 
         # Step 6: Logout and verify token invalidation
-        logout_response = await async_client.post("/auth/logout", json={
-            "refresh_token": login_data["refresh_token"]
-        })
+        logout_response = await async_client.post(
+            "/auth/logout", json={"refresh_token": login_data["refresh_token"]}
+        )
 
         assert logout_response.status_code == status.HTTP_200_OK
 
@@ -212,7 +214,7 @@ class TestCompleteUserJourney:
             risk_level="high",
             result=TestResult.PASSED,
             details="Complete authentication workflow executed successfully with proper token validation",
-            remediation="Continue monitoring authentication flows"
+            remediation="Continue monitoring authentication flows",
         )
         test_collector.add_security_result(security_result)
 
@@ -228,18 +230,22 @@ class TestCompleteUserJourney:
                 user_data = {
                     "username": f"concurrent_user_{user_id}",
                     "email": f"concurrent{user_id}@example.com",
-                    "password": "secure_password_123"
+                    "password": "secure_password_123",
                 }
 
                 register_response = await async_client.post("/auth/register", json=user_data)
                 if register_response.status_code != status.HTTP_201_CREATED:
-                    return {"success": False, "step": "registration", "error": register_response.json()}
+                    return {
+                        "success": False,
+                        "step": "registration",
+                        "error": register_response.json(),
+                    }
 
                 # Login
-                login_response = await async_client.post("/auth/login", json={
-                    "username": user_data["username"],
-                    "password": user_data["password"]
-                })
+                login_response = await async_client.post(
+                    "/auth/login",
+                    json={"username": user_data["username"], "password": user_data["password"]},
+                )
 
                 if login_response.status_code != status.HTTP_200_OK:
                     return {"success": False, "step": "login", "error": login_response.json()}
@@ -251,10 +257,10 @@ class TestCompleteUserJourney:
                 user_client = AsyncClient(app=async_client.app, base_url=async_client.base_url)
                 user_client.headers.update({"Authorization": f"Bearer {access_token}"})
 
-                api_key_response = await user_client.post("/auth/api-keys", json={
-                    "name": f"Concurrent Test Key {user_id}",
-                    "scopes": ["read"]
-                })
+                api_key_response = await user_client.post(
+                    "/auth/api-keys",
+                    json={"name": f"Concurrent Test Key {user_id}", "scopes": ["read"]},
+                )
 
                 if api_key_response.status_code != status.HTTP_201_CREATED:
                     return {"success": False, "step": "api_key", "error": api_key_response.json()}
@@ -284,7 +290,9 @@ class TestCompleteUserJourney:
         failed = [r for r in results if isinstance(r, dict) and not r.get("success")]
         exceptions = [r for r in results if isinstance(r, Exception)]
 
-        assert len(successful) >= 4, f"At least 4/5 concurrent workflows should succeed. Got {len(successful)} successful, {len(failed)} failed, {len(exceptions)} exceptions"
+        assert len(successful) >= 4, (
+            f"At least 4/5 concurrent workflows should succeed. Got {len(successful)} successful, {len(failed)} failed, {len(exceptions)} exceptions"
+        )
 
         # Record security result
         security_result = SecurityTestResult(
@@ -293,7 +301,7 @@ class TestCompleteUserJourney:
             risk_level="medium",
             result=TestResult.PASSED if len(successful) >= 4 else TestResult.FAILED,
             details=f"Concurrent workflows: {len(successful)} successful, {len(failed)} failed",
-            remediation="Monitor for race conditions in high-concurrency scenarios"
+            remediation="Monitor for race conditions in high-concurrency scenarios",
         )
         test_collector.add_security_result(security_result)
 
@@ -332,7 +340,9 @@ class TestSecurityWorkflows:
                 continue
 
             if response.status_code != status.HTTP_401_UNAUTHORIZED:
-                security_failures.append(f"{method} {endpoint}: Expected 401, got {response.status_code}")
+                security_failures.append(
+                    f"{method} {endpoint}: Expected 401, got {response.status_code}"
+                )
 
         security_result = SecurityTestResult(
             test_name="unauthenticated_access_prevention",
@@ -340,7 +350,7 @@ class TestSecurityWorkflows:
             risk_level="critical",
             result=TestResult.PASSED if not security_failures else TestResult.FAILED,
             details=f"Tested {len(protected_endpoints)} endpoints. Failures: {security_failures}",
-            remediation="Ensure all protected endpoints require authentication"
+            remediation="Ensure all protected endpoints require authentication",
         )
         test_collector.add_security_result(security_result)
 
@@ -351,28 +361,30 @@ class TestSecurityWorkflows:
             "'; DROP TABLE users; --",
             "' OR '1'='1",
             "admin'--",
-            "' UNION SELECT * FROM users--"
+            "' UNION SELECT * FROM users--",
         ]
 
         injection_attempts = []
         for payload in injection_payloads:
             try:
                 # Test login endpoint
-                login_response = await async_client.post("/auth/login", json={
-                    "username": payload,
-                    "password": "any_password"
-                })
+                login_response = await async_client.post(
+                    "/auth/login", json={"username": payload, "password": "any_password"}
+                )
 
                 # Should reject with 401 or 400, not 500 (which could indicate successful injection)
                 if login_response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR:
                     injection_attempts.append(f"Login injection with payload: {payload}")
 
                 # Test registration endpoint
-                register_response = await async_client.post("/auth/register", json={
-                    "username": payload,
-                    "email": "test@example.com",
-                    "password": "secure_password_123"
-                })
+                register_response = await async_client.post(
+                    "/auth/register",
+                    json={
+                        "username": payload,
+                        "email": "test@example.com",
+                        "password": "secure_password_123",
+                    },
+                )
 
                 if register_response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR:
                     injection_attempts.append(f"Register injection with payload: {payload}")
@@ -387,22 +399,29 @@ class TestSecurityWorkflows:
             risk_level="critical",
             result=TestResult.PASSED if not injection_attempts else TestResult.FAILED,
             details=f"Tested {len(injection_payloads)} payloads. Potential vulnerabilities: {injection_attempts}",
-            remediation="Review parameterized queries and input validation"
+            remediation="Review parameterized queries and input validation",
         )
         test_collector.add_security_result(security_result)
 
-        assert not injection_attempts, f"Potential SQL injection vulnerabilities: {injection_attempts}"
+        assert not injection_attempts, (
+            f"Potential SQL injection vulnerabilities: {injection_attempts}"
+        )
 
-    async def test_authentication_security_workflow(self, async_client: AsyncClient, test_user, test_user_data):
+    async def test_authentication_security_workflow(
+        self, async_client: AsyncClient, test_user, test_user_data
+    ):
         """Test authentication security measures."""
 
         # Test 1: Brute force protection
         failed_attempts = []
         for attempt in range(6):  # Try 6 failed logins
-            response = await async_client.post("/auth/login", json={
-                "username": test_user_data["username"],
-                "password": f"wrong_password_{attempt}"
-            })
+            response = await async_client.post(
+                "/auth/login",
+                json={
+                    "username": test_user_data["username"],
+                    "password": f"wrong_password_{attempt}",
+                },
+            )
 
             failed_attempts.append(response.status_code)
 
@@ -418,7 +437,7 @@ class TestSecurityWorkflows:
             risk_level="high",
             result=TestResult.PASSED if lockout_protection else TestResult.FAILED,
             details=f"Failed login attempts results: {failed_attempts}. Lockout protection: {lockout_protection}",
-            remediation="Implement account lockout or rate limiting after multiple failed attempts"
+            remediation="Implement account lockout or rate limiting after multiple failed attempts",
         )
         test_collector.add_security_result(security_result)
 
@@ -428,8 +447,7 @@ class TestSecurityWorkflows:
         from src.security.jwt_service import jwt_service
 
         expired_token = jwt_service.create_access_token(
-            test_user,
-            expires_delta=timedelta(seconds=-1)
+            test_user, expires_delta=timedelta(seconds=-1)
         )
 
         async_client.headers.update({"Authorization": f"Bearer {expired_token}"})
@@ -443,7 +461,7 @@ class TestSecurityWorkflows:
             risk_level="high",
             result=TestResult.PASSED if token_expiration_enforced else TestResult.FAILED,
             details=f"Expired token response: {response.status_code}",
-            remediation="Ensure expired tokens are properly rejected"
+            remediation="Ensure expired tokens are properly rejected",
         )
         test_collector.add_security_result(security_result)
 
@@ -455,14 +473,16 @@ class TestSecurityWorkflows:
 class TestPerformanceWorkflows:
     """Test performance under realistic workloads."""
 
-    async def test_authentication_performance_under_load(self, async_client: AsyncClient, performance_timer):
+    async def test_authentication_performance_under_load(
+        self, async_client: AsyncClient, performance_timer
+    ):
         """Test authentication performance under concurrent load."""
 
         # Create test user
         user_data = {
             "username": "perf_test_user",
             "email": "perf@example.com",
-            "password": "secure_password_123"
+            "password": "secure_password_123",
         }
 
         register_response = await async_client.post("/auth/register", json=user_data)
@@ -471,17 +491,17 @@ class TestPerformanceWorkflows:
         # Concurrent login attempts
         async def login_attempt():
             start_time = datetime.now()
-            response = await async_client.post("/auth/login", json={
-                "username": user_data["username"],
-                "password": user_data["password"]
-            })
+            response = await async_client.post(
+                "/auth/login",
+                json={"username": user_data["username"], "password": user_data["password"]},
+            )
             end_time = datetime.now()
             duration_ms = (end_time - start_time).total_seconds() * 1000
 
             return {
                 "status_code": response.status_code,
                 "duration_ms": duration_ms,
-                "success": response.status_code == status.HTTP_200_OK
+                "success": response.status_code == status.HTTP_200_OK,
             }
 
         # Run 20 concurrent login attempts
@@ -507,14 +527,18 @@ class TestPerformanceWorkflows:
             min_time_ms=min_time,
             iterations=len(successful_results),
             requirement_ms=300,  # Allow higher latency under load
-            passed=avg_time < 300 and len(successful_results) >= 18  # 90% success rate
+            passed=avg_time < 300 and len(successful_results) >= 18,  # 90% success rate
         )
         test_collector.add_performance_result(perf_result)
 
-        assert len(successful_results) >= 18, f"Expected at least 18/20 successful logins, got {len(successful_results)}"
+        assert len(successful_results) >= 18, (
+            f"Expected at least 18/20 successful logins, got {len(successful_results)}"
+        )
         assert avg_time < 300, f"Average login time {avg_time}ms exceeds 300ms under load"
 
-    async def test_api_key_performance_workflow(self, authenticated_client: AsyncClient, performance_timer):
+    async def test_api_key_performance_workflow(
+        self, authenticated_client: AsyncClient, performance_timer
+    ):
         """Test API key operations performance."""
 
         # Test API key creation performance
@@ -523,11 +547,10 @@ class TestPerformanceWorkflows:
 
         for i in range(10):
             performance_timer.start()
-            response = await authenticated_client.post("/auth/api-keys", json={
-                "name": f"Perf Test Key {i}",
-                "scopes": ["read"],
-                "expires_days": 30
-            })
+            response = await authenticated_client.post(
+                "/auth/api-keys",
+                json={"name": f"Perf Test Key {i}", "scopes": ["read"], "expires_days": 30},
+            )
             duration = performance_timer.stop()
 
             assert response.status_code == status.HTTP_201_CREATED
@@ -545,7 +568,7 @@ class TestPerformanceWorkflows:
             min_time_ms=min(creation_times),
             iterations=len(creation_times),
             requirement_ms=200,
-            passed=avg_creation_time < 200
+            passed=avg_creation_time < 200,
         )
         test_collector.add_performance_result(perf_result)
 
@@ -553,7 +576,9 @@ class TestPerformanceWorkflows:
         usage_times = []
 
         for api_key in api_keys[:5]:  # Test first 5 keys
-            key_client = AsyncClient(app=authenticated_client.app, base_url=authenticated_client.base_url)
+            key_client = AsyncClient(
+                app=authenticated_client.app, base_url=authenticated_client.base_url
+            )
             key_client.headers.update({"X-API-Key": api_key})
 
             performance_timer.start()
@@ -575,11 +600,13 @@ class TestPerformanceWorkflows:
             min_time_ms=min(usage_times),
             iterations=len(usage_times),
             requirement_ms=100,
-            passed=avg_usage_time < 100
+            passed=avg_usage_time < 100,
         )
         test_collector.add_performance_result(perf_result)
 
-        assert avg_creation_time < 200, f"API key creation average {avg_creation_time}ms exceeds 200ms"
+        assert avg_creation_time < 200, (
+            f"API key creation average {avg_creation_time}ms exceeds 200ms"
+        )
         assert avg_usage_time < 100, f"API key usage average {avg_usage_time}ms exceeds 100ms"
 
 
@@ -599,7 +626,10 @@ class TestErrorRecoveryWorkflows:
             # Missing required fields
             {"endpoint": "/auth/register", "data": {}},
             # Invalid email format
-            {"endpoint": "/auth/register", "data": {"username": "test", "email": "invalid", "password": "secure123"}},
+            {
+                "endpoint": "/auth/register",
+                "data": {"username": "test", "email": "invalid", "password": "secure123"},
+            },
         ]
 
         recovery_results = []
@@ -611,30 +641,36 @@ class TestErrorRecoveryWorkflows:
                     response = await async_client.post(
                         req["endpoint"],
                         content="invalid json content",
-                        headers={"Content-Type": "application/json"}
+                        headers={"Content-Type": "application/json"},
                     )
                 else:
                     response = await async_client.post(req["endpoint"], json=req["data"])
 
                 # Should return 4xx error, not 5xx
-                recovery_results.append({
-                    "endpoint": req["endpoint"],
-                    "status": response.status_code,
-                    "graceful": 400 <= response.status_code < 500
-                })
+                recovery_results.append(
+                    {
+                        "endpoint": req["endpoint"],
+                        "status": response.status_code,
+                        "graceful": 400 <= response.status_code < 500,
+                    }
+                )
 
             except Exception as e:
-                recovery_results.append({
-                    "endpoint": req["endpoint"],
-                    "status": "exception",
-                    "graceful": False,
-                    "error": str(e)
-                })
+                recovery_results.append(
+                    {
+                        "endpoint": req["endpoint"],
+                        "status": "exception",
+                        "graceful": False,
+                        "error": str(e),
+                    }
+                )
 
         graceful_failures = sum(1 for r in recovery_results if r["graceful"])
         total_tests = len(recovery_results)
 
-        assert graceful_failures == total_tests, f"Expected graceful error handling for all {total_tests} tests, got {graceful_failures}"
+        assert graceful_failures == total_tests, (
+            f"Expected graceful error handling for all {total_tests} tests, got {graceful_failures}"
+        )
 
     async def test_timeout_handling(self, async_client: AsyncClient):
         """Test system behavior under timeouts."""
@@ -645,7 +681,7 @@ class TestErrorRecoveryWorkflows:
         short_timeout_client = AsyncClient(
             app=async_client.app,
             base_url=async_client.base_url,
-            timeout=httpx.Timeout(timeout=0.001)  # 1ms timeout
+            timeout=httpx.Timeout(timeout=0.001),  # 1ms timeout
         )
 
         try:
@@ -676,21 +712,24 @@ class TestSystemIntegration:
             "api_endpoints": False,
             "memory_system": False,
             "security_middleware": False,
-            "error_handling": False
+            "error_handling": False,
         }
 
         try:
             # Test 1: Authentication system
-            user_response = await async_client.post("/auth/register", json={
-                "username": "integration_user",
-                "email": "integration@example.com",
-                "password": "secure_password_123"
-            })
+            user_response = await async_client.post(
+                "/auth/register",
+                json={
+                    "username": "integration_user",
+                    "email": "integration@example.com",
+                    "password": "secure_password_123",
+                },
+            )
 
-            login_response = await async_client.post("/auth/login", json={
-                "username": "integration_user",
-                "password": "secure_password_123"
-            })
+            login_response = await async_client.post(
+                "/auth/login",
+                json={"username": "integration_user", "password": "secure_password_123"},
+            )
 
             if user_response.status_code == 201 and login_response.status_code == 200:
                 integration_results["auth_system"] = True
@@ -700,26 +739,30 @@ class TestSystemIntegration:
                 async_client.headers.update({"Authorization": f"Bearer {access_token}"})
 
                 me_response = await async_client.get("/auth/me")
-                api_key_response = await async_client.post("/auth/api-keys", json={
-                    "name": "Integration Test Key",
-                    "scopes": ["read"]
-                })
+                api_key_response = await async_client.post(
+                    "/auth/api-keys", json={"name": "Integration Test Key", "scopes": ["read"]}
+                )
 
                 if me_response.status_code == 200 and api_key_response.status_code == 201:
                     integration_results["api_endpoints"] = True
 
             # Test 3: Memory system (if available)
             try:
-                memory_response = await async_client.post("/api/v1/memory", json={
-                    "content": "Integration test memory",
-                    "importance": 0.5,
-                    "tags": ["integration"]
-                })
+                memory_response = await async_client.post(
+                    "/api/v1/memory",
+                    json={
+                        "content": "Integration test memory",
+                        "importance": 0.5,
+                        "tags": ["integration"],
+                    },
+                )
 
                 if memory_response.status_code in [201, 404]:  # 404 if not implemented yet
                     integration_results["memory_system"] = True
-            except:
-                integration_results["memory_system"] = True  # Not implemented yet is OK
+            except Exception as e:
+                # Memory endpoint may not be implemented yet - this is acceptable
+                integration_results["memory_system"] = True
+                print(f"Memory endpoint not available (expected): {type(e).__name__}")
 
             # Test 4: Security middleware
             async_client.headers.clear()
@@ -729,10 +772,9 @@ class TestSystemIntegration:
                 integration_results["security_middleware"] = True
 
             # Test 5: Error handling
-            error_response = await async_client.post("/auth/login", json={
-                "username": "nonexistent",
-                "password": "wrong"
-            })
+            error_response = await async_client.post(
+                "/auth/login", json={"username": "nonexistent", "password": "wrong"}
+            )
 
             if 400 <= error_response.status_code < 500:
                 integration_results["error_handling"] = True
@@ -747,6 +789,8 @@ class TestSystemIntegration:
 
         success_rate = (passed_tests / total_tests) * 100
 
-        assert success_rate >= 80, f"System integration success rate {success_rate:.1f}% below 80%. Results: {integration_results}"
+        assert success_rate >= 80, (
+            f"System integration success rate {success_rate:.1f}% below 80%. Results: {integration_results}"
+        )
 
         return integration_results

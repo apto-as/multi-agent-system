@@ -103,10 +103,7 @@ class TestLogCleanupService:
         mock_log.context = {"key": "value"}
 
         await log_cleanup_service.log_event(
-            level=LogLevel.INFO,
-            message="Test message",
-            component="test",
-            context={"key": "value"}
+            level=LogLevel.INFO, message="Test message", component="test", context={"key": "value"}
         )
 
         # Verify session calls
@@ -124,10 +121,7 @@ class TestLogCleanupService:
     @pytest.mark.asyncio
     async def test_log_event_defaults(self, log_cleanup_service, mock_session):
         """Test log event with default values."""
-        await log_cleanup_service.log_event(
-            level=LogLevel.ERROR,
-            message="Error message"
-        )
+        await log_cleanup_service.log_event(level=LogLevel.ERROR, message="Error message")
 
         # Verify defaults
         added_log = mock_session.add.call_args[0][0]
@@ -197,22 +191,22 @@ class TestLogCleanupService:
         mock_session.execute.side_effect = [
             count_mock,  # Count for DEBUG
             batch_mock,  # Batch IDs for DEBUG
-            Mock(),      # Delete result
+            Mock(),  # Delete result
             count_mock,  # Count for INFO
             batch_mock,  # Batch IDs for INFO
-            Mock(),      # Delete result
+            Mock(),  # Delete result
             count_mock,  # Count for WARNING
             batch_mock,  # Batch IDs for WARNING
-            Mock(),      # Delete result
+            Mock(),  # Delete result
             count_mock,  # Count for ERROR
             batch_mock,  # Batch IDs for ERROR
-            Mock(),      # Delete result
+            Mock(),  # Delete result
             count_mock,  # Count for CRITICAL
             batch_mock,  # Batch IDs for CRITICAL
-            Mock(),      # Delete result
+            Mock(),  # Delete result
         ]
 
-        with patch('asyncio.sleep', new_callable=AsyncMock):
+        with patch("asyncio.sleep", new_callable=AsyncMock):
             result = await log_cleanup_service.cleanup_old_logs()
 
         assert result["status"] == "completed"
@@ -259,20 +253,22 @@ class TestLogCleanupService:
 
         # Set up return values for DEBUG level only (to simplify test)
         mock_session.execute.side_effect = [
-            count_mock,        # Count for DEBUG
-            batch1_mock,       # First batch
-            Mock(),           # Delete result
-            batch2_mock,       # Second batch
-            Mock(),           # Delete result
-            batch3_mock,       # Third batch
-            Mock(),           # Delete result
+            count_mock,  # Count for DEBUG
+            batch1_mock,  # First batch
+            Mock(),  # Delete result
+            batch2_mock,  # Second batch
+            Mock(),  # Delete result
+            batch3_mock,  # Third batch
+            Mock(),  # Delete result
             empty_batch_mock,  # No more batches
             # Return 0 count for other levels
-            Mock(scalar=lambda: 0), Mock(scalar=lambda: 0),
-            Mock(scalar=lambda: 0), Mock(scalar=lambda: 0)
+            Mock(scalar=lambda: 0),
+            Mock(scalar=lambda: 0),
+            Mock(scalar=lambda: 0),
+            Mock(scalar=lambda: 0),
         ]
 
-        with patch('asyncio.sleep', new_callable=AsyncMock) as mock_sleep:
+        with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
             result = await log_cleanup_service.cleanup_old_logs()
 
         assert result["total_deleted"] == 5
@@ -292,16 +288,12 @@ class TestLogCleanupService:
             ("INFO", 30),
             ("WARNING", 25),
             ("ERROR", 20),
-            ("CRITICAL", 5)
+            ("CRITICAL", 5),
         ]
 
         # Mock component counts
         component_mock = Mock()
-        component_mock.fetchall.return_value = [
-            ("api", 50),
-            ("database", 30),
-            ("auth", 20)
-        ]
+        component_mock.fetchall.return_value = [("api", 50), ("database", 30), ("auth", 20)]
 
         # Mock date queries
         oldest_mock = Mock()
@@ -316,7 +308,7 @@ class TestLogCleanupService:
             level_mock,
             component_mock,
             oldest_mock,
-            newest_mock
+            newest_mock,
         ]
 
         result = await log_cleanup_service.get_log_statistics()
@@ -390,7 +382,7 @@ class TestLogCleanupService:
             start_date=start_date,
             end_date=end_date,
             search_text="error",
-            limit=50
+            limit=50,
         )
 
         # Verify the query was built correctly
@@ -406,8 +398,7 @@ class TestLogCleanupService:
         mock_session.execute.return_value = count_mock
 
         result = await log_cleanup_service.archive_old_logs(
-            archive_days=90,
-            archive_path="/test/archive"
+            archive_days=90, archive_path="/test/archive"
         )
 
         assert result["status"] == "not_implemented"
@@ -452,9 +443,7 @@ class TestLogCleanupServiceIntegration:
         # 1. Log events
         for level in LogLevel:
             await log_cleanup_service.log_event(
-                level=level,
-                message=f"Test {level.value} message",
-                component="integration_test"
+                level=level, message=f"Test {level.value} message", component="integration_test"
             )
 
         # Verify 5 logs were added
@@ -467,7 +456,11 @@ class TestLogCleanupServiceIntegration:
         date_mock = Mock(scalar=lambda: datetime.utcnow())
 
         log_cleanup_service.session.execute.side_effect = [
-            total_mock, level_mock, component_mock, date_mock, date_mock
+            total_mock,
+            level_mock,
+            component_mock,
+            date_mock,
+            date_mock,
         ]
 
         stats = await log_cleanup_service.get_log_statistics()
@@ -477,10 +470,12 @@ class TestLogCleanupServiceIntegration:
         count_mock = Mock(scalar=lambda: 10)
         batch_mock = Mock(fetchall=lambda: [(i,) for i in range(1, 11)])
         log_cleanup_service.session.execute.side_effect = [
-            count_mock, batch_mock, Mock()  # For one level
+            count_mock,
+            batch_mock,
+            Mock(),  # For one level
         ] * 5  # For all levels
 
-        with patch('asyncio.sleep', new_callable=AsyncMock):
+        with patch("asyncio.sleep", new_callable=AsyncMock):
             cleanup_result = await log_cleanup_service.cleanup_old_logs()
 
         assert cleanup_result["total_deleted"] == 50
@@ -512,13 +507,15 @@ class TestLogCleanupServiceIntegration:
 
         log_cleanup_service.session.execute.side_effect = execute_calls
 
-        with patch('asyncio.sleep', new_callable=AsyncMock) as mock_sleep:
+        with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
             result = await log_cleanup_service.cleanup_old_logs()
 
         # Should have processed all logs
         assert result["total_deleted"] == large_count
         # Should have batched the operations
-        expected_batches = (large_count // log_cleanup_service.batch_size) + (1 if large_count % log_cleanup_service.batch_size else 0)
+        expected_batches = (large_count // log_cleanup_service.batch_size) + (
+            1 if large_count % log_cleanup_service.batch_size else 0
+        )
         assert mock_sleep.call_count >= expected_batches
 
     @pytest.mark.asyncio
@@ -536,9 +533,7 @@ class TestLogCleanupServiceIntegration:
             tasks = []
             for i in range(10):
                 task = log_cleanup_service.log_event(
-                    level=LogLevel.INFO,
-                    message=f"Concurrent log {i}",
-                    component="concurrent_test"
+                    level=LogLevel.INFO, message=f"Concurrent log {i}", component="concurrent_test"
                 )
                 tasks.append(task)
             await asyncio.gather(*tasks)
@@ -591,11 +586,17 @@ class TestLogCleanupServiceEdgeCases:
 
         # Only test DEBUG level
         log_cleanup_service.session.execute.side_effect = [
-            count_mock, batch1_mock, Mock(), batch2_mock, Mock(),
-            batch3_mock, Mock(), empty_mock
+            count_mock,
+            batch1_mock,
+            Mock(),
+            batch2_mock,
+            Mock(),
+            batch3_mock,
+            Mock(),
+            empty_mock,
         ] + [Mock(scalar=lambda: 0)] * 4  # Other levels empty
 
-        with patch('asyncio.sleep', new_callable=AsyncMock):
+        with patch("asyncio.sleep", new_callable=AsyncMock):
             result = await log_cleanup_service.cleanup_old_logs()
 
         assert result["total_deleted"] == total_logs
@@ -635,6 +636,15 @@ class TestLogCleanupServiceEdgeCases:
         assert log_cleanup_service.retention_policies[LogLevel.CRITICAL] == 730
 
         # Other policies should remain unchanged
-        assert log_cleanup_service.retention_policies[LogLevel.INFO] == original_policies[LogLevel.INFO]
-        assert log_cleanup_service.retention_policies[LogLevel.WARNING] == original_policies[LogLevel.WARNING]
-        assert log_cleanup_service.retention_policies[LogLevel.ERROR] == original_policies[LogLevel.ERROR]
+        assert (
+            log_cleanup_service.retention_policies[LogLevel.INFO]
+            == original_policies[LogLevel.INFO]
+        )
+        assert (
+            log_cleanup_service.retention_policies[LogLevel.WARNING]
+            == original_policies[LogLevel.WARNING]
+        )
+        assert (
+            log_cleanup_service.retention_policies[LogLevel.ERROR]
+            == original_policies[LogLevel.ERROR]
+        )

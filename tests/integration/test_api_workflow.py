@@ -38,10 +38,7 @@ class TestWorkflowAPIIntegration:
     """Complete integration testing for Workflow API endpoints."""
 
     async def test_create_workflow_success(
-        self,
-        async_client: AsyncClient,
-        sample_workflow_data: dict[str, Any],
-        performance_timer
+        self, async_client: AsyncClient, sample_workflow_data: dict[str, Any], performance_timer
     ):
         """Test successful workflow creation with performance validation."""
         timer = performance_timer.start()
@@ -69,11 +66,7 @@ class TestWorkflowAPIIntegration:
     async def test_create_workflow_validation_errors(self, async_client: AsyncClient):
         """Test workflow creation with invalid data."""
         # Empty name
-        invalid_data = {
-            "name": "",
-            "workflow_type": "sequential",
-            "config": {"steps": []}
-        }
+        invalid_data = {"name": "", "workflow_type": "sequential", "config": {"steps": []}}
         response = await async_client.post("/api/v1/workflows/", json=invalid_data)
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
@@ -98,27 +91,23 @@ class TestWorkflowAPIIntegration:
                         "persona": "artemis-optimizer",
                         "action": "analyze_performance",
                         "timeout": 300,
-                        "retries": 3
+                        "retries": 3,
                     },
                     {
                         "name": "security_scan",
                         "persona": "hestia-auditor",
                         "action": "security_audit",
                         "timeout": 600,
-                        "parallel": True
-                    }
+                        "parallel": True,
+                    },
                 ],
                 "rollback_strategy": "immediate",
                 "notification_config": {
                     "on_success": ["admin@example.com"],
-                    "on_failure": ["ops@example.com"]
-                }
+                    "on_failure": ["ops@example.com"],
+                },
             },
-            "metadata": {
-                "project": "TMWS",
-                "environment": "test",
-                "estimated_duration": "15min"
-            }
+            "metadata": {"project": "TMWS", "environment": "test", "estimated_duration": "15min"},
         }
 
         response = await async_client.post("/api/v1/workflows/", json=complex_workflow)
@@ -147,7 +136,7 @@ class TestWorkflowAPIIntegration:
             workflow_data = {
                 "name": f"Test Workflow {i}",
                 "workflow_type": "sequential",
-                "config": {"steps": [{"action": f"step_{i}"}]}
+                "config": {"steps": [{"action": f"step_{i}"}]},
             }
             response = await async_client.post("/api/v1/workflows/", json=workflow_data)
             workflows_created.append(response.json()["workflow"])
@@ -165,8 +154,10 @@ class TestWorkflowAPIIntegration:
         # Verify ordering (newest first)
         workflows = data["workflows"]
         for i in range(len(workflows) - 1):
-            current_time = datetime.fromisoformat(workflows[i]["created_at"].replace('Z', '+00:00'))
-            next_time = datetime.fromisoformat(workflows[i + 1]["created_at"].replace('Z', '+00:00'))
+            current_time = datetime.fromisoformat(workflows[i]["created_at"].replace("Z", "+00:00"))
+            next_time = datetime.fromisoformat(
+                workflows[i + 1]["created_at"].replace("Z", "+00:00")
+            )
             assert current_time >= next_time
 
     async def test_list_workflows_with_filters(self, async_client: AsyncClient):
@@ -208,9 +199,7 @@ class TestWorkflowAPIIntegration:
             assert workflow["workflow_type"] == "sequential"
 
     async def test_get_workflow_success(
-        self,
-        async_client: AsyncClient,
-        sample_workflow_data: dict[str, Any]
+        self, async_client: AsyncClient, sample_workflow_data: dict[str, Any]
     ):
         """Test successful workflow retrieval."""
         # Create a workflow first
@@ -230,9 +219,7 @@ class TestWorkflowAPIIntegration:
         assert workflow["workflow_type"] == sample_workflow_data["workflow_type"]
 
     async def test_get_workflow_with_history(
-        self,
-        async_client: AsyncClient,
-        sample_workflow_data: dict[str, Any]
+        self, async_client: AsyncClient, sample_workflow_data: dict[str, Any]
     ):
         """Test workflow retrieval with execution history."""
         # Create a workflow first
@@ -258,9 +245,7 @@ class TestWorkflowAPIIntegration:
         assert f"Workflow {fake_id} not found" in data["detail"]
 
     async def test_update_workflow_success(
-        self,
-        async_client: AsyncClient,
-        sample_workflow_data: dict[str, Any]
+        self, async_client: AsyncClient, sample_workflow_data: dict[str, Any]
     ):
         """Test successful workflow update."""
         # Create a workflow first
@@ -272,12 +257,10 @@ class TestWorkflowAPIIntegration:
             "name": "Updated Workflow Name",
             "description": "Updated description",
             "config": {
-                "steps": [
-                    {"action": "new_step", "persona": "artemis-optimizer"}
-                ],
-                "timeout": 600
+                "steps": [{"action": "new_step", "persona": "artemis-optimizer"}],
+                "timeout": 600,
             },
-            "metadata": {"updated": True}
+            "metadata": {"updated": True},
         }
 
         response = await async_client.put(f"/api/v1/workflows/{workflow_id}", json=update_data)
@@ -293,9 +276,7 @@ class TestWorkflowAPIIntegration:
         assert workflow["metadata"] == update_data["metadata"]
 
     async def test_update_running_workflow_fails(
-        self,
-        async_client: AsyncClient,
-        sample_workflow_data: dict[str, Any]
+        self, async_client: AsyncClient, sample_workflow_data: dict[str, Any]
     ):
         """Test that updating a running workflow is not allowed."""
         # Create and start a workflow
@@ -313,9 +294,7 @@ class TestWorkflowAPIIntegration:
         assert "Cannot update a running workflow" in response.json()["detail"]
 
     async def test_delete_workflow_success(
-        self,
-        async_client: AsyncClient,
-        sample_workflow_data: dict[str, Any]
+        self, async_client: AsyncClient, sample_workflow_data: dict[str, Any]
     ):
         """Test successful workflow deletion."""
         # Create a workflow first
@@ -335,9 +314,7 @@ class TestWorkflowAPIIntegration:
         assert get_response.status_code == status.HTTP_404_NOT_FOUND
 
     async def test_delete_running_workflow_fails(
-        self,
-        async_client: AsyncClient,
-        sample_workflow_data: dict[str, Any]
+        self, async_client: AsyncClient, sample_workflow_data: dict[str, Any]
     ):
         """Test that deleting a running workflow is not allowed."""
         # Create and start a workflow
@@ -353,10 +330,7 @@ class TestWorkflowAPIIntegration:
         assert "Cannot delete a running workflow" in response.json()["detail"]
 
     async def test_execute_workflow_success(
-        self,
-        async_client: AsyncClient,
-        sample_workflow_data: dict[str, Any],
-        performance_timer
+        self, async_client: AsyncClient, sample_workflow_data: dict[str, Any], performance_timer
     ):
         """Test successful workflow execution initiation."""
         # Create a workflow first
@@ -365,15 +339,10 @@ class TestWorkflowAPIIntegration:
 
         # Execute the workflow
         timer = performance_timer.start()
-        execution_params = {
-            "environment": "test",
-            "debug": True,
-            "timeout": 300
-        }
+        execution_params = {"environment": "test", "debug": True, "timeout": 300}
 
         response = await async_client.post(
-            f"/api/v1/workflows/{workflow_id}/execute",
-            json=execution_params
+            f"/api/v1/workflows/{workflow_id}/execute", json=execution_params
         )
 
         elapsed = timer.stop()
@@ -388,9 +357,7 @@ class TestWorkflowAPIIntegration:
         assert "started_at" in data
 
     async def test_execute_running_workflow_fails(
-        self,
-        async_client: AsyncClient,
-        sample_workflow_data: dict[str, Any]
+        self, async_client: AsyncClient, sample_workflow_data: dict[str, Any]
     ):
         """Test that executing an already running workflow fails."""
         # Create and start a workflow
@@ -406,10 +373,7 @@ class TestWorkflowAPIIntegration:
         assert "Workflow is already running" in response.json()["detail"]
 
     async def test_get_workflow_status(
-        self,
-        async_client: AsyncClient,
-        sample_workflow_data: dict[str, Any],
-        performance_timer
+        self, async_client: AsyncClient, sample_workflow_data: dict[str, Any], performance_timer
     ):
         """Test workflow status retrieval with performance validation."""
         # Create and start a workflow
@@ -436,10 +400,7 @@ class TestWorkflowAPIIntegration:
         assert "result" in data
 
     async def test_cancel_workflow_success(
-        self,
-        async_client: AsyncClient,
-        sample_workflow_data: dict[str, Any],
-        performance_timer
+        self, async_client: AsyncClient, sample_workflow_data: dict[str, Any], performance_timer
     ):
         """Test successful workflow cancellation."""
         # Create and start a workflow
@@ -469,9 +430,7 @@ class TestWorkflowAPIIntegration:
         assert status_data["error"] == "Cancelled by user"
 
     async def test_cancel_non_running_workflow_fails(
-        self,
-        async_client: AsyncClient,
-        sample_workflow_data: dict[str, Any]
+        self, async_client: AsyncClient, sample_workflow_data: dict[str, Any]
     ):
         """Test that cancelling a non-running workflow fails."""
         # Create a workflow but don't start it
@@ -544,9 +503,9 @@ class TestWorkflowConcurrencyAndPerformance:
                 "config": {
                     "steps": [
                         {"action": f"step_1_{i}", "timeout": 100},
-                        {"action": f"step_2_{i}", "timeout": 100}
+                        {"action": f"step_2_{i}", "timeout": 100},
                     ]
-                }
+                },
             }
             response = await async_client.post("/api/v1/workflows/", json=workflow_data)
             workflow_ids.append(response.json()["workflow"]["id"])
@@ -560,7 +519,7 @@ class TestWorkflowConcurrencyAndPerformance:
         results = await asyncio.gather(*tasks)
 
         # All should start successfully
-        for status_code, workflow_id in results:
+        for status_code, _ in results:
             assert status_code == status.HTTP_200_OK
 
         # Verify all are running
@@ -569,16 +528,14 @@ class TestWorkflowConcurrencyAndPerformance:
             assert status_response.json()["status"] == "running"
 
     async def test_workflow_status_polling_performance(
-        self,
-        async_client: AsyncClient,
-        performance_timer
+        self, async_client: AsyncClient, performance_timer
     ):
         """Test performance of rapid status polling."""
         # Create and start a workflow
         workflow_data = {
             "name": "Status Test Workflow",
             "workflow_type": "sequential",
-            "config": {"steps": [{"action": "long_running_task", "timeout": 5000}]}
+            "config": {"steps": [{"action": "long_running_task", "timeout": 5000}]},
         }
 
         create_response = await async_client.post("/api/v1/workflows/", json=workflow_data)
@@ -598,11 +555,7 @@ class TestWorkflowConcurrencyAndPerformance:
 
         assert average_time < 50, f"Average status check time {average_time}ms exceeds 50ms"
 
-    async def test_bulk_workflow_operations(
-        self,
-        async_client: AsyncClient,
-        performance_timer
-    ):
+    async def test_bulk_workflow_operations(self, async_client: AsyncClient, performance_timer):
         """Test performance of bulk workflow operations."""
         # Bulk creation
         timer = performance_timer.start()
@@ -612,7 +565,7 @@ class TestWorkflowConcurrencyAndPerformance:
             workflow_data = {
                 "name": f"Bulk Workflow {i}",
                 "workflow_type": "sequential",
-                "config": {"steps": [{"action": f"bulk_step_{i}"}]}
+                "config": {"steps": [{"action": f"bulk_step_{i}"}]},
             }
             response = await async_client.post("/api/v1/workflows/", json=workflow_data)
             workflow_ids.append(response.json()["workflow"]["id"])
@@ -627,7 +580,9 @@ class TestWorkflowConcurrencyAndPerformance:
             assert response.status_code == status.HTTP_200_OK
 
         status_check_time = timer.stop()
-        assert status_check_time < 2000, f"Bulk status check took {status_check_time}ms, expected < 2s"
+        assert status_check_time < 2000, (
+            f"Bulk status check took {status_check_time}ms, expected < 2s"
+        )
 
 
 @pytest.mark.integration
@@ -669,9 +624,7 @@ class TestWorkflowErrorHandling:
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
     async def test_workflow_lifecycle_edge_cases(
-        self,
-        async_client: AsyncClient,
-        sample_workflow_data: dict[str, Any]
+        self, async_client: AsyncClient, sample_workflow_data: dict[str, Any]
     ):
         """Test edge cases in workflow lifecycle management."""
         # Create workflow
@@ -703,21 +656,15 @@ class TestWorkflowDatabaseIntegrity:
     """Test database transaction integrity for workflow operations."""
 
     async def test_workflow_creation_transaction_integrity(
-        self,
-        async_client: AsyncClient,
-        test_session: AsyncSession
+        self, async_client: AsyncClient, test_session: AsyncSession
     ):
         """Test that workflow creation maintains database integrity."""
         workflow_data = {
             "name": "Transaction Test Workflow",
             "workflow_type": "sequential",
             "description": "Test database transaction integrity",
-            "config": {
-                "steps": [
-                    {"action": "test_action", "timeout": 300}
-                ]
-            },
-            "metadata": {"test": True}
+            "config": {"steps": [{"action": "test_action", "timeout": 300}]},
+            "metadata": {"test": True},
         }
 
         response = await async_client.post("/api/v1/workflows/", json=workflow_data)
@@ -734,9 +681,7 @@ class TestWorkflowDatabaseIntegrity:
         assert retrieved_workflow["metadata"] == workflow_data["metadata"]
 
     async def test_workflow_execution_state_consistency(
-        self,
-        async_client: AsyncClient,
-        sample_workflow_data: dict[str, Any]
+        self, async_client: AsyncClient, sample_workflow_data: dict[str, Any]
     ):
         """Test that workflow execution state remains consistent."""
         # Create workflow

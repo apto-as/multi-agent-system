@@ -27,13 +27,10 @@ async def test_mcp_connection():
                 "method": "initialize",
                 "params": {
                     "protocolVersion": "2024-11-05",
-                    "clientInfo": {
-                        "name": "TMWS Test Client",
-                        "version": "1.0.0"
-                    },
+                    "clientInfo": {"name": "TMWS Test Client", "version": "1.0.0"},
                     "agent_id": "test-agent",
-                    "namespace": "test"
-                }
+                    "namespace": "test",
+                },
             }
 
             print("\n1. Sending initialization request...")
@@ -44,20 +41,12 @@ async def test_mcp_connection():
             print(f"Response: {json.dumps(response_data, indent=2)}")
 
             # Send initialized confirmation
-            initialized_msg = {
-                "jsonrpc": "2.0",
-                "method": "initialized"
-            }
+            initialized_msg = {"jsonrpc": "2.0", "method": "initialized"}
             await websocket.send(json.dumps(initialized_msg))
             print("\n2. Sent initialized confirmation")
 
             # List available tools
-            list_tools_request = {
-                "jsonrpc": "2.0",
-                "id": 2,
-                "method": "tools/list",
-                "params": {}
-            }
+            list_tools_request = {"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}}
 
             print("\n3. Listing available tools...")
             await websocket.send(json.dumps(list_tools_request))
@@ -76,9 +65,9 @@ async def test_mcp_connection():
                     "arguments": {
                         "content": f"Test memory created at {datetime.now().isoformat()}",
                         "importance": 0.5,
-                        "tags": ["test", "websocket"]
-                    }
-                }
+                        "tags": ["test", "websocket"],
+                    },
+                },
             }
 
             print("\n4. Creating a test memory...")
@@ -93,13 +82,7 @@ async def test_mcp_connection():
                 "jsonrpc": "2.0",
                 "id": 4,
                 "method": "tools/call",
-                "params": {
-                    "name": "search_memories",
-                    "arguments": {
-                        "query": "test",
-                        "limit": 5
-                    }
-                }
+                "params": {"name": "search_memories", "arguments": {"query": "test", "limit": 5}},
             }
 
             print("\n5. Searching for memories...")
@@ -110,12 +93,7 @@ async def test_mcp_connection():
             print(f"Search results: {json.dumps(response_data, indent=2)}")
 
             # Test ping
-            ping_request = {
-                "jsonrpc": "2.0",
-                "id": 5,
-                "method": "ping",
-                "params": {}
-            }
+            ping_request = {"jsonrpc": "2.0", "id": 5, "method": "ping", "params": {}}
 
             print("\n6. Sending ping...")
             await websocket.send(json.dumps(ping_request))
@@ -137,9 +115,9 @@ async def test_multiple_connections():
     """Test multiple simultaneous WebSocket connections."""
     uri = "ws://localhost:8000/ws/mcp"
 
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     print("Testing multiple simultaneous connections...")
-    print("="*50)
+    print("=" * 50)
 
     async def create_client(client_id: int):
         """Create and test a client connection."""
@@ -154,13 +132,10 @@ async def test_multiple_connections():
                     "method": "initialize",
                     "params": {
                         "protocolVersion": "2024-11-05",
-                        "clientInfo": {
-                            "name": f"Test Client {client_id}",
-                            "version": "1.0.0"
-                        },
+                        "clientInfo": {"name": f"Test Client {client_id}", "version": "1.0.0"},
                         "agent_id": f"test-agent-{client_id}",
-                        "namespace": "test"
-                    }
+                        "namespace": "test",
+                    },
                 }
 
                 await websocket.send(json.dumps(init_request))
@@ -208,12 +183,12 @@ async def main():
     print("Test 1: Basic MCP Protocol")
     test1_passed = await test_mcp_connection()
 
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
 
     print("\nTest 2: Multiple Connections")
     test2_passed = await test_multiple_connections()
 
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     print("\nTest Summary:")
     print(f"  Basic MCP Protocol: {'✅ PASSED' if test1_passed else '❌ FAILED'}")
     print(f"  Multiple Connections: {'✅ PASSED' if test2_passed else '❌ FAILED'}")

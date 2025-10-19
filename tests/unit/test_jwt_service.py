@@ -50,7 +50,7 @@ class TestJWTServiceInitialization:
 
     def test_jwt_service_secret_key_validation(self):
         """Test JWT service validates secret key length."""
-        with patch('src.security.jwt_service.get_settings') as mock_settings:
+        with patch("src.security.jwt_service.get_settings") as mock_settings:
             mock_settings.return_value.TMWS_SECRET_KEY = "short_key"
 
             with pytest.raises(ValueError, match="JWT secret key must be at least 32 characters"):
@@ -149,7 +149,7 @@ class TestAccessTokenGeneration:
             email="test@example.com",
             roles=[UserRole.USER],
             agent_namespace="test",
-            preferred_agent_id="test-agent"
+            preferred_agent_id="test-agent",
         )
 
     def test_create_access_token_structure(self, test_user):
@@ -157,33 +157,33 @@ class TestAccessTokenGeneration:
         token = jwt_service.create_access_token(test_user)
 
         # JWT should have 3 parts
-        assert token.count('.') == 2
+        assert token.count(".") == 2
 
         # Should be able to decode (insecurely for testing)
         payload = jwt_service.decode_token_unsafe(token)
 
         # Check required claims
-        required_claims = ['sub', 'username', 'email', 'roles', 'iat', 'exp', 'jti']
+        required_claims = ["sub", "username", "email", "roles", "iat", "exp", "jti"]
         for claim in required_claims:
             assert claim in payload
 
         # Check claim values
-        assert payload['sub'] == str(test_user.id)
-        assert payload['username'] == test_user.username
-        assert payload['email'] == test_user.email
-        assert payload['roles'] == [role.value for role in test_user.roles]
-        assert payload['agent_namespace'] == test_user.agent_namespace
-        assert payload['preferred_agent_id'] == test_user.preferred_agent_id
-        assert payload['iss'] == jwt_service.issuer
-        assert payload['aud'] == jwt_service.audience
+        assert payload["sub"] == str(test_user.id)
+        assert payload["username"] == test_user.username
+        assert payload["email"] == test_user.email
+        assert payload["roles"] == [role.value for role in test_user.roles]
+        assert payload["agent_namespace"] == test_user.agent_namespace
+        assert payload["preferred_agent_id"] == test_user.preferred_agent_id
+        assert payload["iss"] == jwt_service.issuer
+        assert payload["aud"] == jwt_service.audience
 
     def test_create_access_token_expiration(self, test_user):
         """Test access token expiration setting."""
         token = jwt_service.create_access_token(test_user)
         payload = jwt_service.decode_token_unsafe(token)
 
-        issued_at = datetime.fromtimestamp(payload['iat'], tz=timezone.utc)
-        expires_at = datetime.fromtimestamp(payload['exp'], tz=timezone.utc)
+        issued_at = datetime.fromtimestamp(payload["iat"], tz=timezone.utc)
+        expires_at = datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
 
         expected_duration = timedelta(minutes=jwt_service.access_token_expire_minutes)
         actual_duration = expires_at - issued_at
@@ -197,24 +197,21 @@ class TestAccessTokenGeneration:
         token = jwt_service.create_access_token(test_user, expires_delta=custom_expiry)
         payload = jwt_service.decode_token_unsafe(token)
 
-        issued_at = datetime.fromtimestamp(payload['iat'], tz=timezone.utc)
-        expires_at = datetime.fromtimestamp(payload['exp'], tz=timezone.utc)
+        issued_at = datetime.fromtimestamp(payload["iat"], tz=timezone.utc)
+        expires_at = datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
 
         actual_duration = expires_at - issued_at
         assert abs((actual_duration - custom_expiry).total_seconds()) < 60
 
     def test_create_access_token_additional_claims(self, test_user):
         """Test access token with additional claims."""
-        additional_claims = {
-            "custom_claim": "custom_value",
-            "permissions": ["read", "write"]
-        }
+        additional_claims = {"custom_claim": "custom_value", "permissions": ["read", "write"]}
 
         token = jwt_service.create_access_token(test_user, additional_claims=additional_claims)
         payload = jwt_service.decode_token_unsafe(token)
 
-        assert payload['custom_claim'] == "custom_value"
-        assert payload['permissions'] == ["read", "write"]
+        assert payload["custom_claim"] == "custom_value"
+        assert payload["permissions"] == ["read", "write"]
 
     @pytest.mark.performance
     def test_create_access_token_performance(self, test_user, performance_timer):
@@ -244,7 +241,7 @@ class TestAccessTokenGeneration:
         jtis = []
         for token in tokens:
             payload = jwt_service.decode_token_unsafe(token)
-            jtis.append(payload['jti'])
+            jtis.append(payload["jti"])
 
         assert len(set(jtis)) == len(jtis)
 
@@ -260,7 +257,7 @@ class TestTokenValidation:
             username="testuser",
             email="test@example.com",
             roles=[UserRole.USER],
-            agent_namespace="test"
+            agent_namespace="test",
         )
 
     def test_verify_valid_token(self, test_user):
@@ -269,15 +266,15 @@ class TestTokenValidation:
         payload = jwt_service.verify_token(token)
 
         assert payload is not None
-        assert payload['sub'] == str(test_user.id)
-        assert payload['username'] == test_user.username
+        assert payload["sub"] == str(test_user.id)
+        assert payload["username"] == test_user.username
 
     def test_verify_expired_token(self, test_user):
         """Test verification of expired token."""
         # Create token with very short expiry
         expired_token = jwt_service.create_access_token(
             test_user,
-            expires_delta=timedelta(seconds=-1)  # Already expired
+            expires_delta=timedelta(seconds=-1),  # Already expired
         )
 
         payload = jwt_service.verify_token(expired_token)
@@ -288,8 +285,8 @@ class TestTokenValidation:
         token = jwt_service.create_access_token(test_user)
 
         # Tamper with signature
-        parts = token.split('.')
-        tampered_signature = parts[2][:-1] + 'X'
+        parts = token.split(".")
+        tampered_signature = parts[2][:-1] + "X"
         tampered_token = f"{parts[0]}.{parts[1]}.{tampered_signature}"
 
         payload = jwt_service.verify_token(tampered_token)
@@ -302,7 +299,7 @@ class TestTokenValidation:
             "only.two.parts",
             "",
             "single_string_token",
-            "too.many.parts.here.invalid"
+            "too.many.parts.here.invalid",
         ]
 
         for token in malformed_tokens:
@@ -333,11 +330,11 @@ class TestTokenValidation:
         user_info = verify_and_extract_user(token)
 
         assert user_info is not None
-        assert user_info['user_id'] == str(test_user.id)
-        assert user_info['username'] == test_user.username
-        assert user_info['email'] == test_user.email
-        assert user_info['roles'] == [role.value for role in test_user.roles]
-        assert user_info['agent_namespace'] == test_user.agent_namespace
+        assert user_info["user_id"] == str(test_user.id)
+        assert user_info["username"] == test_user.username
+        assert user_info["email"] == test_user.email
+        assert user_info["roles"] == [role.value for role in test_user.roles]
+        assert user_info["agent_namespace"] == test_user.agent_namespace
 
 
 @pytest.mark.unit
@@ -346,19 +343,15 @@ class TestRefreshTokens:
 
     @pytest.fixture
     def test_user(self):
-        return User(
-            id="test-user-id",
-            username="testuser",
-            email="test@example.com"
-        )
+        return User(id="test-user-id", username="testuser", email="test@example.com")
 
     def test_create_refresh_token_format(self, test_user):
         """Test refresh token creation and format."""
         refresh_token, refresh_record = jwt_service.create_refresh_token(test_user)
 
         # Should have correct format
-        assert '.' in refresh_token
-        token_id, raw_token = refresh_token.split('.', 1)
+        assert "." in refresh_token
+        token_id, raw_token = refresh_token.split(".", 1)
 
         assert len(token_id) >= 32
         assert len(raw_token) >= 64
@@ -383,7 +376,7 @@ class TestRefreshTokens:
             "no_dot_separator",
             "",
             "short.token",
-            "very_short_token_id.token_part"
+            "very_short_token_id.token_part",
         ]
 
         for invalid_token in invalid_tokens:
@@ -393,7 +386,7 @@ class TestRefreshTokens:
     def test_verify_refresh_token_hash(self, test_user):
         """Test refresh token hash verification."""
         refresh_token, refresh_record = jwt_service.create_refresh_token(test_user)
-        _, raw_token = refresh_token.split('.', 1)
+        _, raw_token = refresh_token.split(".", 1)
 
         # Correct token should verify
         assert jwt_service.verify_refresh_token_hash(raw_token, refresh_record.token_hash)
@@ -409,10 +402,7 @@ class TestAPIKeyTokens:
     @pytest.fixture
     def test_user(self):
         return User(
-            id="test-user-id",
-            username="testuser",
-            email="test@example.com",
-            agent_namespace="test"
+            id="test-user-id", username="testuser", email="test@example.com", agent_namespace="test"
         )
 
     def test_create_api_key_token(self, test_user):
@@ -423,12 +413,12 @@ class TestAPIKeyTokens:
         token = jwt_service.create_api_key_token(api_key_id, test_user, scopes)
         payload = jwt_service.decode_token_unsafe(token)
 
-        assert payload['sub'] == str(test_user.id)
-        assert payload['username'] == test_user.username
-        assert payload['api_key_id'] == api_key_id
-        assert payload['scopes'] == scopes
-        assert payload['token_type'] == "api_key"
-        assert payload['agent_namespace'] == test_user.agent_namespace
+        assert payload["sub"] == str(test_user.id)
+        assert payload["username"] == test_user.username
+        assert payload["api_key_id"] == api_key_id
+        assert payload["scopes"] == scopes
+        assert payload["token_type"] == "api_key"
+        assert payload["agent_namespace"] == test_user.agent_namespace
 
     def test_create_api_key_token_expiration(self, test_user):
         """Test API key token expiration."""
@@ -441,8 +431,8 @@ class TestAPIKeyTokens:
         )
         payload = jwt_service.decode_token_unsafe(token)
 
-        issued_at = datetime.fromtimestamp(payload['iat'], tz=timezone.utc)
-        expires_at = datetime.fromtimestamp(payload['exp'], tz=timezone.utc)
+        issued_at = datetime.fromtimestamp(payload["iat"], tz=timezone.utc)
+        expires_at = datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
         actual_duration = expires_at - issued_at
 
         assert abs((actual_duration - custom_expiry).total_seconds()) < 60
@@ -496,10 +486,7 @@ class TestTokenUtilities:
     @pytest.fixture
     def test_user(self):
         return User(
-            id="test-user-id",
-            username="testuser",
-            email="test@example.com",
-            roles=[UserRole.USER]
+            id="test-user-id", username="testuser", email="test@example.com", roles=[UserRole.USER]
         )
 
     def test_create_tokens_for_user(self, test_user):
@@ -509,10 +496,10 @@ class TestTokenUtilities:
         # Verify access token
         payload = jwt_service.verify_token(access_token)
         assert payload is not None
-        assert payload['sub'] == str(test_user.id)
+        assert payload["sub"] == str(test_user.id)
 
         # Verify refresh token format
-        assert '.' in refresh_token
+        assert "." in refresh_token
         token_id = jwt_service.verify_refresh_token(refresh_token)
         assert token_id is not None
 
@@ -528,61 +515,61 @@ class TestTokenUtilities:
     def test_validate_token_claims(self):
         """Test token claims validation."""
         payload = {
-            'sub': 'user-123',
-            'username': 'testuser',
-            'roles': ['user'],
-            'exp': time.time() + 3600
+            "sub": "user-123",
+            "username": "testuser",
+            "roles": ["user"],
+            "exp": time.time() + 3600,
         }
 
-        required_claims = ['sub', 'username', 'roles']
+        required_claims = ["sub", "username", "roles"]
         assert jwt_service.validate_token_claims(payload, required_claims)
 
         # Missing claim
-        required_claims_missing = ['sub', 'username', 'missing_claim']
+        required_claims_missing = ["sub", "username", "missing_claim"]
         assert not jwt_service.validate_token_claims(payload, required_claims_missing)
 
     def test_extract_user_info(self):
         """Test user info extraction from payload."""
         payload = {
-            'sub': 'user-123',
-            'username': 'testuser',
-            'email': 'test@example.com',
-            'roles': ['user', 'admin'],
-            'agent_namespace': 'test_ns',
-            'preferred_agent_id': 'test-agent',
-            'session_timeout': 600
+            "sub": "user-123",
+            "username": "testuser",
+            "email": "test@example.com",
+            "roles": ["user", "admin"],
+            "agent_namespace": "test_ns",
+            "preferred_agent_id": "test-agent",
+            "session_timeout": 600,
         }
 
         user_info = jwt_service.extract_user_info(payload)
 
-        assert user_info['user_id'] == 'user-123'
-        assert user_info['username'] == 'testuser'
-        assert user_info['email'] == 'test@example.com'
-        assert user_info['roles'] == ['user', 'admin']
-        assert user_info['agent_namespace'] == 'test_ns'
-        assert user_info['preferred_agent_id'] == 'test-agent'
-        assert user_info['session_timeout'] == 600
+        assert user_info["user_id"] == "user-123"
+        assert user_info["username"] == "testuser"
+        assert user_info["email"] == "test@example.com"
+        assert user_info["roles"] == ["user", "admin"]
+        assert user_info["agent_namespace"] == "test_ns"
+        assert user_info["preferred_agent_id"] == "test-agent"
+        assert user_info["session_timeout"] == 600
 
     def test_is_token_type(self):
         """Test token type checking."""
-        api_key_payload = {'token_type': 'api_key'}
-        user_payload = {'token_type': 'access'}
+        api_key_payload = {"token_type": "api_key"}
+        user_payload = {"token_type": "access"}
         no_type_payload = {}
 
-        assert jwt_service.is_token_type(api_key_payload, 'api_key')
-        assert not jwt_service.is_token_type(api_key_payload, 'access')
-        assert jwt_service.is_token_type(user_payload, 'access')
-        assert not jwt_service.is_token_type(no_type_payload, 'api_key')
+        assert jwt_service.is_token_type(api_key_payload, "api_key")
+        assert not jwt_service.is_token_type(api_key_payload, "access")
+        assert jwt_service.is_token_type(user_payload, "access")
+        assert not jwt_service.is_token_type(no_type_payload, "api_key")
 
     def test_get_token_scopes(self):
         """Test token scopes extraction."""
-        payload_with_scopes = {'scopes': ['read', 'write', 'admin']}
+        payload_with_scopes = {"scopes": ["read", "write", "admin"]}
         payload_without_scopes = {}
 
         scopes1 = jwt_service.get_token_scopes(payload_with_scopes)
         scopes2 = jwt_service.get_token_scopes(payload_without_scopes)
 
-        assert scopes1 == ['read', 'write', 'admin']
+        assert scopes1 == ["read", "write", "admin"]
         assert scopes2 == []
 
 
@@ -592,24 +579,20 @@ class TestPasswordResetTokens:
 
     @pytest.fixture
     def test_user(self):
-        return User(
-            id="test-user-id",
-            username="testuser",
-            email="test@example.com"
-        )
+        return User(id="test-user-id", username="testuser", email="test@example.com")
 
     def test_create_password_reset_token(self, test_user):
         """Test password reset token creation."""
         token = jwt_service.create_password_reset_token(test_user)
         payload = jwt_service.decode_token_unsafe(token)
 
-        assert payload['sub'] == str(test_user.id)
-        assert payload['username'] == test_user.username
-        assert payload['token_type'] == 'password_reset'
+        assert payload["sub"] == str(test_user.id)
+        assert payload["username"] == test_user.username
+        assert payload["token_type"] == "password_reset"
 
         # Should have short expiry (30 minutes)
-        issued_at = datetime.fromtimestamp(payload['iat'], tz=timezone.utc)
-        expires_at = datetime.fromtimestamp(payload['exp'], tz=timezone.utc)
+        issued_at = datetime.fromtimestamp(payload["iat"], tz=timezone.utc)
+        expires_at = datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
         duration = expires_at - issued_at
 
         # Should be approximately 30 minutes
@@ -621,5 +604,5 @@ class TestPasswordResetTokens:
         payload = jwt_service.verify_token(token)
 
         assert payload is not None
-        assert payload['token_type'] == 'password_reset'
-        assert payload['sub'] == str(test_user.id)
+        assert payload["token_type"] == "password_reset"
+        assert payload["sub"] == str(test_user.id)

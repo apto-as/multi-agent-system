@@ -41,6 +41,7 @@ from src.services.pattern_execution_service import (
 # FIXTURES
 # ============================================================================
 
+
 @pytest.fixture
 async def integration_cache():
     """Cache manager for integration testing"""
@@ -48,7 +49,7 @@ async def integration_cache():
         redis_url="redis://localhost:6379/1",  # Test database
         local_ttl=60,
         redis_ttl=300,
-        max_local_size=1000
+        max_local_size=1000,
     )
     await cache.initialize()
     yield cache
@@ -62,52 +63,62 @@ async def pattern_registry_full():
 
     patterns = [
         # Infrastructure patterns (fast)
-        PatternDefinition.from_config({
-            'name': 'execute_tool',
-            'pattern_type': 'infrastructure',
-            'trigger_pattern': r'execute\s+(tool|command|action)',
-            'cost_tokens': 30,
-            'priority': 10
-        }),
-        PatternDefinition.from_config({
-            'name': 'list_tools',
-            'pattern_type': 'infrastructure',
-            'trigger_pattern': r'list\s+(tools|commands|actions)',
-            'cost_tokens': 20,
-            'priority': 9
-        }),
-
+        PatternDefinition.from_config(
+            {
+                "name": "execute_tool",
+                "pattern_type": "infrastructure",
+                "trigger_pattern": r"execute\s+(tool|command|action)",
+                "cost_tokens": 30,
+                "priority": 10,
+            }
+        ),
+        PatternDefinition.from_config(
+            {
+                "name": "list_tools",
+                "pattern_type": "infrastructure",
+                "trigger_pattern": r"list\s+(tools|commands|actions)",
+                "cost_tokens": 20,
+                "priority": 9,
+            }
+        ),
         # Memory patterns (medium)
-        PatternDefinition.from_config({
-            'name': 'recall_memory',
-            'pattern_type': 'memory',
-            'trigger_pattern': r'(recall|remember|find|search)\s+memory',
-            'cost_tokens': 80,
-            'priority': 8
-        }),
-        PatternDefinition.from_config({
-            'name': 'store_memory',
-            'pattern_type': 'memory',
-            'trigger_pattern': r'store\s+(memory|knowledge|information)',
-            'cost_tokens': 70,
-            'priority': 7
-        }),
-
+        PatternDefinition.from_config(
+            {
+                "name": "recall_memory",
+                "pattern_type": "memory",
+                "trigger_pattern": r"(recall|remember|find|search)\s+memory",
+                "cost_tokens": 80,
+                "priority": 8,
+            }
+        ),
+        PatternDefinition.from_config(
+            {
+                "name": "store_memory",
+                "pattern_type": "memory",
+                "trigger_pattern": r"store\s+(memory|knowledge|information)",
+                "cost_tokens": 70,
+                "priority": 7,
+            }
+        ),
         # Hybrid patterns (comprehensive)
-        PatternDefinition.from_config({
-            'name': 'analyze_system',
-            'pattern_type': 'hybrid',
-            'trigger_pattern': r'analyze\s+(system|architecture|performance)',
-            'cost_tokens': 150,
-            'priority': 6
-        }),
-        PatternDefinition.from_config({
-            'name': 'optimize_workflow',
-            'pattern_type': 'hybrid',
-            'trigger_pattern': r'optimize\s+(workflow|process|pipeline)',
-            'cost_tokens': 140,
-            'priority': 5
-        }),
+        PatternDefinition.from_config(
+            {
+                "name": "analyze_system",
+                "pattern_type": "hybrid",
+                "trigger_pattern": r"analyze\s+(system|architecture|performance)",
+                "cost_tokens": 150,
+                "priority": 6,
+            }
+        ),
+        PatternDefinition.from_config(
+            {
+                "name": "optimize_workflow",
+                "pattern_type": "hybrid",
+                "trigger_pattern": r"optimize\s+(workflow|process|pipeline)",
+                "cost_tokens": 140,
+                "priority": 5,
+            }
+        ),
     ]
 
     registry.register_batch(patterns)
@@ -126,15 +137,12 @@ def app_client():
 # MULTI-AGENT CONCURRENCY TESTS
 # ============================================================================
 
+
 @pytest.mark.asyncio
 class TestMultiAgentConcurrency:
     """Test concurrent pattern execution across multiple agents"""
 
-    async def test_50_concurrent_agent_sessions(
-        self,
-        integration_cache,
-        pattern_registry_full
-    ):
+    async def test_50_concurrent_agent_sessions(self, integration_cache, pattern_registry_full):
         """
         Test 50+ simultaneous agent sessions executing patterns
 
@@ -146,9 +154,7 @@ class TestMultiAgentConcurrency:
         """
         async with get_db_session() as session:
             engine = PatternExecutionEngine(
-                session=session,
-                cache_manager=integration_cache,
-                registry=pattern_registry_full
+                session=session, cache_manager=integration_cache, registry=pattern_registry_full
             )
 
             async def agent_session(agent_id: str, num_requests: int):
@@ -167,40 +173,36 @@ class TestMultiAgentConcurrency:
                         result = await engine.execute(
                             query,
                             execution_mode=ExecutionMode.BALANCED,
-                            context={'agent_id': agent_id, 'request_num': i}
+                            context={"agent_id": agent_id, "request_num": i},
                         )
-                        results.append({
-                            'success': result.success,
-                            'latency_ms': result.execution_time_ms,
-                            'cache_hit': result.cache_hit
-                        })
+                        results.append(
+                            {
+                                "success": result.success,
+                                "latency_ms": result.execution_time_ms,
+                                "cache_hit": result.cache_hit,
+                            }
+                        )
                     except Exception as e:
-                        results.append({
-                            'success': False,
-                            'error': str(e)
-                        })
+                        results.append({"success": False, "error": str(e)})
 
                 return results
 
             # Create 50 concurrent agent sessions
             start_time = time.perf_counter()
-            tasks = [
-                agent_session(f"agent_{i}", random.randint(3, 7))
-                for i in range(50)
-            ]
+            tasks = [agent_session(f"agent_{i}", random.randint(3, 7)) for i in range(50)]
             all_results = await asyncio.gather(*tasks)
             total_time = time.perf_counter() - start_time
 
             # Analyze results
             flat_results = [r for session in all_results for r in session]
-            successful = sum(1 for r in flat_results if r.get('success', False))
+            successful = sum(1 for r in flat_results if r.get("success", False))
             total_requests = len(flat_results)
             success_rate = (successful / total_requests) * 100
 
-            latencies = [r['latency_ms'] for r in flat_results if 'latency_ms' in r]
+            latencies = [r["latency_ms"] for r in flat_results if "latency_ms" in r]
             avg_latency = sum(latencies) / len(latencies) if latencies else 0
 
-            cache_hits = sum(1 for r in flat_results if r.get('cache_hit', False))
+            cache_hits = sum(1 for r in flat_results if r.get("cache_hit", False))
             cache_hit_rate = (cache_hits / total_requests) * 100
 
             # Performance assertions
@@ -216,9 +218,7 @@ class TestMultiAgentConcurrency:
             print(f"  Total time: {total_time:.2f}s")
 
     async def test_cache_coherency_under_concurrent_updates(
-        self,
-        integration_cache,
-        pattern_registry_full
+        self, integration_cache, pattern_registry_full
     ):
         """
         Test cache coherency when multiple agents update simultaneously
@@ -228,31 +228,26 @@ class TestMultiAgentConcurrency:
         """
         async with get_db_session() as session:
             engine = PatternExecutionEngine(
-                session=session,
-                cache_manager=integration_cache,
-                registry=pattern_registry_full
+                session=session, cache_manager=integration_cache, registry=pattern_registry_full
             )
 
             # First execution - populate cache
-            await engine.execute(
-                "execute tool test",
-                use_cache=True
-            )
+            await engine.execute("execute tool test", use_cache=True)
 
             # 20 concurrent agents trying to use the same cached result
             async def concurrent_access(agent_id: str):
                 results = []
                 for _ in range(5):
                     result = await engine.execute(
-                        "execute tool test",
-                        use_cache=True,
-                        context={'agent_id': agent_id}
+                        "execute tool test", use_cache=True, context={"agent_id": agent_id}
                     )
-                    results.append({
-                        'cache_hit': result.cache_hit,
-                        'pattern_name': result.pattern_name,
-                        'success': result.success
-                    })
+                    results.append(
+                        {
+                            "cache_hit": result.cache_hit,
+                            "pattern_name": result.pattern_name,
+                            "success": result.success,
+                        }
+                    )
                 return results
 
             tasks = [concurrent_access(f"agent_{i}") for i in range(20)]
@@ -262,11 +257,11 @@ class TestMultiAgentConcurrency:
             flat_results = [r for session in all_results for r in session]
 
             # All should have same pattern name (coherent)
-            pattern_names = {r['pattern_name'] for r in flat_results}
+            pattern_names = {r["pattern_name"] for r in flat_results}
             assert len(pattern_names) == 1, f"Cache incoherent: {pattern_names}"
 
             # Most should be cache hits (after first)
-            cache_hits = sum(1 for r in flat_results if r['cache_hit'])
+            cache_hits = sum(1 for r in flat_results if r["cache_hit"])
             cache_hit_rate = (cache_hits / len(flat_results)) * 100
             assert cache_hit_rate > 70, f"Cache hit rate {cache_hit_rate:.1f}% too low"
 
@@ -275,11 +270,7 @@ class TestMultiAgentConcurrency:
             print(f"  Pattern coherency: ✓ (single pattern: {pattern_names.pop()})")
             print(f"  Cache hit rate: {cache_hit_rate:.1f}%")
 
-    async def test_database_connection_pool_stress(
-        self,
-        integration_cache,
-        pattern_registry_full
-    ):
+    async def test_database_connection_pool_stress(self, integration_cache, pattern_registry_full):
         """
         Test database connection pool under stress
 
@@ -293,9 +284,7 @@ class TestMultiAgentConcurrency:
             """Pattern that requires database access"""
             async with get_db_session() as session:
                 engine = PatternExecutionEngine(
-                    session=session,
-                    cache_manager=integration_cache,
-                    registry=pattern_registry_full
+                    session=session, cache_manager=integration_cache, registry=pattern_registry_full
                 )
 
                 # Use memory pattern (requires DB)
@@ -303,7 +292,7 @@ class TestMultiAgentConcurrency:
                     "recall memory about testing",
                     execution_mode=ExecutionMode.COMPREHENSIVE,
                     use_cache=False,  # Force DB access
-                    context={'session': session_num}
+                    context={"session": session_num},
                 )
                 return result.success
 
@@ -333,6 +322,7 @@ class TestMultiAgentConcurrency:
 # WEBSOCKET MCP INTEGRATION TESTS
 # ============================================================================
 
+
 @pytest.mark.asyncio
 class TestWebSocketMCPIntegration:
     """Test pattern execution via WebSocket MCP protocol"""
@@ -356,16 +346,18 @@ class TestWebSocketMCPIntegration:
             session_id = welcome["params"]["session_id"]
 
             # Send pattern execution request
-            ws.send_json({
-                "jsonrpc": "2.0",
-                "id": "pattern-exec-1",
-                "method": "execute_pattern",
-                "params": {
-                    "query": "execute tool test",
-                    "execution_mode": "balanced",
-                    "use_cache": True
+            ws.send_json(
+                {
+                    "jsonrpc": "2.0",
+                    "id": "pattern-exec-1",
+                    "method": "execute_pattern",
+                    "params": {
+                        "query": "execute tool test",
+                        "execution_mode": "balanced",
+                        "use_cache": True,
+                    },
                 }
-            })
+            )
 
             # Should receive response
             response = ws.receive_json()
@@ -401,16 +393,18 @@ class TestWebSocketMCPIntegration:
             ws.receive_json()
 
             # Test existing MCP tool (e.g., memory operations)
-            ws.send_json({
-                "jsonrpc": "2.0",
-                "id": "memory-1",
-                "method": "store_memory",
-                "params": {
-                    "content": "Test memory content",
-                    "importance": 0.5,
-                    "tags": ["test"]
+            ws.send_json(
+                {
+                    "jsonrpc": "2.0",
+                    "id": "memory-1",
+                    "method": "store_memory",
+                    "params": {
+                        "content": "Test memory content",
+                        "importance": 0.5,
+                        "tags": ["test"],
+                    },
                 }
-            })
+            )
 
             # Should work without interference from pattern system
             response = ws.receive_json()
@@ -431,34 +425,30 @@ class TestWebSocketMCPIntegration:
 
         try:
             # Create 10 WebSocket connections
-            for i in range(10):
+            for _ in range(10):
                 ws = app_client.websocket_connect(f"/ws/mcp?agent_id={agent_id}")
                 welcome = ws.receive_json()
-                connections.append({
-                    'ws': ws,
-                    'session_id': welcome["params"]["session_id"]
-                })
+                connections.append({"ws": ws, "session_id": welcome["params"]["session_id"]})
 
             # Each client sends pattern execution request
             for i, conn in enumerate(connections):
-                conn['ws'].send_json({
-                    "jsonrpc": "2.0",
-                    "id": f"req-{i}",
-                    "method": "execute_pattern",
-                    "params": {
-                        "query": f"execute tool test_{i}",
-                        "execution_mode": "fast"
+                conn["ws"].send_json(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": f"req-{i}",
+                        "method": "execute_pattern",
+                        "params": {"query": f"execute tool test_{i}", "execution_mode": "fast"},
                     }
-                })
+                )
 
             # All should receive responses
             responses = []
             for conn in connections:
                 try:
-                    response = conn['ws'].receive_json()
+                    response = conn["ws"].receive_json()
                     responses.append(response)
                 except Exception as e:
-                    responses.append({'error': str(e)})
+                    responses.append({"error": str(e)})
 
             # Validate all responses
             successful = sum(1 for r in responses if "result" in r)
@@ -472,21 +462,20 @@ class TestWebSocketMCPIntegration:
             # Cleanup
             for conn in connections:
                 with contextlib.suppress(builtins.BaseException):
-                    conn['ws'].close()
+                    conn["ws"].close()
 
 
 # ============================================================================
 # DATABASE INTEGRATION TESTS
 # ============================================================================
 
+
 @pytest.mark.asyncio
 class TestDatabaseIntegration:
     """Test pattern integration with PostgreSQL + pgvector"""
 
     async def test_pgvector_query_performance_under_load(
-        self,
-        integration_cache,
-        pattern_registry_full
+        self, integration_cache, pattern_registry_full
     ):
         """
         Test pgvector semantic search performance under concurrent load
@@ -496,9 +485,7 @@ class TestDatabaseIntegration:
         """
         async with get_db_session() as session:
             engine = PatternExecutionEngine(
-                session=session,
-                cache_manager=integration_cache,
-                registry=pattern_registry_full
+                session=session, cache_manager=integration_cache, registry=pattern_registry_full
             )
 
             async def vector_search_pattern(query_num: int):
@@ -507,7 +494,7 @@ class TestDatabaseIntegration:
                 result = await engine.execute(
                     f"recall memory about optimization pattern {query_num}",
                     execution_mode=ExecutionMode.COMPREHENSIVE,
-                    use_cache=False
+                    use_cache=False,
                 )
                 latency = (time.perf_counter() - start) * 1000
                 return latency, result.success
@@ -533,9 +520,7 @@ class TestDatabaseIntegration:
             print(f"  Success rate: {successes}/50")
 
     async def test_transaction_isolation_during_pattern_execution(
-        self,
-        integration_cache,
-        pattern_registry_full
+        self, integration_cache, pattern_registry_full
     ):
         """
         Test PostgreSQL transaction isolation during concurrent pattern execution
@@ -553,16 +538,13 @@ class TestDatabaseIntegration:
 
         async with get_db_session() as session:
             engine = PatternExecutionEngine(
-                session=session,
-                cache_manager=integration_cache,
-                registry=pattern_registry_full
+                session=session, cache_manager=integration_cache, registry=pattern_registry_full
             )
 
             # Execute patterns that modify database state
             async def concurrent_update(update_id: int):
                 result = await engine.execute(
-                    f"store memory pattern {update_id}",
-                    execution_mode=ExecutionMode.BALANCED
+                    f"store memory pattern {update_id}", execution_mode=ExecutionMode.BALANCED
                 )
                 return result.success
 
@@ -587,15 +569,12 @@ class TestDatabaseIntegration:
 # REDIS CACHE INTEGRATION TESTS
 # ============================================================================
 
+
 @pytest.mark.asyncio
 class TestRedisCacheIntegration:
     """Test Redis cache integration with pattern execution"""
 
-    async def test_cache_invalidation_propagation(
-        self,
-        integration_cache,
-        pattern_registry_full
-    ):
+    async def test_cache_invalidation_propagation(self, integration_cache, pattern_registry_full):
         """
         Test cache invalidation across multiple pattern execution instances
 
@@ -603,9 +582,7 @@ class TestRedisCacheIntegration:
         """
         async with get_db_session() as session:
             engine = PatternExecutionEngine(
-                session=session,
-                cache_manager=integration_cache,
-                registry=pattern_registry_full
+                session=session, cache_manager=integration_cache, registry=pattern_registry_full
             )
 
             # Initial execution - populate cache
@@ -639,16 +616,10 @@ class TestRedisCacheIntegration:
         integration_cache.redis = None  # Simulate connection loss
 
         async with get_db_session() as session:
-            engine = PatternExecutionEngine(
-                session=session,
-                cache_manager=integration_cache
-            )
+            engine = PatternExecutionEngine(session=session, cache_manager=integration_cache)
 
             # Should still work with local cache
-            result = await engine.execute(
-                "execute tool test",
-                use_cache=True
-            )
+            result = await engine.execute("execute tool test", use_cache=True)
 
             assert result.success, "Should work without Redis (local cache)"
 
@@ -664,15 +635,13 @@ class TestRedisCacheIntegration:
 # PERFORMANCE INTEGRATION TESTS
 # ============================================================================
 
+
 @pytest.mark.asyncio
 class TestPerformanceIntegration:
     """Test end-to-end performance under realistic conditions"""
 
     async def test_end_to_end_latency_target(
-        self,
-        integration_cache,
-        pattern_registry_full,
-        app_client
+        self, integration_cache, pattern_registry_full, app_client
     ):
         """
         Test end-to-end latency: Client → WebSocket → Pattern → Database
@@ -690,16 +659,18 @@ class TestPerformanceIntegration:
             for i in range(100):
                 start = time.perf_counter()
 
-                ws.send_json({
-                    "jsonrpc": "2.0",
-                    "id": f"perf-{i}",
-                    "method": "execute_pattern",
-                    "params": {
-                        "query": "execute tool test",
-                        "execution_mode": "balanced",
-                        "use_cache": True
+                ws.send_json(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": f"perf-{i}",
+                        "method": "execute_pattern",
+                        "params": {
+                            "query": "execute tool test",
+                            "execution_mode": "balanced",
+                            "use_cache": True,
+                        },
                     }
-                })
+                )
 
                 ws.receive_json()
                 latency = (time.perf_counter() - start) * 1000
@@ -721,11 +692,7 @@ class TestPerformanceIntegration:
         print(f"  P95: {p95:.1f}ms")
         print(f"  P99: {p99:.1f}ms")
 
-    async def test_throughput_100_rps(
-        self,
-        integration_cache,
-        pattern_registry_full
-    ):
+    async def test_throughput_100_rps(self, integration_cache, pattern_registry_full):
         """
         Test sustained throughput of 100+ RPS
 
@@ -733,16 +700,12 @@ class TestPerformanceIntegration:
         """
         async with get_db_session() as session:
             engine = PatternExecutionEngine(
-                session=session,
-                cache_manager=integration_cache,
-                registry=pattern_registry_full
+                session=session, cache_manager=integration_cache, registry=pattern_registry_full
             )
 
             async def execute_pattern():
                 result = await engine.execute(
-                    "execute tool test",
-                    execution_mode=ExecutionMode.FAST,
-                    use_cache=True
+                    "execute tool test", execution_mode=ExecutionMode.FAST, use_cache=True
                 )
                 return result.success
 
@@ -769,7 +732,9 @@ class TestPerformanceIntegration:
             actual_rps = successes / elapsed
 
             assert actual_rps >= 90, f"Throughput {actual_rps:.1f} RPS below 90 RPS target"
-            assert successes >= total_requests * 0.95, f"Success rate too low: {successes}/{total_requests}"
+            assert successes >= total_requests * 0.95, (
+                f"Success rate too low: {successes}/{total_requests}"
+            )
 
             print("\n📈 Throughput Test:")
             print(f"  Duration: {elapsed:.2f}s")
@@ -777,11 +742,7 @@ class TestPerformanceIntegration:
             print(f"  Successes: {successes}")
             print(f"  Actual RPS: {actual_rps:.1f}")
 
-    async def test_token_reduction_validation(
-        self,
-        integration_cache,
-        pattern_registry_full
-    ):
+    async def test_token_reduction_validation(self, integration_cache, pattern_registry_full):
         """
         Validate 40% token reduction target
 
@@ -789,9 +750,7 @@ class TestPerformanceIntegration:
         """
         async with get_db_session() as session:
             engine = PatternExecutionEngine(
-                session=session,
-                cache_manager=integration_cache,
-                registry=pattern_registry_full
+                session=session, cache_manager=integration_cache, registry=pattern_registry_full
             )
 
             # Test queries that should use patterns
@@ -806,16 +765,15 @@ class TestPerformanceIntegration:
 
             for query, expected_tokens in test_cases:
                 result = await engine.execute(
-                    query,
-                    execution_mode=ExecutionMode.BALANCED,
-                    use_cache=False
+                    query, execution_mode=ExecutionMode.BALANCED, use_cache=False
                 )
 
                 total_pattern_tokens += result.tokens_used
                 total_llm_tokens += 400  # Baseline LLM cost
 
-                assert result.tokens_used <= expected_tokens * 1.1, \
+                assert result.tokens_used <= expected_tokens * 1.1, (
                     f"Token usage {result.tokens_used} exceeds {expected_tokens}"
+                )
 
             reduction = (1 - total_pattern_tokens / total_llm_tokens) * 100
 
@@ -831,14 +789,13 @@ class TestPerformanceIntegration:
 # ERROR RECOVERY INTEGRATION TESTS
 # ============================================================================
 
+
 @pytest.mark.asyncio
 class TestErrorRecoveryIntegration:
     """Test error propagation and recovery across integration points"""
 
     async def test_database_connection_loss_recovery(
-        self,
-        integration_cache,
-        pattern_registry_full
+        self, integration_cache, pattern_registry_full
     ):
         """
         Test recovery when database connection is lost during execution
@@ -850,9 +807,7 @@ class TestErrorRecoveryIntegration:
 
         async with get_db_session() as session:
             engine = PatternExecutionEngine(
-                session=session,
-                cache_manager=integration_cache,
-                registry=pattern_registry_full
+                session=session, cache_manager=integration_cache, registry=pattern_registry_full
             )
 
             # Normal execution
@@ -863,9 +818,7 @@ class TestErrorRecoveryIntegration:
             print("  Error handling: ✓")
 
     async def test_pattern_execution_timeout_handling(
-        self,
-        integration_cache,
-        pattern_registry_full
+        self, integration_cache, pattern_registry_full
     ):
         """
         Test timeout handling for long-running patterns

@@ -3,7 +3,6 @@ Integration tests for API Key Management endpoints.
 Tests user self-service API key creation, listing, and revocation.
 """
 
-
 import pytest
 from fastapi import status
 
@@ -188,8 +187,8 @@ class TestAPIKeyManagement:
             response = await client.post(
                 "/api/v1/auth/api-keys/",
                 json={
-                    "name": f"Test Key {i+1}",
-                    "description": f"Description {i+1}",
+                    "name": f"Test Key {i + 1}",
+                    "description": f"Description {i + 1}",
                     "scopes": ["read"],
                 },
                 headers=auth_headers,
@@ -250,9 +249,7 @@ class TestAPIKeyManagement:
         key_id = response.json()["key_info"]["key_id"]
 
         # Revoke key
-        response = await client.delete(
-            f"/api/v1/auth/api-keys/{key_id}", headers=auth_headers
-        )
+        response = await client.delete(f"/api/v1/auth/api-keys/{key_id}", headers=auth_headers)
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
@@ -271,9 +268,7 @@ class TestAPIKeyManagement:
         """Test revoking a key that doesn't exist."""
         fake_key_id = "nonexistent_key_id_12345"
 
-        response = await client.delete(
-            f"/api/v1/auth/api-keys/{fake_key_id}", headers=auth_headers
-        )
+        response = await client.delete(f"/api/v1/auth/api-keys/{fake_key_id}", headers=auth_headers)
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
 

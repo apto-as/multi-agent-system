@@ -505,7 +505,7 @@ class SQLInjectionValidator:
 
 class VectorValidator:
     """
-    Vector and embedding validation for pgvector protection.
+    Vector and embedding validation for ChromaDB vector protection.
     "……ベクターインジェクションも見逃しません……"
     """
 

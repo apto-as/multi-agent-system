@@ -36,10 +36,7 @@ class TestTaskAPIIntegration:
     """Complete integration testing for Task API endpoints."""
 
     async def test_create_task_success(
-        self,
-        async_client: AsyncClient,
-        sample_task_data: dict[str, Any],
-        performance_timer
+        self, async_client: AsyncClient, sample_task_data: dict[str, Any], performance_timer
     ):
         """Test successful task creation with performance validation."""
         # Performance monitoring
@@ -70,19 +67,12 @@ class TestTaskAPIIntegration:
     async def test_create_task_validation_errors(self, async_client: AsyncClient):
         """Test task creation with invalid data."""
         # Empty title
-        invalid_data = {
-            "title": "",
-            "description": "Test description",
-            "priority": "medium"
-        }
+        invalid_data = {"title": "", "description": "Test description", "priority": "medium"}
         response = await async_client.post("/api/v1/tasks/", json=invalid_data)
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
         # Invalid priority
-        invalid_data = {
-            "title": "Valid Title",
-            "priority": "invalid_priority"
-        }
+        invalid_data = {"title": "Valid Title", "priority": "invalid_priority"}
         response = await async_client.post("/api/v1/tasks/", json=invalid_data)
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
@@ -95,8 +85,8 @@ class TestTaskAPIIntegration:
             "metadata": {
                 "project": "TMWS",
                 "estimation": "4h",
-                "tags": ["optimization", "performance"]
-            }
+                "tags": ["optimization", "performance"],
+            },
         }
 
         response = await async_client.post("/api/v1/tasks/", json=task_data)
@@ -124,7 +114,7 @@ class TestTaskAPIIntegration:
             task_data = {
                 "title": f"Test Task {i}",
                 "description": f"Description {i}",
-                "priority": "medium"
+                "priority": "medium",
             }
             response = await async_client.post("/api/v1/tasks/", json=task_data)
             tasks_created.append(response.json()["task"]["id"])
@@ -190,10 +180,10 @@ class TestTaskAPIIntegration:
         assert data["tasks"][0]["title"] == "High Priority Completed"
 
         # Filter by assigned persona
-        await async_client.post("/api/v1/tasks/", json={
-            "title": "Artemis Task",
-            "assigned_persona": "artemis-optimizer"
-        })
+        await async_client.post(
+            "/api/v1/tasks/",
+            json={"title": "Artemis Task", "assigned_persona": "artemis-optimizer"},
+        )
 
         response = await async_client.get("/api/v1/tasks/?assigned_persona=artemis-optimizer")
         assert response.status_code == status.HTTP_200_OK
@@ -201,7 +191,9 @@ class TestTaskAPIIntegration:
         assert len(data["tasks"]) == 1
         assert data["tasks"][0]["assigned_persona"] == "artemis-optimizer"
 
-    async def test_get_task_success(self, async_client: AsyncClient, sample_task_data: dict[str, Any]):
+    async def test_get_task_success(
+        self, async_client: AsyncClient, sample_task_data: dict[str, Any]
+    ):
         """Test successful task retrieval."""
         # Create a task first
         create_response = await async_client.post("/api/v1/tasks/", json=sample_task_data)
@@ -233,7 +225,9 @@ class TestTaskAPIIntegration:
         response = await async_client.get("/api/v1/tasks/invalid-uuid")
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
-    async def test_update_task_success(self, async_client: AsyncClient, sample_task_data: dict[str, Any]):
+    async def test_update_task_success(
+        self, async_client: AsyncClient, sample_task_data: dict[str, Any]
+    ):
         """Test successful task update."""
         # Create a task first
         create_response = await async_client.post("/api/v1/tasks/", json=sample_task_data)
@@ -246,7 +240,7 @@ class TestTaskAPIIntegration:
             "status": "in_progress",
             "priority": "high",
             "progress": 50,
-            "metadata": {"updated": True}
+            "metadata": {"updated": True},
         }
 
         response = await async_client.put(f"/api/v1/tasks/{task_id}", json=update_data)
@@ -264,7 +258,9 @@ class TestTaskAPIIntegration:
         assert task["metadata"] == update_data["metadata"]
         assert task["updated_at"] != task["created_at"]
 
-    async def test_update_task_partial(self, async_client: AsyncClient, sample_task_data: dict[str, Any]):
+    async def test_update_task_partial(
+        self, async_client: AsyncClient, sample_task_data: dict[str, Any]
+    ):
         """Test partial task update."""
         # Create a task first
         create_response = await async_client.post("/api/v1/tasks/", json=sample_task_data)
@@ -289,7 +285,9 @@ class TestTaskAPIIntegration:
         response = await async_client.put(f"/api/v1/tasks/{fake_id}", json=update_data)
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    async def test_update_task_validation_errors(self, async_client: AsyncClient, sample_task_data: dict[str, Any]):
+    async def test_update_task_validation_errors(
+        self, async_client: AsyncClient, sample_task_data: dict[str, Any]
+    ):
         """Test task update with invalid data."""
         # Create a task first
         create_response = await async_client.post("/api/v1/tasks/", json=sample_task_data)
@@ -305,7 +303,9 @@ class TestTaskAPIIntegration:
         response = await async_client.put(f"/api/v1/tasks/{task_id}", json=update_data)
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
-    async def test_delete_task_success(self, async_client: AsyncClient, sample_task_data: dict[str, Any]):
+    async def test_delete_task_success(
+        self, async_client: AsyncClient, sample_task_data: dict[str, Any]
+    ):
         """Test successful task deletion."""
         # Create a task first
         create_response = await async_client.post("/api/v1/tasks/", json=sample_task_data)
@@ -329,7 +329,9 @@ class TestTaskAPIIntegration:
         response = await async_client.delete(f"/api/v1/tasks/{fake_id}")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    async def test_complete_task_success(self, async_client: AsyncClient, sample_task_data: dict[str, Any]):
+    async def test_complete_task_success(
+        self, async_client: AsyncClient, sample_task_data: dict[str, Any]
+    ):
         """Test successful task completion."""
         # Create a task first
         create_response = await async_client.post("/api/v1/tasks/", json=sample_task_data)
@@ -410,11 +412,12 @@ class TestTaskConcurrencyAndPerformance:
 
     async def test_concurrent_task_creation(self, async_client: AsyncClient):
         """Test concurrent task creation for race conditions."""
+
         async def create_task(i: int):
             task_data = {
                 "title": f"Concurrent Task {i}",
                 "description": f"Task created concurrently {i}",
-                "priority": "medium"
+                "priority": "medium",
             }
             response = await async_client.post("/api/v1/tasks/", json=task_data)
             return response.status_code, response.json()
@@ -432,7 +435,9 @@ class TestTaskConcurrencyAndPerformance:
         list_response = await async_client.get("/api/v1/tasks/")
         assert list_response.json()["total"] == 10
 
-    async def test_concurrent_task_updates(self, async_client: AsyncClient, sample_task_data: dict[str, Any]):
+    async def test_concurrent_task_updates(
+        self, async_client: AsyncClient, sample_task_data: dict[str, Any]
+    ):
         """Test concurrent updates to the same task."""
         # Create a task first
         create_response = await async_client.post("/api/v1/tasks/", json=sample_task_data)
@@ -448,7 +453,9 @@ class TestTaskConcurrencyAndPerformance:
         results = await asyncio.gather(*updates, return_exceptions=True)
 
         # At least one should succeed (last writer wins)
-        success_count = sum(1 for result in results if not isinstance(result, Exception) and result[0] == 200)
+        success_count = sum(
+            1 for result in results if not isinstance(result, Exception) and result[0] == 200
+        )
         assert success_count >= 1
 
         # Verify final state
@@ -465,7 +472,7 @@ class TestTaskConcurrencyAndPerformance:
             task_data = {
                 "title": f"Bulk Task {i}",
                 "description": f"Bulk created task {i}",
-                "priority": "medium"
+                "priority": "medium",
             }
             await async_client.post("/api/v1/tasks/", json=task_data)
 
@@ -487,9 +494,7 @@ class TestTaskDatabaseIntegrity:
     """Test database transaction integrity and error recovery."""
 
     async def test_database_rollback_on_error(
-        self,
-        async_client: AsyncClient,
-        test_session: AsyncSession
+        self, async_client: AsyncClient, test_session: AsyncSession
     ):
         """Test database rollback when task creation fails."""
         # This test would require mocking to force a database error
@@ -498,7 +503,7 @@ class TestTaskDatabaseIntegrity:
         task_data = {
             "title": "Test Rollback",
             "description": "Test database rollback",
-            "priority": "medium"
+            "priority": "medium",
         }
 
         response = await async_client.post("/api/v1/tasks/", json=task_data)
@@ -516,7 +521,7 @@ class TestTaskDatabaseIntegrity:
             "title": "Lifecycle Test",
             "description": "Test complete lifecycle",
             "priority": "high",
-            "metadata": {"phase": "creation"}
+            "metadata": {"phase": "creation"},
         }
 
         create_response = await async_client.post("/api/v1/tasks/", json=task_data)
@@ -525,11 +530,10 @@ class TestTaskDatabaseIntegrity:
         original_created_at = create_response.json()["task"]["created_at"]
 
         # Update
-        update_response = await async_client.put(f"/api/v1/tasks/{task_id}", json={
-            "status": "in_progress",
-            "progress": 25,
-            "metadata": {"phase": "in_progress"}
-        })
+        update_response = await async_client.put(
+            f"/api/v1/tasks/{task_id}",
+            json={"status": "in_progress", "progress": 25, "metadata": {"phase": "in_progress"}},
+        )
         assert update_response.status_code == status.HTTP_200_OK
 
         # Verify update preserved creation data

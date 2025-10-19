@@ -27,7 +27,7 @@ class TestMemoryVectorOperations:
             embedding=embedding,
             importance_score=0.8,
             tags=["test", "vector"],
-            access_level=AccessLevel.PRIVATE
+            access_level=AccessLevel.PRIVATE,
         )
 
         postgresql_session.add(memory)
@@ -55,7 +55,7 @@ class TestMemoryVectorOperations:
                 embedding=embedding,
                 importance_score=0.5 + i * 0.1,
                 tags=["test", f"vector_{i}"],
-                access_level=AccessLevel.PRIVATE
+                access_level=AccessLevel.PRIVATE,
             )
             memories.append(memory)
             postgresql_session.add(memory)
@@ -74,10 +74,7 @@ class TestMemoryVectorOperations:
                 ORDER BY embedding <=> :query_embedding
                 LIMIT 3
             """),
-            {
-                "query_embedding": str(query_embedding),
-                "agent_id": "test-agent"
-            }
+            {"query_embedding": str(query_embedding), "agent_id": "test-agent"},
         )
 
         rows = result.fetchall()
@@ -105,22 +102,22 @@ class TestMemoryVectorOperations:
                 agent_id="test-agent",
                 embedding=base_embedding.tolist(),
                 importance_score=0.8,
-                access_level=AccessLevel.PRIVATE
+                access_level=AccessLevel.PRIVATE,
             ),
             Memory(
                 content="Similar memory",
                 agent_id="test-agent",
                 embedding=similar_embedding.tolist(),
                 importance_score=0.7,
-                access_level=AccessLevel.PRIVATE
+                access_level=AccessLevel.PRIVATE,
             ),
             Memory(
                 content="Different memory",
                 agent_id="test-agent",
                 embedding=different_embedding.tolist(),
                 importance_score=0.6,
-                access_level=AccessLevel.PRIVATE
-            )
+                access_level=AccessLevel.PRIVATE,
+            ),
         ]
 
         for memory in memories:
@@ -140,8 +137,8 @@ class TestMemoryVectorOperations:
             {
                 "query_embedding": str(base_embedding.tolist()),
                 "agent_id": "test-agent",
-                "threshold": threshold
-            }
+                "threshold": threshold,
+            },
         )
 
         rows = result.fetchall()
@@ -172,7 +169,7 @@ class TestMemoryVectorOperations:
                 agent_id="perf-agent",
                 embedding=embedding,
                 importance_score=np.random.rand(),
-                access_level=AccessLevel.PRIVATE
+                access_level=AccessLevel.PRIVATE,
             )
             postgresql_session.add(memory)
 
@@ -190,10 +187,7 @@ class TestMemoryVectorOperations:
                 ORDER BY embedding <=> :query_embedding
                 LIMIT 10
             """),
-            {
-                "query_embedding": str(query_embedding),
-                "agent_id": "perf-agent"
-            }
+            {"query_embedding": str(query_embedding), "agent_id": "perf-agent"},
         )
 
         explain_output = result.fetchall()
@@ -218,7 +212,7 @@ class TestMemoryVectorOperations:
                 embedding=embedding.tolist(),
                 importance_score=0.7,
                 tags=["related", "consolidation"],
-                access_level=AccessLevel.PRIVATE
+                access_level=AccessLevel.PRIVATE,
             )
             related_memories.append(memory)
             postgresql_session.add(memory)
@@ -235,7 +229,7 @@ class TestMemoryVectorOperations:
             agent_id="consolidation-agent",
             embedding=avg_embedding.tolist(),
             importance_score=0.9,
-            consolidation_type="similarity_based"
+            consolidation_type="similarity_based",
         )
 
         postgresql_session.add(consolidation)
@@ -257,7 +251,7 @@ class TestMemoryVectorOperations:
                 agent_id="agent-1",
                 embedding=embedding,
                 importance_score=0.8,
-                access_level=AccessLevel.PRIVATE
+                access_level=AccessLevel.PRIVATE,
             ),
             Memory(
                 content="Team memory",
@@ -265,15 +259,15 @@ class TestMemoryVectorOperations:
                 embedding=embedding,
                 importance_score=0.8,
                 access_level=AccessLevel.TEAM,
-                shared_with_agents=["agent-2"]
+                shared_with_agents=["agent-2"],
             ),
             Memory(
                 content="Public memory",
                 agent_id="agent-1",
                 embedding=embedding,
                 importance_score=0.8,
-                access_level=AccessLevel.PUBLIC
-            )
+                access_level=AccessLevel.PUBLIC,
+            ),
         ]
 
         for memory in memories:
@@ -293,10 +287,7 @@ class TestMemoryVectorOperations:
                 AND embedding <=> :query_embedding < 1.0
                 ORDER BY embedding <=> :query_embedding
             """),
-            {
-                "query_embedding": str(embedding),
-                "agent_id": "agent-2"
-            }
+            {"query_embedding": str(embedding), "agent_id": "agent-2"},
         )
 
         rows = result.fetchall()
@@ -316,7 +307,7 @@ class TestMemoryVectorOperations:
             agent_id="update-agent",
             embedding=original_embedding,
             importance_score=0.5,
-            access_level=AccessLevel.PRIVATE
+            access_level=AccessLevel.PRIVATE,
         )
 
         postgresql_session.add(memory)
@@ -336,8 +327,7 @@ class TestMemoryVectorOperations:
 
         # Verify the update in database
         result = await postgresql_session.execute(
-            text("SELECT embedding FROM memories_v2 WHERE id = :id"),
-            {"id": memory.id}
+            text("SELECT embedding FROM memories_v2 WHERE id = :id"), {"id": memory.id}
         )
 
         db_embedding = result.scalar()
@@ -350,7 +340,7 @@ class TestMemoryVectorOperations:
             agent_id="null-embedding-agent",
             embedding=None,  # No embedding
             importance_score=0.5,
-            access_level=AccessLevel.PRIVATE
+            access_level=AccessLevel.PRIVATE,
         )
 
         postgresql_session.add(memory)
@@ -371,10 +361,7 @@ class TestMemoryVectorOperations:
                   AND embedding IS NOT NULL
                   AND embedding <=> :query_embedding < 1.0
             """),
-            {
-                "query_embedding": str(query_embedding),
-                "agent_id": "null-embedding-agent"
-            }
+            {"query_embedding": str(query_embedding), "agent_id": "null-embedding-agent"},
         )
 
         count = result.scalar()

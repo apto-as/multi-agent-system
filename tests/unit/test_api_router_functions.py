@@ -6,6 +6,7 @@ This module tests individual router functions directly without FastAPI overhead,
 focusing on business logic, validation, and error handling.
 """
 
+import asyncio
 import uuid
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock
@@ -131,29 +132,25 @@ class TestErrorHandlingLogic:
 
         # 404 Not Found
         not_found = HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Resource not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Resource not found"
         )
         assert not_found.status_code == 404
         assert "not found" in not_found.detail.lower()
 
         # 400 Bad Request
-        bad_request = HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid input"
-        )
+        bad_request = HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid input")
         assert bad_request.status_code == 400
         assert "invalid" in bad_request.detail.lower()
 
         # 500 Internal Server Error
         server_error = HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
         )
         assert server_error.status_code == 500
 
     async def test_exception_handling_pattern(self):
         """Test common exception handling pattern."""
+
         async def mock_operation_that_fails():
             raise Exception("Database connection failed")
 
@@ -181,10 +178,7 @@ class TestDatabasePatterns:
         assert query is not None
 
         # Query with conditions
-        conditions = [
-            Task.status == TaskStatus.PENDING,
-            Task.priority == TaskPriority.HIGH
-        ]
+        conditions = [Task.status == TaskStatus.PENDING, Task.priority == TaskPriority.HIGH]
         filtered_query = query.where(and_(*conditions))
         assert filtered_query is not None
 
@@ -226,11 +220,7 @@ class TestRouterResponseFormats:
         # Task creation response
         task_response = {
             "message": "Task created successfully",
-            "task": {
-                "id": str(uuid.uuid4()),
-                "title": "Test Task",
-                "status": "pending"
-            }
+            "task": {"id": str(uuid.uuid4()), "title": "Test Task", "status": "pending"},
         }
 
         assert "message" in task_response
@@ -238,13 +228,7 @@ class TestRouterResponseFormats:
         assert "successfully" in task_response["message"]
 
         # List response format
-        list_response = {
-            "tasks": [],
-            "total": 0,
-            "skip": 0,
-            "limit": 20,
-            "filters": {}
-        }
+        list_response = {"tasks": [], "total": 0, "skip": 0, "limit": 20, "filters": {}}
 
         assert "tasks" in list_response
         assert "total" in list_response
@@ -253,9 +237,7 @@ class TestRouterResponseFormats:
 
     def test_error_response_format(self):
         """Test error response format."""
-        error_response = {
-            "detail": "Task not found"
-        }
+        error_response = {"detail": "Task not found"}
 
         assert "detail" in error_response
         assert isinstance(error_response["detail"], str)
@@ -264,17 +246,9 @@ class TestRouterResponseFormats:
         """Test statistics response format."""
         stats_response = {
             "total_tasks": 100,
-            "by_status": {
-                "pending": 30,
-                "in_progress": 20,
-                "completed": 50
-            },
-            "by_priority": {
-                "low": 25,
-                "medium": 50,
-                "high": 25
-            },
-            "timestamp": datetime.utcnow().isoformat()
+            "by_status": {"pending": 30, "in_progress": 20, "completed": 50},
+            "by_priority": {"low": 25, "medium": 50, "high": 25},
+            "timestamp": datetime.utcnow().isoformat(),
         }
 
         assert "total_tasks" in stats_response
@@ -294,9 +268,9 @@ class TestConfigurationAccess:
 
         settings = get_settings()
         assert settings is not None
-        assert hasattr(settings, 'api_title')
-        assert hasattr(settings, 'api_version')
-        assert hasattr(settings, 'environment')
+        assert hasattr(settings, "api_title")
+        assert hasattr(settings, "api_version")
+        assert hasattr(settings, "environment")
 
     def test_logger_import(self):
         """Test logger can be imported and configured."""
@@ -345,7 +319,7 @@ class TestUtilityFunctions:
         # ISO format (used in responses)
         iso_string = now.isoformat()
         assert isinstance(iso_string, str)
-        assert 'T' in iso_string
+        assert "T" in iso_string
 
     def test_uuid_operations(self):
         """Test UUID operations used in routers."""
@@ -371,7 +345,7 @@ class TestUtilityFunctions:
             "count": 42,
             "active": True,
             "tags": ["test", "sample"],
-            "metadata": {"key": "value"}
+            "metadata": {"key": "value"},
         }
 
         # Should be JSON serializable
@@ -403,6 +377,7 @@ class TestModelIntegration:
 
     def test_model_to_dict_pattern(self):
         """Test model to_dict pattern."""
+
         # Mock model with to_dict method
         class MockModel:
             def __init__(self):
@@ -411,11 +386,7 @@ class TestModelIntegration:
                 self.created_at = datetime.utcnow()
 
             def to_dict(self):
-                return {
-                    "id": self.id,
-                    "name": self.name,
-                    "created_at": self.created_at.isoformat()
-                }
+                return {"id": self.id, "name": self.name, "created_at": self.created_at.isoformat()}
 
         model = MockModel()
         result = model.to_dict()
@@ -431,6 +402,7 @@ class TestServiceIntegration:
 
     def test_service_pattern(self):
         """Test service pattern used in routers."""
+
         # Mock service
         class MockService:
             async def create_item(self, data):
@@ -458,7 +430,3 @@ class TestServiceIntegration:
         # Test get not found
         result = asyncio.run(service.get_item("456"))
         assert result is None
-
-
-# Helper for async tests
-import asyncio

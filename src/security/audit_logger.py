@@ -1,18 +1,21 @@
-import hashlib
+"""
+Synchronous Security Audit Logger - Thin Wrapper
+This is a lightweight wrapper around AsyncSecurityAuditLogger for synchronous contexts.
+
+For new code, prefer using audit_logger_async.AsyncSecurityAuditLogger directly.
+This wrapper exists for backward compatibility with synchronous services.
+"""
+
+import asyncio
 import logging
-from datetime import datetime, timedelta
-from pathlib import Path
+from datetime import datetime
 from typing import Any
 
-import geoip2.database
-import geoip2.errors
 from fastapi import Request
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
-from ..core.config import get_settings
-from ..core.database import Base
-from ..models.audit_log import SecurityAuditLog, SecurityEventSeverity, SecurityEventType
+from ..models.audit_log import SecurityEventSeverity, SecurityEventType
+from .audit_logger_async import AsyncSecurityAuditLogger
+from .audit_logger_async import get_audit_logger as get_async_audit_logger
 from .security_event import SecurityEvent
 
 logger = logging.getLogger(__name__)
@@ -20,55 +23,38 @@ logger = logging.getLogger(__name__)
 
 class SecurityAuditLogger:
     """
-    Comprehensive security audit logging system.
-    Hestia's Rule: Every security event must be tracked and analyzed.
+    Synchronous wrapper around AsyncSecurityAuditLogger.
+
+    This class provides a synchronous interface to the async audit logger
+    by running async methods in a new event loop. This is primarily for
+    backward compatibility with existing synchronous code.
+
+    Note: This wrapper has performance overhead due to event loop creation.
+    For new code, use AsyncSecurityAuditLogger directly.
     """
 
     def __init__(self):
-        """Initialize audit logger."""
-        self.settings = get_settings()
-        self.engine = None
-        self.session_maker = None
-        self.geoip_reader = None
+        """Initialize sync wrapper."""
+        self._async_logger: AsyncSecurityAuditLogger | None = None
+        self._loop: asyncio.AbstractEventLoop | None = None
 
-        # Initialize database
-        self._init_database()
-
-        # Initialize GeoIP (optional)
-        self._init_geoip()
-
-        # Risk scoring patterns
-        self.risk_patterns = {
-            "high_risk_ips": set(),  # Known bad IPs
-            "suspicious_user_agents": ["sqlmap", "nikto", "burp", "nessus", "openvas"],
-            "attack_endpoints": ["admin", "wp-admin", "phpmyadmin", ".env", "config"],
-        }
-
-    def _init_database(self) -> None:
-        """Initialize database connection."""
+    def _get_or_create_loop(self) -> asyncio.AbstractEventLoop:
+        """Get or create event loop for sync operations."""
         try:
-            self.engine = create_engine(self.settings.database_url)
-            self.session_maker = sessionmaker(bind=self.engine)
+            # Try to get existing loop
+            return asyncio.get_event_loop()
+        except RuntimeError:
+            # Create new loop if none exists
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            return loop
 
-            # Create tables if they don't exist
-            Base.metadata.create_all(self.engine)
-
-            logger.info("Security audit database initialized")
-        except Exception as e:
-            logger.error(f"Failed to initialize audit database: {e}")
-
-    def _init_geoip(self) -> None:
-        """Initialize GeoIP database (optional)."""
-        try:
-            # Try to load GeoLite2 database
-            geoip_path = Path("/usr/local/share/GeoIP/GeoLite2-City.mmdb")
-            if geoip_path.exists():
-                self.geoip_reader = geoip2.database.Reader(str(geoip_path))
-                logger.info("GeoIP database loaded")
-            else:
-                logger.info("GeoIP database not found - location tracking disabled")
-        except Exception as e:
-            logger.warning(f"Failed to load GeoIP database: {e}")
+    def _get_async_logger(self) -> AsyncSecurityAuditLogger:
+        """Get or create async logger instance."""
+        if self._async_logger is None:
+            loop = self._get_or_create_loop()
+            self._async_logger = loop.run_until_complete(get_async_audit_logger())
+        return self._async_logger
 
     async def log_event(
         self,
@@ -83,237 +69,56 @@ class SecurityAuditLogger:
         blocked: bool = False,
     ) -> SecurityEvent:
         """
-        Log a security event.
+        Log a security event (async wrapper for sync context).
 
-        Args:
-            event_type: Type of security event
-            severity: Event severity level
-            client_ip: Client IP address
-            message: Event message
-            request: FastAPI request object (optional)
-            user_id: User ID (optional)
-            session_id: Session ID (optional)
-            details: Additional event details
-            blocked: Whether the action was blocked
-
-        Returns:
-            Created SecurityEvent object
+        This method can be called with await in async contexts.
+        For synchronous contexts, use the synchronous wrapper methods.
         """
-        now = datetime.utcnow()
-
-        # Create security event
-        event = SecurityEvent(
+        async_logger = self._get_async_logger()
+        return await async_logger.log_event(
             event_type=event_type,
             severity=severity,
-            timestamp=now,
             client_ip=client_ip,
+            message=message,
+            request=request,
             user_id=user_id,
             session_id=session_id,
-            message=message,
-            details=details or {},
+            details=details,
             blocked=blocked,
         )
 
-        # Extract request information
-        if request:
-            event.endpoint = str(request.url.path)
-            event.method = request.method
-            event.user_agent = request.headers.get("User-Agent")
-            event.referer = request.headers.get("Referer")
-
-        # Add location information
-        event.location = await self._get_location_info(client_ip)
-
-        # Calculate risk score
-        event.risk_score = self._calculate_risk_score(event)
-
-        # Store in database
-        await self._store_event(event)
-
-        # Log to file/console
-        self._log_to_file(event)
-
-        # Check for alert conditions
-        await self._check_alert_conditions(event)
-
-        return event
-
-    async def _store_event(self, event: SecurityEvent) -> None:
-        """Store event in database."""
-        if not self.session_maker:
-            return
-
-        try:
-            # Generate event hash for deduplication
-            event_hash = self._generate_event_hash(event)
-
-            session = self.session_maker()
-            try:
-                # Check if similar event already exists recently
-                existing = session.query(SecurityAuditLog).filter_by(event_hash=event_hash).first()
-
-                if existing:
-                    # Update existing event (increment counter in details)
-                    details = existing.details or {}
-                    details["count"] = details.get("count", 1) + 1
-                    details["last_occurrence"] = event.timestamp.isoformat()
-                    existing.details = details
-                else:
-                    # Create new event
-                    audit_log = SecurityAuditLog(
-                        event_type=event.event_type.value,
-                        severity=event.severity.value,
-                        timestamp=event.timestamp,
-                        client_ip=event.client_ip,
-                        user_id=event.user_id,
-                        session_id=event.session_id,
-                        endpoint=event.endpoint,
-                        method=event.method,
-                        user_agent=event.user_agent,
-                        referer=event.referer,
-                        message=event.message,
-                        details=event.details,
-                        location=event.location,
-                        risk_score=event.risk_score,
-                        blocked=event.blocked,
-                        event_hash=event_hash,
-                    )
-                    session.add(audit_log)
-
-                session.commit()
-
-            finally:
-                session.close()
-
-        except Exception as e:
-            logger.error(f"Failed to store security event: {e}")
-
-    def _generate_event_hash(self, event: SecurityEvent) -> str:
-        """Generate hash for event deduplication."""
-        # Create hash based on key fields
-        hash_data = f"{event.event_type.value}:{event.client_ip}:{event.endpoint}:{event.user_id}"
-        return hashlib.sha256(hash_data.encode()).hexdigest()[:16]
-
-    async def _get_location_info(self, ip_address: str) -> dict[str, str] | None:
-        """Get location information for IP address."""
-        if not self.geoip_reader:
-            return None
-
-        try:
-            response = self.geoip_reader.city(ip_address)
-            return {
-                "country": response.country.name or "Unknown",
-                "country_code": response.country.iso_code or "XX",
-                "city": response.city.name or "Unknown",
-                "region": response.subdivisions.most_specific.name or "Unknown",
-                "latitude": str(response.location.latitude) if response.location.latitude else None,
-                "longitude": str(response.location.longitude)
-                if response.location.longitude
-                else None,
-            }
-        except (geoip2.errors.AddressNotFoundError, geoip2.errors.GeoIP2Error):
-            return {"country": "Unknown", "country_code": "XX"}
-        except Exception as e:
-            logger.warning(f"GeoIP lookup failed for {ip_address}: {e}")
-            return None
-
-    def _calculate_risk_score(self, event: SecurityEvent) -> int:
+    def log_event_sync(
+        self,
+        event_type: SecurityEventType,
+        severity: SecurityEventSeverity,
+        client_ip: str,
+        message: str = None,
+        request: Request | None = None,
+        user_id: str | None = None,
+        session_id: str | None = None,
+        details: dict[str, Any] | None = None,
+        blocked: bool = False,
+    ) -> SecurityEvent:
         """
-        Calculate risk score for event (0-100).
-        Hestia's scoring: Everything is suspicious until proven otherwise.
+        Log a security event synchronously.
+
+        Note: This creates a new event loop for each call, which has performance overhead.
+        For better performance, use the async version directly.
         """
-        base_scores = {
-            SecurityEventType.LOGIN_FAILED: 20,
-            SecurityEventType.SQL_INJECTION_ATTEMPT: 90,
-            SecurityEventType.XSS_ATTEMPT: 80,
-            SecurityEventType.DDOS_DETECTED: 95,
-            SecurityEventType.UNAUTHORIZED_ACCESS: 70,
-            SecurityEventType.RATE_LIMIT_EXCEEDED: 40,
-            SecurityEventType.BOT_DETECTED: 60,
-            SecurityEventType.SYSTEM_COMPROMISE: 100,
-        }
-
-        score = base_scores.get(event.event_type, 30)  # Default paranoid score
-
-        # Increase score based on patterns
-        if event.client_ip in self.risk_patterns["high_risk_ips"]:
-            score += 30
-
-        if event.user_agent:
-            for suspicious_ua in self.risk_patterns["suspicious_user_agents"]:
-                if suspicious_ua.lower() in event.user_agent.lower():
-                    score += 25
-                    break
-
-        if event.endpoint:
-            for attack_endpoint in self.risk_patterns["attack_endpoints"]:
-                if attack_endpoint.lower() in event.endpoint.lower():
-                    score += 20
-                    break
-
-        # Increase score for repeat offenders
-        if event.details and event.details.get("count", 1) > 1:
-            score += min(event.details["count"] * 5, 30)
-
-        # Location-based scoring
-        if event.location:
-            # Increase score for high-risk countries (placeholder logic)
-            high_risk_countries = ["XX", "Unknown"]  # Unknown/blocked countries
-            if event.location.get("country_code") in high_risk_countries:
-                score += 15
-
-        return min(score, 100)  # Cap at 100
-
-    def _log_to_file(self, event: SecurityEvent) -> None:
-        """Log event to file/console."""
-        log_level = {
-            SecurityEventSeverity.LOW: logging.INFO,
-            SecurityEventSeverity.MEDIUM: logging.WARNING,
-            SecurityEventSeverity.HIGH: logging.ERROR,
-            SecurityEventSeverity.CRITICAL: logging.CRITICAL,
-        }.get(event.severity, logging.INFO)
-
-        message = (
-            f"Security Event: {event.event_type.value} | "
-            f"IP: {event.client_ip} | "
-            f"Risk: {event.risk_score} | "
-            f"{event.message}"
+        loop = self._get_or_create_loop()
+        return loop.run_until_complete(
+            self.log_event(
+                event_type=event_type,
+                severity=severity,
+                client_ip=client_ip,
+                message=message,
+                request=request,
+                user_id=user_id,
+                session_id=session_id,
+                details=details,
+                blocked=blocked,
+            )
         )
-
-        logger.log(log_level, message, extra={"security_event": event.to_dict()})
-
-    async def _check_alert_conditions(self, event: SecurityEvent) -> None:
-        """Check if event should trigger alerts."""
-        # Critical events always trigger alerts
-        if event.severity == SecurityEventSeverity.CRITICAL:
-            await self._send_alert(event, "Critical security event detected")
-
-        # High-risk events
-        if event.risk_score >= 80:
-            await self._send_alert(event, f"High-risk security event (score: {event.risk_score})")
-
-        # Multiple failed attempts
-        if (
-            event.event_type == SecurityEventType.LOGIN_FAILED
-            and event.details
-            and event.details.get("count", 1) >= 5
-        ):
-            await self._send_alert(event, "Brute force attack detected")
-
-        # DDoS detection
-        if event.event_type == SecurityEventType.DDOS_DETECTED:
-            await self._send_alert(event, "DDoS attack in progress")
-
-    async def _send_alert(self, _event: SecurityEvent, alert_message: str) -> None:
-        """Send security alert (placeholder implementation)."""
-        logger.critical(f"SECURITY ALERT: {alert_message}")
-
-        # TODO: Implement actual alerting:
-        # - Email notifications
-        # - Slack/Discord webhooks
-        # - SMS alerts for critical events
-        # - PagerDuty integration
-        # - SIEM integration
 
     async def get_events(
         self,
@@ -322,140 +127,78 @@ class SecurityAuditLogger:
         severity: SecurityEventSeverity | None = None,
         client_ip: str | None = None,
         user_id: str | None = None,
-        start_time: datetime | None = None,
-        end_time: datetime | None = None,
+        start_time: datetime | None = None,  # noqa: ARG002 - Reserved for future time-based filtering
+        end_time: datetime | None = None,  # noqa: ARG002 - Reserved for future time-based filtering
     ) -> list[dict[str, Any]]:
         """
-        Retrieve security events with filtering.
+        Retrieve security events with filtering (async).
 
-        Args:
-            limit: Maximum number of events to return
-            event_type: Filter by event type
-            severity: Filter by severity
-            client_ip: Filter by client IP
-            user_id: Filter by user ID
-            start_time: Filter events after this time
-            end_time: Filter events before this time
-
-        Returns:
-            List of security events
+        Note: start_time and end_time are reserved for future implementation
+        when AsyncSecurityAuditLogger supports time-based filtering.
         """
-        if not self.session_maker:
-            return []
+        async_logger = self._get_async_logger()
 
-        try:
-            session = self.session_maker()
-            try:
-                query = session.query(SecurityAuditLog)
+        # Map to async method (which supports similar filtering via get_recent_events)
+        # For full filtering, we'd need to add a method to AsyncSecurityAuditLogger
+        # For now, return recent events and filter client-side if needed
+        all_events = await async_logger.get_recent_events(minutes=1440)  # 24 hours
 
-                # Apply filters
-                if event_type:
-                    query = query.filter(SecurityAuditLog.event_type == event_type.value)
+        # Apply filters
+        filtered = all_events
+        if event_type:
+            filtered = [e for e in filtered if e["event_type"] == event_type.value]
+        if severity:
+            filtered = [e for e in filtered if e["severity"] == severity.value]
+        if client_ip:
+            filtered = [e for e in filtered if e.get("client_ip") == client_ip]
+        if user_id:
+            filtered = [e for e in filtered if e.get("user_id") == user_id]
 
-                if severity:
-                    query = query.filter(SecurityAuditLog.severity == severity.value)
-
-                if client_ip:
-                    query = query.filter(SecurityAuditLog.client_ip == client_ip)
-
-                if user_id:
-                    query = query.filter(SecurityAuditLog.user_id == user_id)
-
-                if start_time:
-                    query = query.filter(SecurityAuditLog.timestamp >= start_time)
-
-                if end_time:
-                    query = query.filter(SecurityAuditLog.timestamp <= end_time)
-
-                # Order by timestamp (newest first) and limit
-                events = query.order_by(SecurityAuditLog.timestamp.desc()).limit(limit).all()
-
-                # Convert to dict
-                return [
-                    {
-                        "id": event.id,
-                        "event_type": event.event_type,
-                        "severity": event.severity,
-                        "timestamp": event.timestamp.isoformat(),
-                        "client_ip": event.client_ip,
-                        "user_id": event.user_id,
-                        "endpoint": event.endpoint,
-                        "message": event.message,
-                        "details": event.details,
-                        "location": event.location,
-                        "risk_score": event.risk_score,
-                        "blocked": event.blocked,
-                    }
-                    for event in events
-                ]
-
-            finally:
-                session.close()
-
-        except Exception as e:
-            logger.error(f"Failed to retrieve security events: {e}")
-            return []
+        return filtered[:limit]
 
     async def get_statistics(self) -> dict[str, Any]:
-        """Get security event statistics."""
-        if not self.session_maker:
-            return {}
+        """
+        Get security event statistics (async).
 
-        try:
-            session = self.session_maker()
-            try:
-                from sqlalchemy import func
+        Note: This is a simplified version. The full statistics from the original
+        implementation would require adding this method to AsyncSecurityAuditLogger.
+        """
+        async_logger = self._get_async_logger()
 
-                # Total events by severity
-                severity_stats = (
-                    session.query(SecurityAuditLog.severity, func.count(SecurityAuditLog.id))
-                    .group_by(SecurityAuditLog.severity)
-                    .all()
-                )
+        # Get recent events for basic statistics
+        recent_events = await async_logger.get_recent_events(minutes=1440)
 
-                # Events by type (top 10)
-                type_stats = (
-                    session.query(SecurityAuditLog.event_type, func.count(SecurityAuditLog.id))
-                    .group_by(SecurityAuditLog.event_type)
-                    .order_by(func.count(SecurityAuditLog.id).desc())
-                    .limit(10)
-                    .all()
-                )
+        # Calculate basic stats
+        total_events = len(recent_events)
+        critical_count = sum(1 for e in recent_events if e["severity"] == "critical")
 
-                # Top attacking IPs
-                ip_stats = (
-                    session.query(SecurityAuditLog.client_ip, func.count(SecurityAuditLog.id))
-                    .group_by(SecurityAuditLog.client_ip)
-                    .order_by(func.count(SecurityAuditLog.id).desc())
-                    .limit(10)
-                    .all()
-                )
+        # Count by severity
+        severity_counts = {}
+        for event in recent_events:
+            severity = event["severity"]
+            severity_counts[severity] = severity_counts.get(severity, 0) + 1
 
-                # Recent critical events count
-                twenty_four_hours_ago = datetime.utcnow() - timedelta(hours=24)
-                critical_count = (
-                    session.query(SecurityAuditLog)
-                    .filter(
-                        SecurityAuditLog.severity == "critical",
-                        SecurityAuditLog.timestamp >= twenty_four_hours_ago,
-                    )
-                    .count()
-                )
+        # Count by type
+        type_counts = {}
+        for event in recent_events:
+            event_type = event["event_type"]
+            type_counts[event_type] = type_counts.get(event_type, 0) + 1
 
-                return {
-                    "total_events": session.query(SecurityAuditLog).count(),
-                    "critical_events_24h": critical_count,
-                    "events_by_severity": dict(severity_stats),
-                    "events_by_type": dict(type_stats),
-                    "top_attacking_ips": dict(ip_stats),
-                }
+        # Top IPs
+        ip_counts = {}
+        for event in recent_events:
+            ip = event.get("client_ip", "unknown")
+            ip_counts[ip] = ip_counts.get(ip, 0) + 1
 
-            finally:
-                session.close()
-
-        except Exception as e:
-            logger.error(f"Failed to get security statistics: {e}")
-            return {}
+        return {
+            "total_events": total_events,
+            "critical_events_24h": critical_count,
+            "events_by_severity": severity_counts,
+            "events_by_type": type_counts,
+            "top_attacking_ips": dict(
+                sorted(ip_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+            ),
+        }
 
 
 # Global audit logger instance
@@ -463,7 +206,11 @@ _audit_logger: SecurityAuditLogger | None = None
 
 
 def get_audit_logger() -> SecurityAuditLogger:
-    """Get global audit logger instance."""
+    """
+    Get global audit logger instance (synchronous wrapper).
+
+    For new code, prefer using get_async_audit_logger() from audit_logger_async.
+    """
     global _audit_logger
     if _audit_logger is None:
         _audit_logger = SecurityAuditLogger()

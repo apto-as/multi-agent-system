@@ -9,6 +9,7 @@ from typing import Any
 
 import jwt
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
+from passlib.context import CryptContext
 
 from ..core.config import get_settings
 from ..models.user import RefreshToken, User
@@ -36,7 +37,10 @@ class JWTService:
         self.refresh_token_expire_days = 30  # Longer-lived for UX
         self.api_key_token_expire_hours = 24  # Service tokens
 
-        # Password hashing moved to utils.security for consistency
+        # M-1 fix: Initialize pwd_context for refresh token hashing
+        self.pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+        # Password hashing for user passwords moved to utils.security for consistency
 
         # Performance optimization: pre-compute common claims
         self._base_claims = {

@@ -43,11 +43,6 @@ def upgrade() -> None:
         END $$;
     """)
 
-    user_role_enum = postgresql.ENUM(
-        'super_admin', 'admin', 'user', 'readonly', 'service',
-        name='userrole',
-        create_type=False
-    )
     op.execute("""
         DO $$ BEGIN
             CREATE TYPE userrole AS ENUM ('super_admin', 'admin', 'user', 'readonly', 'service');
@@ -56,11 +51,6 @@ def upgrade() -> None:
         END $$;
     """)
 
-    api_key_scope_enum = postgresql.ENUM(
-        'full', 'read', 'write', 'admin', 'memory', 'tasks', 'workflows',
-        name='apikeyscope',
-        create_type=False
-    )
     op.execute("""
         DO $$ BEGIN
             CREATE TYPE apikeyscope AS ENUM ('full', 'read', 'write', 'admin', 'memory', 'tasks', 'workflows');

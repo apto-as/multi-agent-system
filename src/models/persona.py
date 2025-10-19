@@ -8,7 +8,7 @@ from typing import Any
 
 import sqlalchemy as sa
 from sqlalchemy import Boolean, DateTime, Index, Text
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import JSON
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import MetadataMixin, TMWSBase
@@ -55,15 +55,15 @@ class Persona(TMWSBase, MetadataMixin):
     # Persona configuration
     display_name: Mapped[str] = mapped_column(Text, nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
-    specialties: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
+    specialties: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
 
     # Persona behavior configuration
-    config: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
-    preferences: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    config: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    preferences: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
 
     # Status and capabilities
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)
-    capabilities: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
+    capabilities: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
 
     # Performance metrics
     total_tasks: Mapped[int] = mapped_column(sa.Integer, nullable=False, default=0)

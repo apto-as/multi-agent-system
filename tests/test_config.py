@@ -28,6 +28,7 @@ from typing import Any
 
 class TestCategory(Enum):
     """Test categories for organization and reporting."""
+
     UNIT = "unit"
     INTEGRATION = "integration"
     SECURITY = "security"
@@ -37,6 +38,7 @@ class TestCategory(Enum):
 
 class TestResult(Enum):
     """Test result outcomes."""
+
     PASSED = "passed"
     FAILED = "failed"
     SKIPPED = "skipped"
@@ -46,6 +48,7 @@ class TestResult(Enum):
 @dataclass
 class TestMetrics:
     """Test execution metrics."""
+
     test_name: str
     category: TestCategory
     duration_ms: float
@@ -63,6 +66,7 @@ class TestMetrics:
 @dataclass
 class SecurityTestResult:
     """Security test specific results."""
+
     test_name: str
     vulnerability_type: str
     risk_level: str  # low, medium, high, critical
@@ -79,6 +83,7 @@ class SecurityTestResult:
 @dataclass
 class PerformanceTestResult:
     """Performance test specific results."""
+
     test_name: str
     operation: str
     avg_time_ms: float
@@ -102,7 +107,7 @@ class TestDataFactory:
         username: str = "testuser",
         email: str = "test@example.com",
         password: str = "secure_password_123",
-        **kwargs
+        **kwargs,
     ) -> dict[str, Any]:
         """Create user data for testing."""
         default_data = {
@@ -111,16 +116,14 @@ class TestDataFactory:
             "password": password,
             "full_name": f"Test User {username}",
             "agent_namespace": "test",
-            "roles": ["user"]
+            "roles": ["user"],
         }
         default_data.update(kwargs)
         return default_data
 
     @staticmethod
     def create_api_key_data(
-        name: str = "Test API Key",
-        scopes: list[str] = None,
-        **kwargs
+        name: str = "Test API Key", scopes: list[str] = None, **kwargs
     ) -> dict[str, Any]:
         """Create API key data for testing."""
         if scopes is None:
@@ -130,22 +133,19 @@ class TestDataFactory:
             "name": name,
             "description": f"Test API key: {name}",
             "scopes": scopes,
-            "expires_days": 30
+            "expires_days": 30,
         }
         default_data.update(kwargs)
         return default_data
 
     @staticmethod
-    def create_memory_data(
-        content: str = "Test memory content",
-        **kwargs
-    ) -> dict[str, Any]:
+    def create_memory_data(content: str = "Test memory content", **kwargs) -> dict[str, Any]:
         """Create memory data for testing."""
         default_data = {
             "content": content,
             "importance": 0.5,
             "tags": ["test"],
-            "metadata": {"category": "test"}
+            "metadata": {"category": "test"},
         }
         default_data.update(kwargs)
         return default_data
@@ -183,14 +183,15 @@ class TestResultCollector:
         passed_tests = len([m for m in self.test_metrics if m.result == TestResult.PASSED])
         failed_tests = len([m for m in self.test_metrics if m.result == TestResult.FAILED])
 
-        security_critical = len([
-            r for r in self.security_results
-            if r.risk_level == "critical" and r.result == TestResult.FAILED
-        ])
+        security_critical = len(
+            [
+                r
+                for r in self.security_results
+                if r.risk_level == "critical" and r.result == TestResult.FAILED
+            ]
+        )
 
-        performance_failures = len([
-            r for r in self.performance_results if not r.passed
-        ])
+        performance_failures = len([r for r in self.performance_results if not r.passed])
 
         return {
             "execution_summary": {
@@ -199,23 +200,29 @@ class TestResultCollector:
                 "total_tests": total_tests,
                 "passed": passed_tests,
                 "failed": failed_tests,
-                "success_rate": (passed_tests / total_tests * 100) if total_tests > 0 else 0
+                "success_rate": (passed_tests / total_tests * 100) if total_tests > 0 else 0,
             },
             "security_summary": {
                 "total_security_tests": len(self.security_results),
                 "critical_vulnerabilities": security_critical,
-                "security_passed": len([r for r in self.security_results if r.result == TestResult.PASSED])
+                "security_passed": len(
+                    [r for r in self.security_results if r.result == TestResult.PASSED]
+                ),
             },
             "performance_summary": {
                 "total_performance_tests": len(self.performance_results),
                 "performance_failures": performance_failures,
-                "avg_response_time": self._calculate_avg_performance()
+                "avg_response_time": self._calculate_avg_performance(),
             },
             "coverage_summary": {
                 "overall_coverage": self.coverage_data.get("overall", 0),
                 "critical_path_coverage": self.coverage_data.get("critical_paths", 0),
-                "by_module": {k: v for k, v in self.coverage_data.items() if k not in ["overall", "critical_paths"]}
-            }
+                "by_module": {
+                    k: v
+                    for k, v in self.coverage_data.items()
+                    if k not in ["overall", "critical_paths"]
+                },
+            },
         }
 
     def _calculate_avg_performance(self) -> float:
@@ -235,13 +242,13 @@ class TestResultCollector:
             "detailed_results": {
                 "test_metrics": [asdict(m) for m in self.test_metrics],
                 "security_results": [asdict(r) for r in self.security_results],
-                "performance_results": [asdict(r) for r in self.performance_results]
+                "performance_results": [asdict(r) for r in self.performance_results],
             },
             "coverage_data": self.coverage_data,
-            "recommendations": self._generate_recommendations()
+            "recommendations": self._generate_recommendations(),
         }
 
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             json.dump(report, f, indent=2, default=str)
 
         return report
@@ -255,17 +262,23 @@ class TestResultCollector:
         # Coverage recommendations
         overall_coverage = summary["coverage_summary"]["overall_coverage"]
         if overall_coverage < 90:
-            recommendations.append(f"Increase code coverage from {overall_coverage:.1f}% to 90%+ for critical paths")
+            recommendations.append(
+                f"Increase code coverage from {overall_coverage:.1f}% to 90%+ for critical paths"
+            )
 
         # Security recommendations
         critical_vulns = summary["security_summary"]["critical_vulnerabilities"]
         if critical_vulns > 0:
-            recommendations.append(f"Address {critical_vulns} critical security vulnerabilities immediately")
+            recommendations.append(
+                f"Address {critical_vulns} critical security vulnerabilities immediately"
+            )
 
         # Performance recommendations
         perf_failures = summary["performance_summary"]["performance_failures"]
         if perf_failures > 0:
-            recommendations.append(f"Fix {perf_failures} performance test failures to meet <200ms requirements")
+            recommendations.append(
+                f"Fix {perf_failures} performance test failures to meet <200ms requirements"
+            )
 
         # Success rate recommendations
         success_rate = summary["execution_summary"]["success_rate"]
@@ -360,10 +373,7 @@ class CoverageAnalyzer:
 
             overall_coverage = (covered_lines / total_lines) * 100 if total_lines > 0 else 0
 
-            result = {
-                "overall": overall_coverage,
-                **module_coverage
-            }
+            result = {"overall": overall_coverage, **module_coverage}
 
             # Calculate critical path coverage
             critical_modules = ["auth_service", "jwt_service", "security", "api"]
@@ -395,7 +405,7 @@ class CoverageAnalyzer:
             ".pyc",
             "migrations/",
             "venv/",
-            "env/"
+            "env/",
         ]
 
         return not any(pattern in filename for pattern in exclude_patterns)
@@ -434,9 +444,13 @@ class CIIntegrationHelper:
             testsuite = SubElement(testsuites, "testsuite")
             testsuite.set("name", f"TMWS_{category.upper()}_Tests")
             testsuite.set("tests", str(len(results)))
-            testsuite.set("failures", str(len([r for r in results if r.result == TestResult.FAILED])))
+            testsuite.set(
+                "failures", str(len([r for r in results if r.result == TestResult.FAILED]))
+            )
             testsuite.set("errors", str(len([r for r in results if r.result == TestResult.ERROR])))
-            testsuite.set("skipped", str(len([r for r in results if r.result == TestResult.SKIPPED])))
+            testsuite.set(
+                "skipped", str(len([r for r in results if r.result == TestResult.SKIPPED]))
+            )
 
             for result in results:
                 testcase = SubElement(testsuite, "testcase")
@@ -468,8 +482,9 @@ class CIIntegrationHelper:
             "test_success_rate": summary["execution_summary"]["success_rate"] >= 95,
             "code_coverage": summary["coverage_summary"]["overall_coverage"] >= 90,
             "critical_path_coverage": summary["coverage_summary"]["critical_path_coverage"] >= 95,
-            "no_critical_security_issues": summary["security_summary"]["critical_vulnerabilities"] == 0,
-            "performance_requirements": summary["performance_summary"]["performance_failures"] == 0
+            "no_critical_security_issues": summary["security_summary"]["critical_vulnerabilities"]
+            == 0,
+            "performance_requirements": summary["performance_summary"]["performance_failures"] == 0,
         }
 
         return gates
@@ -478,10 +493,7 @@ class CIIntegrationHelper:
     def should_deploy(quality_gates: dict[str, bool]) -> bool:
         """Determine if deployment should proceed based on quality gates."""
         # All critical gates must pass
-        critical_gates = [
-            "no_critical_security_issues",
-            "performance_requirements"
-        ]
+        critical_gates = ["no_critical_security_issues", "performance_requirements"]
 
         for gate in critical_gates:
             if not quality_gates.get(gate, False):
@@ -504,7 +516,7 @@ def pytest_runtest_makereport(item, call):
         # Determine test category from markers or path
         category = TestCategory.UNIT  # default
 
-        if hasattr(item, 'pytestmark'):
+        if hasattr(item, "pytestmark"):
             for mark in item.pytestmark:
                 if mark.name == "security":
                     category = TestCategory.SECURITY
@@ -529,7 +541,7 @@ def pytest_runtest_makereport(item, call):
             category=category,
             duration_ms=call.duration * 1000,  # Convert to milliseconds
             result=result,
-            error_message=error_msg
+            error_message=error_msg,
         )
 
         test_collector.add_test_metric(metric)
@@ -553,9 +565,9 @@ def pytest_sessionfinish(session, exitstatus):
 
     # Print summary
     summary = test_collector.get_summary()
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("TMWS TEST SUITE SUMMARY")
-    print("="*80)
+    print("=" * 80)
     print(f"Total Tests: {summary['execution_summary']['total_tests']}")
     print(f"Passed: {summary['execution_summary']['passed']}")
     print(f"Failed: {summary['execution_summary']['failed']}")
@@ -576,7 +588,7 @@ def pytest_sessionfinish(session, exitstatus):
     if test_collector.get_summary()["execution_summary"]["success_rate"] < 95:
         print("\n⚠️  Warning: Test success rate below 95%")
 
-    if summary['coverage_summary']['overall_coverage'] < 90:
+    if summary["coverage_summary"]["overall_coverage"] < 90:
         print("⚠️  Warning: Code coverage below 90%")
 
-    print("="*80)
+    print("=" * 80)

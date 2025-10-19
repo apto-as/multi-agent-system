@@ -439,13 +439,19 @@ class AuthorizationService:
     def _check_additional_constraints(self, context: AuthorizationContext) -> bool:
         """Check additional authorization constraints."""
         # Namespace isolation for non-admin users
-        if (context.namespace and UserRole.ADMIN not in context.user.roles and
-            context.namespace != context.user.agent_namespace and context.namespace != "public"):
+        if (
+            context.namespace
+            and UserRole.ADMIN not in context.user.roles
+            and context.namespace != context.user.agent_namespace
+            and context.namespace != "public"
+        ):
             return False
 
         # Resource ownership for certain operations
-        if (context.permission in [Permission.UPDATE, Permission.DELETE] and
-            context.resource in [Resource.USERS, Resource.API_KEYS]):
+        if context.permission in [Permission.UPDATE, Permission.DELETE] and context.resource in [
+            Resource.USERS,
+            Resource.API_KEYS,
+        ]:
             return self.check_resource_ownership(context)
 
         return True

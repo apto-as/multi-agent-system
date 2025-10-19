@@ -6,12 +6,9 @@ Enhanced task management with agent-centric design and workflow integration.
 from datetime import datetime
 from enum import Enum
 from typing import Any
-from uuid import UUID
 
 import sqlalchemy as sa
-from sqlalchemy import Boolean, CheckConstraint, DateTime, Float, Index, Integer, Text
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.dialects.postgresql import UUID as PGUUID
+from sqlalchemy import Boolean, CheckConstraint, DateTime, Float, Index, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -71,7 +68,7 @@ class Task(TMWSBase, MetadataMixin):
 
     # Collaborative assignment support
     collaborating_agents: Mapped[list[str]] = mapped_column(
-        JSONB, default=list, comment="Additional agents collaborating on this task"
+        JSON, default=list, comment="Additional agents collaborating on this task"
     )
 
     # Namespace and access control
@@ -127,31 +124,31 @@ class Task(TMWSBase, MetadataMixin):
 
     # Task dependencies and relationships
     dependencies: Mapped[list[str]] = mapped_column(
-        JSONB, default=list, comment="List of task IDs that must complete before this task"
+        JSON, default=list, comment="List of task IDs that must complete before this task"
     )
 
-    parent_task_id: Mapped[UUID | None] = mapped_column(
-        PGUUID(as_uuid=True),
+    parent_task_id: Mapped[str | None] = mapped_column(
+        String(36),  # Match id column type (UUID as string)
         sa.ForeignKey("tasks.id"),
         nullable=True,
         comment="Parent task for hierarchical task structures",
     )
 
-    workflow_id: Mapped[UUID | None] = mapped_column(
-        PGUUID(as_uuid=True), nullable=True, index=True, comment="Associated workflow ID"
+    workflow_id: Mapped[str | None] = mapped_column(
+        String(36), nullable=True, index=True, comment="Associated workflow ID"
     )
 
     # Task configuration and parameters
     task_config: Mapped[dict[str, Any]] = mapped_column(
-        JSONB, default=dict, comment="Task-specific configuration parameters"
+        JSON, default=dict, comment="Task-specific configuration parameters"
     )
 
     input_data: Mapped[dict[str, Any]] = mapped_column(
-        JSONB, default=dict, comment="Input data for task execution"
+        JSON, default=dict, comment="Input data for task execution"
     )
 
     output_data: Mapped[dict[str, Any]] = mapped_column(
-        JSONB, default=dict, comment="Output data from task execution"
+        JSON, default=dict, comment="Output data from task execution"
     )
 
     # Progress and performance tracking
@@ -179,29 +176,29 @@ class Task(TMWSBase, MetadataMixin):
     )
 
     error_details: Mapped[dict[str, Any]] = mapped_column(
-        JSONB, default=dict, comment="Detailed error information"
+        JSON, default=dict, comment="Detailed error information"
     )
 
     execution_log: Mapped[list[dict[str, Any]]] = mapped_column(
-        JSONB, default=list, comment="Execution log entries"
+        JSON, default=list, comment="Execution log entries"
     )
 
     # Tags and categorization
     tags: Mapped[list[str]] = mapped_column(
-        JSONB, default=list, comment="User-defined tags for categorization"
+        JSON, default=list, comment="User-defined tags for categorization"
     )
 
     context_tags: Mapped[list[str]] = mapped_column(
-        JSONB, default=list, comment="Contextual tags for enhanced organization"
+        JSON, default=list, comment="Contextual tags for enhanced organization"
     )
 
     # Resource management
     resource_requirements: Mapped[dict[str, Any]] = mapped_column(
-        JSONB, default=dict, comment="Required resources (CPU, memory, etc.)"
+        JSON, default=dict, comment="Required resources (CPU, memory, etc.)"
     )
 
     resource_usage: Mapped[dict[str, Any]] = mapped_column(
-        JSONB, default=dict, comment="Actual resource usage during execution"
+        JSON, default=dict, comment="Actual resource usage during execution"
     )
 
     # Quality and success metrics
@@ -210,7 +207,7 @@ class Task(TMWSBase, MetadataMixin):
     )
 
     success_criteria: Mapped[dict[str, Any]] = mapped_column(
-        JSONB, default=dict, comment="Criteria for determining task success"
+        JSON, default=dict, comment="Criteria for determining task success"
     )
 
     # Relationships
@@ -260,23 +257,19 @@ class Task(TMWSBase, MetadataMixin):
             "completed_at IS NULL OR started_at IS NULL OR completed_at >= started_at",
             name="completion_after_start",
         ),
-        # Composite indexes for common queries
+        # SQLite-compatible composite indexes for common queries (v2.2.6)
         Index("idx_tasks_agent_status", "assigned_agent_id", "status"),
         Index("idx_tasks_namespace_status", "namespace", "status"),
         Index("idx_tasks_priority_status", "priority", "status"),
         Index("idx_tasks_type_status", "task_type", "status"),
         Index("idx_tasks_workflow", "workflow_id", "status"),
-        Index("idx_tasks_scheduled", "scheduled_at", postgresql_using="btree"),
-        Index("idx_tasks_due_date", "due_date", postgresql_using="btree"),
-        Index("idx_tasks_progress", "progress_percentage", postgresql_using="btree"),
+        Index("idx_tasks_scheduled", "scheduled_at"),
+        Index("idx_tasks_due_date", "due_date"),
+        Index("idx_tasks_progress", "progress_percentage"),
         Index("idx_tasks_hierarchy", "parent_task_id", "status"),
         # Performance indexes
         Index("idx_tasks_performance", "quality_score", "actual_duration"),
         Index("idx_tasks_retry", "retry_count", "max_retries"),
-        # Full-text search index (PostgreSQL only)
-        # This index is created conditionally based on database type
-        Index("idx_tasks_tags", "tags", postgresql_using="gin"),
-        Index("idx_tasks_context_tags", "context_tags", postgresql_using="gin"),
     )
 
     # Properties and methods
@@ -540,11 +533,11 @@ class TaskTemplate(TMWSBase):
     )
 
     required_fields: Mapped[list[str]] = mapped_column(
-        JSONB, default=list, comment="Required fields for template instantiation"
+        JSON, default=list, comment="Required fields for template instantiation"
     )
 
     optional_fields: Mapped[list[str]] = mapped_column(
-        JSONB, default=list, comment="Optional fields for template instantiation"
+        JSON, default=list, comment="Optional fields for template instantiation"
     )
 
     # Template defaults
@@ -564,7 +557,7 @@ class TaskTemplate(TMWSBase):
     )
 
     default_config: Mapped[dict[str, Any]] = mapped_column(
-        JSONB, default=dict, comment="Default task configuration"
+        JSON, default=dict, comment="Default task configuration"
     )
 
     estimated_duration: Mapped[int | None] = mapped_column(
@@ -602,9 +595,10 @@ class TaskTemplate(TMWSBase):
             name="estimated_duration_positive",
         ),
         CheckConstraint("success_rate >= 0.0 AND success_rate <= 1.0", name="success_rate_bounds"),
+        # SQLite-compatible indexes (v2.2.6)
         Index("idx_task_templates_namespace", "namespace", "is_active"),
-        Index("idx_task_templates_usage", "usage_count", postgresql_using="btree"),
-        Index("idx_task_templates_success", "success_rate", postgresql_using="btree"),
+        Index("idx_task_templates_usage", "usage_count"),
+        Index("idx_task_templates_success", "success_rate"),
     )
 
     def instantiate(self, agent_id: str, field_values: dict[str, Any], **kwargs) -> dict[str, Any]:
@@ -655,35 +649,3 @@ class TaskTemplate(TMWSBase):
 
     def __repr__(self) -> str:
         return f"<TaskTemplate(template_id='{self.template_id}', name='{self.name}', usage={self.usage_count})>"
-
-
-# Conditional index creation for PostgreSQL full-text search
-# This should be handled by migrations in production
-def create_full_text_search_index(engine):
-    """
-    Create full-text search index for PostgreSQL databases.
-    This function should be called after table creation in PostgreSQL environments.
-    """
-    from sqlalchemy import text
-
-    if "postgresql" in str(engine.dialect):
-        with engine.begin() as conn:
-            # Check if index exists before creating
-            result = conn.execute(
-                text("""
-                SELECT indexname FROM pg_indexes
-                WHERE tablename = 'tasks'
-                AND indexname = 'idx_tasks_content_search'
-            """)
-            )
-
-            if not result.fetchone():
-                # Create the full-text search index
-                conn.execute(
-                    text("""
-                    CREATE INDEX idx_tasks_content_search
-                    ON tasks
-                    USING gin(to_tsvector('english', coalesce(title, '') || ' ' || coalesce(description, '')))
-                """)
-                )
-                print("Created full-text search index for tasks table")

@@ -26,10 +26,8 @@ async def test_multiple_concurrent_websocket_connections():
         websockets = []
         session_ids = []
 
-        for i in range(3):
-            ws = client.websocket_connect(
-                f"/ws/mcp?agent_id={agent_id}"
-            )
+        for _ in range(3):
+            ws = client.websocket_connect(f"/ws/mcp?agent_id={agent_id}")
             websockets.append(ws)
 
             # Receive welcome message
@@ -43,12 +41,14 @@ async def test_multiple_concurrent_websocket_connections():
 
         # Send a message from each connection
         for i, ws in enumerate(websockets):
-            ws.send_json({
-                "jsonrpc": "2.0",
-                "id": str(i + 1),
-                "method": "test",
-                "params": {"message": f"Hello from connection {i}"}
-            })
+            ws.send_json(
+                {
+                    "jsonrpc": "2.0",
+                    "id": str(i + 1),
+                    "method": "test",
+                    "params": {"message": f"Hello from connection {i}"},
+                }
+            )
 
         # Close all connections
         for ws in websockets:
@@ -77,30 +77,26 @@ async def test_concurrent_message_handling():
 
         # Send messages from both connections simultaneously
         for i in range(messages_to_send):
-            ws1.send_json({
-                "jsonrpc": "2.0",
-                "id": f"ws1-{i}",
-                "method": "echo",
-                "params": {"data": f"Message {i} from WS1"}
-            })
-            ws2.send_json({
-                "jsonrpc": "2.0",
-                "id": f"ws2-{i}",
-                "method": "echo",
-                "params": {"data": f"Message {i} from WS2"}
-            })
+            ws1.send_json(
+                {
+                    "jsonrpc": "2.0",
+                    "id": f"ws1-{i}",
+                    "method": "echo",
+                    "params": {"data": f"Message {i} from WS1"},
+                }
+            )
+            ws2.send_json(
+                {
+                    "jsonrpc": "2.0",
+                    "id": f"ws2-{i}",
+                    "method": "echo",
+                    "params": {"data": f"Message {i} from WS2"},
+                }
+            )
 
         # Verify both connections are still active
-        ws1.send_json({
-            "jsonrpc": "2.0",
-            "id": "test-1",
-            "method": "ping"
-        })
-        ws2.send_json({
-            "jsonrpc": "2.0",
-            "id": "test-2",
-            "method": "ping"
-        })
+        ws1.send_json({"jsonrpc": "2.0", "id": "test-1", "method": "ping"})
+        ws2.send_json({"jsonrpc": "2.0", "id": "test-2", "method": "ping"})
 
         # Clean up
         ws1.close()
@@ -125,20 +121,18 @@ async def test_broadcast_to_agent_sessions():
         # Here we just verify the connections are properly managed
 
         # Send a message from connection 1
-        connections[0].send_json({
-            "jsonrpc": "2.0",
-            "id": "broadcast-test",
-            "method": "broadcast_test",
-            "params": {"message": "Test broadcast"}
-        })
+        connections[0].send_json(
+            {
+                "jsonrpc": "2.0",
+                "id": "broadcast-test",
+                "method": "broadcast_test",
+                "params": {"message": "Test broadcast"},
+            }
+        )
 
         # All connections should remain active
         for ws in connections:
-            ws.send_json({
-                "jsonrpc": "2.0",
-                "id": "alive",
-                "method": "ping"
-            })
+            ws.send_json({"jsonrpc": "2.0", "id": "alive", "method": "ping"})
 
         # Clean up
         for ws in connections:

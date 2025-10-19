@@ -13,46 +13,51 @@ from src.models.agent import Agent
 from src.services.statistics_service import StatisticsService
 
 
+# Module-level fixtures - accessible by all test classes
+@pytest.fixture
+def statistics_service():
+    """Create a statistics service for testing."""
+    return StatisticsService()
+
+
+@pytest.fixture
+def mock_session():
+    """Mock database session."""
+    session = AsyncMock()
+    session.execute = AsyncMock()
+    session.scalar = AsyncMock()
+    session.scalar_one_or_none = AsyncMock()
+    return session
+
+
+@pytest.fixture
+def mock_agent():
+    """Mock Agent object."""
+    agent = Mock(spec=Agent)
+    agent.agent_id = "test_agent_1"
+    agent.display_name = "Test Agent"
+    agent.status = Mock()
+    agent.status.value = "active"
+    agent.health_score = 0.95
+    agent.total_memories = 150
+    agent.total_tasks = 75
+    agent.success_rate = 0.88
+    agent.average_response_time_ms = 250
+    agent.created_at = datetime.now() - timedelta(days=30)
+    agent.last_active_at = datetime.now() - timedelta(minutes=5)
+    return agent
+
+
+@pytest.fixture
+def mock_memory_result():
+    """Mock memory query result."""
+    result = Mock()
+    result.scalar.return_value = 100
+    return result
+
+
 class TestStatisticsService:
     """Test StatisticsService class functionality."""
-
-    @pytest.fixture
-    def statistics_service(self):
-        """Create a statistics service for testing."""
-        return StatisticsService()
-
-    @pytest.fixture
-    def mock_session(self):
-        """Mock database session."""
-        session = AsyncMock()
-        session.execute = AsyncMock()
-        session.scalar = AsyncMock()
-        session.scalar_one_or_none = AsyncMock()
-        return session
-
-    @pytest.fixture
-    def mock_agent(self):
-        """Mock Agent object."""
-        agent = Mock(spec=Agent)
-        agent.agent_id = "test_agent_1"
-        agent.display_name = "Test Agent"
-        agent.status = Mock()
-        agent.status.value = "active"
-        agent.health_score = 0.95
-        agent.total_memories = 150
-        agent.total_tasks = 75
-        agent.success_rate = 0.88
-        agent.average_response_time_ms = 250
-        agent.created_at = datetime.now() - timedelta(days=30)
-        agent.last_active_at = datetime.now() - timedelta(minutes=5)
-        return agent
-
-    @pytest.fixture
-    def mock_memory_result(self):
-        """Mock memory query result."""
-        result = Mock()
-        result.scalar.return_value = 100
-        return result
 
     def test_statistics_service_initialization(self, statistics_service):
         """Test StatisticsService initialization."""
@@ -70,7 +75,7 @@ class TestStatisticsService:
         assert statistics_service.session == mock_session
 
     @pytest.mark.asyncio
-    @patch('src.services.statistics_service.get_session')
+    @patch("src.services.statistics_service.get_session")
     async def test_initialize_without_session(self, mock_get_session, statistics_service):
         """Test service initialization without provided session."""
         mock_get_session.return_value = mock_session = AsyncMock()
@@ -82,7 +87,9 @@ class TestCollectAgentMetrics:
     """Test agent metrics collection functionality."""
 
     @pytest.mark.asyncio
-    async def test_collect_agent_metrics_success(self, statistics_service, mock_session, mock_agent):
+    async def test_collect_agent_metrics_success(
+        self, statistics_service, mock_session, mock_agent
+    ):
         """Test successful agent metrics collection."""
         statistics_service.session = mock_session
 
@@ -92,14 +99,33 @@ class TestCollectAgentMetrics:
         mock_session.execute.return_value = agent_result
 
         # Mock all the helper method calls
-        with patch.object(statistics_service, '_get_basic_stats', return_value={"basic": "stats"}) as mock_basic, \
-             patch.object(statistics_service, '_get_memory_stats', return_value={"memory": "stats"}) as mock_memory, \
-             patch.object(statistics_service, '_get_access_patterns', return_value={"access": "patterns"}) as mock_access, \
-             patch.object(statistics_service, '_get_performance_metrics', return_value={"performance": "metrics"}) as mock_perf, \
-             patch.object(statistics_service, '_get_learning_stats', return_value={"learning": "stats"}) as mock_learning, \
-             patch.object(statistics_service, '_get_time_series_data', return_value={"time_series": "data"}) as mock_time, \
-             patch.object(statistics_service, '_get_collaboration_stats', return_value={"collaboration": "stats"}) as mock_collab:
-
+        with (
+            patch.object(
+                statistics_service, "_get_basic_stats", return_value={"basic": "stats"}
+            ) as mock_basic,
+            patch.object(
+                statistics_service, "_get_memory_stats", return_value={"memory": "stats"}
+            ) as mock_memory,
+            patch.object(
+                statistics_service, "_get_access_patterns", return_value={"access": "patterns"}
+            ) as mock_access,
+            patch.object(
+                statistics_service,
+                "_get_performance_metrics",
+                return_value={"performance": "metrics"},
+            ) as mock_perf,
+            patch.object(
+                statistics_service, "_get_learning_stats", return_value={"learning": "stats"}
+            ) as mock_learning,
+            patch.object(
+                statistics_service, "_get_time_series_data", return_value={"time_series": "data"}
+            ) as mock_time,
+            patch.object(
+                statistics_service,
+                "_get_collaboration_stats",
+                return_value={"collaboration": "stats"},
+            ) as mock_collab,
+        ):
             result = await statistics_service.collect_agent_metrics("test_agent_1")
 
             assert result["agent_id"] == "test_agent_1"
@@ -159,9 +185,15 @@ class TestBasicStats:
         result = await statistics_service._get_basic_stats(mock_agent)
 
         expected_keys = [
-            "status", "health_score", "total_memories", "total_tasks",
-            "success_rate", "average_response_time_ms", "created_at",
-            "last_active_at", "uptime_hours"
+            "status",
+            "health_score",
+            "total_memories",
+            "total_tasks",
+            "success_rate",
+            "average_response_time_ms",
+            "created_at",
+            "last_active_at",
+            "uptime_hours",
         ]
 
         for key in expected_keys:
@@ -218,20 +250,23 @@ class TestMemoryStats:
         tag_result.__iter__ = Mock(return_value=iter([("optimization", 25), ("security", 15)]))
 
         importance_result = Mock()
-        importance_result.__iter__ = Mock(return_value=iter([("high", 50), ("medium", 100), ("low", 50)]))
+        importance_result.__iter__ = Mock(
+            return_value=iter([("high", 50), ("medium", 100), ("low", 50)])
+        )
 
         mock_session.execute.side_effect = [
             total_result,
             avg_length_result,
             access_level_result,
             tag_result,
-            importance_result
+            importance_result,
         ]
 
         # Mock helper methods
-        with patch.object(statistics_service, '_count_shared_memories', return_value=75), \
-             patch.object(statistics_service, '_count_consolidated_memories', return_value=25):
-
+        with (
+            patch.object(statistics_service, "_count_shared_memories", return_value=75),
+            patch.object(statistics_service, "_count_consolidated_memories", return_value=25),
+        ):
             result = await statistics_service._get_memory_stats("test_agent")
 
             assert result["total_memories"] == 200
@@ -258,14 +293,15 @@ class TestMemoryStats:
         mock_session.execute.side_effect = [
             empty_result,  # total
             empty_result,  # avg_length
-            empty_iter,    # access_levels
-            empty_iter,    # tags
-            empty_iter     # importance
+            empty_iter,  # access_levels
+            empty_iter,  # tags
+            empty_iter,  # importance
         ]
 
-        with patch.object(statistics_service, '_count_shared_memories', return_value=0), \
-             patch.object(statistics_service, '_count_consolidated_memories', return_value=0):
-
+        with (
+            patch.object(statistics_service, "_count_shared_memories", return_value=0),
+            patch.object(statistics_service, "_count_consolidated_memories", return_value=0),
+        ):
             result = await statistics_service._get_memory_stats("test_agent")
 
             assert result["total_memories"] == 0
@@ -286,27 +322,21 @@ class TestAccessPatterns:
         # Mock most accessed memories
         memory_id = uuid4()
         accessed_result = Mock()
-        accessed_result.__iter__ = Mock(return_value=iter([
-            (memory_id, "Test memory content preview", 15)
-        ]))
+        accessed_result.__iter__ = Mock(
+            return_value=iter([(memory_id, "Test memory content preview", 15)])
+        )
 
         # Mock hourly distribution
         hourly_result = Mock()
-        hourly_result.__iter__ = Mock(return_value=iter([
-            (9, 25), (10, 30), (14, 40), (15, 35)
-        ]))
+        hourly_result.__iter__ = Mock(return_value=iter([(9, 25), (10, 30), (14, 40), (15, 35)]))
 
         # Mock recent accesses
         recent_result = Mock()
         recent_result.scalar.return_value = 85
 
-        mock_session.execute.side_effect = [
-            accessed_result,
-            hourly_result,
-            recent_result
-        ]
+        mock_session.execute.side_effect = [accessed_result, hourly_result, recent_result]
 
-        with patch.object(statistics_service, '_find_peak_hours', return_value=[14, 15]):
+        with patch.object(statistics_service, "_find_peak_hours", return_value=[14, 15]):
             result = await statistics_service._get_access_patterns("test_agent")
 
             assert len(result["top_accessed_memories"]) == 1
@@ -329,12 +359,12 @@ class TestAccessPatterns:
         empty_result.scalar.return_value = 0
 
         mock_session.execute.side_effect = [
-            empty_iter,    # accessed memories
-            empty_iter,    # hourly distribution
-            empty_result   # recent accesses
+            empty_iter,  # accessed memories
+            empty_iter,  # hourly distribution
+            empty_result,  # recent accesses
         ]
 
-        with patch.object(statistics_service, '_find_peak_hours', return_value=[]):
+        with patch.object(statistics_service, "_find_peak_hours", return_value=[]):
             result = await statistics_service._get_access_patterns("test_agent")
 
             assert result["top_accessed_memories"] == []
@@ -349,9 +379,14 @@ class TestPerformanceMetrics:
     @pytest.mark.asyncio
     async def test_get_performance_metrics(self, statistics_service, mock_agent):
         """Test performance metrics collection."""
-        with patch.object(statistics_service, '_calculate_reliability', return_value=0.87) as mock_reliability, \
-             patch.object(statistics_service, '_calculate_efficiency', return_value=0.92) as mock_efficiency:
-
+        with (
+            patch.object(
+                statistics_service, "_calculate_reliability", return_value=0.87
+            ) as mock_reliability,
+            patch.object(
+                statistics_service, "_calculate_efficiency", return_value=0.92
+            ) as mock_efficiency,
+        ):
             result = await statistics_service._get_performance_metrics(mock_agent)
 
             assert result["average_response_time_ms"] == 250
@@ -378,9 +413,9 @@ class TestLearningStats:
 
         # Mock pattern types
         pattern_type_result = Mock()
-        pattern_type_result.__iter__ = Mock(return_value=iter([
-            ("optimization", 20), ("security", 15), ("general", 10)
-        ]))
+        pattern_type_result.__iter__ = Mock(
+            return_value=iter([("optimization", 20), ("security", 15), ("general", 10)])
+        )
 
         # Mock average confidence
         confidence_result = Mock()
@@ -389,17 +424,20 @@ class TestLearningStats:
         mock_session.execute.side_effect = [
             pattern_count_result,
             pattern_type_result,
-            confidence_result
+            confidence_result,
         ]
 
-        with patch.object(statistics_service, '_count_active_patterns', return_value=35), \
-             patch.object(statistics_service, '_calculate_learning_velocity', return_value=1.5):
-
+        with (
+            patch.object(statistics_service, "_count_active_patterns", return_value=35),
+            patch.object(statistics_service, "_calculate_learning_velocity", return_value=1.5),
+        ):
             result = await statistics_service._get_learning_stats("test_agent")
 
             assert result["total_patterns"] == 45
             assert result["pattern_type_distribution"] == {
-                "optimization": 20, "security": 15, "general": 10
+                "optimization": 20,
+                "security": 15,
+                "general": 10,
             }
             assert result["average_pattern_confidence"] == 0.82
             assert result["active_patterns"] == 35
@@ -417,14 +455,15 @@ class TestLearningStats:
         empty_iter.__iter__ = Mock(return_value=iter([]))
 
         mock_session.execute.side_effect = [
-            zero_result,   # total patterns
-            empty_iter,    # pattern types
-            zero_result    # average confidence
+            zero_result,  # total patterns
+            empty_iter,  # pattern types
+            zero_result,  # average confidence
         ]
 
-        with patch.object(statistics_service, '_count_active_patterns', return_value=0), \
-             patch.object(statistics_service, '_calculate_learning_velocity', return_value=0.0):
-
+        with (
+            patch.object(statistics_service, "_count_active_patterns", return_value=0),
+            patch.object(statistics_service, "_calculate_learning_velocity", return_value=0.0),
+        ):
             result = await statistics_service._get_learning_stats("test_agent")
 
             assert result["total_patterns"] == 0
@@ -444,23 +483,22 @@ class TestTimeSeriesData:
 
         # Mock daily memory creation data
         from datetime import date
+
         daily_result = Mock()
-        daily_result.__iter__ = Mock(return_value=iter([
-            (date(2024, 1, 1), 10),
-            (date(2024, 1, 2), 15),
-            (date(2024, 1, 3), 8)
-        ]))
+        daily_result.__iter__ = Mock(
+            return_value=iter(
+                [(date(2024, 1, 1), 10), (date(2024, 1, 2), 15), (date(2024, 1, 3), 8)]
+            )
+        )
 
         mock_session.execute.return_value = daily_result
 
-        with patch.object(statistics_service, '_calculate_trend', return_value="increasing") as mock_trend:
+        with patch.object(
+            statistics_service, "_calculate_trend", return_value="increasing"
+        ) as mock_trend:
             result = await statistics_service._get_time_series_data("test_agent", days=30)
 
-            expected_daily = {
-                "2024-01-01": 10,
-                "2024-01-02": 15,
-                "2024-01-03": 8
-            }
+            expected_daily = {"2024-01-01": 10, "2024-01-02": 15, "2024-01-03": 8}
 
             assert result["daily_memory_creation"] == expected_daily
             assert result["trend"] == "increasing"
@@ -475,7 +513,7 @@ class TestTimeSeriesData:
         empty_result.__iter__ = Mock(return_value=iter([]))
         mock_session.execute.return_value = empty_result
 
-        with patch.object(statistics_service, '_calculate_trend', return_value="insufficient_data"):
+        with patch.object(statistics_service, "_calculate_trend", return_value="insufficient_data"):
             result = await statistics_service._get_time_series_data("test_agent")
 
             assert result["daily_memory_creation"] == {}
@@ -500,19 +538,19 @@ class TestCollaborationStats:
 
         # Mock top collaborators
         collaborator_result = Mock()
-        collaborator_result.__iter__ = Mock(return_value=iter([
-            ("agent_2", 10),
-            ("agent_3", 8),
-            ("agent_4", 5)
-        ]))
+        collaborator_result.__iter__ = Mock(
+            return_value=iter([("agent_2", 10), ("agent_3", 8), ("agent_4", 5)])
+        )
 
         mock_session.execute.side_effect = [
             shared_by_result,
             shared_with_result,
-            collaborator_result
+            collaborator_result,
         ]
 
-        with patch.object(statistics_service, '_calculate_collaboration_score', return_value=0.72) as mock_score:
+        with patch.object(
+            statistics_service, "_calculate_collaboration_score", return_value=0.72
+        ) as mock_score:
             result = await statistics_service._get_collaboration_stats("test_agent")
 
             assert result["memories_shared"] == 25
@@ -669,11 +707,20 @@ class TestHelperMethods:
         """Test trend calculation."""
         # Test increasing trend
         daily_data = {
-            "2024-01-01": 5, "2024-01-02": 6, "2024-01-03": 7,
-            "2024-01-04": 8, "2024-01-05": 9, "2024-01-06": 10,
-            "2024-01-07": 11, "2024-01-08": 12, "2024-01-09": 13,
-            "2024-01-10": 14, "2024-01-11": 15, "2024-01-12": 16,
-            "2024-01-13": 17, "2024-01-14": 18
+            "2024-01-01": 5,
+            "2024-01-02": 6,
+            "2024-01-03": 7,
+            "2024-01-04": 8,
+            "2024-01-05": 9,
+            "2024-01-06": 10,
+            "2024-01-07": 11,
+            "2024-01-08": 12,
+            "2024-01-09": 13,
+            "2024-01-10": 14,
+            "2024-01-11": 15,
+            "2024-01-12": 16,
+            "2024-01-13": 17,
+            "2024-01-14": 18,
         }
         trend = statistics_service._calculate_trend(daily_data)
         assert trend == "increasing"
@@ -759,7 +806,9 @@ class TestStatisticsServiceIntegration:
     """Test integration scenarios."""
 
     @pytest.mark.asyncio
-    async def test_full_metrics_collection_workflow(self, statistics_service, mock_session, mock_agent):
+    async def test_full_metrics_collection_workflow(
+        self, statistics_service, mock_session, mock_agent
+    ):
         """Test complete metrics collection workflow."""
         statistics_service.session = mock_session
 
@@ -772,35 +821,46 @@ class TestStatisticsServiceIntegration:
             agent_result,  # Agent query
             Mock(scalar=Mock(return_value=100)),  # Total memories
             Mock(scalar=Mock(return_value=150.0)),  # Average length
-            Mock(__iter__=Mock(return_value=iter([("private", 60), ("shared", 40)]))),  # Access levels
+            Mock(
+                __iter__=Mock(return_value=iter([("private", 60), ("shared", 40)]))
+            ),  # Access levels
             Mock(__iter__=Mock(return_value=iter([("tag1", 20), ("tag2", 15)]))),  # Tags
-            Mock(__iter__=Mock(return_value=iter([("high", 30), ("medium", 50), ("low", 20)]))),  # Importance
+            Mock(
+                __iter__=Mock(return_value=iter([("high", 30), ("medium", 50), ("low", 20)]))
+            ),  # Importance
             Mock(__iter__=Mock(return_value=iter([(uuid4(), "content", 10)]))),  # Top accessed
             Mock(__iter__=Mock(return_value=iter([(9, 15), (14, 25)]))),  # Hourly distribution
             Mock(scalar=Mock(return_value=75)),  # Recent accesses
             Mock(scalar=Mock(return_value=25)),  # Pattern count
-            Mock(__iter__=Mock(return_value=iter([("optimization", 15), ("security", 10)]))),  # Pattern types
+            Mock(
+                __iter__=Mock(return_value=iter([("optimization", 15), ("security", 10)]))
+            ),  # Pattern types
             Mock(scalar=Mock(return_value=0.85)),  # Average confidence
-            Mock(__iter__=Mock(return_value=iter([("2024-01-01", 5), ("2024-01-02", 8)]))),  # Daily data
+            Mock(
+                __iter__=Mock(return_value=iter([("2024-01-01", 5), ("2024-01-02", 8)]))
+            ),  # Daily data
             Mock(scalar=Mock(return_value=30)),  # Shared by
             Mock(scalar=Mock(return_value=20)),  # Shared with
-            Mock(__iter__=Mock(return_value=iter([("agent_2", 12), ("agent_3", 8)])))  # Collaborators
+            Mock(
+                __iter__=Mock(return_value=iter([("agent_2", 12), ("agent_3", 8)]))
+            ),  # Collaborators
         ]
 
         mock_session.execute.side_effect = mock_results
 
         # Mock helper methods
-        with patch.multiple(statistics_service,
-                          _count_shared_memories=AsyncMock(return_value=40),
-                          _count_consolidated_memories=AsyncMock(return_value=10),
-                          _count_active_patterns=AsyncMock(return_value=20),
-                          _calculate_learning_velocity=AsyncMock(return_value=1.2),
-                          _find_peak_hours=Mock(return_value=[14]),
-                          _calculate_reliability=Mock(return_value=0.88),
-                          _calculate_efficiency=Mock(return_value=0.92),
-                          _calculate_trend=Mock(return_value="stable"),
-                          _calculate_collaboration_score=Mock(return_value=0.75)):
-
+        with patch.multiple(
+            statistics_service,
+            _count_shared_memories=AsyncMock(return_value=40),
+            _count_consolidated_memories=AsyncMock(return_value=10),
+            _count_active_patterns=AsyncMock(return_value=20),
+            _calculate_learning_velocity=AsyncMock(return_value=1.2),
+            _find_peak_hours=Mock(return_value=[14]),
+            _calculate_reliability=Mock(return_value=0.88),
+            _calculate_efficiency=Mock(return_value=0.92),
+            _calculate_trend=Mock(return_value="stable"),
+            _calculate_collaboration_score=Mock(return_value=0.75),
+        ):
             result = await statistics_service.collect_agent_metrics("test_agent")
 
             # Verify comprehensive result structure

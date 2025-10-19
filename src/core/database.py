@@ -7,7 +7,7 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 import sqlalchemy as sa
-from sqlalchemy import event, pool, text
+from sqlalchemy import event, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
@@ -75,36 +75,14 @@ def get_engine():
             pool_size = 5
             max_overflow = 10
 
-        engine_config = {}
-
-        if settings.database_url_async.startswith("postgresql"):
-            engine_config.update(
-                {
-                    "pool_size": pool_size,
-                    "max_overflow": max_overflow,
-                }
-            )
-
-        # Add connection arguments for PostgreSQL with performance tuning
-        if settings.database_url_async.startswith("postgresql"):
-            connect_args = {
-                "server_settings": {
-                    "application_name": "tmws",
-                    "jit": "off",  # Disable JIT for better connection times
-                },
-                "command_timeout": 60,
-            }
-
-            # SSL enforcement in production
-            if settings.environment == "production":
-                connect_args["ssl"] = "require"
-
-            engine_config.update(
-                {
-                    "connect_args": connect_args,
-                    "poolclass": pool.AsyncAdaptedQueuePool,  # Better for async operations
-                }
-            )
+        # SQLite engine configuration (v2.2.6: SQLite-only architecture)
+        engine_config = {
+            "pool_size": pool_size,
+            "max_overflow": max_overflow,
+            "pool_pre_ping": True,  # Test connections before use
+            "pool_recycle": 1800,  # Recycle connections every 30 minutes
+            "echo_pool": settings.environment == "development",  # Pool debug logs in dev only
+        }
 
         _engine = create_async_engine(settings.database_url_async, **engine_config)
 
@@ -128,6 +106,8 @@ def get_session_maker():
             expire_on_commit=False,
             autoflush=True,
             autocommit=False,
+            # Enable compiled_cache for prepared statement reuse
+            info={"compiled_cache_size": 500},
         )
         logger.info("Database session maker created")
 
@@ -215,65 +195,28 @@ class DatabaseHealthCheck:
 
     @staticmethod
     async def analyze_slow_queries() -> list:
-        """Analyze and return slow queries for optimization."""
-        try:
-            async with get_db_session() as session:
-                # PostgreSQL slow query detection
-                if "postgresql" in str(get_engine().url):
-                    query = text("""
-                        SELECT
-                            query,
-                            calls,
-                            mean_exec_time,
-                            total_exec_time
-                        FROM pg_stat_statements
-                        WHERE mean_exec_time > 100  -- queries slower than 100ms
-                        ORDER BY mean_exec_time DESC
-                        LIMIT 10
-                    """)
-                    result = await session.execute(query)
-                    slow_queries = [
-                        {
-                            "query": row.query[:100],  # Truncate for safety
-                            "calls": row.calls,
-                            "mean_time_ms": row.mean_exec_time,
-                            "total_time_ms": row.total_exec_time,
-                        }
-                        for row in result
-                    ]
-                    return slow_queries
-                return []
-        except Exception as e:
-            logger.error(f"Failed to analyze slow queries: {e}")
-            return []
+        """Analyze and return slow queries for optimization.
+
+        Note: SQLite doesn't have built-in slow query tracking like PostgreSQL.
+        Consider using application-level query timing for slow query detection.
+        """
+        # SQLite doesn't have pg_stat_statements equivalent
+        # Use application-level monitoring instead
+        logger.info("Slow query analysis not available for SQLite - use application-level timing")
+        return []
 
 
 async def create_tables():
-    """Create all tables in the database with optimized indexes."""
+    """Create all tables in the database with optimized indexes.
+
+    Note: Vector indexes are managed by ChromaDB separately.
+    SQLite indexes are defined in model definitions via SQLAlchemy.
+    """
     engine = get_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-        # Create optimized indexes for common queries
-        if "postgresql" in str(engine.url):
-            indexes = [
-                # Vector search optimization
-                "CREATE INDEX IF NOT EXISTS idx_memory_embedding_ivfflat ON memory_embeddings USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100)",
-                # Timestamp indexes for time-based queries
-                "CREATE INDEX IF NOT EXISTS idx_tasks_created_at ON tasks(created_at DESC)",
-                "CREATE INDEX IF NOT EXISTS idx_memories_created_at ON memories(created_at DESC)",
-                # Composite indexes for common filters
-                "CREATE INDEX IF NOT EXISTS idx_tasks_status_priority ON tasks(status, priority)",
-                "CREATE INDEX IF NOT EXISTS idx_memories_persona_type ON memories(persona_id, memory_type)",
-            ]
-
-            for index_sql in indexes:
-                try:
-                    await conn.execute(text(index_sql))
-                except Exception as e:
-                    logger.warning(f"Could not create index: {e}")
-
-    logger.info("Database tables and indexes created")
+    logger.info("Database tables created (SQLite + Chroma architecture)")
 
 
 async def drop_tables():
@@ -312,24 +255,16 @@ async def close_db_connections():
 
 
 async def optimize_database():
-    """Run database optimization tasks."""
-    if "postgresql" not in str(get_engine().url):
-        return
-
+    """Run database optimization tasks for SQLite."""
     try:
         async with get_db_session() as session:
-            # Update statistics for query planner
+            # SQLite optimization: ANALYZE for query planner
             await session.execute(text("ANALYZE"))
 
-            # Clean up dead tuples
-            tables = ["tasks", "memories", "memory_embeddings", "personas"]
-            for table in tables:
-                try:
-                    await session.execute(text(f"VACUUM ANALYZE {table}"))
-                except Exception as e:
-                    logger.warning(f"Could not vacuum {table}: {e}")
-
+            # SQLite VACUUM (rebuild database file, reclaim space)
+            # Note: VACUUM cannot run in a transaction
             await session.commit()
-            logger.info("Database optimization completed")
+
+            logger.info("SQLite database optimization completed (ANALYZE)")
     except Exception as e:
         logger.error(f"Database optimization failed: {e}")

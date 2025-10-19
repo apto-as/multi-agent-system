@@ -34,11 +34,7 @@ from httpx import AsyncClient
 class TestHealthAPIIntegration:
     """Complete integration testing for Health API endpoints."""
 
-    async def test_basic_health_check_success(
-        self,
-        async_client: AsyncClient,
-        performance_timer
-    ):
+    async def test_basic_health_check_success(self, async_client: AsyncClient, performance_timer):
         """Test basic health check endpoint with performance validation."""
         timer = performance_timer.start()
 
@@ -58,7 +54,7 @@ class TestHealthAPIIntegration:
         assert "environment" in data
 
         # Verify timestamp format
-        timestamp = datetime.fromisoformat(data["timestamp"].replace('Z', '+00:00'))
+        timestamp = datetime.fromisoformat(data["timestamp"].replace("Z", "+00:00"))
         assert isinstance(timestamp, datetime)
 
     async def test_basic_health_check_no_database_dependency(self, async_client: AsyncClient):
@@ -72,9 +68,7 @@ class TestHealthAPIIntegration:
         # Basic health check should not include database status
 
     async def test_detailed_health_check_success(
-        self,
-        async_client: AsyncClient,
-        performance_timer
+        self, async_client: AsyncClient, performance_timer
     ):
         """Test detailed health check with all system components."""
         timer = performance_timer.start()
@@ -126,10 +120,7 @@ class TestHealthAPIIntegration:
         assert "issues" in config_check
         assert "environment" in config_check
 
-    async def test_detailed_health_check_database_error_handling(
-        self,
-        async_client: AsyncClient
-    ):
+    async def test_detailed_health_check_database_error_handling(self, async_client: AsyncClient):
         """Test detailed health check behavior when database has issues."""
         # Note: This test would require mocking database failures
         # For now, we test the structure and error handling format
@@ -144,11 +135,7 @@ class TestHealthAPIIntegration:
         if "database" in data["checks"] and data["checks"]["database"]["status"] == "unhealthy":
             assert "error" in data["checks"]["database"]
 
-    async def test_readiness_check_success(
-        self,
-        async_client: AsyncClient,
-        performance_timer
-    ):
+    async def test_readiness_check_success(self, async_client: AsyncClient, performance_timer):
         """Test Kubernetes readiness probe endpoint."""
         timer = performance_timer.start()
 
@@ -172,11 +159,7 @@ class TestHealthAPIIntegration:
         # With functional database, should be ready
         assert response.status_code == status.HTTP_200_OK
 
-    async def test_liveness_check_success(
-        self,
-        async_client: AsyncClient,
-        performance_timer
-    ):
+    async def test_liveness_check_success(self, async_client: AsyncClient, performance_timer):
         """Test Kubernetes liveness probe endpoint."""
         timer = performance_timer.start()
 
@@ -202,11 +185,7 @@ class TestHealthAPIIntegration:
             assert response.status_code == status.HTTP_200_OK
             assert response.json()["status"] == "alive"
 
-    async def test_metrics_endpoint_success(
-        self,
-        async_client: AsyncClient,
-        performance_timer
-    ):
+    async def test_metrics_endpoint_success(self, async_client: AsyncClient, performance_timer):
         """Test metrics endpoint for monitoring integration."""
         timer = performance_timer.start()
 
@@ -220,7 +199,7 @@ class TestHealthAPIIntegration:
 
         # Verify timestamp
         assert "timestamp" in data
-        timestamp = datetime.fromisoformat(data["timestamp"].replace('Z', '+00:00'))
+        timestamp = datetime.fromisoformat(data["timestamp"].replace("Z", "+00:00"))
         assert isinstance(timestamp, datetime)
 
         # Service information
@@ -275,8 +254,13 @@ class TestHealthAPIIntegration:
             assert key in data["service"], f"Missing service key: {key}"
 
         # Verify database metrics structure
-        db_keys = ["pool_size", "connections_in_use", "connections_available",
-                   "connections_overflow", "connections_invalid"]
+        db_keys = [
+            "pool_size",
+            "connections_in_use",
+            "connections_available",
+            "connections_overflow",
+            "connections_invalid",
+        ]
         for key in db_keys:
             assert key in data["database"], f"Missing database metric: {key}"
 
@@ -338,6 +322,7 @@ class TestHealthEndpointPerformance:
 
     async def test_concurrent_health_checks(self, async_client: AsyncClient):
         """Test concurrent health check requests."""
+
         async def make_health_request():
             response = await async_client.get("/api/v1/health/")
             return response.status_code, response.json()
@@ -352,9 +337,7 @@ class TestHealthEndpointPerformance:
             assert data["status"] == "healthy"
 
     async def test_health_endpoint_load_performance(
-        self,
-        async_client: AsyncClient,
-        performance_timer
+        self, async_client: AsyncClient, performance_timer
     ):
         """Test health endpoint performance under load."""
         timer = performance_timer.start()
@@ -370,9 +353,7 @@ class TestHealthEndpointPerformance:
         assert average_time < 50, f"Average health check time {average_time}ms exceeds 50ms"
 
     async def test_detailed_health_check_performance_consistency(
-        self,
-        async_client: AsyncClient,
-        performance_timer
+        self, async_client: AsyncClient, performance_timer
     ):
         """Test that detailed health check performance is consistent."""
         times = []
@@ -394,7 +375,7 @@ class TestHealthEndpointPerformance:
         assert max_time < 500, f"Maximum detailed health check time {max_time}ms exceeds 500ms"
 
         # Variance should be reasonable (max shouldn't be more than 3x min)
-        assert max_time / min_time < 3, f"Performance variance too high: {max_time/min_time}x"
+        assert max_time / min_time < 3, f"Performance variance too high: {max_time / min_time}x"
 
 
 @pytest.mark.integration
@@ -515,8 +496,13 @@ class TestHealthMonitoringIntegration:
 
         # Verify numeric metrics are suitable for Prometheus
         db_metrics = data["database"]
-        numeric_fields = ["pool_size", "connections_in_use", "connections_available",
-                         "connections_overflow", "connections_invalid"]
+        numeric_fields = [
+            "pool_size",
+            "connections_in_use",
+            "connections_available",
+            "connections_overflow",
+            "connections_invalid",
+        ]
 
         for field in numeric_fields:
             assert isinstance(db_metrics[field], int | float)
@@ -534,24 +520,25 @@ class TestHealthMonitoringIntegration:
 
         # Readiness returns 200 if ready, 503 if not
         ready_response = await async_client.get("/api/v1/health/ready")
-        assert ready_response.status_code in [status.HTTP_200_OK, status.HTTP_503_SERVICE_UNAVAILABLE]
+        assert ready_response.status_code in [
+            status.HTTP_200_OK,
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+        ]
 
         # Liveness should always return 200
         live_response = await async_client.get("/api/v1/health/live")
         assert live_response.status_code == status.HTTP_200_OK
 
     async def test_health_endpoint_timing_consistency(
-        self,
-        async_client: AsyncClient,
-        performance_timer
+        self, async_client: AsyncClient, performance_timer
     ):
         """Test health endpoint timing consistency for SLA monitoring."""
         endpoints = [
-            ("/api/v1/health/", 50),           # Basic: < 50ms
-            ("/api/v1/health/live", 30),       # Liveness: < 30ms
-            ("/api/v1/health/ready", 100),     # Readiness: < 100ms
+            ("/api/v1/health/", 50),  # Basic: < 50ms
+            ("/api/v1/health/live", 30),  # Liveness: < 30ms
+            ("/api/v1/health/ready", 100),  # Readiness: < 100ms
             ("/api/v1/health/detailed", 200),  # Detailed: < 200ms
-            ("/api/v1/health/metrics", 150),   # Metrics: < 150ms
+            ("/api/v1/health/metrics", 150),  # Metrics: < 150ms
         ]
 
         for endpoint, max_time in endpoints:
@@ -563,11 +550,16 @@ class TestHealthMonitoringIntegration:
                 response = await async_client.get(endpoint)
                 elapsed = timer.stop()
 
-                assert response.status_code in [status.HTTP_200_OK, status.HTTP_503_SERVICE_UNAVAILABLE]
+                assert response.status_code in [
+                    status.HTTP_200_OK,
+                    status.HTTP_503_SERVICE_UNAVAILABLE,
+                ]
                 times.append(elapsed)
 
             avg_time = sum(times) / len(times)
             max_observed = max(times)
 
             assert avg_time < max_time, f"Average time for {endpoint}: {avg_time}ms > {max_time}ms"
-            assert max_observed < max_time * 2, f"Max time for {endpoint}: {max_observed}ms > {max_time * 2}ms"
+            assert max_observed < max_time * 2, (
+                f"Max time for {endpoint}: {max_observed}ms > {max_time * 2}ms"
+            )

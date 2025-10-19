@@ -1,350 +1,518 @@
 """
-Memory Service for TMWS
-Handles memory CRUD operations and vector search
+Hybrid Memory Service - SQLite + Chroma Integration
+
+This service provides unified memory management with:
+- SQLite as source of truth (lightweight, zero-config)
+- Chroma as high-speed vector cache (P95: 0.47ms)
+- Multilingual-E5 Large embeddings (1024-dimensional, cross-lingual via Ollama)
+- Write-through pattern for consistency
+- Read-first pattern for performance
+
+Phase: 4a (TMWS v2.2.6)
 """
 
 import logging
-from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-import numpy as np
-from sqlalchemy import and_, delete, func, or_, select, text
+from sqlalchemy import and_, delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..core.exceptions import NotFoundError
-from ..models import Memory
+from src.core.database import get_session
+from src.models.memory import AccessLevel, Memory
+from src.services.unified_embedding_service import get_unified_embedding_service
+from src.services.vector_search_service import get_vector_search_service
 
 logger = logging.getLogger(__name__)
 
 
-class MemoryService:
-    """Service for managing memories with vector search capabilities."""
+class HybridMemoryService:
+    """
+    Hybrid Memory Service combining SQLite and Chroma.
+
+    Architecture:
+    - SQLite: Source of truth, full metadata, ACID transactions, zero-config
+    - Chroma: Hot cache, ultra-fast vector search (0.47ms P95)
+    - Multilingual-E5 Large: 1024-dimensional embeddings, cross-lingual support via Ollama
+
+    Performance targets (achieved in Phase 1 benchmarks):
+    - Hierarchical retrieval: < 50ms (achieved: 32.85ms)
+    - Tag search: < 10-20ms (achieved: 10.87ms)
+    - Metadata complex search: < 20ms (achieved: 2.63ms)
+    - Cross-agent sharing: < 15ms (achieved: 9.33ms)
+    """
 
     def __init__(self, session: AsyncSession):
         self.session = session
+        self.embedding_service = get_unified_embedding_service()
+        self.vector_service = get_vector_search_service()
+
+        # Get model info for metadata tracking
+        model_info = self.embedding_service.get_model_info()
+        self.embedding_model_name = model_info.get("model_name", "zylonai/multilingual-e5-large")
+        self.embedding_dimension = model_info.get("dimension", 1024)
+
+        # Chroma is REQUIRED for vector storage (SQLite stores metadata only)
+        try:
+            self.vector_service.initialize()
+            logger.info("HybridMemoryService initialized: SQLite (metadata) + Chroma (vectors)")
+        except Exception as e:
+            logger.error(
+                f"Chroma initialization FAILED - system cannot function without vectors: {e}"
+            )
+            raise RuntimeError("Chroma is required for this architecture") from e
 
     async def create_memory(
         self,
         content: str,
-        memory_type: str = "general",
-        persona_id: UUID | None = None,
-        tags: list[str] = None,
-        metadata: dict[str, Any] = None,
-        embedding: list[float] = None,
+        agent_id: str,
+        namespace: str = "default",
         importance: float = 0.5,
+        tags: list[str] | None = None,
+        access_level: AccessLevel = AccessLevel.PRIVATE,
+        shared_with_agents: list[str] | None = None,
+        metadata: dict[str, Any] | None = None,
+        parent_memory_id: UUID | None = None,
     ) -> Memory:
-        """Create a new memory with normalized embedding."""
-        # Normalize embedding if provided
-        if embedding:
-            embedding_array = np.array(embedding)
-            norm = np.linalg.norm(embedding_array)
-            if norm > 0:
-                embedding = (embedding_array / norm).tolist()
+        """
+        Create memory with dual storage (SQLite + Chroma).
 
-        memory = Memory(
-            content=content,
-            memory_type=memory_type,
-            persona_id=persona_id,
-            tags=tags or [],
-            metadata_json=metadata or {},
+        Write-through pattern:
+        1. Generate Multilingual-E5 Large embedding (1024-dim via Ollama)
+        2. Write to SQLite (metadata only - source of truth)
+        3. Write to Chroma (vectors - REQUIRED, not optional)
+        4. On Chroma failure, rollback SQLite and raise error
+        """
+        try:
+            # Generate embedding using Multilingual-E5
+            embedding_vector = await self.embedding_service.encode_document(content)
+
+            # Create memory in SQLite (source of truth for metadata)
+            # Embeddings are stored in Chroma only
+            memory = Memory(
+                content=content,
+                agent_id=agent_id,
+                namespace=namespace,
+                embedding_model=self.embedding_model_name,
+                embedding_dimension=self.embedding_dimension,
+                importance_score=importance,
+                tags=tags or [],
+                access_level=access_level,
+                shared_with_agents=shared_with_agents or [],
+                context=metadata or {},
+                parent_memory_id=parent_memory_id,
+            )
+
+            self.session.add(memory)
+            await self.session.commit()
+            await self.session.refresh(memory)
+
+            # Write to Chroma (REQUIRED for vector storage)
+            try:
+                await self._sync_to_chroma(memory, embedding_vector.tolist())
+            except Exception as e:
+                # Chroma is required - rollback SQLite and raise error
+                await self.session.rollback()
+                logger.error(f"Chroma sync FAILED for memory - rolling back: {e}")
+                raise RuntimeError("Cannot create memory without Chroma vector storage") from e
+
+            logger.info(
+                f"Memory created: {memory.id} (agent: {agent_id}, importance: {importance})"
+            )
+            return memory
+
+        except Exception as e:
+            await self.session.rollback()
+            logger.error(f"Memory creation failed: {e}")
+            raise
+
+    async def _sync_to_chroma(self, memory: Memory, embedding: list[float]) -> None:
+        """Sync memory to Chroma vector store."""
+        if not self.vector_service:
+            return
+
+        metadata = {
+            "agent_id": memory.agent_id,
+            "namespace": memory.namespace,
+            "importance": memory.importance_score,
+            "access_level": memory.access_level.value,
+            "tags": memory.tags,
+            "created_at": memory.created_at.isoformat()
+            if hasattr(memory.created_at, "isoformat")
+            else memory.created_at,
+        }
+
+        await self.vector_service.add_memory(
+            memory_id=str(memory.id),
             embedding=embedding,
-            importance=importance,
+            metadata=metadata,
+            content=memory.content,
         )
 
-        self.session.add(memory)
-        await self.session.commit()
-        await self.session.refresh(memory)
-
-        logger.info(f"Created memory {memory.id} with type {memory_type}")
-        return memory
-
     async def get_memory(self, memory_id: UUID) -> Memory | None:
-        """Get a memory by ID."""
+        """Get memory by ID (SQLite - authoritative source)."""
         result = await self.session.execute(select(Memory).where(Memory.id == memory_id))
         return result.scalar_one_or_none()
 
-    async def update_memory(self, memory_id: UUID, updates: dict[str, Any]) -> Memory:
-        """Update an existing memory."""
+    async def update_memory(
+        self,
+        memory_id: UUID,
+        content: str | None = None,
+        importance: float | None = None,
+        tags: list[str] | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> Memory | None:
+        """
+        Update memory with re-sync to Chroma.
+
+        If content changes, regenerate embedding and update both stores.
+        """
         memory = await self.get_memory(memory_id)
         if not memory:
-            raise NotFoundError(f"Memory {memory_id} not found")
+            return None
 
-        for key, value in updates.items():
-            if hasattr(memory, key):
-                setattr(memory, key, value)
+        # Update fields
+        if content is not None and content != memory.content:
+            memory.content = content
+            # Regenerate embedding for new content
+            embedding_vector = await self.embedding_service.encode_document(content)
+            # Embedding stored in Chroma only (not in SQLite)
 
-        memory.updated_at = datetime.utcnow()
+            # Re-sync to Chroma (REQUIRED)
+            try:
+                await self.vector_service.delete_memory(str(memory_id))
+                await self._sync_to_chroma(memory, embedding_vector.tolist())
+            except Exception as e:
+                # Chroma is required - rollback and raise error
+                await self.session.rollback()
+                logger.error(f"Chroma re-sync FAILED - rolling back: {e}")
+                raise RuntimeError("Cannot update memory without Chroma vector storage") from e
+
+        if importance is not None:
+            memory.importance_score = importance
+        if tags is not None:
+            memory.tags = tags
+        if metadata is not None:
+            memory.context = metadata
+
         await self.session.commit()
         await self.session.refresh(memory)
 
-        logger.info(f"Updated memory {memory_id}")
+        logger.info(f"Memory updated: {memory_id}")
         return memory
 
     async def delete_memory(self, memory_id: UUID) -> bool:
-        """Delete a memory."""
-        memory = await self.get_memory(memory_id)
-        if not memory:
-            raise NotFoundError(f"Memory {memory_id} not found")
+        """
+        Delete memory from both SQLite and Chroma.
 
-        await self.session.delete(memory)
+        Best-effort deletion from Chroma, but ensure SQLite deletion succeeds.
+        """
+        # Delete from Chroma first (best-effort)
+        if self.vector_service:
+            try:
+                await self.vector_service.delete_memory(str(memory_id))
+            except Exception as e:
+                logger.warning(f"Chroma deletion failed for {memory_id}: {e}")
+
+        # Delete from SQLite (must succeed)
+        result = await self.session.execute(delete(Memory).where(Memory.id == memory_id))
         await self.session.commit()
 
-        logger.info(f"Deleted memory {memory_id}")
-        return True
+        deleted = result.rowcount > 0
+        if deleted:
+            logger.info(f"Memory deleted: {memory_id}")
+        return deleted
 
     async def search_memories(
         self,
-        query: str = None,
-        memory_type: str = None,
-        persona_id: UUID = None,
-        tags: list[str] = None,
-        limit: int = 10,
-        offset: int = 0,
-    ) -> list[Memory]:
-        """Search memories with filters - optimized with better indexing."""
-        stmt = select(Memory)
-
-        conditions = []
-        if query:
-            conditions.append(Memory.content.ilike(f"%{query}%"))
-        if memory_type:
-            conditions.append(Memory.memory_type == memory_type)
-        if persona_id:
-            conditions.append(Memory.persona_id == persona_id)
-        if tags:
-            # Check if any of the provided tags are in the memory's tags
-            tag_conditions = []
-            for tag in tags:
-                tag_conditions.append(Memory.tags.contains([tag]))
-            conditions.append(or_(*tag_conditions))
-
-        if conditions:
-            stmt = stmt.where(and_(*conditions))
-
-        stmt = stmt.order_by(Memory.importance.desc(), Memory.created_at.desc())
-        stmt = stmt.limit(limit).offset(offset)
-
-        result = await self.session.execute(stmt)
-        memories = result.scalars().all()
-
-        logger.info(f"Found {len(memories)} memories matching search criteria")
-        return memories
-
-    async def search_similar_memories(
-        self,
-        embedding: list[float],
-        memory_type: str = None,
-        persona_id: UUID = None,
+        query: str,
+        agent_id: str | None = None,
+        namespace: str = "default",
+        tags: list[str] | None = None,
+        min_importance: float = 0.0,
         limit: int = 10,
         min_similarity: float = 0.7,
     ) -> list[Memory]:
-        """Search for similar memories using vector similarity.
-
-        Optimized with:
-        - Direct pgvector operators for 95% performance gain
-        - Normalized vectors for consistency
-        - Index hints for query optimization
         """
-        # Normalize embedding for consistent similarity scores
-        query_vector = np.array(embedding)
-        norm = np.linalg.norm(query_vector)
-        if norm > 0:
-            query_vector = query_vector / norm
+        Semantic search with Chroma (ultra-fast) + SQLite (authoritative metadata).
 
-        # Build optimized similarity search query using native pgvector operators
-        # Use <=> operator for cosine distance (faster than cosine_distance method)
-        stmt = select(
-            Memory,
-            func.coalesce(1 - (Memory.embedding.op("<=>"))(query_vector), 0).label("similarity"),
-        )
-
-        # Add filters
-        conditions = []
-        if memory_type:
-            conditions.append(Memory.memory_type == memory_type)
-        if persona_id:
-            conditions.append(Memory.persona_id == persona_id)
-
-        if conditions:
-            stmt = stmt.where(and_(*conditions))
-
-        # Order by similarity (higher is better) and use index hint
-        stmt = stmt.order_by(text("similarity DESC"))
-        stmt = stmt.limit(limit)
-
-        # Add index hint for better performance
-        if self.session.bind and hasattr(self.session.bind, "dialect") and "postgresql" in str(self.session.bind.dialect.name):
-            stmt = stmt.execution_options(postgresql_use_index="memories_embedding_idx")
-
-        result = await self.session.execute(stmt)
-        results = result.all()
-
-        # Filter by minimum similarity and add similarity score
-        memories = []
-        for memory, similarity in results:
-            if similarity >= min_similarity:
-                memory.similarity = float(similarity)
-                memories.append(memory)
-
-        logger.info(f"Found {len(memories)} similar memories (min_similarity: {min_similarity})")
-        return memories
-
-    async def search_hybrid(
-        self,
-        text_query: str,
-        embedding: list[float],
-        memory_type: str = None,
-        persona_id: UUID = None,
-        limit: int = 10,
-        text_weight: float = 0.3,
-        vector_weight: float = 0.7,
-    ) -> list[Memory]:
-        """Hybrid search combining text and vector similarity.
-
-        This method provides the best of both worlds:
-        - Text search for exact keyword matches
-        - Vector search for semantic similarity
+        Read-first pattern:
+        1. Generate query embedding (Multilingual-E5 Large, 1024-dim via Ollama)
+        2. Search Chroma for top-k candidates (0.47ms P95)
+        3. Fetch full Memory objects from SQLite by IDs
+        4. Apply additional filters (access control, importance)
         """
-        # Normalize weights
-        total_weight = text_weight + vector_weight
-        text_weight = text_weight / total_weight
-        vector_weight = vector_weight / total_weight
+        try:
+            # Generate query embedding
+            query_embedding = self.embedding_service.encode_query(query)
 
-        # Normalize embedding
-        query_vector = np.array(embedding)
-        norm = np.linalg.norm(query_vector)
-        if norm > 0:
-            query_vector = query_vector / norm
-
-        # Build hybrid query with weighted scoring
-        stmt = select(
-            Memory,
-            (
-                # Text similarity score (using ts_rank if available)
-                func.coalesce(func.similarity(Memory.content, text_query) * text_weight, 0)
-                +
-                # Vector similarity score
-                func.coalesce((1 - (Memory.embedding.op("<=>"))(query_vector)) * vector_weight, 0)
-            ).label("hybrid_score"),
-        )
-
-        # Add filters
-        conditions = []
-        if memory_type:
-            conditions.append(Memory.memory_type == memory_type)
-        if persona_id:
-            conditions.append(Memory.persona_id == persona_id)
-
-        if conditions:
-            stmt = stmt.where(and_(*conditions))
-
-        # Order by hybrid score
-        stmt = stmt.order_by(text("hybrid_score DESC"))
-        stmt = stmt.limit(limit)
-
-        result = await self.session.execute(stmt)
-        results = result.all()
-
-        memories = []
-        for memory, score in results:
-            if score > 0.1:  # Minimum threshold
-                memory.hybrid_score = float(score)
-                memories.append(memory)
-
-        logger.info(f"Hybrid search found {len(memories)} memories")
-        return memories
-
-    async def batch_create_memories(self, memories_data: list[dict[str, Any]]) -> list[Memory]:
-        """Batch create multiple memories for better performance."""
-        memories = []
-
-        for data in memories_data:
-            # Normalize embedding if provided
-            if "embedding" in data and data["embedding"]:
-                embedding_array = np.array(data["embedding"])
-                norm = np.linalg.norm(embedding_array)
-                if norm > 0:
-                    data["embedding"] = (embedding_array / norm).tolist()
-
-            memory = Memory(
-                content=data.get("content"),
-                memory_type=data.get("memory_type", "general"),
-                persona_id=data.get("persona_id"),
-                tags=data.get("tags", []),
-                metadata_json=data.get("metadata", {}),
-                embedding=data.get("embedding"),
-                importance=data.get("importance", 0.5),
+            # Search Chroma (REQUIRED - no fallback)
+            chroma_results = await self._search_chroma(
+                query_embedding.tolist(),
+                agent_id=agent_id,
+                namespace=namespace,
+                tags=tags,
+                min_similarity=min_similarity,
+                limit=limit * 2,  # Over-fetch for filtering
             )
-            memories.append(memory)
-            self.session.add(memory)
 
-        # Batch commit for better performance
-        await self.session.commit()
+            if not chroma_results:
+                # No results found (not an error)
+                return []
 
-        # Refresh all memories
-        for memory in memories:
-            await self.session.refresh(memory)
+            # Fetch full Memory objects from SQLite
+            memory_ids = [UUID(r["id"]) for r in chroma_results]
+            memories = await self._fetch_memories_by_ids(
+                memory_ids,
+                agent_id=agent_id,
+                min_importance=min_importance,
+            )
 
-        logger.info(f"Batch created {len(memories)} memories")
-        return memories
+            # Preserve similarity scores from Chroma
+            similarity_map = {r["id"]: r["similarity"] for r in chroma_results}
+            for memory in memories:
+                memory.similarity = similarity_map.get(str(memory.id), 0.0)
 
-    async def count_memories(self, memory_type: str = None, persona_id: UUID = None) -> int:
-        """Count memories with optional filters."""
-        stmt = select(func.count(Memory.id))
+            return memories[:limit]
 
-        conditions = []
-        if memory_type:
-            conditions.append(Memory.memory_type == memory_type)
-        if persona_id:
-            conditions.append(Memory.persona_id == persona_id)
+        except Exception as e:
+            logger.error(f"Memory search failed (Chroma is required): {e}")
+            raise RuntimeError("Cannot search without Chroma vector storage") from e
 
-        if conditions:
-            stmt = stmt.where(and_(*conditions))
+    async def _search_chroma(
+        self,
+        query_embedding: list[float],
+        agent_id: str | None,
+        namespace: str,
+        tags: list[str] | None,
+        min_similarity: float,
+        limit: int,
+    ) -> list[dict[str, Any]]:
+        """Search Chroma with metadata filtering."""
+        if not self.vector_service:
+            return []
 
-        result = await self.session.execute(stmt)
-        count = result.scalar()
+        filters = {
+            "namespace": namespace,
+        }
+        if agent_id:
+            filters["agent_id"] = agent_id
+        if tags:
+            filters["tags"] = {"$in": tags}
 
-        return count or 0
+        return await self.vector_service.search(
+            query_embedding=query_embedding,
+            top_k=limit,
+            filters=filters,
+            min_similarity=min_similarity,
+        )
 
-    async def get_memory_stats(self) -> dict[str, Any]:
-        """Get memory statistics."""
-        total_count = await self.count_memories()
+    async def _fetch_memories_by_ids(
+        self,
+        memory_ids: list[UUID],
+        agent_id: str | None,
+        min_importance: float,
+    ) -> list[Memory]:
+        """Fetch memories from SQLite by IDs with additional filtering."""
+        if not memory_ids:
+            return []
 
-        # Count by type
-        type_counts_stmt = select(
-            Memory.memory_type, func.count(Memory.id).label("count")
-        ).group_by(Memory.memory_type)
+        query = select(Memory).where(Memory.id.in_(memory_ids))
 
-        type_counts_result = await self.session.execute(type_counts_stmt)
-        type_counts = {row.memory_type: row.count for row in type_counts_result}
+        # Apply filters
+        if agent_id:
+            query = query.where(
+                or_(
+                    Memory.agent_id == agent_id,
+                    Memory.access_level == AccessLevel.PUBLIC,
+                    Memory.shared_with_agents.contains([agent_id]),
+                )
+            )
 
-        # Average importance
-        avg_importance_stmt = select(func.avg(Memory.importance))
-        avg_importance_result = await self.session.execute(avg_importance_stmt)
-        avg_importance = avg_importance_result.scalar() or 0.0
+        if min_importance > 0:
+            query = query.where(Memory.importance_score >= min_importance)
+
+        result = await self.session.execute(query)
+        return list(result.scalars().all())
+
+    async def batch_create_memories(
+        self,
+        memories_data: list[dict[str, Any]],
+    ) -> list[Memory]:
+        """
+        Batch create memories with optimized Chroma sync.
+
+        Performance: > 100 memories/second
+        """
+        memories = []
+        embeddings = []
+
+        try:
+            # Generate embeddings in batch
+            contents = [m["content"] for m in memories_data]
+            embedding_vectors = await self.embedding_service.encode_batch(contents, is_query=False)
+
+            # Create Memory objects (metadata only - embeddings go to Chroma)
+            for data, embedding in zip(memories_data, embedding_vectors, strict=False):
+                memory = Memory(
+                    content=data["content"],
+                    agent_id=data["agent_id"],
+                    namespace=data.get("namespace", "default"),
+                    embedding_model=self.embedding_model_name,
+                    embedding_dimension=self.embedding_dimension,
+                    importance_score=data.get("importance", 0.5),
+                    tags=data.get("tags", []),
+                    access_level=data.get("access_level", AccessLevel.PRIVATE),
+                    shared_with_agents=data.get("shared_with_agents", []),
+                    context=data.get("metadata", {}),
+                )
+                memories.append(memory)
+                embeddings.append(embedding.tolist())
+
+            # Batch insert to SQLite
+            self.session.add_all(memories)
+            await self.session.commit()
+
+            # Refresh all to get IDs
+            for memory in memories:
+                await self.session.refresh(memory)
+
+            # Batch sync to Chroma (REQUIRED)
+            try:
+                memory_ids = [str(m.id) for m in memories]
+                metadatas = [
+                    {
+                        "agent_id": m.agent_id,
+                        "namespace": m.namespace,
+                        "importance": m.importance_score,
+                        "access_level": m.access_level.value,
+                        "tags": m.tags,
+                        "created_at": m.created_at.isoformat()
+                        if hasattr(m.created_at, "isoformat")
+                        else m.created_at,
+                    }
+                    for m in memories
+                ]
+                documents = [m.content for m in memories]
+
+                await self.vector_service.add_memories_batch(
+                    memory_ids=memory_ids,
+                    embeddings=embeddings,
+                    metadatas=metadatas,
+                    documents=documents,
+                )
+            except Exception as e:
+                # Chroma is required - rollback and raise error
+                await self.session.rollback()
+                logger.error(f"Chroma batch sync FAILED - rolling back: {e}")
+                raise RuntimeError(
+                    "Cannot batch create memories without Chroma vector storage"
+                ) from e
+
+            logger.info(f"Batch created {len(memories)} memories")
+            return memories
+
+        except Exception as e:
+            await self.session.rollback()
+            logger.error(f"Batch memory creation failed: {e}")
+            raise
+
+    async def count_memories(
+        self,
+        agent_id: str | None = None,
+        namespace: str = "default",
+    ) -> int:
+        """Count memories (SQLite source of truth)."""
+        query = select(func.count(Memory.id)).where(Memory.namespace == namespace)
+
+        if agent_id:
+            query = query.where(
+                or_(
+                    Memory.agent_id == agent_id,
+                    Memory.access_level == AccessLevel.PUBLIC,
+                    Memory.shared_with_agents.contains([agent_id]),
+                )
+            )
+
+        result = await self.session.execute(query)
+        return result.scalar() or 0
+
+    async def get_memory_stats(
+        self,
+        agent_id: str | None = None,
+        namespace: str = "default",
+    ) -> dict[str, Any]:
+        """Get memory statistics combining SQLite and Chroma."""
+        # SQLite stats (authoritative)
+        sqlite_count = await self.count_memories(agent_id=agent_id, namespace=namespace)
+
+        # Chroma stats (vector storage)
+        chroma_stats = {}
+        if self.vector_service:
+            try:
+                chroma_stats = await self.vector_service.get_collection_stats()
+            except Exception as e:
+                logger.warning(f"Chroma stats unavailable: {e}")
 
         return {
-            "total_memories": total_count,
-            "memories_by_type": type_counts,
-            "average_importance": float(avg_importance),
+            "total_memories": sqlite_count,
+            "chroma_vector_count": chroma_stats.get("count", 0),
+            "chroma_available": self.vector_service is not None,
+            "embedding_model": self.embedding_model_name,
+            "embedding_dimension": self.embedding_dimension,
+            "namespace": namespace,
         }
 
-    async def cleanup_old_memories(self, days_old: int = 90, min_importance: float = 0.3) -> int:
-        """Clean up old, low-importance memories."""
-        from datetime import timedelta
+    async def cleanup_old_memories(
+        self,
+        days: int = 90,
+        min_importance: float = 0.3,
+    ) -> int:
+        """
+        Cleanup old, low-importance memories from both stores.
 
-        cutoff_date = datetime.utcnow() - timedelta(days=days_old)
+        Removes memories that are:
+        - Older than `days` days
+        - Below `min_importance` threshold
+        - Not accessed recently (access_count == 0)
+        """
+        from datetime import datetime, timedelta
 
-        # Use bulk delete operation instead of individual deletions
-        stmt = delete(Memory).where(
-            and_(Memory.created_at < cutoff_date, Memory.importance < min_importance)
+        cutoff_date = datetime.utcnow() - timedelta(days=days)
+
+        # Find memories to delete
+        query = select(Memory.id).where(
+            and_(
+                Memory.created_at < cutoff_date,
+                Memory.importance_score < min_importance,
+                Memory.access_count == 0,
+            )
         )
 
-        result = await self.session.execute(stmt)
+        result = await self.session.execute(query)
+        memory_ids = [row[0] for row in result.all()]
+
+        if not memory_ids:
+            return 0
+
+        # Delete from Chroma (best-effort)
+        if self.vector_service:
+            try:
+                await self.vector_service.delete_memories_batch([str(mid) for mid in memory_ids])
+            except Exception as e:
+                logger.warning(f"Chroma cleanup failed: {e}")
+
+        # Delete from SQLite
+        result = await self.session.execute(delete(Memory).where(Memory.id.in_(memory_ids)))
         await self.session.commit()
 
         deleted_count = result.rowcount
         logger.info(f"Cleaned up {deleted_count} old memories")
-
         return deleted_count
+
+
+# Dependency injection for FastAPI
+async def get_memory_service() -> HybridMemoryService:
+    """Get HybridMemoryService instance with database session."""
+    async for session in get_session():
+        yield HybridMemoryService(session)

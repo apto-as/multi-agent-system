@@ -1,16 +1,16 @@
 """
 Memory v2 models for TMWS - Multi-agent memory with access control and learning support.
+
+Architecture: SQLite (metadata) + Chroma (vector storage)
+- SQLite: Stores all metadata, relationships, and access control
+- Chroma: Stores all vector embeddings (1024-dim Multilingual-E5 Large)
 """
 
 from datetime import datetime
 from typing import Any
-from uuid import UUID
 
 import sqlalchemy as sa
-from pgvector.sqlalchemy import Vector
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, Text
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.dialects.postgresql import UUID as PGUUID
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .agent import AccessLevel
@@ -42,11 +42,20 @@ class Memory(TMWSBase, MetadataMixin):
         comment="Namespace for memory isolation",
     )
 
-    # Vector embedding for semantic search
-    embedding: Mapped[list[float] | None] = mapped_column(
-        Vector(384),  # all-MiniLM-L6-v2 dimension
-        nullable=True,
-        comment="Vector embedding for semantic search",
+    # Vector embeddings stored in Chroma (not in SQLite)
+    # Track which embedding model was used for Chroma storage
+    embedding_model: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        default="zylonai/multilingual-e5-large",
+        comment="Embedding model used in Chroma: 'zylonai/multilingual-e5-large' (1024-dim)",
+    )
+
+    embedding_dimension: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=1024,
+        comment="Embedding dimension for Chroma vectors",
     )
 
     # Access control
@@ -59,16 +68,16 @@ class Memory(TMWSBase, MetadataMixin):
     )
 
     shared_with_agents: Mapped[list[str]] = mapped_column(
-        JSONB, nullable=False, default=list, comment="List of agent_ids with explicit access"
+        JSON, nullable=False, default=list, comment="List of agent_ids with explicit access"
     )
 
     # Metadata and context
     context: Mapped[dict[str, Any]] = mapped_column(
-        JSONB, nullable=False, default=dict, comment="Flexible context metadata"
+        JSON, nullable=False, default=dict, comment="Flexible context metadata"
     )
 
     tags: Mapped[list[str]] = mapped_column(
-        JSONB, nullable=False, default=list, comment="Tags for categorization"
+        JSON, nullable=False, default=list, comment="Tags for categorization"
     )
 
     source_url: Mapped[str | None] = mapped_column(
@@ -94,7 +103,7 @@ class Memory(TMWSBase, MetadataMixin):
     )
 
     pattern_ids: Mapped[list[str]] = mapped_column(
-        JSONB, nullable=False, default=list, comment="Associated learning pattern IDs"
+        JSON, nullable=False, default=list, comment="Associated learning pattern IDs"
     )
 
     # Temporal aspects
@@ -115,28 +124,22 @@ class Memory(TMWSBase, MetadataMixin):
     )
 
     # Parent-child relationships for memory consolidation
-    parent_memory_id: Mapped[UUID | None] = mapped_column(
-        PGUUID(as_uuid=True),
+    parent_memory_id: Mapped[str | None] = mapped_column(
+        String(36),  # UUID as string (e.g., "550e8400-e29b-41d4-a716-446655440000")
         ForeignKey("memories_v2.id"),
         nullable=True,
         comment="Parent memory for hierarchical organization",
     )
 
-    # Indexes for performance
+    # Indexes for performance (SQLite compatible)
     __table_args__ = (
         Index("ix_memory_agent_namespace", "agent_id", "namespace"),
         Index("ix_memory_access_level", "access_level", "agent_id"),
         Index("ix_memory_importance", "importance_score", "relevance_score"),
         Index("ix_memory_accessed", "accessed_at", "access_count"),
         Index("ix_memory_expires", "expires_at"),
-        Index(
-            "ix_memory_embedding",
-            "embedding",
-            postgresql_using="ivfflat",
-            postgresql_ops={"embedding": "vector_cosine_ops"},
-        ),
-        Index("ix_memory_tags", "tags", postgresql_using="gin"),
-        Index("ix_memory_context", "context", postgresql_using="gin"),
+        # Note: Vector embeddings are stored in Chroma, not in SQLite
+        # Tags and context use standard SQLite indexes (no GIN)
     )
 
     def __repr__(self) -> str:
@@ -193,6 +196,7 @@ class Memory(TMWSBase, MetadataMixin):
             "pattern_ids": self.pattern_ids,
             "version": self.version,
             "parent_memory_id": str(self.parent_memory_id) if self.parent_memory_id else None,
+            "embedding_model": self.embedding_model,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             "accessed_at": self.accessed_at.isoformat() if self.accessed_at else None,
@@ -205,8 +209,8 @@ class MemorySharing(TMWSBase):
 
     __tablename__ = "memory_sharing"
 
-    memory_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("memories_v2.id"), nullable=False, primary_key=True
+    memory_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("memories_v2.id"), nullable=False, primary_key=True
     )
 
     shared_with_agent_id: Mapped[str] = mapped_column(Text, nullable=False, primary_key=True)
@@ -249,7 +253,7 @@ class MemoryPattern(TMWSBase, MetadataMixin):
     namespace: Mapped[str] = mapped_column(Text, nullable=False, index=True)
 
     pattern_data: Mapped[dict[str, Any]] = mapped_column(
-        JSONB, nullable=False, comment="The actual pattern data"
+        JSON, nullable=False, comment="The actual pattern data"
     )
 
     confidence: Mapped[float] = mapped_column(
@@ -261,7 +265,7 @@ class MemoryPattern(TMWSBase, MetadataMixin):
     )
 
     memory_ids: Mapped[list[str]] = mapped_column(
-        JSONB, nullable=False, default=list, comment="Associated memory IDs"
+        JSON, nullable=False, default=list, comment="Associated memory IDs"
     )
 
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)
@@ -282,11 +286,11 @@ class MemoryConsolidation(TMWSBase):
     __tablename__ = "memory_consolidations"
 
     source_memory_ids: Mapped[list[str]] = mapped_column(
-        JSONB, nullable=False, comment="Source memory IDs that were consolidated"
+        JSON, nullable=False, comment="Source memory IDs that were consolidated"
     )
 
-    consolidated_memory_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True),
+    consolidated_memory_id: Mapped[str] = mapped_column(
+        String(36),
         ForeignKey("memories_v2.id"),
         nullable=False,
         comment="Resulting consolidated memory",
@@ -299,7 +303,7 @@ class MemoryConsolidation(TMWSBase):
     agent_id: Mapped[str] = mapped_column(Text, nullable=False, index=True)
 
     consolidation_metadata: Mapped[dict[str, Any]] = mapped_column(
-        JSONB, nullable=False, default=dict
+        JSON, nullable=False, default=dict
     )
 
     created_at: Mapped[datetime] = mapped_column(

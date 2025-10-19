@@ -70,7 +70,7 @@ class TestTaskRouterLogic:
         mock_tasks = [{"id": str(i), "title": f"Task {i}"} for i in range(50)]
 
         def paginate(items, skip, limit):
-            return items[skip:skip + limit]
+            return items[skip : skip + limit]
 
         # Test first page
         page1 = paginate(mock_tasks, 0, 10)
@@ -99,7 +99,7 @@ class TestTaskRouterLogic:
             "status": "pending",
             "priority": "medium",
             "progress": 0,
-            "updated_at": datetime.utcnow()
+            "updated_at": datetime.utcnow(),
         }
 
         # Test update function
@@ -110,11 +110,7 @@ class TestTaskRouterLogic:
             task["updated_at"] = datetime.utcnow()
             return task
 
-        updates = {
-            "title": "Updated Title",
-            "status": "in_progress",
-            "progress": 50
-        }
+        updates = {"title": "Updated Title", "status": "in_progress", "progress": 50}
 
         updated_task = update_task_fields(mock_task.copy(), updates)
         assert updated_task["title"] == "Updated Title"
@@ -128,7 +124,7 @@ class TestTaskRouterLogic:
             "id": str(uuid.uuid4()),
             "status": "in_progress",
             "progress": 75,
-            "completed_at": None
+            "completed_at": None,
         }
 
         def complete_task(task):
@@ -144,11 +140,12 @@ class TestTaskRouterLogic:
 
     def test_error_response_formatting(self):
         """Test error response formatting."""
+
         def format_error_response(error_message, status_code):
             return {
                 "detail": error_message,
                 "status_code": status_code,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.utcnow().isoformat(),
             }
 
         error_response = format_error_response("Task not found", 404)
@@ -162,6 +159,7 @@ class TestWorkflowRouterLogic:
 
     def test_workflow_creation_validation(self):
         """Test workflow creation validation."""
+
         def validate_workflow_data(name, workflow_type, config):
             errors = []
             if not name or len(name.strip()) < 3:
@@ -191,7 +189,7 @@ class TestWorkflowRouterLogic:
             "status": "pending",
             "started_at": None,
             "completed_at": None,
-            "result": None
+            "result": None,
         }
 
         def start_workflow_execution(workflow):
@@ -221,7 +219,7 @@ class TestWorkflowRouterLogic:
         mock_workflow = {
             "id": str(uuid.uuid4()),
             "status": "running",
-            "started_at": datetime.utcnow()
+            "started_at": datetime.utcnow(),
         }
 
         def cancel_workflow(workflow):
@@ -248,7 +246,7 @@ class TestWorkflowRouterLogic:
             {"workflow_type": "parallel", "status": "running"},
             {"workflow_type": "sequential", "status": "completed"},
             {"workflow_type": "conditional", "status": "failed"},
-            {"workflow_type": "parallel", "status": "completed"}
+            {"workflow_type": "parallel", "status": "completed"},
         ]
 
         def calculate_workflow_stats(workflows):
@@ -264,11 +262,7 @@ class TestWorkflowRouterLogic:
                 status = workflow["status"]
                 by_status[status] = by_status.get(status, 0) + 1
 
-            return {
-                "total_workflows": len(workflows),
-                "by_type": by_type,
-                "by_status": by_status
-            }
+            return {"total_workflows": len(workflows), "by_type": by_type, "by_status": by_status}
 
         stats = calculate_workflow_stats(mock_workflows)
         assert stats["total_workflows"] == 5
@@ -283,6 +277,7 @@ class TestMemoryServiceLogic:
 
     def test_memory_content_validation(self):
         """Test memory content validation."""
+
         def validate_memory_content(content, importance, tags):
             errors = []
             if not content or len(content.strip()) < 10:
@@ -303,6 +298,7 @@ class TestMemoryServiceLogic:
 
     def test_memory_search_scoring(self):
         """Test memory search scoring logic."""
+
         def calculate_relevance_score(query_embedding, memory_embedding, importance):
             # Mock similarity calculation
             similarity = sum(a * b for a, b in zip(query_embedding, memory_embedding, strict=False))
@@ -322,7 +318,11 @@ class TestMemoryServiceLogic:
         """Test memory filtering by criteria."""
         mock_memories = [
             {"content": "AI research", "tags": ["ai", "research"], "importance": 0.9},
-            {"content": "Database optimization", "tags": ["database", "performance"], "importance": 0.7},
+            {
+                "content": "Database optimization",
+                "tags": ["database", "performance"],
+                "importance": 0.7,
+            },
             {"content": "Security audit", "tags": ["security", "audit"], "importance": 1.0},
         ]
 
@@ -352,25 +352,27 @@ class TestHealthCheckLogic:
 
     def test_component_health_status(self):
         """Test individual component health status."""
+
         def check_component_health(component_name, check_function):
             try:
                 result = check_function()
                 return {
                     "component": component_name,
                     "status": "healthy" if result else "unhealthy",
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": datetime.utcnow().isoformat(),
                 }
             except Exception as e:
                 return {
                     "component": component_name,
                     "status": "unhealthy",
                     "error": str(e),
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": datetime.utcnow().isoformat(),
                 }
 
         # Healthy component
         def healthy_check():
             return True
+
         health_result = check_component_health("database", healthy_check)
         assert health_result["status"] == "healthy"
         assert "error" not in health_result
@@ -378,18 +380,21 @@ class TestHealthCheckLogic:
         # Unhealthy component
         def unhealthy_check():
             return False
+
         health_result = check_component_health("cache", unhealthy_check)
         assert health_result["status"] == "unhealthy"
 
         # Error in component
         def error_check():
             return exec('raise Exception("Connection failed")')
+
         health_result = check_component_health("external_api", error_check)
         assert health_result["status"] == "unhealthy"
         assert "error" in health_result
 
     def test_overall_health_aggregation(self):
         """Test overall health status aggregation."""
+
         def aggregate_health_status(component_results):
             total_components = len(component_results)
             healthy_components = sum(1 for r in component_results if r["status"] == "healthy")
@@ -405,7 +410,7 @@ class TestHealthCheckLogic:
         all_healthy = [
             {"component": "db", "status": "healthy"},
             {"component": "cache", "status": "healthy"},
-            {"component": "api", "status": "healthy"}
+            {"component": "api", "status": "healthy"},
         ]
         assert aggregate_health_status(all_healthy) == "healthy"
 
@@ -413,7 +418,7 @@ class TestHealthCheckLogic:
         partially_healthy = [
             {"component": "db", "status": "healthy"},
             {"component": "cache", "status": "unhealthy"},
-            {"component": "api", "status": "healthy"}
+            {"component": "api", "status": "healthy"},
         ]
         assert aggregate_health_status(partially_healthy) == "degraded"
 
@@ -421,7 +426,7 @@ class TestHealthCheckLogic:
         mostly_unhealthy = [
             {"component": "db", "status": "unhealthy"},
             {"component": "cache", "status": "unhealthy"},
-            {"component": "api", "status": "healthy"}
+            {"component": "api", "status": "healthy"},
         ]
         assert aggregate_health_status(mostly_unhealthy) == "unhealthy"
 
@@ -431,6 +436,7 @@ class TestBusinessLogicValidation:
 
     def test_task_dependency_validation(self):
         """Test task dependency cycle detection."""
+
         def has_circular_dependency(task_id, dependencies, existing_graph):
             # Simple cycle detection for testing
             test_graph = existing_graph.copy()
@@ -458,6 +464,7 @@ class TestBusinessLogicValidation:
 
     def test_data_consistency_validation(self):
         """Test data consistency validation."""
+
         def validate_data_consistency(data):
             errors = []
 
@@ -468,9 +475,8 @@ class TestBusinessLogicValidation:
                     errors.append(f"Missing required field: {field}")
 
             # Check date consistency
-            if "created_at" in data and "updated_at" in data:
-                if data["updated_at"] < data["created_at"]:
-                    errors.append("Updated date cannot be before created date")
+            if "created_at" in data and "updated_at" in data and data["updated_at"] < data["created_at"]:
+                errors.append("Updated date cannot be before created date")
 
             return errors
 
@@ -478,7 +484,7 @@ class TestBusinessLogicValidation:
         valid_data = {
             "id": str(uuid.uuid4()),
             "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow()
+            "updated_at": datetime.utcnow(),
         }
         assert len(validate_data_consistency(valid_data)) == 0
 
@@ -486,7 +492,7 @@ class TestBusinessLogicValidation:
         invalid_data = {
             "id": str(uuid.uuid4()),
             "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow() - timedelta(hours=1)  # Before created
+            "updated_at": datetime.utcnow() - timedelta(hours=1),  # Before created
         }
         errors = validate_data_consistency(invalid_data)
         assert len(errors) == 1
@@ -494,13 +500,14 @@ class TestBusinessLogicValidation:
 
     def test_permission_validation(self):
         """Test permission validation logic."""
+
         def check_permission(user_roles, required_permission):
             permission_mapping = {
                 "read_tasks": ["user", "admin"],
                 "write_tasks": ["admin"],
                 "delete_tasks": ["admin"],
                 "manage_workflows": ["admin"],
-                "view_health": ["user", "admin"]
+                "view_health": ["user", "admin"],
             }
 
             allowed_roles = permission_mapping.get(required_permission, [])
@@ -546,8 +553,10 @@ class TestPerformanceRequirements:
 
     def test_memory_usage_validation(self):
         """Test memory usage requirements."""
+
         def calculate_data_size(data):
             import sys
+
             if isinstance(data, dict):
                 return sum(sys.getsizeof(k) + sys.getsizeof(v) for k, v in data.items())
             elif isinstance(data, list):
@@ -567,6 +576,7 @@ class TestPerformanceRequirements:
 
     def test_concurrent_request_simulation(self):
         """Test concurrent request handling simulation."""
+
         def simulate_concurrent_requests(num_requests):
             results = []
             for i in range(num_requests):
@@ -574,7 +584,7 @@ class TestPerformanceRequirements:
                 result = {
                     "request_id": i,
                     "status": "processed",
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": datetime.utcnow().isoformat(),
                 }
                 results.append(result)
             return results

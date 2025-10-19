@@ -61,9 +61,7 @@ class SensitiveDataDetector:
         for pattern, data_type in cls.SENSITIVE_PATTERNS:
             if re.search(pattern, content):
                 detected_types.append(data_type)
-                logger.warning(
-                    f"Sensitive data detected: {data_type} - Memory will be kept LOCAL"
-                )
+                logger.warning(f"Sensitive data detected: {data_type} - Memory will be kept LOCAL")
 
         return len(detected_types) > 0, detected_types
 
@@ -170,9 +168,7 @@ class ScopeClassifier:
         if has_sensitive:
             classification_details["detected_sensitive"] = True
             classification_details["sensitive_types"] = sensitive_types
-            logger.warning(
-                f"Sensitive data detected: {sensitive_types} - Forcing PRIVATE scope"
-            )
+            logger.warning(f"Sensitive data detected: {sensitive_types} - Forcing PRIVATE scope")
             return MemoryScope.PRIVATE, classification_details
 
         # Step 2: Check for project-specific indicators

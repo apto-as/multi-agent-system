@@ -425,6 +425,49 @@ class AsyncSecurityAuditLogger:
             logger.error(f"Failed to get recent events: {e}")
             return []
 
+    async def log_pattern_execution(
+        self,
+        agent_id: str,
+        pattern_name: str,
+        success: bool,
+        execution_time_ms: float,
+        tokens_used: int,
+        error_message: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        """
+        Log pattern execution for audit trail.
+
+        This is a convenience method for logging pattern execution events
+        from the pattern execution service.
+        """
+        event_type = (
+            SecurityEventType.ADMIN_ACTION if success else SecurityEventType.UNAUTHORIZED_ACCESS
+        )
+        severity = SecurityEventSeverity.LOW if success else SecurityEventSeverity.MEDIUM
+
+        details = {
+            "pattern_name": pattern_name,
+            "execution_time_ms": execution_time_ms,
+            "tokens_used": tokens_used,
+            "success": success,
+        }
+
+        if error_message:
+            details["error"] = error_message
+
+        if metadata:
+            details.update(metadata)
+
+        await self.log_event(
+            event_type=event_type,
+            severity=severity,
+            client_ip="127.0.0.1",  # Internal execution
+            message=f"Pattern execution: {pattern_name} ({'success' if success else 'failed'})",
+            user_id=agent_id,
+            details=details,
+        )
+
     async def cleanup(self) -> None:
         """Cleanup resources."""
         if self.engine:

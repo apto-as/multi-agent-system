@@ -14,7 +14,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
-# Set test environment
+# Set test environment - MUST be set before importing src.core.config
 os.environ["TMWS_ENVIRONMENT"] = "test"
 os.environ["TMWS_AUTH_ENABLED"] = "false"
 os.environ["TMWS_SECRET_KEY"] = "test_secret_key_for_testing_only_32_chars"
@@ -25,21 +25,34 @@ TEST_USE_POSTGRESQL = os.getenv("TEST_USE_POSTGRESQL", "false").lower() == "true
 
 if TEST_USE_POSTGRESQL:
     # PostgreSQL for integration tests with pgvector support
-    os.environ["TMWS_DATABASE_URL"] = "postgresql+asyncpg://tmws_user:tmws_password@localhost:5433/tmws_test"
+    os.environ["TMWS_DATABASE_URL"] = (
+        "postgresql+asyncpg://tmws_user:tmws_password@localhost:5433/tmws_test"
+    )
 else:
     # SQLite for unit tests
     os.environ["TMWS_DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 
-from src.api.app import create_app
-from src.core.config import get_settings
-from src.core.database import Base, get_db_session_dependency
+# Import after environment setup - environment variables must be set first
+from src.core.config import get_settings  # noqa: E402
+from src.core.database import Base, get_db_session_dependency  # noqa: E402
 
 # Import all models to ensure Base.metadata discovers them
-from src.models.user import UserRole
+from src.models.user import UserRole  # noqa: E402
 
 # Get test settings
 settings = get_settings()
-app = create_app()
+
+# TMWS v3.0: FastAPI removed, MCP-only
+# Import FastAPI app only if available (for backward compatibility with existing tests)
+try:
+    from src.api.app import create_app
+
+    app = create_app()
+except ImportError:
+    # v3.0: MCP-only, no FastAPI app
+    app = None
+    get_db_session_dependency = None  # Not needed in v3.0
+
 
 @pytest.fixture(scope="session")
 def event_loop():
@@ -48,18 +61,15 @@ def event_loop():
     yield loop
     loop.close()
 
+
 @pytest_asyncio.fixture
 async def test_engine():
     """Create test database engine."""
     settings = get_settings()
-    engine = create_async_engine(
-        settings.database_url_async,
-        poolclass=NullPool,
-        echo=False
-    )
+    engine = create_async_engine(settings.database_url_async, poolclass=NullPool, echo=False)
 
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all) # Drop all tables for a clean slate
+        await conn.run_sync(Base.metadata.drop_all)  # Drop all tables for a clean slate
         await conn.run_sync(Base.metadata.create_all)
 
         # PostgreSQL specific setup
@@ -71,6 +81,7 @@ async def test_engine():
 
     await engine.dispose()
 
+
 @pytest_asyncio.fixture
 async def postgresql_engine():
     """Create PostgreSQL test database engine for integration tests."""
@@ -81,7 +92,7 @@ async def postgresql_engine():
     engine = create_async_engine(
         "postgresql+asyncpg://tmws_user:tmws_password@localhost:5433/tmws_test",
         poolclass=NullPool,
-        echo=False
+        echo=False,
     )
 
     async with engine.begin() as conn:
@@ -94,22 +105,24 @@ async def postgresql_engine():
 
     await engine.dispose()
 
+
 @pytest_asyncio.fixture
 async def test_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
     """Create test database session."""
-    async_session = async_sessionmaker(
-        test_engine,
-        class_=AsyncSession,
-        expire_on_commit=False
-    )
+    async_session = async_sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
 
     async with async_session() as session:
         yield session
 
+
 @pytest_asyncio.fixture
 async def client(test_session):
-    """Create test client."""
-    from src.api.app import create_app
+    """Create test client (v3.0: Skips if FastAPI not available)."""
+    try:
+        from src.api.app import create_app
+    except ImportError:
+        pytest.skip("FastAPI not available in TMWS v3.0 (MCP-only)")
+
     app = create_app()
     app.dependency_overrides[get_db_session_dependency] = lambda: test_session
 
@@ -118,12 +131,17 @@ async def client(test_session):
 
     app.dependency_overrides.clear()
 
+
 @pytest_asyncio.fixture
 async def async_client(test_session):
-    """Create async test client for E2E tests."""
+    """Create async test client for E2E tests (v3.0: Skips if FastAPI not available)."""
+    try:
+        from src.api.app import create_app
+    except ImportError:
+        pytest.skip("FastAPI not available in TMWS v3.0 (MCP-only)")
+
     from httpx import ASGITransport, AsyncClient
 
-    from src.api.app import create_app
     app = create_app()
     app.dependency_overrides[get_db_session_dependency] = lambda: test_session
 
@@ -131,6 +149,7 @@ async def async_client(test_session):
         yield ac
 
     app.dependency_overrides.clear()
+
 
 @pytest_asyncio.fixture
 async def authenticated_client(client, test_session):
@@ -153,7 +172,7 @@ async def authenticated_client(client, test_session):
         roles=[UserRole.USER],
         agent_namespace="default",
         password_changed_at=datetime.now(timezone.utc),
-        status=UserStatus.ACTIVE
+        status=UserStatus.ACTIVE,
     )
 
     test_session.add(user)
@@ -164,16 +183,14 @@ async def authenticated_client(client, test_session):
     jwt_service = JWTService()
     token = jwt_service.create_access_token(
         subject=str(user.id),
-        additional_claims={
-            "username": user.username,
-            "roles": [role.value for role in user.roles]
-        }
+        additional_claims={"username": user.username, "roles": [role.value for role in user.roles]},
     )
 
     # Add auth header to client
     client.headers["Authorization"] = f"Bearer {token}"
 
     yield client
+
 
 @pytest_asyncio.fixture
 async def test_user(test_session, test_user_data):
@@ -194,13 +211,14 @@ async def test_user(test_session, test_user_data):
         roles=test_user_data["roles"],
         agent_namespace="default",
         password_changed_at=datetime.now(timezone.utc),
-        status=UserStatus.ACTIVE
+        status=UserStatus.ACTIVE,
     )
 
     test_session.add(user)
     await test_session.commit()
     await test_session.refresh(user)
     return user
+
 
 @pytest_asyncio.fixture
 async def test_api_key(test_user, test_session):
@@ -265,6 +283,7 @@ async def test_api_key(test_user, test_session):
         "user_id": str(test_user.id),
     }
 
+
 @pytest.fixture
 def mock_redis():
     """Mock Redis client."""
@@ -279,6 +298,7 @@ def mock_redis():
     redis_mock.eval = AsyncMock(return_value=[1, 99])
     return redis_mock
 
+
 @pytest.fixture
 def mock_memory_service():
     """Mock memory service."""
@@ -289,6 +309,7 @@ def mock_memory_service():
     memory_mock.update_memory = AsyncMock(return_value=True)
     memory_mock.delete_memory = AsyncMock(return_value=True)
     return memory_mock
+
 
 @pytest.fixture
 def mock_task_service():
@@ -301,6 +322,7 @@ def mock_task_service():
     task_mock.list_tasks = AsyncMock(return_value=[])
     return task_mock
 
+
 @pytest.fixture
 def mock_workflow_service():
     """Mock workflow service."""
@@ -311,6 +333,7 @@ def mock_workflow_service():
     workflow_mock.cancel_workflow = AsyncMock(return_value=True)
     return workflow_mock
 
+
 # Test data fixtures
 @pytest.fixture
 def sample_task_data():
@@ -320,8 +343,9 @@ def sample_task_data():
         "description": "Test task description",
         "priority": "medium",
         "status": "pending",
-        "assigned_persona": "artemis-optimizer"
+        "assigned_persona": "artemis-optimizer",
     }
+
 
 @pytest.fixture
 def sample_workflow_data():
@@ -333,10 +357,11 @@ def sample_workflow_data():
         "config": {
             "steps": [
                 {"action": "analyze", "persona": "athena"},
-                {"action": "optimize", "persona": "artemis"}
+                {"action": "optimize", "persona": "artemis"},
             ]
-        }
+        },
     }
+
 
 @pytest.fixture
 def sample_memory_data():
@@ -345,8 +370,9 @@ def sample_memory_data():
         "content": "Test memory content",
         "importance": 0.8,
         "tags": ["test", "sample"],
-        "metadata": {"source": "test"}
+        "metadata": {"source": "test"},
     }
+
 
 @pytest.fixture
 def test_user_data():
@@ -355,8 +381,9 @@ def test_user_data():
         "username": "testuser",
         "email": "test@example.com",
         "password": "TestPassword123!",
-        "roles": [UserRole.USER]
+        "roles": [UserRole.USER],
     }
+
 
 @pytest.fixture
 def performance_timer():
@@ -390,6 +417,7 @@ def performance_timer():
 
     return PerformanceTimer()
 
+
 # PostgreSQL specific fixtures and helpers
 @pytest.fixture
 def requires_postgresql():
@@ -397,17 +425,17 @@ def requires_postgresql():
     if not TEST_USE_POSTGRESQL:
         pytest.skip("PostgreSQL tests require TEST_USE_POSTGRESQL=true")
 
+
 @pytest_asyncio.fixture
 async def postgresql_session(postgresql_engine) -> AsyncGenerator[AsyncSession, None]:
     """Create PostgreSQL test database session."""
     async_session = async_sessionmaker(
-        postgresql_engine,
-        class_=AsyncSession,
-        expire_on_commit=False
+        postgresql_engine, class_=AsyncSession, expire_on_commit=False
     )
 
     async with async_session() as session:
         yield session
+
 
 @pytest.fixture
 def sample_vector_data():
@@ -416,11 +444,12 @@ def sample_vector_data():
 
     return {
         "content": "Test memory content for vector search",
-        "embedding": np.random.rand(384).tolist(),  # 384-dimensional vector
+        "embedding": np.random.rand(1024).tolist(),  # 1024-dimensional vector (v2.2.6)
         "importance": 0.8,
         "tags": ["test", "vector", "memory"],
-        "metadata": {"source": "test", "test_type": "vector"}
+        "metadata": {"source": "test", "test_type": "vector"},
     }
+
 
 @pytest.fixture
 def database_marker():

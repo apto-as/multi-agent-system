@@ -5,12 +5,9 @@ Enhanced with agent-centric design and namespace isolation.
 
 from datetime import datetime
 from typing import Any
-from uuid import UUID
 
 import sqlalchemy as sa
-from sqlalchemy import CheckConstraint, Float, Index, Integer, String, Text
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.dialects.postgresql import UUID as PGUUID
+from sqlalchemy import CheckConstraint, Float, Index, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -72,7 +69,7 @@ class LearningPattern(TMWSBase, MetadataMixin):
 
     # Pattern data
     pattern_data: Mapped[dict[str, Any]] = mapped_column(
-        JSONB, nullable=False, comment="Pattern data structure with enhanced schema"
+        JSON, nullable=False, comment="Pattern data structure with enhanced schema"
     )
 
     # Pattern versioning
@@ -84,8 +81,8 @@ class LearningPattern(TMWSBase, MetadataMixin):
         comment="Pattern version for evolution tracking",
     )
 
-    parent_pattern_id: Mapped[UUID | None] = mapped_column(
-        PGUUID(as_uuid=True),
+    parent_pattern_id: Mapped[str | None] = mapped_column(
+        String(36),  # Match id column type (UUID as string)
         sa.ForeignKey("learning_patterns_v2.id", ondelete="SET NULL"),
         nullable=True,
         comment="Parent pattern for versioning hierarchy",
@@ -144,7 +141,7 @@ class LearningPattern(TMWSBase, MetadataMixin):
 
     # Collaborative features
     shared_with_agents: Mapped[list[str] | None] = mapped_column(
-        JSONB, nullable=True, comment="List of agent IDs with shared access"
+        JSON, nullable=True, comment="List of agent IDs with shared access"
     )
 
     # Learning metrics
@@ -200,32 +197,11 @@ class LearningPattern(TMWSBase, MetadataMixin):
         ),
         CheckConstraint("usage_count >= 0", name="ck_learning_patterns_usage_count"),
         CheckConstraint("agent_usage_count >= 0", name="ck_learning_patterns_agent_usage_count"),
-        # Performance indexes
+        # SQLite-compatible indexes (PostgreSQL-specific features removed for v2.2.6)
         Index("idx_learning_patterns_v2_agent_namespace", "agent_id", "namespace"),
         Index("idx_learning_patterns_v2_category_access", "category", "access_level"),
-        Index(
-            "idx_learning_patterns_v2_usage_performance",
-            "usage_count",
-            "success_rate",
-            postgresql_ops={"usage_count": "DESC", "success_rate": "DESC"},
-        ),
-        Index(
-            "idx_learning_patterns_v2_agent_performance",
-            "agent_id",
-            "agent_usage_count",
-            "agent_success_rate",
-            postgresql_ops={"agent_usage_count": "DESC", "agent_success_rate": "DESC"},
-        ),
-        Index(
-            "idx_learning_patterns_v2_shared_access", "shared_with_agents", postgresql_using="gin"
-        ),
-        Index("idx_learning_patterns_v2_pattern_data", "pattern_data", postgresql_using="gin"),
-        Index("idx_learning_patterns_v2_metadata", "metadata", postgresql_using="gin"),
-        Index(
-            "idx_learning_patterns_v2_last_used",
-            "last_used_at",
-            postgresql_ops={"last_used_at": "DESC"},
-        ),
+        Index("idx_learning_patterns_v2_usage", "usage_count"),
+        Index("idx_learning_patterns_v2_last_used", "last_used_at"),
     )
 
     def increment_usage(self, by_owner: bool = False, execution_time: float | None = None) -> None:
@@ -373,8 +349,8 @@ class PatternUsageHistory(TMWSBase):
 
     __tablename__ = "pattern_usage_history"
 
-    pattern_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True),
+    pattern_id: Mapped[str] = mapped_column(
+        String(36),  # Match id column type (UUID as string)
         sa.ForeignKey("learning_patterns_v2.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -395,14 +371,14 @@ class PatternUsageHistory(TMWSBase):
     )
 
     context_data: Mapped[dict[str, Any] | None] = mapped_column(
-        JSONB, nullable=True, comment="Context information about the usage"
+        JSON, nullable=True, comment="Context information about the usage"
     )
 
     # Relationships
     pattern = relationship("LearningPattern", backref="usage_history")
 
     __table_args__ = (
+        # SQLite-compatible indexes (PostgreSQL GIN removed for v2.2.6)
         Index("idx_pattern_usage_history_pattern_time", "pattern_id", "used_at"),
         Index("idx_pattern_usage_history_agent_time", "agent_id", "used_at"),
-        Index("idx_pattern_usage_history_context", "context_data", postgresql_using="gin"),
     )

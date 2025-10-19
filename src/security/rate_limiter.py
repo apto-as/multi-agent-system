@@ -61,6 +61,15 @@ class RateLimiter:
             "unique_clients": set(),
         }
 
+        # Redis health tracking (H-2 fix: explicit degraded mode visibility)
+        self.redis_health = {
+            "is_available": redis_client is not None,
+            "failure_count": 0,
+            "last_failure_time": None,
+            "degraded_mode_active": False,
+            "consecutive_failures": 0,
+        }
+
         # Default rate limits (production-grade strict limits)
         env = self.settings.environment
         if env == "production":
@@ -122,6 +131,47 @@ class RateLimiter:
         # Permanent ban list (IPs that repeatedly violate)
         self.permanent_bans: set = set()
         self.ban_threshold = 10  # Violations before permanent ban
+
+    def _record_redis_failure(self, operation: str, error: Exception) -> None:
+        """
+        Record Redis failure for operational visibility (H-2 fix).
+
+        Args:
+            operation: Operation that failed (e.g., "global_rate_limit", "user_rate_limit")
+            error: The exception that occurred
+        """
+        self.redis_health["failure_count"] += 1
+        self.redis_health["consecutive_failures"] += 1
+        self.redis_health["last_failure_time"] = datetime.utcnow()
+
+        # Enter degraded mode after multiple consecutive failures
+        if (
+            self.redis_health["consecutive_failures"] >= 3
+            and not self.redis_health["degraded_mode_active"]
+        ):
+            self.redis_health["degraded_mode_active"] = True
+            logger.critical(
+                "⚠️  DEGRADED MODE ACTIVATED: Redis connection failing. "
+                f"Using fail-secure fallback limits. Operation: {operation}"
+            )
+
+        # Log every failure for operational visibility
+        logger.error(
+            f"Redis operation failed: {operation} - {error}. "
+            f"Total failures: {self.redis_health['failure_count']}, "
+            f"Consecutive: {self.redis_health['consecutive_failures']}. "
+            f"Degraded mode: {self.redis_health['degraded_mode_active']}"
+        )
+
+    def _record_redis_success(self) -> None:
+        """Record successful Redis operation."""
+        if self.redis_health["consecutive_failures"] > 0:
+            self.redis_health["consecutive_failures"] = 0
+
+            # Exit degraded mode
+            if self.redis_health["degraded_mode_active"]:
+                self.redis_health["degraded_mode_active"] = False
+                logger.info("✅ DEGRADED MODE EXITED: Redis connection restored")
 
     async def check_rate_limit(
         self, request: Request, endpoint_type: str = "default", user_id: str | None = None
@@ -354,9 +404,11 @@ class RateLimiter:
                 current_count = await self.redis_client.incr(key)
                 await self.redis_client.expire(key, limit.period)
 
+                self._record_redis_success()  # H-2 fix: track success
                 return current_count <= limit.requests
             except Exception as e:
-                logger.error(f"Redis error in global rate limit: {e}")
+                # H-2 fix: explicit degraded mode tracking
+                self._record_redis_failure("global_rate_limit", e)
                 # Fail-secure: Redis failure = use stricter fallback limits
                 return (
                     self.global_stats["total_requests"] < limit.requests // 2
@@ -419,6 +471,8 @@ class RateLimiter:
             current_count = await self.redis_client.incr(key)
             await self.redis_client.expire(key, limit.period)
 
+            self._record_redis_success()  # H-2 fix: track success
+
             if current_count > limit.requests + limit.burst:
                 logger.warning(f"User rate limit exceeded for {user_id}")
 
@@ -430,12 +484,16 @@ class RateLimiter:
 
             return True
 
+        except HTTPException:
+            # Re-raise HTTP exceptions (not Redis errors)
+            raise
         except Exception as e:
-            logger.error(f"Redis error in user rate limit: {e}")
+            # H-2 fix: explicit degraded mode tracking
+            self._record_redis_failure("user_rate_limit", e)
             # Fail-secure: Redis failure = deny access for safety
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Service temporarily unavailable",
+                detail="Service temporarily unavailable (degraded mode)",
                 headers={"Retry-After": "30"},
             )
 
@@ -456,6 +514,8 @@ class RateLimiter:
                 key = f"endpoint_limit:{endpoint_type}:{client_stats.ip_address}:{int(time.time() // limit.period)}"
                 current_count = await self.redis_client.incr(key)
                 await self.redis_client.expire(key, limit.period)
+
+                self._record_redis_success()  # H-2 fix: track success
 
                 if current_count > limit.requests:
                     logger.warning(
@@ -488,13 +548,17 @@ class RateLimiter:
 
                 return True
 
+            except HTTPException:
+                # Re-raise HTTP exceptions (not Redis errors)
+                raise
             except Exception as e:
-                logger.error(f"Redis error in endpoint rate limit: {e}")
+                # H-2 fix: explicit degraded mode tracking
+                self._record_redis_failure("endpoint_rate_limit", e)
                 # Fail-secure: Redis failure = apply strict local limits
                 client_stats.blocked_until = datetime.utcnow() + timedelta(seconds=60)
                 raise HTTPException(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail="Service temporarily unavailable",
+                    detail="Service temporarily unavailable (degraded mode)",
                     headers={"Retry-After": "60"},
                 )
 
@@ -561,6 +625,18 @@ class RateLimiter:
                     self.local_storage.values(), key=lambda s: s.violations, reverse=True
                 )[:10]
             ],
+            # H-2 fix: Redis health visibility for operations
+            "redis_health": {
+                "available": self.redis_health["is_available"],
+                "degraded_mode": self.redis_health["degraded_mode_active"],
+                "failure_count": self.redis_health["failure_count"],
+                "consecutive_failures": self.redis_health["consecutive_failures"],
+                "last_failure": (
+                    self.redis_health["last_failure_time"].isoformat()
+                    if self.redis_health["last_failure_time"]
+                    else None
+                ),
+            },
         }
 
 

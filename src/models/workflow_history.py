@@ -3,11 +3,9 @@ Workflow History Models for TMWS
 Tracks workflow execution history and logs for auditing and debugging
 """
 
-import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Index, Integer, String, Text
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy import Column, DateTime, Float, ForeignKey, Index, Integer, JSON, String, Text
 from sqlalchemy.orm import relationship
 
 from .base import TMWSBase as Base
@@ -18,8 +16,8 @@ class WorkflowExecution(Base):
 
     __tablename__ = "workflow_executions"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    workflow_id = Column(UUID(as_uuid=True), ForeignKey("workflows.id"), nullable=False)
+    id = Column(String(36), primary_key=True)  # UUID as string (v2.2.6)
+    workflow_id = Column(String(36), ForeignKey("workflows.id"), nullable=False)
 
     # Execution metadata
     started_at = Column(DateTime, nullable=False, default=datetime.utcnow)
@@ -33,8 +31,8 @@ class WorkflowExecution(Base):
     trigger_type = Column(String(50))  # manual, scheduled, event, api
 
     # Input/Output
-    input_data = Column(JSONB)
-    output_data = Column(JSONB)
+    input_data = Column(JSON)
+    output_data = Column(JSON)
 
     # Performance metrics
     execution_time_seconds = Column(Float)
@@ -43,11 +41,11 @@ class WorkflowExecution(Base):
 
     # Error handling
     error_message = Column(Text)
-    error_details = Column(JSONB)
+    error_details = Column(JSON)
     retry_count = Column(Integer, default=0)
 
     # Additional metadata
-    metadata_json = Column(JSONB, default=dict)
+    metadata_json = Column(JSON, default=dict)
 
     # Relationships
     workflow = relationship("Workflow", back_populates="executions")
@@ -72,9 +70,9 @@ class WorkflowStepExecution(Base):
 
     __tablename__ = "workflow_step_executions"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(String(36), primary_key=True)  # UUID as string (v2.2.6)
     workflow_execution_id = Column(
-        UUID(as_uuid=True), ForeignKey("workflow_executions.id"), nullable=False
+        String(36), ForeignKey("workflow_executions.id"), nullable=False
     )
 
     # Step identification
@@ -90,19 +88,19 @@ class WorkflowStepExecution(Base):
     )  # running, completed, failed, skipped
 
     # Input/Output
-    input_data = Column(JSONB)
-    output_data = Column(JSONB)
+    input_data = Column(JSON)
+    output_data = Column(JSON)
 
     # Performance
     execution_time_seconds = Column(Float)
 
     # Error handling
     error_message = Column(Text)
-    error_details = Column(JSONB)
+    error_details = Column(JSON)
     retry_count = Column(Integer, default=0)
 
     # Additional metadata
-    metadata_json = Column(JSONB, default=dict)
+    metadata_json = Column(JSON, default=dict)
 
     # Relationships
     workflow_execution = relationship("WorkflowExecution", back_populates="step_executions")
@@ -120,11 +118,11 @@ class WorkflowExecutionLog(Base):
 
     __tablename__ = "workflow_execution_logs"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(String(36), primary_key=True)  # UUID as string (v2.2.6)
     workflow_execution_id = Column(
-        UUID(as_uuid=True), ForeignKey("workflow_executions.id"), nullable=False
+        String(36), ForeignKey("workflow_executions.id"), nullable=False
     )
-    step_execution_id = Column(UUID(as_uuid=True), ForeignKey("workflow_step_executions.id"))
+    step_execution_id = Column(String(36), ForeignKey("workflow_step_executions.id"))
 
     # Log details
     timestamp = Column(DateTime, nullable=False, default=datetime.utcnow)
@@ -137,7 +135,7 @@ class WorkflowExecutionLog(Base):
     line_number = Column(Integer)
 
     # Additional data
-    context_data = Column(JSONB)
+    context_data = Column(JSON)
 
     # Relationships
     workflow_execution = relationship("WorkflowExecution", back_populates="logs")
@@ -155,8 +153,8 @@ class WorkflowSchedule(Base):
 
     __tablename__ = "workflow_schedules"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    workflow_id = Column(UUID(as_uuid=True), ForeignKey("workflows.id"), nullable=False)
+    id = Column(String(36), primary_key=True)  # UUID as string (v2.2.6)
+    workflow_id = Column(String(36), ForeignKey("workflows.id"), nullable=False)
 
     # Schedule configuration
     schedule_type = Column(String(50), nullable=False)  # cron, interval, once
@@ -172,8 +170,8 @@ class WorkflowSchedule(Base):
     next_run_at = Column(DateTime)
 
     # Execution configuration
-    input_data = Column(JSONB)
-    metadata_json = Column(JSONB, default=dict)
+    input_data = Column(JSON)
+    metadata_json = Column(JSON, default=dict)
 
     # Statistics
     total_runs = Column(Integer, default=0)

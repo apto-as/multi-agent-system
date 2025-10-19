@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any
 
 import sqlalchemy as sa
 from sqlalchemy import Boolean, DateTime, Float, Index, Integer, Text
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import MetadataMixin, TMWSBase
@@ -78,11 +78,11 @@ class Agent(TMWSBase, MetadataMixin):
     )
 
     capabilities: Mapped[dict[str, Any]] = mapped_column(
-        JSONB, nullable=False, default=dict, comment="Dynamic capabilities and features"
+        JSON, nullable=False, default=dict, comment="Dynamic capabilities and features"
     )
 
     config: Mapped[dict[str, Any]] = mapped_column(
-        JSONB, nullable=False, default=dict, comment="Agent-specific configuration"
+        JSON, nullable=False, default=dict, comment="Agent-specific configuration"
     )
 
     # Access control
@@ -317,11 +317,11 @@ class AgentTeam(TMWSBase, MetadataMixin):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Team members (agent_ids)
-    members: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
+    members: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     leader_agent_id: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Team configuration
-    config: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    config: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     shared_namespace: Mapped[str] = mapped_column(Text, nullable=False)
 
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)
@@ -337,8 +337,8 @@ class AgentNamespace(TMWSBase, MetadataMixin):
 
     # Access control
     owner_agent_id: Mapped[str | None] = mapped_column(Text, nullable=True)
-    admin_agents: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
-    member_agents: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
+    admin_agents: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    member_agents: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
 
     # Namespace settings
     default_access_level: Mapped[AccessLevel] = mapped_column(
@@ -347,5 +347,5 @@ class AgentNamespace(TMWSBase, MetadataMixin):
         default=AccessLevel.PRIVATE,
     )
 
-    config: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    config: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)

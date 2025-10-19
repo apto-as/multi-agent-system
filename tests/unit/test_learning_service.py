@@ -14,64 +14,69 @@ from src.models.learning_pattern import LearningPattern
 from src.services.learning_service import LearningService
 
 
+# Module-level fixtures - accessible by all test classes
+@pytest.fixture
+def learning_service():
+    """Create a learning service for testing."""
+    return LearningService()
+
+
+@pytest.fixture
+def mock_session():
+    """Mock database session."""
+    session = AsyncMock()
+    session.add = Mock()
+    session.flush = AsyncMock()
+    session.refresh = AsyncMock()
+    session.execute = AsyncMock()
+    session.delete = AsyncMock()
+    session.scalar_one_or_none = AsyncMock()
+    session.__aenter__ = AsyncMock(return_value=session)
+    session.__aexit__ = AsyncMock(return_value=None)
+    return session
+
+
+@pytest.fixture
+def sample_pattern_data():
+    """Sample pattern data for testing."""
+    return {
+        "pattern_name": "test_optimization",
+        "category": "performance",
+        "pattern_data": {
+            "type": "database_optimization",
+            "technique": "indexing",
+            "improvement": "90%",
+        },
+        "agent_id": "test_agent_1",
+        "namespace": "default",
+        "subcategory": "database",
+        "access_level": "private",
+        "learning_weight": 1.5,
+        "complexity_score": 0.7,
+    }
+
+
+@pytest.fixture
+def mock_pattern():
+    """Mock LearningPattern object."""
+    pattern = Mock(spec=LearningPattern)
+    pattern.id = uuid4()
+    pattern.pattern_name = "test_pattern"
+    pattern.agent_id = "test_agent"
+    pattern.namespace = "default"
+    pattern.category = "test"
+    pattern.access_level = "private"
+    pattern.usage_count = 5
+    pattern.success_rate = 0.8
+    pattern.confidence_score = 0.9
+    pattern.can_access = Mock(return_value=True)
+    pattern.increment_usage = Mock()
+    pattern.update_success_rate = Mock()
+    return pattern
+
+
 class TestLearningService:
     """Test LearningService class functionality."""
-
-    @pytest.fixture
-    def learning_service(self):
-        """Create a learning service for testing."""
-        return LearningService()
-
-    @pytest.fixture
-    def mock_session(self):
-        """Mock database session."""
-        session = AsyncMock()
-        session.add = Mock()
-        session.flush = AsyncMock()
-        session.refresh = AsyncMock()
-        session.execute = AsyncMock()
-        session.delete = AsyncMock()
-        session.scalar_one_or_none = AsyncMock()
-        session.__aenter__ = AsyncMock(return_value=session)
-        session.__aexit__ = AsyncMock(return_value=None)
-        return session
-
-    @pytest.fixture
-    def sample_pattern_data(self):
-        """Sample pattern data for testing."""
-        return {
-            "pattern_name": "test_optimization",
-            "category": "performance",
-            "pattern_data": {
-                "type": "database_optimization",
-                "technique": "indexing",
-                "improvement": "90%"
-            },
-            "agent_id": "test_agent_1",
-            "namespace": "default",
-            "subcategory": "database",
-            "access_level": "private",
-            "learning_weight": 1.5,
-            "complexity_score": 0.7
-        }
-
-    @pytest.fixture
-    def mock_pattern(self):
-        """Mock LearningPattern object."""
-        pattern = Mock(spec=LearningPattern)
-        pattern.id = uuid4()
-        pattern.pattern_name = "test_pattern"
-        pattern.agent_id = "test_agent"
-        pattern.namespace = "default"
-        pattern.category = "test"
-        pattern.access_level = "private"
-        pattern.usage_count = 5
-        pattern.success_rate = 0.8
-        pattern.confidence_score = 0.9
-        pattern.can_access = Mock(return_value=True)
-        pattern.increment_usage = Mock()
-        pattern.update_success_rate = Mock()
-        return pattern
 
 
 class TestLearningServiceCache:
@@ -125,11 +130,18 @@ class TestCreatePattern:
     """Test pattern creation functionality."""
 
     @pytest.mark.asyncio
-    @patch('src.services.learning_service.get_async_session')
-    @patch('src.services.learning_service.validate_agent_id')
-    @patch('src.services.learning_service.sanitize_input')
-    async def test_create_pattern_success(self, mock_sanitize, mock_validate, mock_get_session,
-                                         learning_service, mock_session, sample_pattern_data):
+    @patch("src.services.learning_service.get_async_session")
+    @patch("src.services.learning_service.validate_agent_id")
+    @patch("src.services.learning_service.sanitize_input")
+    async def test_create_pattern_success(
+        self,
+        mock_sanitize,
+        mock_validate,
+        mock_get_session,
+        learning_service,
+        mock_session,
+        sample_pattern_data,
+    ):
         """Test successful pattern creation."""
         mock_get_session.return_value = mock_session
         mock_sanitize.side_effect = lambda x: x
@@ -156,59 +168,42 @@ class TestCreatePattern:
         """Test pattern creation validation errors."""
         # Test empty pattern name
         with pytest.raises(ValidationError, match="Pattern name must be 1-255 characters"):
-            await learning_service.create_pattern(
-                pattern_name="",
-                category="test",
-                pattern_data={}
-            )
+            await learning_service.create_pattern(pattern_name="", category="test", pattern_data={})
 
         # Test long pattern name
         with pytest.raises(ValidationError, match="Pattern name must be 1-255 characters"):
             await learning_service.create_pattern(
-                pattern_name="x" * 256,
-                category="test",
-                pattern_data={}
+                pattern_name="x" * 256, category="test", pattern_data={}
             )
 
         # Test empty category
         with pytest.raises(ValidationError, match="Category must be 1-100 characters"):
-            await learning_service.create_pattern(
-                pattern_name="test",
-                category="",
-                pattern_data={}
-            )
+            await learning_service.create_pattern(pattern_name="test", category="", pattern_data={})
 
         # Test invalid access level
         with pytest.raises(ValidationError, match="Invalid access level"):
             await learning_service.create_pattern(
-                pattern_name="test",
-                category="test",
-                pattern_data={},
-                access_level="invalid"
+                pattern_name="test", category="test", pattern_data={}, access_level="invalid"
             )
 
         # Test invalid learning weight
         with pytest.raises(ValidationError, match="Learning weight must be between 0.0 and 10.0"):
             await learning_service.create_pattern(
-                pattern_name="test",
-                category="test",
-                pattern_data={},
-                learning_weight=15.0
+                pattern_name="test", category="test", pattern_data={}, learning_weight=15.0
             )
 
         # Test invalid complexity score
         with pytest.raises(ValidationError, match="Complexity score must be between 0.0 and 1.0"):
             await learning_service.create_pattern(
-                pattern_name="test",
-                category="test",
-                pattern_data={},
-                complexity_score=2.0
+                pattern_name="test", category="test", pattern_data={}, complexity_score=2.0
             )
 
     @pytest.mark.asyncio
-    @patch('src.services.learning_service.get_async_session')
-    @patch('src.services.learning_service.sanitize_input')
-    async def test_create_pattern_duplicate(self, mock_sanitize, mock_get_session, learning_service):
+    @patch("src.services.learning_service.get_async_session")
+    @patch("src.services.learning_service.sanitize_input")
+    async def test_create_pattern_duplicate(
+        self, mock_sanitize, mock_get_session, learning_service
+    ):
         """Test creating duplicate pattern."""
         mock_sanitize.side_effect = lambda x: x
         mock_session = AsyncMock()
@@ -222,9 +217,7 @@ class TestCreatePattern:
 
         with pytest.raises(ValidationError, match="Pattern with this name already exists"):
             await learning_service.create_pattern(
-                pattern_name="existing_pattern",
-                category="test",
-                pattern_data={}
+                pattern_name="existing_pattern", category="test", pattern_data={}
             )
 
 
@@ -232,7 +225,7 @@ class TestGetPattern:
     """Test pattern retrieval functionality."""
 
     @pytest.mark.asyncio
-    @patch('src.services.learning_service.get_async_session')
+    @patch("src.services.learning_service.get_async_session")
     async def test_get_pattern_success(self, mock_get_session, learning_service, mock_pattern):
         """Test successful pattern retrieval."""
         mock_session = AsyncMock()
@@ -248,7 +241,7 @@ class TestGetPattern:
         mock_pattern.can_access.assert_called_once_with("test_agent")
 
     @pytest.mark.asyncio
-    @patch('src.services.learning_service.get_async_session')
+    @patch("src.services.learning_service.get_async_session")
     async def test_get_pattern_not_found(self, mock_get_session, learning_service):
         """Test pattern not found."""
         mock_session = AsyncMock()
@@ -262,8 +255,10 @@ class TestGetPattern:
         assert result is None
 
     @pytest.mark.asyncio
-    @patch('src.services.learning_service.get_async_session')
-    async def test_get_pattern_access_denied(self, mock_get_session, learning_service, mock_pattern):
+    @patch("src.services.learning_service.get_async_session")
+    async def test_get_pattern_access_denied(
+        self, mock_get_session, learning_service, mock_pattern
+    ):
         """Test pattern access denied."""
         mock_session = AsyncMock()
         mock_get_session.return_value = mock_session
@@ -281,7 +276,7 @@ class TestGetPatternsByAgent:
     """Test getting patterns by agent."""
 
     @pytest.mark.asyncio
-    @patch('src.services.learning_service.get_async_session')
+    @patch("src.services.learning_service.get_async_session")
     async def test_get_patterns_by_agent_success(self, mock_get_session, learning_service):
         """Test successful retrieval of patterns by agent."""
         mock_session = AsyncMock()
@@ -293,10 +288,7 @@ class TestGetPatternsByAgent:
         mock_session.execute.return_value = mock_result
 
         result = await learning_service.get_patterns_by_agent(
-            agent_id="test_agent",
-            namespace="test_namespace",
-            category="test_category",
-            limit=10
+            agent_id="test_agent", namespace="test_namespace", category="test_category", limit=10
         )
 
         assert result == patterns
@@ -314,7 +306,7 @@ class TestGetPatternsByAgent:
             category=None,
             access_level=None,
             limit=100,
-            offset=0
+            offset=0,
         )
         learning_service._set_cache(cache_key, cached_patterns)
 
@@ -326,7 +318,7 @@ class TestSearchPatterns:
     """Test pattern search functionality."""
 
     @pytest.mark.asyncio
-    @patch('src.services.learning_service.get_async_session')
+    @patch("src.services.learning_service.get_async_session")
     async def test_search_patterns_with_filters(self, mock_get_session, learning_service):
         """Test pattern search with various filters."""
         mock_session = AsyncMock()
@@ -346,13 +338,13 @@ class TestSearchPatterns:
             requesting_agent_id="test_agent",
             min_success_rate=0.7,
             min_usage_count=5,
-            limit=10
+            limit=10,
         )
 
         assert result == patterns
 
     @pytest.mark.asyncio
-    @patch('src.services.learning_service.get_async_session')
+    @patch("src.services.learning_service.get_async_session")
     async def test_search_patterns_no_agent(self, mock_get_session, learning_service):
         """Test pattern search without requesting agent (public only)."""
         mock_session = AsyncMock()
@@ -363,10 +355,7 @@ class TestSearchPatterns:
         mock_result.scalars.return_value.all.return_value = patterns
         mock_session.execute.return_value = mock_result
 
-        result = await learning_service.search_patterns(
-            query_text="test",
-            requesting_agent_id=None
-        )
+        result = await learning_service.search_patterns(query_text="test", requesting_agent_id=None)
 
         assert result == patterns
 
@@ -385,7 +374,7 @@ class TestSearchPatterns:
             min_success_rate=0.0,
             min_usage_count=0,
             limit=50,
-            offset=0
+            offset=0,
         )
         learning_service._set_cache(cache_key, cached_patterns)
 
@@ -397,7 +386,7 @@ class TestUsePattern:
     """Test pattern usage functionality."""
 
     @pytest.mark.asyncio
-    @patch('src.services.learning_service.get_async_session')
+    @patch("src.services.learning_service.get_async_session")
     async def test_use_pattern_success(self, mock_get_session, learning_service, mock_pattern):
         """Test successful pattern usage."""
         mock_session = AsyncMock()
@@ -412,7 +401,7 @@ class TestUsePattern:
             using_agent_id="test_agent",
             execution_time=0.5,
             success=True,
-            context_data={"test": "context"}
+            context_data={"test": "context"},
         )
 
         assert result == mock_pattern
@@ -421,7 +410,7 @@ class TestUsePattern:
         mock_session.add.assert_called_once()
 
     @pytest.mark.asyncio
-    @patch('src.services.learning_service.get_async_session')
+    @patch("src.services.learning_service.get_async_session")
     async def test_use_pattern_not_found(self, mock_get_session, learning_service):
         """Test using non-existent pattern."""
         mock_session = AsyncMock()
@@ -435,8 +424,10 @@ class TestUsePattern:
             await learning_service.use_pattern(uuid4(), "test_agent")
 
     @pytest.mark.asyncio
-    @patch('src.services.learning_service.get_async_session')
-    async def test_use_pattern_access_denied(self, mock_get_session, learning_service, mock_pattern):
+    @patch("src.services.learning_service.get_async_session")
+    async def test_use_pattern_access_denied(
+        self, mock_get_session, learning_service, mock_pattern
+    ):
         """Test using pattern with access denied."""
         mock_session = AsyncMock()
         mock_get_session.return_value = mock_session
@@ -450,7 +441,7 @@ class TestUsePattern:
             await learning_service.use_pattern(mock_pattern.id, "unauthorized_agent")
 
     @pytest.mark.asyncio
-    @patch('src.services.learning_service.get_async_session')
+    @patch("src.services.learning_service.get_async_session")
     async def test_use_pattern_by_owner(self, mock_get_session, learning_service, mock_pattern):
         """Test pattern usage by owner."""
         mock_session = AsyncMock()
@@ -462,9 +453,7 @@ class TestUsePattern:
         mock_session.execute.return_value = mock_result
 
         await learning_service.use_pattern(
-            pattern_id=mock_pattern.id,
-            using_agent_id="test_agent",
-            success=True
+            pattern_id=mock_pattern.id, using_agent_id="test_agent", success=True
         )
 
         mock_pattern.increment_usage.assert_called_once_with(by_owner=True, execution_time=None)
@@ -475,7 +464,7 @@ class TestUpdatePattern:
     """Test pattern update functionality."""
 
     @pytest.mark.asyncio
-    @patch('src.services.learning_service.get_async_session')
+    @patch("src.services.learning_service.get_async_session")
     async def test_update_pattern_success(self, mock_get_session, learning_service, mock_pattern):
         """Test successful pattern update."""
         mock_session = AsyncMock()
@@ -494,7 +483,7 @@ class TestUpdatePattern:
             learning_weight=2.0,
             complexity_score=0.8,
             access_level="shared",
-            shared_with_agents=["agent1", "agent2"]
+            shared_with_agents=["agent1", "agent2"],
         )
 
         assert result == mock_pattern
@@ -505,7 +494,7 @@ class TestUpdatePattern:
         assert mock_pattern.shared_with_agents == ["agent1", "agent2"]
 
     @pytest.mark.asyncio
-    @patch('src.services.learning_service.get_async_session')
+    @patch("src.services.learning_service.get_async_session")
     async def test_update_pattern_not_found(self, mock_get_session, learning_service):
         """Test updating non-existent pattern."""
         mock_session = AsyncMock()
@@ -519,7 +508,7 @@ class TestUpdatePattern:
             await learning_service.update_pattern(uuid4(), "test_agent")
 
     @pytest.mark.asyncio
-    @patch('src.services.learning_service.get_async_session')
+    @patch("src.services.learning_service.get_async_session")
     async def test_update_pattern_not_owner(self, mock_get_session, learning_service, mock_pattern):
         """Test updating pattern by non-owner."""
         mock_session = AsyncMock()
@@ -534,8 +523,10 @@ class TestUpdatePattern:
             await learning_service.update_pattern(mock_pattern.id, "test_agent")
 
     @pytest.mark.asyncio
-    @patch('src.services.learning_service.get_async_session')
-    async def test_update_pattern_validation_errors(self, mock_get_session, learning_service, mock_pattern):
+    @patch("src.services.learning_service.get_async_session")
+    async def test_update_pattern_validation_errors(
+        self, mock_get_session, learning_service, mock_pattern
+    ):
         """Test pattern update validation errors."""
         mock_session = AsyncMock()
         mock_get_session.return_value = mock_session
@@ -568,7 +559,7 @@ class TestDeletePattern:
     """Test pattern deletion functionality."""
 
     @pytest.mark.asyncio
-    @patch('src.services.learning_service.get_async_session')
+    @patch("src.services.learning_service.get_async_session")
     async def test_delete_pattern_success(self, mock_get_session, learning_service, mock_pattern):
         """Test successful pattern deletion."""
         mock_session = AsyncMock()
@@ -585,7 +576,7 @@ class TestDeletePattern:
         mock_session.delete.assert_called_once_with(mock_pattern)
 
     @pytest.mark.asyncio
-    @patch('src.services.learning_service.get_async_session')
+    @patch("src.services.learning_service.get_async_session")
     async def test_delete_pattern_not_found(self, mock_get_session, learning_service):
         """Test deleting non-existent pattern."""
         mock_session = AsyncMock()
@@ -599,7 +590,7 @@ class TestDeletePattern:
             await learning_service.delete_pattern(uuid4(), "test_agent")
 
     @pytest.mark.asyncio
-    @patch('src.services.learning_service.get_async_session')
+    @patch("src.services.learning_service.get_async_session")
     async def test_delete_pattern_not_owner(self, mock_get_session, learning_service, mock_pattern):
         """Test deleting pattern by non-owner."""
         mock_session = AsyncMock()
@@ -618,7 +609,7 @@ class TestPatternAnalytics:
     """Test pattern analytics functionality."""
 
     @pytest.mark.asyncio
-    @patch('src.services.learning_service.get_async_session')
+    @patch("src.services.learning_service.get_async_session")
     async def test_get_pattern_analytics_success(self, mock_get_session, learning_service):
         """Test successful analytics retrieval."""
         mock_session = AsyncMock()
@@ -657,7 +648,7 @@ class TestPatternAnalytics:
             "avg_success_rate": 0.85,
             "stddev_success_rate": 0.1,
             "min_success_rate": 0.5,
-            "max_success_rate": 1.0
+            "max_success_rate": 1.0,
         }
         mock_stats_result = Mock()
         mock_stats_result.first.return_value = stats_result
@@ -666,13 +657,11 @@ class TestPatternAnalytics:
             mock_category_execute,
             mock_top_result,
             mock_usage_execute,
-            mock_stats_result
+            mock_stats_result,
         ]
 
         result = await learning_service.get_pattern_analytics(
-            agent_id="test_agent",
-            namespace="default",
-            days=30
+            agent_id="test_agent", namespace="default", days=30
         )
 
         assert result["total_patterns"] == 10
@@ -686,17 +675,12 @@ class TestPatternAnalytics:
         """Test cached analytics retrieval."""
         cached_analytics = {"total_patterns": 5, "cached": True}
         cache_key = learning_service._cache_key(
-            "get_pattern_analytics",
-            agent_id="test_agent",
-            namespace="default",
-            days=30
+            "get_pattern_analytics", agent_id="test_agent", namespace="default", days=30
         )
         learning_service._set_cache(cache_key, cached_analytics)
 
         result = await learning_service.get_pattern_analytics(
-            agent_id="test_agent",
-            namespace="default",
-            days=30
+            agent_id="test_agent", namespace="default", days=30
         )
 
         assert result == cached_analytics
@@ -706,7 +690,7 @@ class TestRecommendPatterns:
     """Test pattern recommendation functionality."""
 
     @pytest.mark.asyncio
-    @patch('src.services.learning_service.get_async_session')
+    @patch("src.services.learning_service.get_async_session")
     async def test_recommend_patterns_success(self, mock_get_session, learning_service):
         """Test successful pattern recommendations."""
         mock_session = AsyncMock()
@@ -730,16 +714,13 @@ class TestRecommendPatterns:
         mock_candidates_result = Mock()
         mock_candidates_result.scalars.return_value.all.return_value = [candidate_pattern]
 
-        mock_session.execute.side_effect = [
-            mock_history_execute,
-            mock_candidates_result
-        ]
+        mock_session.execute.side_effect = [mock_history_execute, mock_candidates_result]
 
         result = await learning_service.recommend_patterns(
             agent_id="test_agent",
             category="performance",
             context_data={"type": "optimization"},
-            limit=5
+            limit=5,
         )
 
         assert len(result) <= 5
@@ -748,7 +729,7 @@ class TestRecommendPatterns:
             assert isinstance(result[0][1], float)  # Score should be float
 
     @pytest.mark.asyncio
-    @patch('src.services.learning_service.get_async_session')
+    @patch("src.services.learning_service.get_async_session")
     async def test_recommend_patterns_empty_results(self, mock_get_session, learning_service):
         """Test pattern recommendations with no candidates."""
         mock_session = AsyncMock()
@@ -760,10 +741,7 @@ class TestRecommendPatterns:
         mock_empty_scalars = Mock()
         mock_empty_scalars.scalars.return_value.all.return_value = []
 
-        mock_session.execute.side_effect = [
-            mock_empty_execute,
-            mock_empty_scalars
-        ]
+        mock_session.execute.side_effect = [mock_empty_execute, mock_empty_scalars]
 
         result = await learning_service.recommend_patterns("test_agent")
         assert result == []
@@ -773,28 +751,19 @@ class TestBatchCreatePatterns:
     """Test batch pattern creation functionality."""
 
     @pytest.mark.asyncio
-    @patch('src.services.learning_service.get_async_session')
+    @patch("src.services.learning_service.get_async_session")
     async def test_batch_create_patterns_success(self, mock_get_session, learning_service):
         """Test successful batch pattern creation."""
         mock_session = AsyncMock()
         mock_get_session.return_value = mock_session
 
         patterns_data = [
-            {
-                "pattern_name": "pattern_1",
-                "category": "test",
-                "pattern_data": {"test": "data1"}
-            },
-            {
-                "pattern_name": "pattern_2",
-                "category": "test",
-                "pattern_data": {"test": "data2"}
-            }
+            {"pattern_name": "pattern_1", "category": "test", "pattern_data": {"test": "data1"}},
+            {"pattern_name": "pattern_2", "category": "test", "pattern_data": {"test": "data2"}},
         ]
 
         result = await learning_service.batch_create_patterns(
-            patterns_data=patterns_data,
-            agent_id="test_agent"
+            patterns_data=patterns_data, agent_id="test_agent"
         )
 
         assert len(result) == 2
@@ -802,28 +771,23 @@ class TestBatchCreatePatterns:
         mock_session.flush.assert_called_once()
 
     @pytest.mark.asyncio
-    @patch('src.services.learning_service.get_async_session')
+    @patch("src.services.learning_service.get_async_session")
     async def test_batch_create_patterns_with_errors(self, mock_get_session, learning_service):
         """Test batch pattern creation with some errors."""
         mock_session = AsyncMock()
         mock_get_session.return_value = mock_session
 
         patterns_data = [
-            {
-                "pattern_name": "valid_pattern",
-                "category": "test",
-                "pattern_data": {"test": "data"}
-            },
+            {"pattern_name": "valid_pattern", "category": "test", "pattern_data": {"test": "data"}},
             {
                 # Missing required fields
                 "pattern_name": "invalid_pattern"
-            }
+            },
         ]
 
-        with patch('src.services.learning_service.logger') as mock_logger:
+        with patch("src.services.learning_service.logger") as mock_logger:
             result = await learning_service.batch_create_patterns(
-                patterns_data=patterns_data,
-                agent_id="test_agent"
+                patterns_data=patterns_data, agent_id="test_agent"
             )
 
             # Should create only the valid pattern
@@ -831,15 +795,14 @@ class TestBatchCreatePatterns:
             mock_logger.error.assert_called_once()
 
     @pytest.mark.asyncio
-    @patch('src.services.learning_service.get_async_session')
+    @patch("src.services.learning_service.get_async_session")
     async def test_batch_create_patterns_empty_list(self, mock_get_session, learning_service):
         """Test batch pattern creation with empty list."""
         mock_session = AsyncMock()
         mock_get_session.return_value = mock_session
 
         result = await learning_service.batch_create_patterns(
-            patterns_data=[],
-            agent_id="test_agent"
+            patterns_data=[], agent_id="test_agent"
         )
 
         assert result == []
@@ -852,15 +815,12 @@ class TestLearningServiceEdgeCases:
     @pytest.mark.asyncio
     async def test_empty_agent_id_validation(self, learning_service):
         """Test validation with empty agent ID."""
-        with patch('src.services.learning_service.validate_agent_id') as mock_validate:
+        with patch("src.services.learning_service.validate_agent_id") as mock_validate:
             mock_validate.side_effect = ValidationError("Invalid agent ID")
 
             with pytest.raises(ValidationError):
                 await learning_service.create_pattern(
-                    pattern_name="test",
-                    category="test",
-                    pattern_data={},
-                    agent_id=""
+                    pattern_name="test", category="test", pattern_data={}, agent_id=""
                 )
 
     def test_cache_operations_edge_cases(self, learning_service):
@@ -889,7 +849,7 @@ class TestPatternPermissions:
     """Test pattern access permissions."""
 
     @pytest.mark.asyncio
-    @patch('src.services.learning_service.get_async_session')
+    @patch("src.services.learning_service.get_async_session")
     async def test_pattern_access_levels(self, mock_get_session, learning_service):
         """Test different pattern access levels in search."""
         mock_session = AsyncMock()
@@ -902,8 +862,7 @@ class TestPatternPermissions:
 
         # Test search with specific access levels
         result = await learning_service.search_patterns(
-            access_levels=["public", "shared"],
-            requesting_agent_id="test_agent"
+            access_levels=["public", "shared"], requesting_agent_id="test_agent"
         )
 
         assert result == patterns

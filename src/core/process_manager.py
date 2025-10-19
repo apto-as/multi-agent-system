@@ -4,7 +4,7 @@ TMWS Process Manager - Tactical Coordination Layer
 Bellona の戦術的調整システム
 
 Manages:
-- FastMCP and FastAPI service coordination
+- FastMCP service coordination
 - Health monitoring and recovery
 - Resource allocation and optimization
 - Inter-process communication
@@ -22,7 +22,6 @@ from enum import Enum
 from typing import Any
 
 import psutil
-import uvicorn
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +43,7 @@ class ProcessPriority(Enum):
     """Process priority levels for resource allocation"""
 
     CRITICAL = 0  # MCP Server - core functionality
-    HIGH = 1  # FastAPI - user interface
+    HIGH = 1  # Reserved for future high-priority services
     MEDIUM = 2  # Background services
     LOW = 3  # Monitoring and cleanup
 
@@ -152,9 +151,18 @@ class FastMCPManager(BaseProcessManager):
             logger.error("[TACTICAL] FastMCP startup timeout")
             return False
 
-        except Exception as e:
+        except (RuntimeError, OSError, ImportError) as e:
+            # Expected errors during startup (server failures, I/O issues, missing modules)
             self.state = ServiceState.FAILED
-            logger.error(f"[TACTICAL] FastMCP startup failed: {e}")
+            logger.error(f"[TACTICAL] FastMCP startup failed: {type(e).__name__}: {e}")
+            return False
+        except Exception as e:
+            # Unexpected errors - log with full context
+            self.state = ServiceState.FAILED
+            logger.error(
+                f"[TACTICAL] FastMCP startup failed with unexpected error: {type(e).__name__}: {e}",
+                exc_info=True,
+            )
             return False
 
     async def _run_mcp_server(self):
@@ -165,8 +173,19 @@ class FastMCPManager(BaseProcessManager):
             # Configure and run MCP server
             async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):
                 await self.mcp_server.run(read_stream, write_stream, mcp.server.stdio.init_kwargs)
+        except (ImportError, ModuleNotFoundError) as e:
+            # Missing MCP module
+            logger.error(f"[TACTICAL] MCP module not available: {type(e).__name__}: {e}")
+            self.state = ServiceState.FAILED
+        except (RuntimeError, OSError, ConnectionError) as e:
+            # Expected errors during MCP server operation
+            logger.error(f"[TACTICAL] MCP server error: {type(e).__name__}: {e}")
+            self.state = ServiceState.FAILED
         except Exception as e:
-            logger.error(f"[TACTICAL] MCP server error: {e}")
+            # Unexpected errors - log with full context
+            logger.error(
+                f"[TACTICAL] MCP server unexpected error: {type(e).__name__}: {e}", exc_info=True
+            )
             self.state = ServiceState.FAILED
 
     async def stop(self) -> bool:
@@ -186,8 +205,16 @@ class FastMCPManager(BaseProcessManager):
             logger.info("[TACTICAL] FastMCP service stopped")
             return True
 
+        except (RuntimeError, OSError) as e:
+            # Expected errors during shutdown
+            logger.error(f"[TACTICAL] FastMCP shutdown error: {type(e).__name__}: {e}")
+            return False
         except Exception as e:
-            logger.error(f"[TACTICAL] FastMCP shutdown error: {e}")
+            # Unexpected errors - log with full context
+            logger.error(
+                f"[TACTICAL] FastMCP shutdown unexpected error: {type(e).__name__}: {e}",
+                exc_info=True,
+            )
             return False
 
     async def health_check(self) -> bool:
@@ -201,12 +228,14 @@ class FastMCPManager(BaseProcessManager):
             self.metrics.last_health_check = datetime.utcnow()
             return True
 
+        except (RuntimeError, AttributeError) as e:
+            # Expected errors during health check (task state issues, attribute errors)
+            logger.error(f"FastMCP health check failed: {type(e).__name__}: {e}")
+            return False
         except Exception as e:
-            import logging
-
-            logger = logging.getLogger(__name__)
+            # Unexpected errors - log with full context
             logger.error(
-                f"FastMCP health check failed: {type(e).__name__}: {str(e)}", exc_info=True
+                f"FastMCP health check unexpected error: {type(e).__name__}: {e}", exc_info=True
             )
             return False
 
@@ -219,123 +248,15 @@ class FastMCPManager(BaseProcessManager):
                 self.metrics.memory_mb = process.memory_info().rss / 1024 / 1024
 
             return self.metrics
-        except Exception as e:
-            import logging
-
-            logger = logging.getLogger(__name__)
-            logger.warning(f"Failed to update process metrics: {type(e).__name__}: {str(e)}")
+        except (psutil.NoSuchProcess, psutil.AccessDenied, AttributeError) as e:
+            # Expected errors when process is gone or inaccessible
+            logger.warning(f"Failed to update FastMCP metrics: {type(e).__name__}: {e}")
             return self.metrics
-
-
-class FastAPIManager(BaseProcessManager):
-    """FastAPI service manager"""
-
-    def __init__(self, app, config: ServiceConfig, host: str = "0.0.0.0", port: int = 8000):
-        super().__init__(config)
-        self.app = app
-        self.host = host
-        self.port = port
-        self._server = None
-        self._server_task = None
-
-    async def start(self) -> bool:
-        """Start FastAPI server"""
-        try:
-            logger.info(f"[TACTICAL] Starting FastAPI service on {self.host}:{self.port}...")
-            self.state = ServiceState.STARTING
-
-            # Configure Uvicorn server
-            config = uvicorn.Config(
-                app=self.app,
-                host=self.host,
-                port=self.port,
-                log_level="info",
-                access_log=True,
-                loop="asyncio",
+        except Exception as e:
+            # Unexpected errors - log with full context
+            logger.warning(
+                f"FastMCP metrics unexpected error: {type(e).__name__}: {e}", exc_info=True
             )
-
-            self._server = uvicorn.Server(config)
-            self._server_task = asyncio.create_task(self._server.serve())
-
-            # Wait for startup
-            start_time = time.time()
-            while time.time() - start_time < self.config.startup_timeout:
-                if await self.health_check():
-                    self.state = ServiceState.HEALTHY
-                    logger.info("[TACTICAL] FastAPI service operational")
-                    return True
-                await asyncio.sleep(1)
-
-            self.state = ServiceState.FAILED
-            logger.error("[TACTICAL] FastAPI startup timeout")
-            return False
-
-        except Exception as e:
-            self.state = ServiceState.FAILED
-            logger.error(f"[TACTICAL] FastAPI startup failed: {e}")
-            return False
-
-    async def stop(self) -> bool:
-        """Stop FastAPI server gracefully"""
-        try:
-            logger.info("[TACTICAL] Stopping FastAPI service...")
-            self.state = ServiceState.STOPPING
-
-            if self._server:
-                self._server.should_exit = True
-
-            if self._server_task:
-                self._server_task.cancel()
-                try:
-                    await asyncio.wait_for(self._server_task, timeout=self.config.shutdown_timeout)
-                except asyncio.TimeoutError:
-                    logger.warning("[TACTICAL] FastAPI shutdown timeout")
-
-            self.state = ServiceState.STOPPED
-            logger.info("[TACTICAL] FastAPI service stopped")
-            return True
-
-        except Exception as e:
-            logger.error(f"[TACTICAL] FastAPI shutdown error: {e}")
-            return False
-
-    async def health_check(self) -> bool:
-        """Check FastAPI health"""
-        try:
-            import aiohttp
-
-            async with (
-                aiohttp.ClientSession() as session,
-                session.get(
-                    f"http://{self.host}:{self.port}/health", timeout=aiohttp.ClientTimeout(total=5)
-                ) as response,
-            ):
-                healthy = response.status == 200
-
-            self.metrics.last_health_check = datetime.utcnow()
-            return healthy
-
-        except Exception as e:
-            import logging
-
-            logger = logging.getLogger(__name__)
-            logger.error(f"FastAPI health check failed: {type(e).__name__}: {str(e)}")
-            return False
-
-    async def get_metrics(self) -> ServiceMetrics:
-        """Get FastAPI metrics"""
-        try:
-            if self._process:
-                process = psutil.Process(self._process.pid)
-                self.metrics.cpu_percent = process.cpu_percent()
-                self.metrics.memory_mb = process.memory_info().rss / 1024 / 1024
-
-            return self.metrics
-        except Exception as e:
-            import logging
-
-            logger = logging.getLogger(__name__)
-            logger.warning(f"Failed to update FastAPI metrics: {type(e).__name__}: {str(e)}")
             return self.metrics
 
 
@@ -407,8 +328,22 @@ class TacticalProcessManager:
             logger.info("[TACTICAL] All services operational. Tactical coordination active.")
             return True
 
+        except ValueError as e:
+            # Circular dependency or configuration error
+            logger.error(f"[TACTICAL] Service configuration error: {type(e).__name__}: {e}")
+            await self.shutdown_all_services()
+            return False
+        except (RuntimeError, OSError) as e:
+            # Expected errors during startup coordination
+            logger.error(f"[TACTICAL] Service startup failed: {type(e).__name__}: {e}")
+            await self.shutdown_all_services()
+            return False
         except Exception as e:
-            logger.error(f"[TACTICAL] Service startup failed: {e}")
+            # Unexpected errors - log with full context
+            logger.error(
+                f"[TACTICAL] Service startup unexpected error: {type(e).__name__}: {e}",
+                exc_info=True,
+            )
             await self.shutdown_all_services()
             return False
 
@@ -436,8 +371,15 @@ class TacticalProcessManager:
                 await asyncio.wait_for(service.stop(), timeout=service.config.shutdown_timeout)
             except asyncio.TimeoutError:
                 logger.warning(f"[TACTICAL] {service_name} shutdown timeout - forcing stop")
+            except (RuntimeError, OSError, AttributeError) as e:
+                # Expected errors during shutdown
+                logger.error(f"[TACTICAL] Error stopping {service_name}: {type(e).__name__}: {e}")
             except Exception as e:
-                logger.error(f"[TACTICAL] Error stopping {service_name}: {e}")
+                # Unexpected errors - log with context
+                logger.error(
+                    f"[TACTICAL] Unexpected error stopping {service_name}: {type(e).__name__}: {e}",
+                    exc_info=True,
+                )
 
         logger.info("[TACTICAL] All services terminated. Tactical coordination complete.")
 
@@ -498,8 +440,20 @@ class TacticalProcessManager:
 
                 await asyncio.sleep(10)  # Check every 10 seconds
 
+            except asyncio.CancelledError:
+                # Monitoring task was cancelled (expected during shutdown)
+                logger.info("[TACTICAL] Service monitoring cancelled")
+                break
+            except (RuntimeError, AttributeError) as e:
+                # Expected errors during monitoring (service state issues)
+                logger.warning(f"[TACTICAL] Monitoring error: {type(e).__name__}: {e}")
+                await asyncio.sleep(30)
             except Exception as e:
-                logger.error(f"[TACTICAL] Monitoring error: {e}")
+                # Unexpected errors - log with context
+                logger.error(
+                    f"[TACTICAL] Monitoring unexpected error: {type(e).__name__}: {e}",
+                    exc_info=True,
+                )
                 await asyncio.sleep(30)
 
     async def _monitor_resources(self):
@@ -522,8 +476,20 @@ class TacticalProcessManager:
 
                 await asyncio.sleep(30)  # Check every 30 seconds
 
+            except asyncio.CancelledError:
+                # Resource monitoring task was cancelled (expected during shutdown)
+                logger.info("[TACTICAL] Resource monitoring cancelled")
+                break
+            except (psutil.Error, OSError) as e:
+                # Expected errors from psutil (permission issues, process gone)
+                logger.warning(f"[TACTICAL] Resource monitoring error: {type(e).__name__}: {e}")
+                await asyncio.sleep(60)
             except Exception as e:
-                logger.error(f"[TACTICAL] Resource monitoring error: {e}")
+                # Unexpected errors - log with context
+                logger.error(
+                    f"[TACTICAL] Resource monitoring unexpected error: {type(e).__name__}: {e}",
+                    exc_info=True,
+                )
                 await asyncio.sleep(60)
 
     async def _handle_service_failure(self, service_name: str):
@@ -645,24 +611,6 @@ def create_fastmcp_manager(mcp_server, max_memory_mb: int = 256) -> FastMCPManag
         shutdown_timeout=20,
     )
     return FastMCPManager(mcp_server, config)
-
-
-def create_fastapi_manager(
-    app, host: str = "0.0.0.0", port: int = 8000, max_memory_mb: int = 512
-) -> FastAPIManager:
-    """Create FastAPI service manager with tactical configuration"""
-    config = ServiceConfig(
-        name="fastapi",
-        priority=ProcessPriority.HIGH,
-        max_memory_mb=max_memory_mb,
-        max_cpu_percent=40.0,
-        health_check_interval=30,
-        restart_threshold=5,
-        startup_timeout=30,
-        shutdown_timeout=15,
-        dependencies=["fastmcp"],  # FastAPI depends on MCP for some operations
-    )
-    return FastAPIManager(app, config, host, port)
 
 
 def create_tactical_process_manager() -> TacticalProcessManager:
