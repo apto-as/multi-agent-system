@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any
 
 import sqlalchemy as sa
 from sqlalchemy import DateTime, Index, Integer, Text
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import MetadataMixin, TMWSBase
@@ -62,7 +62,7 @@ class Workflow(TMWSBase, MetadataMixin):
 
     # Workflow definition
     steps: Mapped[list[dict]] = mapped_column(
-        JSONB, nullable=False, default=list, server_default=sa.text("'[]'::jsonb")
+        JSON, nullable=False, default=list
     )
 
     # Execution tracking
@@ -94,12 +94,12 @@ class Workflow(TMWSBase, MetadataMixin):
 
     # Tags for categorization
     tags: Mapped[list[str]] = mapped_column(
-        JSONB, nullable=False, default=list, server_default=sa.text("'[]'::jsonb")
+        JSON, nullable=False, default=list
     )
 
     # Execution configuration
     config: Mapped[dict] = mapped_column(
-        JSONB, nullable=False, default=dict, server_default=sa.text("'{}'::jsonb")
+        JSON, nullable=False, default=dict
     )
 
     # Relationships

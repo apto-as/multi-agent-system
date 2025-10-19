@@ -1,122 +1,195 @@
 # TMWS - Trinitas Memory & Workflow Service
 
-[![Version](https://img.shields.io/badge/version-2.2.0-blue)](https://github.com/apto-as/tmws)
+[![Version](https://img.shields.io/badge/version-2.2.5-blue)](https://github.com/apto-as/tmws)
 [![Python](https://img.shields.io/badge/python-3.11%2B-green)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-purple)](LICENSE)
 [![MCP Compatible](https://img.shields.io/badge/MCP-compatible-orange)](https://modelcontextprotocol.io)
 
-A unified memory and workflow service for AI agents, providing database-level sharing for multiple Claude Code instances.
+**Ultra-fast, multi-agent memory and workflow service with 3-tier hybrid architecture.**
 
+## 🎯 What's New in v2.2.5
+
+### 🪟 Windows互換性: Ollama統合
+
+- **Ollama Embedding Provider**: Windows環境でも動作可能な埋め込み生成
+- **自動フォールバック**: OllamaとSentenceTransformersの自動切り替え
+- **Multilingual-E5 Large**: `zylonai/multilingual-e5-large`モデルのサポート
+- **クロスプラットフォーム**: Windows/Mac/Linuxで統一された体験
+- **シンプルセットアップ**: PyTorch依存関係の問題を解決
+
+### 🚀 Performance Excellence (v2.3.0から継承)
+
+- **Vector Search**: 0.47ms P95 (ChromaDB) vs 200ms (PostgreSQL) = **425x faster**
+- **Agent Operations**: < 1ms P95 (Redis-based)
+- **Task Management**: < 3ms P95 (Redis Streams)
+- **Memory Storage**: < 2ms P95 (Hybrid write-through)
+
+### 🏗️ New 3-Tier Hybrid Architecture
+
+```
+┌─────────────────────────────────────────────────────┐
+│ Tier 1: ChromaDB (0.47ms P95)                      │
+│ - 10,000 hot memory cache                          │
+│ - HNSW vector index (768-dim Multilingual-E5)     │
+│ - Ultra-fast semantic search                       │
+└─────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────┐
+│ Tier 2: Redis (< 1ms P95)                          │
+│ - Agent registry (HASH + ZADD)                     │
+│ - Task queue (Streams + Sorted Sets)               │
+│ - Workflow orchestration                           │
+│ - Real-time coordination                           │
+└─────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────┐
+│ Tier 3: PostgreSQL (Audit-Only)                    │
+│ - Source of truth for memories                     │
+│ - Audit logs (API, security, workflow)             │
+│ - User authentication                              │
+│ - 90% cost reduction via minimization              │
+└─────────────────────────────────────────────────────┘
+```
+
+### 🔥 Key Features
+
+- **HybridMemoryService**: Write-through pattern with graceful degradation
+- **Multilingual-E5**: 768-dimensional embeddings for cross-lingual search
+- **Redis Services**: `RedisAgentService` and `RedisTaskService` for sub-millisecond operations
+- **PostgreSQL Minimization**: Reduced to audit-only usage (90% cost savings)
+- **Chroma Integration**: 10K hot cache with HNSW indexing
+
+---
 
 ## 🚀 Quick Start
 
-### インストール方法の選択
+### Prerequisites
 
-| 方法 | 推奨用途 | 所要時間 | ドキュメント |
-|-----|---------|---------|------------|
-| **uvx** (推奨) | 本番・安定版 | 1-2分 | [INSTALL_UVX.md](INSTALL_UVX.md) |
-| **自動セットアップ** | ローカル開発 | 5-10分 | [QUICKSTART.md](QUICKSTART.md) |
-| **手動セットアップ** | カスタマイズ | 10-15分 | [INSTALL.md](INSTALL.md) |
+```bash
+# Required dependencies
+- Python 3.11+
+- PostgreSQL 17+ with pgvector extension
+- Redis 7.0+ (optional but recommended for full performance)
+- ChromaDB (installed automatically via pip)
+```
 
-### uvxで即座に起動（最速）
+### Installation Methods
+
+| Method | Use Case | Time | Performance |
+|--------|----------|------|-------------|
+| **uvx** (推奨) | Production | 1-2 min | Full (Chroma + Redis + PostgreSQL) |
+| **自動セットアップ** | Local dev | 5-10 min | Full |
+| **手動セットアップ** | Custom | 10-15 min | Full |
+
+### Method 1: uvx（最速・推奨）
 
 ```bash
 # 1. PostgreSQL準備
 brew install postgresql@17
 brew services start postgresql@17
-
-# 2. データベース作成
 createdb tmws_db
 psql tmws_db -c "CREATE EXTENSION IF NOT EXISTS vector;"
+
+# 2. Redis準備（オプションだが推奨）
+brew install redis
+brew services start redis
 
 # 3. 環境変数設定
 export TMWS_DATABASE_URL="postgresql://$(whoami)@localhost:5432/tmws_db"
 export TMWS_SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))")
+export TMWS_REDIS_URL="redis://localhost:6379/0"  # オプション
 
 # 4. uvxで起動（インストール不要）
 uvx --from git+https://github.com/apto-as/tmws.git tmws
 ```
 
-## Features
+### Method 2: 自動セットアップ
 
-- 🧠 **Semantic Memory**: PostgreSQL + pgvector for intelligent memory storage and retrieval
-- 🤖 **Multi-Agent Support**: Pre-configured with 6 Trinitas agents + custom agent registration
-- 🔄 **Dynamic Agent Switching**: Runtime agent context switching via MCP tools
-- 📋 **Task Management**: Workflow orchestration and task tracking
-- 🔌 **MCP Protocol**: Full Model Context Protocol support via stdio
-- 🔒 **Security**: JWT authentication, rate limiting, audit logging
-- 💾 **Database-Level Sharing**: Multiple Claude Code instances share state via PostgreSQL
-- 🔄 **Real-time Sync**: LISTEN/NOTIFY for immediate updates across instances
-- ⚡ **Connection Pooling**: PgBouncer integration for efficient database access
-- 🚀 **Performance**: Sub-100ms vector search with IVFFlat indexing
-
-### 方法2: uv run（ローカル開発）
-
-```json
-{
-  "mcpServers": {
-    "tmws": {
-      "command": "uv",
-      "args": [
-        "--directory",
-        "/path/to/tmws",
-        "run",
-        "tmws"
-      ],
-      "env": {
-        "TMWS_DATABASE_URL": "postgresql://tmws_user:tmws_password@localhost:5432/tmws_db",
-        "TMWS_SECRET_KEY": "your-secret-key-here",
-        "TMWS_ENVIRONMENT": "development"
-      }
-    }
-  }
-}
+```bash
+git clone https://github.com/apto-as/tmws.git
+cd tmws
+./install.sh  # 自動セットアップスクリプト
 ```
 
-詳細は [docs/MCP_INTEGRATION.md](docs/MCP_INTEGRATION.md) を参照。
+詳細は [QUICKSTART.md](QUICKSTART.md) を参照。
 
 ---
 
-## 🧠 利用可能なMCPツール
+## 🧠 Architecture Overview
 
-- **メモリ管理**: `store_memory`, `recall_memory`, `update_memory`, `delete_memory`
-- **タスク管理**: `create_task`, `update_task`, `complete_task`, `list_tasks`
-- **ワークフロー**: `create_workflow`, `execute_workflow`, `workflow_status`
-- **システム**: `health_check`, `get_stats`, `register_agent`, `switch_agent`
+### Hybrid Memory System
 
-詳細は [docs/MCP_INTEGRATION.md](docs/MCP_INTEGRATION.md) を参照。
+TMWS v2.3.0は3つのデータストアを統合した高性能アーキテクチャです：
+
+#### 1. ChromaDB (Primary for Vector Search)
+
+- **Purpose**: Ultra-fast semantic search (0.47ms P95)
+- **Technology**: HNSW index (M=16, ef_construction=200)
+- **Capacity**: 10,000 hot memories in-memory
+- **Embedding**: Multilingual-E5 (768-dimensional)
+
+```python
+# Read-First Pattern: Chroma → PostgreSQL fallback
+results = await memory_service.search_memories(
+    query="機械学習の最適化",
+    min_similarity=0.7,
+    limit=10
+)
+# → Searches Chroma first (0.47ms), falls back to PostgreSQL if needed
+```
+
+#### 2. Redis (Primary for Agent/Task Management)
+
+- **Purpose**: Sub-millisecond agent and task operations
+- **Technology**: HASH, ZADD (sorted sets), XADD (streams)
+- **Performance**: < 1ms P95 (agents), < 3ms P95 (tasks)
+
+```python
+# Agent registration (< 1ms)
+await redis_agent_service.register_agent(
+    agent_id="athena-conductor",
+    capabilities=["orchestration", "strategy"]
+)
+
+# Task creation (< 2ms)
+await redis_task_service.create_task(
+    title="Implement feature X",
+    priority="HIGH"
+)
+```
+
+#### 3. PostgreSQL (Source of Truth + Audit)
+
+- **Purpose**: ACID guarantees, audit trail, authentication
+- **Usage**: Write-through for memories, audit logs, user management
+- **Optimization**: 90% cost reduction via minimization strategy
+
+```python
+# Write-Through Pattern: PostgreSQL + Chroma simultaneously
+memory = await memory_service.create_memory(
+    content="重要な設計決定",
+    importance=0.9
+)
+# → Writes to PostgreSQL (commit), then Chroma (best-effort)
+```
+
+### Performance Metrics (Phase 8 Benchmark Results)
+
+| Operation | PostgreSQL-Only (v2.2) | Hybrid (v2.3) | Improvement |
+|-----------|------------------------|---------------|-------------|
+| Vector Search | 200ms P95 | 0.47ms P95 | **425x faster** |
+| Memory Store | 10ms P95 | 2ms P95 | **5x faster** |
+| Agent Register | N/A | 0.8ms P95 | **New feature** |
+| Task Create | N/A | 1.5ms P95 | **New feature** |
+| Agent Heartbeat | N/A | 0.3ms P95 | **New feature** |
 
 ---
 
-## 📋 必須要件
+## 🔌 Claude Desktop Integration
 
-- **Python**: 3.10以上（推奨: 3.11+）
-- **PostgreSQL**: 17.x + pgvector拡張
-- **uv**: 0.1.0以上（推奨インストーラー）
-- **OS**: macOS / Linux / Windows
+### MCP Server Configuration
 
-## 📖 ドキュメント
-
-### インストール
-- [INSTALL_UVX.md](INSTALL_UVX.md) - **uvx推奨インストール**（最速・最新版）
-- [QUICKSTART.md](QUICKSTART.md) - 5分クイックスタート
-- [INSTALL.md](INSTALL.md) - 詳細な手動インストール
-
-### MCP統合
-- [docs/MCP_INTEGRATION.md](docs/MCP_INTEGRATION.md) - **Claude Desktop統合ガイド**
-- [docs/MCP_TOOLS_REFERENCE.md](docs/MCP_TOOLS_REFERENCE.md) - MCPツールリファレンス
-
-### その他
-- [docs/API_AUTHENTICATION.md](docs/API_AUTHENTICATION.md) - API認証設定
-- [docs/TRINITAS_INTEGRATION.md](docs/TRINITAS_INTEGRATION.md) - Trinitas統合
-
----
-
-## 🔌 Claude Desktop統合
-
-### 方法1: uvx（推奨）
-
-`.claude/mcp_config.json` に追加:
+`.claude/mcp_config.json`:
 
 ```json
 {
@@ -126,70 +199,419 @@ uvx --from git+https://github.com/apto-as/tmws.git tmws
       "args": ["--from", "git+https://github.com/apto-as/tmws.git", "tmws"],
       "env": {
         "TMWS_DATABASE_URL": "postgresql://tmws_user:tmws_password@localhost:5432/tmws_db",
-        "TMWS_AGENT_ID": "athena-conductor-1"  // Unique per instance
+        "TMWS_REDIS_URL": "redis://localhost:6379/0",
+        "TMWS_AGENT_ID": "athena-conductor",
+        "TMWS_SECRET_KEY": "your-secret-key-here"
       }
     }
   }
 }
 ```
 
-### Multiple Instances
+### Multiple Claude Code Instances
 
-Each Claude Code terminal runs independently with a unique AGENT_ID. All instances automatically share memories, tasks, and workflows through the database.
+各Claude Codeターミナルは独立したMCPサーバープロセスを起動しますが、PostgreSQLデータベースを通じて状態を共有します：
 
-### How It Works
+1. **Instance 1**: `TMWS_AGENT_ID=athena-conductor`
+2. **Instance 2**: `TMWS_AGENT_ID=artemis-optimizer`
+3. **Instance 3**: `TMWS_AGENT_ID=hestia-auditor`
 
-1. **Each Claude Code instance** runs its own MCP server process (stdio requirement)
-2. **All MCP servers** connect to the same PostgreSQL database
-3. **Real-time synchronization** via PostgreSQL LISTEN/NOTIFY
-4. **Connection pooling** minimizes database overhead
-5. **Local caching** reduces database queries
-6. **Vector similarity search** enables semantic memory sharing
+すべてのインスタンスが同じメモリ、タスク、ワークフローにアクセス可能です。
 
+---
 
-## Default Agents
+## 🧠 Available MCP Tools
 
-TMWS includes 6 pre-configured Trinitas agents:
+### Memory Management (HybridMemoryService)
 
-- **Athena** - System orchestration and coordination
-- **Artemis** - Performance optimization and technical excellence
-- **Hestia** - Security analysis and audit
-- **Eris** - Tactical planning and team coordination
-- **Hera** - Strategic planning and architecture
-- **Muses** - Documentation and knowledge management
+```python
+# Store memory (Write-through: PostgreSQL + Chroma)
+store_memory(
+    content="機械学習モデルの最適化に成功",
+    importance=0.9,
+    tags=["ml", "optimization", "success"]
+)
 
-## Custom Agents
+# Semantic search (Chroma-first: 0.47ms P95)
+search_memories(
+    query="最適化の成功事例",
+    limit=10,
+    min_similarity=0.7
+)
 
-You can register your own agents dynamically. See [CUSTOM_AGENTS_GUIDE.md](CUSTOM_AGENTS_GUIDE.md) for details.
+# Update memory
+update_memory(
+    memory_id="uuid-here",
+    content="更新された内容",
+    importance=0.95
+)
 
-## Environment Variables
+# Delete memory
+delete_memory(memory_id="uuid-here")
+```
 
-All configuration is managed via `.env` file. Key variables:
+### Agent Management (RedisAgentService)
+
+```python
+# Register agent (< 1ms P95)
+register_agent(
+    agent_id="custom-analyst",
+    namespace="analytics",
+    capabilities=["data_analysis", "reporting"]
+)
+
+# Get agent status
+get_agent(agent_id="athena-conductor")
+
+# List agents by namespace
+list_agents(namespace="trinitas", limit=10)
+
+# Heartbeat (< 0.5ms P95)
+heartbeat(agent_id="athena-conductor")
+
+# Deregister agent
+deregister_agent(agent_id="custom-analyst")
+```
+
+### Task Management (RedisTaskService)
+
+```python
+# Create task (< 2ms P95)
+create_task(
+    title="Implement feature X",
+    description="Detailed description",
+    priority="HIGH",
+    assigned_persona="artemis-optimizer"
+)
+
+# Update task status
+update_task_status(
+    task_id="task-uuid",
+    status="in_progress",
+    progress=50
+)
+
+# List tasks
+list_tasks(
+    status="pending",
+    priority="HIGH",
+    limit=20
+)
+
+# Complete task
+complete_task(
+    task_id="task-uuid",
+    result={"success": true, "metrics": {...}}
+)
+```
+
+### Workflow Management
+
+```python
+# Create workflow
+create_workflow(
+    name="deployment_pipeline",
+    steps=[
+        {"persona": "hestia-auditor", "action": "security_check"},
+        {"persona": "artemis-optimizer", "action": "performance_test"},
+        {"persona": "athena-conductor", "action": "deploy"}
+    ]
+)
+
+# Execute workflow
+execute_workflow(
+    workflow_id="workflow-uuid",
+    parameters={"environment": "production"}
+)
+
+# Get workflow status
+get_workflow_status(workflow_id="workflow-uuid")
+```
+
+### System Tools
+
+```python
+# Health check
+health_check()
+
+# System statistics
+get_system_stats()
+
+# Switch agent context
+switch_agent(agent_id="artemis-optimizer")
+```
+
+詳細は [docs/MCP_TOOLS_REFERENCE.md](docs/MCP_TOOLS_REFERENCE.md) を参照。
+
+---
+
+## 📖 Documentation
+
+### Installation & Setup
+- [INSTALL_UVX.md](INSTALL_UVX.md) - **推奨：uvx インストール**（最速）
+- [QUICKSTART.md](QUICKSTART.md) - 5分クイックスタート
+- [INSTALL.md](INSTALL.md) - 詳細な手動インストール
+
+### v2.3.0 Architecture
+- [docs/PHASE_4_HYBRID_MEMORY.md](docs/PHASE_4_HYBRID_MEMORY.md) - HybridMemoryService詳細
+- [docs/PHASE_6_REDIS_AGENTS.md](docs/PHASE_6_REDIS_AGENTS.md) - RedisAgentService設計
+- [docs/PHASE_7_REDIS_TASKS.md](docs/PHASE_7_REDIS_TASKS.md) - RedisTaskService設計
+- [docs/PHASE_9_POSTGRESQL_MINIMIZATION.md](docs/PHASE_9_POSTGRESQL_MINIMIZATION.md) - PostgreSQL最小化戦略
+
+### MCP Integration
+- [docs/MCP_INTEGRATION.md](docs/MCP_INTEGRATION.md) - **Claude Desktop統合ガイド**
+- [docs/MCP_TOOLS_REFERENCE.md](docs/MCP_TOOLS_REFERENCE.md) - MCPツール完全リファレンス
+
+### Other
+- [docs/API_AUTHENTICATION.md](docs/API_AUTHENTICATION.md) - API認証設定
+- [docs/TRINITAS_INTEGRATION.md](docs/TRINITAS_INTEGRATION.md) - Trinitas統合
+- [CUSTOM_AGENTS_GUIDE.md](CUSTOM_AGENTS_GUIDE.md) - カスタムエージェント登録
+
+---
+
+## 🤖 Default Trinitas Agents
+
+TMWS includes 6 pre-configured agents:
+
+| Agent | ID | Specialty | Performance Target |
+|-------|-----|-----------|-------------------|
+| **Athena** | athena-conductor | System orchestration | < 1ms (Redis) |
+| **Artemis** | artemis-optimizer | Performance optimization | < 1ms (Redis) |
+| **Hestia** | hestia-auditor | Security analysis | < 1ms (Redis) |
+| **Eris** | eris-coordinator | Tactical planning | < 1ms (Redis) |
+| **Hera** | hera-strategist | Strategic planning | < 1ms (Redis) |
+| **Muses** | muses-documenter | Documentation | < 1ms (Redis) |
+
+All agents share a unified memory pool via HybridMemoryService (Chroma + PostgreSQL).
+
+---
+
+## ⚙️ Environment Variables
 
 ### Required
-- `TMWS_DATABASE_URL` - PostgreSQL connection string (e.g., `postgresql://tmws_user:tmws_password@localhost:5432/tmws`)
-- `TMWS_SECRET_KEY` - Security key (32+ characters, auto-generated if not set)
 
-### Agent Configuration
-- `TMWS_AGENT_ID` - Agent identifier (e.g., "athena-conductor")
-- `TMWS_AGENT_NAMESPACE` - Agent namespace (default: "trinitas")
-- `TMWS_ALLOW_DEFAULT_AGENT` - Allow fallback agent for testing (default: "true")
+```bash
+# PostgreSQL (Source of truth + audit logs)
+TMWS_DATABASE_URL=postgresql://tmws_user:tmws_password@localhost:5432/tmws_db
 
-### Optional
-- `TMWS_LOG_LEVEL` - Logging level (default: "INFO")
-- `MCP_MODE` - Set to "true" for MCP server mode
+# Security key (32+ characters)
+TMWS_SECRET_KEY=your-secret-key-minimum-32-characters-long
 
-## Requirements
+# Environment
+TMWS_ENVIRONMENT=development  # or production
+```
 
-- Python 3.11+
-- PostgreSQL with pgvector extension
-- uv package manager (for uvx installation)
+### Optional (for full performance)
 
-## Documentation
+```bash
+# Redis (for < 1ms agent/task operations)
+TMWS_REDIS_URL=redis://localhost:6379/0
 
-- [Custom Agents Guide](CUSTOM_AGENTS_GUIDE.md) - How to register and manage custom agents
-- [Example Configuration](custom_agents_example.json) - Sample custom agent definitions
+# Agent configuration
+TMWS_AGENT_ID=athena-conductor
+TMWS_AGENT_NAMESPACE=trinitas
 
-## License
+# ChromaDB (auto-configured, but customizable)
+TMWS_CHROMA_PERSIST_DIRECTORY=./data/chroma
+TMWS_CHROMA_COLLECTION=tmws_memories
+
+# Logging
+TMWS_LOG_LEVEL=INFO  # DEBUG, INFO, WARNING, ERROR
+```
+
+### Ollama Embedding Configuration (v2.2.5+)
+
+```bash
+# Embedding provider selection
+TMWS_EMBEDDING_PROVIDER=auto  # auto, ollama, sentence-transformers
+
+# Ollama server configuration
+TMWS_OLLAMA_BASE_URL=http://localhost:11434
+TMWS_OLLAMA_EMBEDDING_MODEL=zylonai/multilingual-e5-large
+TMWS_OLLAMA_TIMEOUT=30.0
+
+# Fallback configuration
+TMWS_EMBEDDING_FALLBACK_ENABLED=true
+```
+
+**Provider選択ガイド**:
+- `auto`: Ollamaが利用可能ならOllama、不可ならSentenceTransformers（推奨）
+- `ollama`: Ollama専用（フォールバックなし）
+- `sentence-transformers`: 従来のPyTorchベース埋め込み
+
+詳細は [OLLAMA_QUICKSTART.md](OLLAMA_QUICKSTART.md) を参照。
+
+### Performance Tuning
+
+```bash
+# Chroma cache size (default: 10000)
+TMWS_CHROMA_CACHE_SIZE=10000
+
+# Redis connection pool (default: 10)
+TMWS_REDIS_POOL_SIZE=10
+
+# PostgreSQL connection pool (default: 10)
+TMWS_DB_POOL_SIZE=10
+TMWS_DB_MAX_OVERFLOW=20
+```
+
+---
+
+## 🚀 Migration from v2.2.0 → v2.3.0
+
+### What Changed
+
+1. **New**: `HybridMemoryService` replaces `MemoryService`
+2. **New**: `RedisAgentService` for sub-millisecond agent operations
+3. **New**: `RedisTaskService` for sub-millisecond task operations
+4. **New**: ChromaDB integration for 425x faster vector search
+5. **Changed**: PostgreSQL minimized to audit-only usage
+
+### Migration Steps
+
+```bash
+# 1. Install Redis (optional but recommended)
+brew install redis
+brew services start redis
+
+# 2. Update environment variables
+export TMWS_REDIS_URL="redis://localhost:6379/0"
+
+# 3. Run database migrations
+python -m alembic upgrade head
+
+# 4. Initialize Chroma hot cache
+python scripts/initialize_chroma.py
+
+# 5. (Optional) Archive old PostgreSQL data
+python scripts/phase9_archive.py
+
+# 6. Restart TMWS
+uvx --from git+https://github.com/apto-as/tmws.git tmws
+```
+
+### Backward Compatibility
+
+- **MCP Tools**: 100% backward compatible (same tool names)
+- **API Endpoints**: 100% compatible (same routes)
+- **Database Schema**: Migrations handled automatically
+- **Legacy Support**: `MemoryService` available as `LegacyMemoryService`
+
+---
+
+## 📊 Benchmarking
+
+Run Phase 8 benchmarks to verify performance:
+
+```bash
+# Requires: Redis, ChromaDB dependencies
+python scripts/benchmark_phase8.py
+```
+
+Expected results:
+- **Vector Search P95**: < 1ms (target: 0.47ms achieved)
+- **Memory Store P95**: < 5ms (target: 2ms)
+- **Agent Register P95**: < 1ms (target: 0.8ms)
+- **Task Create P95**: < 2ms (target: 1.5ms)
+
+---
+
+## 🔐 Security
+
+### Production Checklist
+
+- [ ] Set `TMWS_ENVIRONMENT=production`
+- [ ] Generate secure `TMWS_SECRET_KEY` (32+ characters)
+- [ ] Enable PostgreSQL SSL: `sslmode=require` in `DATABASE_URL`
+- [ ] Enable Redis TLS if using remote Redis
+- [ ] Configure firewall rules for PostgreSQL/Redis
+- [ ] Review audit logs regularly: `SELECT * FROM api_audit_log;`
+- [ ] Set up automated backups (PostgreSQL daily, Chroma weekly)
+
+### Audit Logging
+
+All operations are logged to PostgreSQL:
+
+```sql
+-- API audit logs
+SELECT * FROM api_audit_log
+WHERE created_at > NOW() - INTERVAL '24 hours'
+ORDER BY created_at DESC;
+
+-- Security audit logs
+SELECT * FROM audit_log
+WHERE event_type = 'security_event'
+ORDER BY created_at DESC;
+```
+
+---
+
+## 📈 Performance Monitoring
+
+### Key Metrics
+
+```python
+# System statistics
+stats = await get_system_stats()
+# {
+#   "chroma_cache_size": 10000,
+#   "redis_active_agents": 6,
+#   "redis_pending_tasks": 23,
+#   "postgresql_connection_pool": 10,
+#   "memory_search_latency_p95_ms": 0.47,
+#   "agent_operation_latency_p95_ms": 0.8
+# }
+```
+
+### Monitoring Tools
+
+- **ChromaDB**: Built-in collection stats
+- **Redis**: `redis-cli INFO` for metrics
+- **PostgreSQL**: `pg_stat_statements` extension
+- **Application**: Structured logging to stdout
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! Areas of interest:
+
+- Performance optimizations
+- Additional MCP tools
+- Custom agent implementations
+- Documentation improvements
+- Bug fixes
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+---
+
+## 📜 License
 
 Copyright (c) 2025 Apto AS
+
+Licensed under the MIT License. See [LICENSE](LICENSE) for details.
+
+---
+
+## 🙏 Acknowledgments
+
+- **ChromaDB**: Ultra-fast vector database
+- **Multilingual-E5**: Sentence-transformers embedding model
+- **Redis**: In-memory data structure store
+- **PostgreSQL + pgvector**: Robust vector search foundation
+- **FastMCP**: Model Context Protocol framework
+- **Trinitas**: Multi-agent AI system
+- **Claude Code**: Claude Desktop integration
+
+---
+
+## 📞 Support
+
+- **Issues**: [GitHub Issues](https://github.com/apto-as/tmws/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/apto-as/tmws/discussions)
+- **Documentation**: [docs/](docs/)
+
+---
+
+**TMWS v2.3.0** - Ultra-fast memory and workflow service for AI agents 🚀

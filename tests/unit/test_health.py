@@ -12,6 +12,7 @@ def test_health_check(client):
     assert data["service"] == "TMWS"
     assert "version" in data
 
+
 def test_database_connection(client):
     """Test database connectivity."""
     response = client.get("/health")

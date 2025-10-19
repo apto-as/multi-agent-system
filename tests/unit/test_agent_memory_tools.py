@@ -66,7 +66,9 @@ class TestAgentMemoryTools:
         assert tools.auth_service == mock_auth_service
 
     @pytest.mark.asyncio
-    async def test_create_memory_tool_success(self, agent_memory_tools, mock_memory_service, sample_memory):
+    async def test_create_memory_tool_success(
+        self, agent_memory_tools, mock_memory_service, sample_memory
+    ):
         """Test successful memory creation."""
         mock_memory_service.create_memory.return_value = sample_memory
 
@@ -77,7 +79,7 @@ class TestAgentMemoryTools:
             access_level="private",
             tags=["test"],
             context={"test": "data"},
-            importance=0.8
+            importance=0.8,
         )
 
         assert result["success"] is True
@@ -91,7 +93,7 @@ class TestAgentMemoryTools:
             access_level="private",
             tags=["test"],
             context={"test": "data"},
-            importance_score=0.8
+            importance_score=0.8,
         )
 
     @pytest.mark.asyncio
@@ -101,20 +103,20 @@ class TestAgentMemoryTools:
         agent_memory_tools._validate_agent = AsyncMock(return_value=False)
 
         result = await agent_memory_tools.create_memory_tool(
-            agent_id="invalid_agent",
-            content="Test content"
+            agent_id="invalid_agent", content="Test content"
         )
 
         assert result["error"] == "Invalid agent credentials"
 
     @pytest.mark.asyncio
-    async def test_create_memory_tool_defaults(self, agent_memory_tools, mock_memory_service, sample_memory):
+    async def test_create_memory_tool_defaults(
+        self, agent_memory_tools, mock_memory_service, sample_memory
+    ):
         """Test memory creation with default values."""
         mock_memory_service.create_memory.return_value = sample_memory
 
         result = await agent_memory_tools.create_memory_tool(
-            agent_id="test_agent",
-            content="Test content"
+            agent_id="test_agent", content="Test content"
         )
 
         assert result["success"] is True
@@ -126,12 +128,13 @@ class TestAgentMemoryTools:
             access_level="private",
             tags=[],
             context={},
-            importance_score=0.5
+            importance_score=0.5,
         )
 
     @pytest.mark.asyncio
-    async def test_search_memories_tool_success(self, agent_memory_tools, mock_memory_service,
-                                              mock_auth_service, sample_memory):
+    async def test_search_memories_tool_success(
+        self, agent_memory_tools, mock_memory_service, mock_auth_service, sample_memory
+    ):
         """Test successful memory search."""
         mock_memory_service.search_memories.return_value = [sample_memory]
         mock_auth_service.check_memory_access.return_value = True
@@ -142,7 +145,7 @@ class TestAgentMemoryTools:
             namespace="default",
             limit=10,
             include_shared=True,
-            min_importance=0.5
+            min_importance=0.5,
         )
 
         assert result["success"] is True
@@ -156,15 +159,15 @@ class TestAgentMemoryTools:
         assert memory_result["importance"] == 0.8
 
     @pytest.mark.asyncio
-    async def test_search_memories_tool_no_access(self, agent_memory_tools, mock_memory_service,
-                                                 mock_auth_service, sample_memory):
+    async def test_search_memories_tool_no_access(
+        self, agent_memory_tools, mock_memory_service, mock_auth_service, sample_memory
+    ):
         """Test memory search with no access permissions."""
         mock_memory_service.search_memories.return_value = [sample_memory]
         mock_auth_service.check_memory_access.return_value = False
 
         result = await agent_memory_tools.search_memories_tool(
-            agent_id="test_agent",
-            query="test query"
+            agent_id="test_agent", query="test query"
         )
 
         assert result["success"] is True
@@ -177,14 +180,15 @@ class TestAgentMemoryTools:
         agent_memory_tools._validate_agent = AsyncMock(return_value=False)
 
         result = await agent_memory_tools.search_memories_tool(
-            agent_id="invalid_agent",
-            query="test query"
+            agent_id="invalid_agent", query="test query"
         )
 
         assert result["error"] == "Invalid agent credentials"
 
     @pytest.mark.asyncio
-    async def test_share_memory_tool_success(self, agent_memory_tools, mock_memory_service, sample_memory):
+    async def test_share_memory_tool_success(
+        self, agent_memory_tools, mock_memory_service, sample_memory
+    ):
         """Test successful memory sharing."""
         sample_memory.agent_id = "test_agent"  # Set owner
         mock_memory_service.get_memory.return_value = sample_memory
@@ -193,7 +197,7 @@ class TestAgentMemoryTools:
             agent_id="test_agent",
             memory_id=str(sample_memory.id),
             share_with_agents=["agent1", "agent2"],
-            permission="read"
+            permission="read",
         )
 
         assert result["success"] is True
@@ -202,7 +206,7 @@ class TestAgentMemoryTools:
         mock_memory_service.share_memory.assert_called_once_with(
             memory_id=str(sample_memory.id),
             shared_with_agents=["agent1", "agent2"],
-            permission="read"
+            permission="read",
         )
 
     @pytest.mark.asyncio
@@ -211,30 +215,29 @@ class TestAgentMemoryTools:
         mock_memory_service.get_memory.return_value = None
 
         result = await agent_memory_tools.share_memory_tool(
-            agent_id="test_agent",
-            memory_id="nonexistent",
-            share_with_agents=["agent1"]
+            agent_id="test_agent", memory_id="nonexistent", share_with_agents=["agent1"]
         )
 
         assert result["error"] == "Memory not found"
 
     @pytest.mark.asyncio
-    async def test_share_memory_tool_not_owner(self, agent_memory_tools, mock_memory_service, sample_memory):
+    async def test_share_memory_tool_not_owner(
+        self, agent_memory_tools, mock_memory_service, sample_memory
+    ):
         """Test sharing memory without ownership."""
         sample_memory.agent_id = "other_agent"  # Different owner
         mock_memory_service.get_memory.return_value = sample_memory
 
         result = await agent_memory_tools.share_memory_tool(
-            agent_id="test_agent",
-            memory_id=str(sample_memory.id),
-            share_with_agents=["agent1"]
+            agent_id="test_agent", memory_id=str(sample_memory.id), share_with_agents=["agent1"]
         )
 
         assert result["error"] == "Only memory owner can share"
 
     @pytest.mark.asyncio
-    async def test_consolidate_memories_tool_success(self, agent_memory_tools, mock_memory_service,
-                                                    mock_auth_service, sample_memory):
+    async def test_consolidate_memories_tool_success(
+        self, agent_memory_tools, mock_memory_service, mock_auth_service, sample_memory
+    ):
         """Test successful memory consolidation."""
         # Create multiple memories
         memory1 = Mock()
@@ -262,7 +265,7 @@ class TestAgentMemoryTools:
             agent_id="test_agent",
             memory_ids=[str(memory1.id), str(memory2.id)],
             consolidation_type="summary",
-            namespace="default"
+            namespace="default",
         )
 
         assert result["success"] is True
@@ -270,15 +273,14 @@ class TestAgentMemoryTools:
         assert "consolidated_memory_id" in result
 
     @pytest.mark.asyncio
-    async def test_consolidate_memories_tool_insufficient_memories(self, agent_memory_tools,
-                                                                  mock_memory_service,
-                                                                  mock_auth_service):
+    async def test_consolidate_memories_tool_insufficient_memories(
+        self, agent_memory_tools, mock_memory_service, mock_auth_service
+    ):
         """Test consolidation with insufficient memories."""
         mock_memory_service.get_memory.return_value = None
 
         result = await agent_memory_tools.consolidate_memories_tool(
-            agent_id="test_agent",
-            memory_ids=["id1"]
+            agent_id="test_agent", memory_ids=["id1"]
         )
 
         assert result["error"] == "Need at least 2 accessible memories to consolidate"
@@ -289,8 +291,7 @@ class TestAgentMemoryTools:
         agent_memory_tools._validate_agent = AsyncMock(return_value=False)
 
         result = await agent_memory_tools.consolidate_memories_tool(
-            agent_id="invalid_agent",
-            memory_ids=["id1", "id2"]
+            agent_id="invalid_agent", memory_ids=["id1", "id2"]
         )
 
         assert result["error"] == "Invalid agent credentials"
@@ -309,10 +310,7 @@ class TestAgentMemoryTools:
         mock_memory_service.get_patterns.return_value = [pattern]
 
         result = await agent_memory_tools.get_memory_patterns_tool(
-            agent_id="test_agent",
-            pattern_type="sequence",
-            namespace="default",
-            min_confidence=0.5
+            agent_id="test_agent", pattern_type="sequence", namespace="default", min_confidence=0.5
         )
 
         assert result["success"] is True
@@ -329,9 +327,7 @@ class TestAgentMemoryTools:
         """Test pattern retrieval with invalid agent."""
         agent_memory_tools._validate_agent = AsyncMock(return_value=False)
 
-        result = await agent_memory_tools.get_memory_patterns_tool(
-            agent_id="invalid_agent"
-        )
+        result = await agent_memory_tools.get_memory_patterns_tool(agent_id="invalid_agent")
 
         assert result["error"] == "Invalid agent credentials"
 
@@ -368,10 +364,10 @@ class TestAgentMemoryTools:
 
         # Test tool schema structure
         for tool in tools:
-            assert hasattr(tool, 'name')
-            assert hasattr(tool, 'description')
-            assert hasattr(tool, 'input_schema')
-            assert hasattr(tool, 'func')
+            assert hasattr(tool, "name")
+            assert hasattr(tool, "description")
+            assert hasattr(tool, "input_schema")
+            assert hasattr(tool, "func")
 
             # Validate schema structure
             schema = tool.input_schema
@@ -402,9 +398,7 @@ class TestAgentMemoryToolsIntegration:
 
         # Create memory
         create_result = await agent_memory_tools.create_memory_tool(
-            agent_id=agent_id,
-            content="Test memory content",
-            tags=["test"]
+            agent_id=agent_id, content="Test memory content", tags=["test"]
         )
         assert create_result["success"] is True
 
@@ -427,8 +421,7 @@ class TestAgentMemoryToolsIntegration:
 
         # Search memory
         search_result = await agent_memory_tools.search_memories_tool(
-            agent_id=agent_id,
-            query="test"
+            agent_id=agent_id, query="test"
         )
         assert search_result["success"] is True
         assert search_result["count"] == 1
@@ -438,9 +431,7 @@ class TestAgentMemoryToolsIntegration:
 
         # Share memory
         share_result = await agent_memory_tools.share_memory_tool(
-            agent_id=agent_id,
-            memory_id=str(search_memory.id),
-            share_with_agents=["other_agent"]
+            agent_id=agent_id, memory_id=str(search_memory.id), share_with_agents=["other_agent"]
         )
         assert share_result["success"] is True
 
@@ -455,7 +446,7 @@ class TestAgentMemoryToolsIntegration:
             agent_memory_tools.create_memory_tool("invalid", "content"),
             agent_memory_tools.search_memories_tool("invalid", "query"),
             agent_memory_tools.consolidate_memories_tool("invalid", ["id1", "id2"]),
-            agent_memory_tools.get_memory_patterns_tool("invalid")
+            agent_memory_tools.get_memory_patterns_tool("invalid"),
         ]
 
         for operation in operations:
@@ -489,10 +480,7 @@ class TestAgentMemoryToolsIntegration:
             memory = private_memory if access_level == "private" else public_memory
             agent_memory_tools.memory_service.search_memories.return_value = [memory]
 
-            result = await agent_memory_tools.search_memories_tool(
-                agent_id=agent_id,
-                query="test"
-            )
+            result = await agent_memory_tools.search_memories_tool(agent_id=agent_id, query="test")
 
             assert result["success"] is True
             expected_count = 1 if expected_access else 0

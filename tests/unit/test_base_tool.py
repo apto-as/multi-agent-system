@@ -13,6 +13,7 @@ from src.tools.base_tool import BaseTool
 
 class TestModel(BaseModel):
     """Test Pydantic model for validation testing."""
+
     name: str
     value: int
 
@@ -63,10 +64,7 @@ class TestBaseToolFormatting:
     def test_format_success_complex_data(self):
         """Test success formatting with complex data."""
         tool = TestBaseTool()
-        complex_data = {
-            "users": [{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}],
-            "count": 2
-        }
+        complex_data = {"users": [{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}], "count": 2}
         result = tool.format_success(complex_data)
 
         assert result["success"] is True
@@ -150,18 +148,22 @@ class TestBaseToolServiceInitialization:
         mock_session = Mock()
 
         # Mock all service classes to avoid database dependency
-        with patch('src.tools.base_tool.MemoryService'), \
-             patch('src.tools.base_tool.PersonaService'), \
-             patch('src.tools.base_tool.TaskService'), \
-             patch('src.tools.base_tool.WorkflowService'), \
-             patch('src.tools.base_tool.VectorizationService'):
-
+        with (
+            patch("src.tools.base_tool.MemoryService"),
+            patch("src.tools.base_tool.PersonaService"),
+            patch("src.tools.base_tool.TaskService"),
+            patch("src.tools.base_tool.WorkflowService"),
+            patch("src.tools.base_tool.VectorizationService"),
+        ):
             services = await tool.get_services(mock_session)
 
             # Verify all expected services are returned
             expected_keys = {
-                'memory_service', 'persona_service', 'task_service',
-                'workflow_service', 'vectorization_service'
+                "memory_service",
+                "persona_service",
+                "task_service",
+                "workflow_service",
+                "vectorization_service",
             }
             assert set(services.keys()) == expected_keys
 
@@ -227,8 +229,8 @@ class TestBaseToolTypeHints:
 
         # Check that the returned object is exactly the expected type
         assert type(result) is TestModel
-        assert hasattr(result, 'name')
-        assert hasattr(result, 'value')
+        assert hasattr(result, "name")
+        assert hasattr(result, "value")
 
 
 class TestBaseToolIntegration:
@@ -244,8 +246,7 @@ class TestBaseToolIntegration:
 
         # Format success response
         result = tool.format_success(
-            {"validated": validated.model_dump()},
-            "Validation and formatting successful"
+            {"validated": validated.model_dump()}, "Validation and formatting successful"
         )
 
         assert result["success"] is True

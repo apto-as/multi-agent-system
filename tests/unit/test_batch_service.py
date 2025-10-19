@@ -27,8 +27,10 @@ class TestBatchJob:
     @pytest.fixture
     def mock_processor_func(self):
         """Mock processor function."""
+
         async def processor(items, metadata):
-            return [{'success': True} for _ in items]
+            return [{"success": True} for _ in items]
+
         return processor
 
     @pytest.fixture
@@ -43,7 +45,7 @@ class TestBatchJob:
             batch_size=5,
             max_retries=3,
             timeout_seconds=300,
-            metadata={"test": "metadata"}
+            metadata={"test": "metadata"},
         )
 
     def test_batch_job_initialization(self, sample_batch_job):
@@ -97,7 +99,7 @@ class TestBatchJob:
             job_id="empty_job",
             operation_type=BatchOperationType.CREATE,
             items=[],
-            processor_func=mock_processor_func
+            processor_func=mock_processor_func,
         )
         assert job.total_items == 0
         assert job.progress_percentage == 100.0
@@ -140,22 +142,26 @@ class TestBatchProcessor:
             max_concurrent_jobs=2,
             max_concurrent_batches=4,
             memory_limit_mb=512,
-            adaptive_batch_sizing=True
+            adaptive_batch_sizing=True,
         )
 
     @pytest.fixture
     def mock_successful_processor(self):
         """Mock processor that always succeeds."""
+
         async def processor(items, metadata):
             await asyncio.sleep(0.01)  # Simulate some work
-            return [{'success': True, 'result': f'processed_{i}'} for i in range(len(items))]
+            return [{"success": True, "result": f"processed_{i}"} for i in range(len(items))]
+
         return processor
 
     @pytest.fixture
     def mock_failing_processor(self):
         """Mock processor that always fails."""
+
         async def processor(items, metadata):
-            return [{'success': False, 'error': 'Processing failed'} for _ in items]
+            return [{"success": False, "error": "Processing failed"} for _ in items]
+
         return processor
 
     def test_batch_processor_initialization(self, batch_processor):
@@ -194,7 +200,7 @@ class TestBatchProcessor:
             job_id="submit_test",
             operation_type=BatchOperationType.CREATE,
             items=[{"id": i} for i in range(3)],
-            processor_func=mock_successful_processor
+            processor_func=mock_successful_processor,
         )
 
         job_id = await processor.submit_job(job)
@@ -212,7 +218,7 @@ class TestBatchProcessor:
             job_id="duplicate_test",
             operation_type=BatchOperationType.CREATE,
             items=[{"id": 1}],
-            processor_func=mock_successful_processor
+            processor_func=mock_successful_processor,
         )
 
         await processor.submit_job(job)
@@ -230,7 +236,7 @@ class TestBatchProcessor:
             job_id="status_test",
             operation_type=BatchOperationType.UPDATE,
             items=[{"id": 1}],
-            processor_func=mock_successful_processor
+            processor_func=mock_successful_processor,
         )
 
         await processor.submit_job(job)
@@ -253,7 +259,7 @@ class TestBatchProcessor:
             job_id="cancel_test",
             operation_type=BatchOperationType.DELETE,
             items=[{"id": 1}],
-            processor_func=mock_successful_processor
+            processor_func=mock_successful_processor,
         )
 
         await processor.submit_job(job)
@@ -297,7 +303,7 @@ class TestBatchProcessor:
             operation_type=BatchOperationType.CREATE,
             items=[{"id": i} for i in range(100)],
             processor_func=mock_successful_processor,
-            batch_size=50
+            batch_size=50,
         )
 
         size = await processor._calculate_optimal_batch_size(job_create)
@@ -310,7 +316,7 @@ class TestBatchProcessor:
             items=[{"id": i} for i in range(100)],
             processor_func=mock_successful_processor,
             priority=BatchPriority.CRITICAL,
-            batch_size=50
+            batch_size=50,
         )
 
         critical_size = await processor._calculate_optimal_batch_size(job_critical)
@@ -327,7 +333,7 @@ class TestBatchProcessor:
             operation_type=BatchOperationType.PROCESS,
             items=[{"id": i} for i in range(5)],
             processor_func=mock_successful_processor,
-            batch_size=2
+            batch_size=2,
         )
 
         await processor.submit_job(job)
@@ -351,7 +357,7 @@ class TestBatchProcessor:
             operation_type=BatchOperationType.PROCESS,
             items=[{"id": i} for i in range(3)],
             processor_func=mock_failing_processor,
-            batch_size=1
+            batch_size=1,
         )
 
         await processor.submit_job(job)
@@ -361,13 +367,18 @@ class TestBatchProcessor:
 
         status = await processor.get_job_status("exec_failure")
         # Job might still be running or failed
-        assert status["status"] in [BatchJobStatus.RUNNING, BatchJobStatus.FAILED, BatchJobStatus.COMPLETED]
+        assert status["status"] in [
+            BatchJobStatus.RUNNING,
+            BatchJobStatus.FAILED,
+            BatchJobStatus.COMPLETED,
+        ]
 
         await processor.stop()
 
     @pytest.mark.asyncio
     async def test_exception_in_processor(self, batch_processor):
         """Test handling of exceptions in processor function."""
+
         async def failing_processor(items, metadata):
             raise ValueError("Processor error")
 
@@ -378,7 +389,7 @@ class TestBatchProcessor:
             job_id="exception_test",
             operation_type=BatchOperationType.CREATE,
             items=[{"id": 1}],
-            processor_func=failing_processor
+            processor_func=failing_processor,
         )
 
         await processor.submit_job(job)
@@ -400,7 +411,7 @@ class TestBatchProcessor:
             job_id="metrics_test",
             operation_type=BatchOperationType.CREATE,
             items=[{"id": i} for i in range(5)],
-            processor_func=mock_successful_processor
+            processor_func=mock_successful_processor,
         )
 
         job.started_at = datetime.now()
@@ -448,22 +459,14 @@ class TestBatchService:
         assert batch_service.processor._shutdown is True
 
     @pytest.mark.asyncio
-    @patch('src.services.batch_service.get_async_session')
+    @patch("src.services.batch_service.get_async_session")
     async def test_batch_create_memories(self, mock_get_session, batch_service, mock_session):
         """Test batch memory creation."""
         mock_get_session.return_value = mock_session
 
         memories_data = [
-            {
-                "content": "Test memory 1",
-                "importance": 0.8,
-                "memory_type": "episodic"
-            },
-            {
-                "content": "Test memory 2",
-                "importance": 0.6,
-                "memory_type": "semantic"
-            }
+            {"content": "Test memory 1", "importance": 0.8, "memory_type": "episodic"},
+            {"content": "Test memory 2", "importance": 0.6, "memory_type": "semantic"},
         ]
 
         await batch_service.start()
@@ -472,7 +475,7 @@ class TestBatchService:
             memories_data=memories_data,
             agent_id="test_agent",
             namespace="test_namespace",
-            batch_size=1
+            batch_size=1,
         )
 
         assert job_id.startswith("batch_memories_")
@@ -485,8 +488,10 @@ class TestBatchService:
         await batch_service.stop()
 
     @pytest.mark.asyncio
-    @patch('src.services.batch_service.get_async_session')
-    async def test_batch_update_agent_performance(self, mock_get_session, batch_service, mock_session):
+    @patch("src.services.batch_service.get_async_session")
+    async def test_batch_update_agent_performance(
+        self, mock_get_session, batch_service, mock_session
+    ):
         """Test batch agent performance updates."""
         mock_get_session.return_value = mock_session
         mock_session.execute.return_value = AsyncMock()
@@ -500,8 +505,8 @@ class TestBatchService:
                     "failed": 1,
                     "tokens": 1000,
                     "cost": 0.05,
-                    "response_time": 250
-                }
+                    "response_time": 250,
+                },
             },
             {
                 "agent_id": "agent_2",
@@ -510,16 +515,15 @@ class TestBatchService:
                     "successful": 5,
                     "failed": 0,
                     "tokens": 500,
-                    "cost": 0.02
-                }
-            }
+                    "cost": 0.02,
+                },
+            },
         ]
 
         await batch_service.start()
 
         job_id = await batch_service.batch_update_agent_performance(
-            performance_updates=performance_updates,
-            batch_size=1
+            performance_updates=performance_updates, batch_size=1
         )
 
         assert job_id.startswith("batch_agent_perf_")
@@ -532,8 +536,10 @@ class TestBatchService:
         await batch_service.stop()
 
     @pytest.mark.asyncio
-    @patch('src.services.batch_service.get_async_session')
-    async def test_batch_cleanup_expired_memories(self, mock_get_session, batch_service, mock_session):
+    @patch("src.services.batch_service.get_async_session")
+    async def test_batch_cleanup_expired_memories(
+        self, mock_get_session, batch_service, mock_session
+    ):
         """Test batch cleanup of expired memories."""
         mock_get_session.return_value = mock_session
 
@@ -550,8 +556,7 @@ class TestBatchService:
         await batch_service.start()
 
         job_id = await batch_service.batch_cleanup_expired_memories(
-            days_threshold=30,
-            batch_size=100
+            days_threshold=30, batch_size=100
         )
 
         assert job_id.startswith("batch_cleanup_")
@@ -604,7 +609,7 @@ class TestBatchProcessorConcurrency:
 
         async def mock_processor(items, metadata):
             await asyncio.sleep(0.1)
-            return [{'success': True} for _ in items]
+            return [{"success": True} for _ in items]
 
         # Submit multiple jobs
         jobs = []
@@ -613,7 +618,7 @@ class TestBatchProcessorConcurrency:
                 job_id=f"concurrent_job_{i}",
                 operation_type=BatchOperationType.PROCESS,
                 items=[{"id": j} for j in range(3)],
-                processor_func=mock_processor
+                processor_func=mock_processor,
             )
             jobs.append(job)
             await processor.submit_job(job)
@@ -629,22 +634,19 @@ class TestBatchProcessorConcurrency:
     @pytest.mark.asyncio
     async def test_batch_processor_resource_limits(self):
         """Test that resource limits are respected."""
-        processor = BatchProcessor(
-            max_concurrent_jobs=1,
-            max_concurrent_batches=2
-        )
+        processor = BatchProcessor(max_concurrent_jobs=1, max_concurrent_batches=2)
         await processor.start()
 
         async def slow_processor(items, metadata):
             await asyncio.sleep(0.2)
-            return [{'success': True} for _ in items]
+            return [{"success": True} for _ in items]
 
         job = BatchJob(
             job_id="resource_test",
             operation_type=BatchOperationType.PROCESS,
             items=[{"id": i} for i in range(10)],
             processor_func=slow_processor,
-            batch_size=2
+            batch_size=2,
         )
 
         await processor.submit_job(job)
@@ -671,7 +673,7 @@ class TestBatchProcessorErrorHandling:
             job_id="error_test",
             operation_type=BatchOperationType.PROCESS,
             items=[{"id": 1}],
-            processor_func=error_processor
+            processor_func=error_processor,
         )
 
         await processor.submit_job(job)
@@ -692,13 +694,13 @@ class TestBatchProcessorErrorHandling:
         await processor.start()
 
         def sync_processor(items, metadata):
-            return [{'success': True} for _ in items]
+            return [{"success": True} for _ in items]
 
         job = BatchJob(
             job_id="sync_test",
             operation_type=BatchOperationType.PROCESS,
             items=[{"id": 1}, {"id": 2}],
-            processor_func=sync_processor
+            processor_func=sync_processor,
         )
 
         await processor.submit_job(job)
@@ -725,10 +727,7 @@ class TestBatchServiceEdgeCases:
         await batch_service.start()
 
         # Empty memories list
-        job_id = await batch_service.batch_create_memories(
-            memories_data=[],
-            agent_id="test_agent"
-        )
+        job_id = await batch_service.batch_create_memories(memories_data=[], agent_id="test_agent")
 
         status = await batch_service.get_job_status(job_id)
         assert status["total_items"] == 0
@@ -743,12 +742,11 @@ class TestBatchServiceEdgeCases:
         invalid_memories = [
             {"content": "Valid memory"},
             {"invalid_field": "Missing content"},  # Missing required field
-            {"content": "Another valid memory"}
+            {"content": "Another valid memory"},
         ]
 
         job_id = await batch_service.batch_create_memories(
-            memories_data=invalid_memories,
-            agent_id="test_agent"
+            memories_data=invalid_memories, agent_id="test_agent"
         )
 
         # Job should be created even with invalid data
@@ -775,14 +773,14 @@ class TestBatchJobProgressCallbacks:
 
         async def mock_processor(items, metadata):
             await asyncio.sleep(0.05)
-            return [{'success': True} for _ in items]
+            return [{"success": True} for _ in items]
 
         job = BatchJob(
             job_id="progress_test",
             operation_type=BatchOperationType.PROCESS,
             items=[{"id": i} for i in range(4)],
             processor_func=mock_processor,
-            batch_size=2
+            batch_size=2,
         )
         job.progress_callback = progress_callback
 
@@ -806,13 +804,13 @@ class TestBatchJobProgressCallbacks:
             raise ValueError("Callback failed")
 
         async def mock_processor(items, metadata):
-            return [{'success': True} for _ in items]
+            return [{"success": True} for _ in items]
 
         job = BatchJob(
             job_id="callback_error_test",
             operation_type=BatchOperationType.PROCESS,
             items=[{"id": 1}],
-            processor_func=mock_processor
+            processor_func=mock_processor,
         )
         job.progress_callback = failing_callback
 

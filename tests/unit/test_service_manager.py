@@ -187,9 +187,9 @@ class TestServiceManager:
         assert manager._health_check_interval == 30
         assert manager._health_check_task is None
 
-    @patch('src.core.service_manager.db_manager')
-    @patch('src.core.service_manager.batch_service')
-    @patch('src.core.service_manager.LearningService')
+    @patch("src.core.service_manager.db_manager")
+    @patch("src.core.service_manager.batch_service")
+    @patch("src.core.service_manager.LearningService")
     def test_register_core_services(self, mock_learning, mock_batch, mock_db, manager):
         """Test core service registration."""
         manager.register_core_services()
@@ -346,9 +346,8 @@ class TestServiceManager:
         manager.registry.register("service1", mock_service1)
         manager.registry.register("service2", mock_service2, ["service1"])
 
-        with patch.object(manager, '_setup_signal_handlers'):
-            with patch.object(manager, '_start_health_monitoring', new_callable=AsyncMock):
-                await manager.initialize_all()
+        with patch.object(manager, "_setup_signal_handlers"), patch.object(manager, "_start_health_monitoring", new_callable=AsyncMock):
+            await manager.initialize_all()
 
         assert manager._initialized is True
         assert manager.registry.is_initialized("service1") is True
@@ -434,11 +433,11 @@ class TestServiceManager:
         # Mock None service (session-dependent)
         manager.registry.register("agent", None)
 
-        with patch('src.core.service_manager.get_async_session') as mock_session:
+        with patch("src.core.service_manager.get_async_session") as mock_session:
             mock_session.return_value.__aenter__ = AsyncMock()
             mock_session.return_value.__aexit__ = AsyncMock()
 
-            with patch('src.services.agent_service.AgentService') as mock_agent:
+            with patch("src.services.agent_service.AgentService") as mock_agent:
                 await manager.get_service("agent")
                 mock_agent.assert_called_once()
 
@@ -473,7 +472,7 @@ class TestServiceManager:
         manager.registry.register("service1", mock_service1)
         manager.registry.register("service2", mock_service2)
 
-        with patch.object(manager, '_health_check_service') as mock_check:
+        with patch.object(manager, "_health_check_service") as mock_check:
             mock_check.return_value = {"status": "healthy"}
 
             results = await manager.health_check_all()
@@ -486,7 +485,7 @@ class TestServiceManager:
         """Test health check with service error."""
         manager.registry.register("service1", Mock())
 
-        with patch.object(manager, '_health_check_service') as mock_check:
+        with patch.object(manager, "_health_check_service") as mock_check:
             mock_check.side_effect = Exception("Health check failed")
 
             results = await manager.health_check_all()
@@ -588,7 +587,7 @@ class TestServiceManager:
         """Test starting health monitoring."""
         manager._initialized = True
 
-        with patch('asyncio.create_task') as mock_create_task:
+        with patch("asyncio.create_task") as mock_create_task:
             await manager._start_health_monitoring()
 
             mock_create_task.assert_called_once()
@@ -599,23 +598,22 @@ class TestServiceManager:
         manager._initialized = True
 
         # Mock the monitoring loop
-        with patch.object(manager, 'health_check_all', new_callable=AsyncMock):
-            with patch('asyncio.sleep', new_callable=AsyncMock):
-                # Run one iteration and then cancel
-                async def health_monitor():
-                    await manager.health_check_all()
-                    await asyncio.sleep(manager._health_check_interval)
+        with patch.object(manager, "health_check_all", new_callable=AsyncMock), patch("asyncio.sleep", new_callable=AsyncMock):
+            # Run one iteration and then cancel
+            async def health_monitor():
+                await manager.health_check_all()
+                await asyncio.sleep(manager._health_check_interval)
 
-                task = asyncio.create_task(health_monitor())
-                await asyncio.sleep(0.01)  # Let it run briefly
-                task.cancel()
+            task = asyncio.create_task(health_monitor())
+            await asyncio.sleep(0.01)  # Let it run briefly
+            task.cancel()
 
-                with suppress(asyncio.CancelledError):
-                    await task
+            with suppress(asyncio.CancelledError):
+                await task
 
     def test_setup_signal_handlers(self, manager):
         """Test signal handler setup."""
-        with patch('signal.signal') as mock_signal:
+        with patch("signal.signal") as mock_signal:
             manager._setup_signal_handlers()
 
             # Should set up SIGINT and SIGTERM at minimum
@@ -626,7 +624,7 @@ class TestGlobalFunctions:
     """Test global convenience functions."""
 
     @pytest.mark.asyncio
-    @patch('src.core.service_manager.service_manager')
+    @patch("src.core.service_manager.service_manager")
     async def test_initialize_services(self, mock_manager):
         """Test global initialize_services function."""
         await initialize_services()
@@ -635,7 +633,7 @@ class TestGlobalFunctions:
         mock_manager.initialize_all.assert_called_once()
 
     @pytest.mark.asyncio
-    @patch('src.core.service_manager.service_manager')
+    @patch("src.core.service_manager.service_manager")
     async def test_shutdown_services(self, mock_manager):
         """Test global shutdown_services function."""
         await shutdown_services(timeout=30.0)
@@ -643,7 +641,7 @@ class TestGlobalFunctions:
         mock_manager.shutdown_all.assert_called_once_with(30.0)
 
     @pytest.mark.asyncio
-    @patch('src.core.service_manager.service_manager')
+    @patch("src.core.service_manager.service_manager")
     async def test_get_service(self, mock_manager):
         """Test global get_service function."""
         mock_manager.get_service.return_value = Mock()
@@ -653,14 +651,14 @@ class TestGlobalFunctions:
         mock_manager.get_service.assert_called_once_with("test_service")
 
     @pytest.mark.asyncio
-    @patch('src.core.service_manager.service_manager')
+    @patch("src.core.service_manager.service_manager")
     async def test_health_check(self, mock_manager):
         """Test global health_check function."""
         await health_check()
 
         mock_manager.health_check_all.assert_called_once()
 
-    @patch('src.core.service_manager.service_manager')
+    @patch("src.core.service_manager.service_manager")
     def test_get_service_status(self, mock_manager):
         """Test global get_service_status function."""
         get_service_status()
@@ -670,13 +668,16 @@ class TestGlobalFunctions:
     @pytest.mark.asyncio
     async def test_service_context(self):
         """Test service_context context manager."""
-        with patch('src.core.service_manager.initialize_services', new_callable=AsyncMock) as mock_init:
-            with patch('src.core.service_manager.shutdown_services', new_callable=AsyncMock) as mock_shutdown:
-                async with service_context() as manager:
-                    assert manager is not None
+        with patch(
+            "src.core.service_manager.initialize_services", new_callable=AsyncMock
+        ) as mock_init, patch(
+            "src.core.service_manager.shutdown_services", new_callable=AsyncMock
+        ) as mock_shutdown:
+            async with service_context() as manager:
+                assert manager is not None
 
-                mock_init.assert_called_once()
-                mock_shutdown.assert_called_once()
+            mock_init.assert_called_once()
+            mock_shutdown.assert_called_once()
 
 
 class TestServiceManagerIntegration:
@@ -697,9 +698,8 @@ class TestServiceManagerIntegration:
         manager.registry.register("service2", mock_service2, ["service1"])
 
         # Initialize
-        with patch.object(manager, '_setup_signal_handlers'):
-            with patch.object(manager, '_start_health_monitoring', new_callable=AsyncMock):
-                await manager.initialize_all()
+        with patch.object(manager, "_setup_signal_handlers"), patch.object(manager, "_start_health_monitoring", new_callable=AsyncMock):
+            await manager.initialize_all()
 
         assert manager._initialized is True
 
@@ -708,7 +708,7 @@ class TestServiceManagerIntegration:
         assert service == mock_service1
 
         # Health check
-        with patch.object(manager, '_health_check_service') as mock_check:
+        with patch.object(manager, "_health_check_service") as mock_check:
             mock_check.return_value = {"status": "healthy"}
             health_results = await manager.health_check_all()
             assert len(health_results) == 3
@@ -812,13 +812,13 @@ class TestServiceManagerEdgeCases:
         manager._initialized = True
 
         # Mock health check to fail
-        with patch.object(manager, 'health_check_all', side_effect=Exception("Health check failed")):
+        with patch.object(
+            manager, "health_check_all", side_effect=Exception("Health check failed")
+        ):
             # Health monitor should handle errors gracefully
             async def test_monitor():
-                try:
+                with suppress(Exception):
                     await manager.health_check_all()
-                except Exception:
-                    pass  # Should be handled by monitor
 
             await test_monitor()
 

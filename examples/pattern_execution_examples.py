@@ -235,7 +235,7 @@ async def example_performance_benchmark():
     print(f"{'Query':<40} | {'Type':<15} | {'Time':<10} | {'Target':<10} | {'Status'}")
     print("-" * 100)
 
-    for query, expected_type, target_ms in test_cases:
+    for query, _, target_ms in test_cases:
         result = await engine.execute(query, use_cache=False)  # No cache for benchmark
 
         actual_type = PatternType(result.metadata.get('pattern_type', 'unknown'))

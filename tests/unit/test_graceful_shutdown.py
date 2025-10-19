@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
 from core.graceful_shutdown import GracefulShutdownHandler, add_cleanup_task, wait_for_shutdown
 
@@ -232,7 +232,7 @@ class TestGracefulShutdownHandlerAsyncCoroutines:
 class TestConvenienceFunctions:
     """Test convenience functions."""
 
-    @patch('core.graceful_shutdown.shutdown_handler')
+    @patch("core.graceful_shutdown.shutdown_handler")
     def test_add_cleanup_task_convenience(self, mock_handler):
         """Test the convenience add_cleanup_task function."""
         mock_task = Mock()
@@ -242,7 +242,7 @@ class TestConvenienceFunctions:
         mock_handler.add_cleanup_task.assert_called_once_with(mock_task)
 
     @pytest.mark.asyncio
-    @patch('core.graceful_shutdown.shutdown_handler')
+    @patch("core.graceful_shutdown.shutdown_handler")
     async def test_wait_for_shutdown_convenience(self, mock_handler):
         """Test the convenience wait_for_shutdown function."""
         # Configure mock to return a completed future
@@ -388,6 +388,7 @@ class TestGracefulShutdownHandlerPerformance:
             handler.add_cleanup_task(slow_task)
 
         import time
+
         start = time.time()
         await handler.cleanup()
         duration = time.time() - start

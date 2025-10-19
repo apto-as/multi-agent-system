@@ -7,7 +7,7 @@ from ipaddress import IPv4Address, IPv6Address, ip_address
 from typing import Any
 
 from sqlalchemy import CheckConstraint, Index, Integer, String
-from sqlalchemy.dialects.postgresql import INET, JSONB
+from sqlalchemy import JSON
 from sqlalchemy.orm import Mapped, mapped_column, validates
 
 from .base import TMWSBase
@@ -37,7 +37,7 @@ class APIAuditLog(TMWSBase):
 
     # Request/Response data - exact spec
     request_body: Mapped[dict[str, Any] | None] = mapped_column(
-        JSONB, nullable=True, comment="Request body in JSON format"
+        JSON, nullable=True, comment="Request body in JSON format"
     )
 
     response_status: Mapped[int | None] = mapped_column(
@@ -45,7 +45,7 @@ class APIAuditLog(TMWSBase):
     )
 
     response_body: Mapped[dict[str, Any] | None] = mapped_column(
-        JSONB, nullable=True, comment="Response body in JSON format"
+        JSON, nullable=True, comment="Response body in JSON format"
     )
 
     # User tracking - exact spec
@@ -54,7 +54,7 @@ class APIAuditLog(TMWSBase):
     )
 
     ip_address: Mapped[IPv4Address | IPv6Address | None] = mapped_column(
-        INET, nullable=True, comment="Client IP address"
+        String(45), nullable=True, comment="Client IP address"
     )
 
     # Performance tracking - exact spec
@@ -67,7 +67,7 @@ class APIAuditLog(TMWSBase):
         CheckConstraint("method IN ('GET', 'POST', 'PUT', 'DELETE', 'PATCH')", name="chk_method"),
         # Indexes for performance - matching spec exactly
         Index("idx_api_audit_log_endpoint", "endpoint"),
-        Index("idx_api_audit_log_created_at", "created_at", postgresql_ops={"created_at": "DESC"}),
+        Index("idx_api_audit_log_created_at", "created_at"),
         Index("idx_api_audit_log_user_id", "user_id"),
     )
 

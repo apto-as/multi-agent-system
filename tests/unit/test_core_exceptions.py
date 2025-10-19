@@ -7,7 +7,7 @@ import os
 import sys
 
 # Add source path for direct imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
 from core.exceptions import (
     AuthenticationException,
@@ -73,7 +73,7 @@ class TestTMWSException:
         details = {
             "nested": {"level": 1, "data": [1, 2, 3]},
             "timestamp": "2024-01-01T00:00:00Z",
-            "severity": "high"
+            "severity": "high",
         }
         exc = TMWSException(message, details)
 
@@ -297,7 +297,7 @@ class TestNotFoundError:
             ("Memory", "mem_789"),
             ("Workflow", "wf_101"),
             ("Agent", "agent_202"),
-            ("Persona", "persona_303")
+            ("Persona", "persona_303"),
         ]
 
         for resource_type, resource_id in test_cases:
@@ -332,11 +332,13 @@ class TestExceptionHierarchy:
             AuthorizationException,
             RateLimitException,
             VectorizationException,
-            NotFoundError
+            NotFoundError,
         ]
 
         for exc_class in exception_classes:
-            exc = exc_class("test message") if exc_class != NotFoundError else exc_class("type", "id")
+            exc = (
+                exc_class("test message") if exc_class != NotFoundError else exc_class("type", "id")
+            )
             assert isinstance(exc, TMWSException)
             assert isinstance(exc, Exception)
 
@@ -410,8 +412,8 @@ class TestExceptionIntegration:
                     "table": "memories",
                     "operation": "INSERT",
                     "error_code": "23505",  # Unique constraint violation
-                    "constraint": "memories_pkey"
-                }
+                    "constraint": "memories_pkey",
+                },
             )
         except DatabaseException as e:
             assert "Failed to insert record" in str(e)
@@ -427,8 +429,8 @@ class TestExceptionIntegration:
                 {
                     "token_expired": True,
                     "expiry_time": "2024-01-01T00:00:00Z",
-                    "current_time": "2024-01-01T01:00:00Z"
-                }
+                    "current_time": "2024-01-01T01:00:00Z",
+                },
             )
         except AuthenticationException as e:
             assert "Invalid JWT token" in str(e)
@@ -444,8 +446,8 @@ class TestExceptionIntegration:
                     "workflow_id": "wf_critical_process",
                     "step_name": "data_validation",
                     "timeout_seconds": 300,
-                    "actual_duration": 450
-                }
+                    "actual_duration": 450,
+                },
             )
         except WorkflowException as e:
             assert "Step execution timeout" in str(e)

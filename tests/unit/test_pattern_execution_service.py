@@ -23,17 +23,18 @@ from src.services.pattern_execution_service import (
 # FIXTURES
 # ============================================================================
 
+
 @pytest.fixture
 def sample_pattern_config():
     """Sample pattern configuration"""
     return {
-        'name': 'test_pattern',
-        'pattern_type': 'infrastructure',
-        'trigger_pattern': r'test\s+query',
-        'cost_tokens': 50,
-        'priority': 10,
-        'cache_ttl': 300,
-        'metadata': {'test': True}
+        "name": "test_pattern",
+        "pattern_type": "infrastructure",
+        "trigger_pattern": r"test\s+query",
+        "cost_tokens": 50,
+        "priority": 10,
+        "cache_ttl": 300,
+        "metadata": {"test": True},
     }
 
 
@@ -43,27 +44,33 @@ def pattern_registry():
     registry = PatternRegistry()
 
     patterns = [
-        PatternDefinition.from_config({
-            'name': 'infra_pattern',
-            'pattern_type': 'infrastructure',
-            'trigger_pattern': r'execute\s+tool',
-            'cost_tokens': 50,
-            'priority': 10
-        }),
-        PatternDefinition.from_config({
-            'name': 'memory_pattern',
-            'pattern_type': 'memory',
-            'trigger_pattern': r'recall\s+memory',
-            'cost_tokens': 100,
-            'priority': 9
-        }),
-        PatternDefinition.from_config({
-            'name': 'hybrid_pattern',
-            'pattern_type': 'hybrid',
-            'trigger_pattern': r'analyze\s+system',
-            'cost_tokens': 150,
-            'priority': 8
-        })
+        PatternDefinition.from_config(
+            {
+                "name": "infra_pattern",
+                "pattern_type": "infrastructure",
+                "trigger_pattern": r"execute\s+tool",
+                "cost_tokens": 50,
+                "priority": 10,
+            }
+        ),
+        PatternDefinition.from_config(
+            {
+                "name": "memory_pattern",
+                "pattern_type": "memory",
+                "trigger_pattern": r"recall\s+memory",
+                "cost_tokens": 100,
+                "priority": 9,
+            }
+        ),
+        PatternDefinition.from_config(
+            {
+                "name": "hybrid_pattern",
+                "pattern_type": "hybrid",
+                "trigger_pattern": r"analyze\s+system",
+                "cost_tokens": 150,
+                "priority": 8,
+            }
+        ),
     ]
 
     registry.register_batch(patterns)
@@ -77,7 +84,7 @@ async def cache_manager():
         redis_url=None,  # Use local cache only for tests
         local_ttl=60,
         redis_ttl=300,
-        max_local_size=100
+        max_local_size=100,
     )
     await cache.initialize()
     return cache
@@ -95,6 +102,7 @@ async def mock_session():
 # PATTERN DEFINITION TESTS
 # ============================================================================
 
+
 class TestPatternDefinition:
     """Test PatternDefinition class"""
 
@@ -102,12 +110,12 @@ class TestPatternDefinition:
         """Test pattern creation from config"""
         pattern = PatternDefinition.from_config(sample_pattern_config)
 
-        assert pattern.name == 'test_pattern'
+        assert pattern.name == "test_pattern"
         assert pattern.pattern_type == PatternType.INFRASTRUCTURE
         assert pattern.cost_tokens == 50
         assert pattern.priority == 10
         assert pattern.cache_ttl == 300
-        assert pattern.metadata['test'] is True
+        assert pattern.metadata["test"] is True
 
         # Verify regex is compiled
         assert isinstance(pattern.trigger_regex, re.Pattern)
@@ -128,6 +136,7 @@ class TestPatternDefinition:
 # PATTERN REGISTRY TESTS
 # ============================================================================
 
+
 class TestPatternRegistry:
     """Test PatternRegistry class"""
 
@@ -135,102 +144,106 @@ class TestPatternRegistry:
         """Test pattern registration"""
         registry = PatternRegistry()
 
-        pattern = PatternDefinition.from_config({
-            'name': 'test',
-            'pattern_type': 'infrastructure',
-            'trigger_pattern': r'test',
-            'cost_tokens': 50,
-            'priority': 10
-        })
+        pattern = PatternDefinition.from_config(
+            {
+                "name": "test",
+                "pattern_type": "infrastructure",
+                "trigger_pattern": r"test",
+                "cost_tokens": 50,
+                "priority": 10,
+            }
+        )
 
         registry.register(pattern)
 
-        assert 'test' in registry.patterns
-        assert registry.patterns['test'] == pattern
+        assert "test" in registry.patterns
+        assert registry.patterns["test"] == pattern
 
     def test_register_batch(self, pattern_registry):
         """Test batch registration"""
         assert len(pattern_registry.patterns) == 3
-        assert 'infra_pattern' in pattern_registry.patterns
-        assert 'memory_pattern' in pattern_registry.patterns
-        assert 'hybrid_pattern' in pattern_registry.patterns
+        assert "infra_pattern" in pattern_registry.patterns
+        assert "memory_pattern" in pattern_registry.patterns
+        assert "hybrid_pattern" in pattern_registry.patterns
 
     def test_exact_match(self, pattern_registry):
         """Test exact name matching (O(1))"""
         # Should match by exact name
-        pattern = pattern_registry.find_matching_pattern('infra_pattern')
+        pattern = pattern_registry.find_matching_pattern("infra_pattern")
         assert pattern is not None
-        assert pattern.name == 'infra_pattern'
+        assert pattern.name == "infra_pattern"
 
     def test_regex_match(self, pattern_registry):
         """Test regex matching"""
         # Should match by regex
-        pattern = pattern_registry.find_matching_pattern('execute tool now')
+        pattern = pattern_registry.find_matching_pattern("execute tool now")
         assert pattern is not None
-        assert pattern.name == 'infra_pattern'
+        assert pattern.name == "infra_pattern"
 
-        pattern = pattern_registry.find_matching_pattern('recall memory about X')
+        pattern = pattern_registry.find_matching_pattern("recall memory about X")
         assert pattern is not None
-        assert pattern.name == 'memory_pattern'
+        assert pattern.name == "memory_pattern"
 
-        pattern = pattern_registry.find_matching_pattern('analyze system performance')
+        pattern = pattern_registry.find_matching_pattern("analyze system performance")
         assert pattern is not None
-        assert pattern.name == 'hybrid_pattern'
+        assert pattern.name == "hybrid_pattern"
 
     def test_priority_sorting(self):
         """Test that patterns are matched by priority"""
         registry = PatternRegistry()
 
         # Register low priority first
-        low_priority = PatternDefinition.from_config({
-            'name': 'low',
-            'pattern_type': 'infrastructure',
-            'trigger_pattern': r'test',
-            'cost_tokens': 50,
-            'priority': 1
-        })
+        low_priority = PatternDefinition.from_config(
+            {
+                "name": "low",
+                "pattern_type": "infrastructure",
+                "trigger_pattern": r"test",
+                "cost_tokens": 50,
+                "priority": 1,
+            }
+        )
 
         # Register high priority second
-        high_priority = PatternDefinition.from_config({
-            'name': 'high',
-            'pattern_type': 'infrastructure',
-            'trigger_pattern': r'test',
-            'cost_tokens': 50,
-            'priority': 10
-        })
+        high_priority = PatternDefinition.from_config(
+            {
+                "name": "high",
+                "pattern_type": "infrastructure",
+                "trigger_pattern": r"test",
+                "cost_tokens": 50,
+                "priority": 10,
+            }
+        )
 
         registry.register(low_priority)
         registry.register(high_priority)
 
         # Should match high priority first
-        pattern = registry.find_matching_pattern('test query')
-        assert pattern.name == 'high'
+        pattern = registry.find_matching_pattern("test query")
+        assert pattern.name == "high"
 
     def test_pattern_type_filter(self, pattern_registry):
         """Test filtering by pattern type"""
         # Filter to infrastructure only
         pattern = pattern_registry.find_matching_pattern(
-            'execute tool',
-            pattern_type_filter=PatternType.INFRASTRUCTURE
+            "execute tool", pattern_type_filter=PatternType.INFRASTRUCTURE
         )
         assert pattern is not None
         assert pattern.pattern_type == PatternType.INFRASTRUCTURE
 
         # Filter to memory only (shouldn't match infrastructure)
         pattern = pattern_registry.find_matching_pattern(
-            'execute tool',
-            pattern_type_filter=PatternType.MEMORY
+            "execute tool", pattern_type_filter=PatternType.MEMORY
         )
         assert pattern is None
 
     def test_no_match(self, pattern_registry):
         """Test when no pattern matches"""
-        pattern = pattern_registry.find_matching_pattern('completely unknown query')
+        pattern = pattern_registry.find_matching_pattern("completely unknown query")
         assert pattern is None
 
     def test_cache_effectiveness(self, pattern_registry):
         """Test that caching improves performance"""
-        query = 'execute tool'
+        query = "execute tool"
 
         # First call - cache miss
         start = time.perf_counter()
@@ -249,26 +262,27 @@ class TestPatternRegistry:
         # Note: In tests this might not always be true due to overhead
         # but we can at least verify the cache is being used
         stats = pattern_registry.get_stats()
-        assert stats['cache_hits'] > 0
+        assert stats["cache_hits"] > 0
 
     def test_stats(self, pattern_registry):
         """Test statistics collection"""
         # Trigger some matches
-        pattern_registry.find_matching_pattern('execute tool')
-        pattern_registry.find_matching_pattern('recall memory')
-        pattern_registry.find_matching_pattern('unknown query')
+        pattern_registry.find_matching_pattern("execute tool")
+        pattern_registry.find_matching_pattern("recall memory")
+        pattern_registry.find_matching_pattern("unknown query")
 
         stats = pattern_registry.get_stats()
 
-        assert stats['total_patterns'] == 3
-        assert stats['cache_hits'] >= 0
-        assert stats['cache_misses'] >= 0
-        assert 'cache_hit_rate' in stats
+        assert stats["total_patterns"] == 3
+        assert stats["cache_hits"] >= 0
+        assert stats["cache_misses"] >= 0
+        assert "cache_hit_rate" in stats
 
 
 # ============================================================================
 # HYBRID DECISION ROUTER TESTS
 # ============================================================================
+
 
 class TestHybridDecisionRouter:
     """Test HybridDecisionRouter class"""
@@ -291,7 +305,7 @@ class TestHybridDecisionRouter:
         router = HybridDecisionRouter(mock_session, cache_manager)
 
         # Mock memory stats to show data available
-        with patch.object(router, '_get_memory_stats', return_value={'total_memories': 100}):
+        with patch.object(router, "_get_memory_stats", return_value={"total_memories": 100}):
             decision = await router.route("recall past decisions")
 
         assert decision.pattern_type == PatternType.MEMORY
@@ -314,10 +328,7 @@ class TestHybridDecisionRouter:
         """Test FAST execution mode"""
         router = HybridDecisionRouter(mock_session, cache_manager)
 
-        decision = await router.route(
-            "any query",
-            execution_mode=ExecutionMode.FAST
-        )
+        decision = await router.route("any query", execution_mode=ExecutionMode.FAST)
 
         assert decision.pattern_type == PatternType.INFRASTRUCTURE
         assert "fast mode" in decision.reasoning.lower()
@@ -327,10 +338,7 @@ class TestHybridDecisionRouter:
         """Test COMPREHENSIVE execution mode"""
         router = HybridDecisionRouter(mock_session, cache_manager)
 
-        decision = await router.route(
-            "any query",
-            execution_mode=ExecutionMode.COMPREHENSIVE
-        )
+        decision = await router.route("any query", execution_mode=ExecutionMode.COMPREHENSIVE)
 
         assert decision.pattern_type == PatternType.HYBRID
         assert "comprehensive" in decision.reasoning.lower()
@@ -363,14 +371,15 @@ class TestHybridDecisionRouter:
 
         stats = router.get_stats()
 
-        assert stats['total_routes'] == 3
-        assert 'routes_by_type' in stats
-        assert 'route_distribution' in stats
+        assert stats["total_routes"] == 3
+        assert "routes_by_type" in stats
+        assert "route_distribution" in stats
 
 
 # ============================================================================
 # PATTERN EXECUTION ENGINE TESTS
 # ============================================================================
+
 
 class TestPatternExecutionEngine:
     """Test PatternExecutionEngine class"""
@@ -379,15 +388,13 @@ class TestPatternExecutionEngine:
     async def test_basic_execution(self, mock_session, cache_manager, pattern_registry):
         """Test basic pattern execution"""
         engine = PatternExecutionEngine(
-            session=mock_session,
-            cache_manager=cache_manager,
-            registry=pattern_registry
+            session=mock_session, cache_manager=cache_manager, registry=pattern_registry
         )
 
         result = await engine.execute("execute tool")
 
         assert result.success is True
-        assert result.pattern_name == 'infra_pattern'
+        assert result.pattern_name == "infra_pattern"
         assert result.tokens_used == 50
         assert result.execution_time_ms > 0
 
@@ -395,39 +402,26 @@ class TestPatternExecutionEngine:
     async def test_execution_modes(self, mock_session, cache_manager, pattern_registry):
         """Test different execution modes"""
         engine = PatternExecutionEngine(
-            session=mock_session,
-            cache_manager=cache_manager,
-            registry=pattern_registry
+            session=mock_session, cache_manager=cache_manager, registry=pattern_registry
         )
 
         # FAST mode
-        result_fast = await engine.execute(
-            "any query",
-            execution_mode=ExecutionMode.FAST
-        )
+        result_fast = await engine.execute("any query", execution_mode=ExecutionMode.FAST)
         assert result_fast.success is True
 
         # BALANCED mode
-        result_balanced = await engine.execute(
-            "any query",
-            execution_mode=ExecutionMode.BALANCED
-        )
+        result_balanced = await engine.execute("any query", execution_mode=ExecutionMode.BALANCED)
         assert result_balanced.success is True
 
         # COMPREHENSIVE mode
-        result_comp = await engine.execute(
-            "any query",
-            execution_mode=ExecutionMode.COMPREHENSIVE
-        )
+        result_comp = await engine.execute("any query", execution_mode=ExecutionMode.COMPREHENSIVE)
         assert result_comp.success is True
 
     @pytest.mark.asyncio
     async def test_caching(self, mock_session, cache_manager, pattern_registry):
         """Test execution caching"""
         engine = PatternExecutionEngine(
-            session=mock_session,
-            cache_manager=cache_manager,
-            registry=pattern_registry
+            session=mock_session, cache_manager=cache_manager, registry=pattern_registry
         )
 
         query = "execute tool"
@@ -447,9 +441,7 @@ class TestPatternExecutionEngine:
     async def test_cache_bypass(self, mock_session, cache_manager, pattern_registry):
         """Test cache bypass"""
         engine = PatternExecutionEngine(
-            session=mock_session,
-            cache_manager=cache_manager,
-            registry=pattern_registry
+            session=mock_session, cache_manager=cache_manager, registry=pattern_registry
         )
 
         query = "execute tool"
@@ -469,7 +461,7 @@ class TestPatternExecutionEngine:
         engine = PatternExecutionEngine(
             session=mock_session,
             cache_manager=cache_manager,
-            registry=PatternRegistry()  # Empty registry
+            registry=PatternRegistry(),  # Empty registry
         )
 
         # Query with no matching pattern
@@ -483,9 +475,7 @@ class TestPatternExecutionEngine:
     async def test_stats_tracking(self, mock_session, cache_manager, pattern_registry):
         """Test statistics tracking"""
         engine = PatternExecutionEngine(
-            session=mock_session,
-            cache_manager=cache_manager,
-            registry=pattern_registry
+            session=mock_session, cache_manager=cache_manager, registry=pattern_registry
         )
 
         # Execute some patterns
@@ -495,32 +485,23 @@ class TestPatternExecutionEngine:
 
         stats = engine.get_stats()
 
-        assert stats['total_executions'] == 3
-        assert stats['successful_executions'] >= 0
-        assert stats['total_tokens_used'] > 0
-        assert 'avg_execution_time_ms' in stats
-        assert 'registry_stats' in stats
-        assert 'router_stats' in stats
+        assert stats["total_executions"] == 3
+        assert stats["successful_executions"] >= 0
+        assert stats["total_tokens_used"] > 0
+        assert "avg_execution_time_ms" in stats
+        assert "registry_stats" in stats
+        assert "router_stats" in stats
 
     @pytest.mark.asyncio
     async def test_context_passing(self, mock_session, cache_manager, pattern_registry):
         """Test context passing through execution"""
         engine = PatternExecutionEngine(
-            session=mock_session,
-            cache_manager=cache_manager,
-            registry=pattern_registry
+            session=mock_session, cache_manager=cache_manager, registry=pattern_registry
         )
 
-        context = {
-            'agent': 'artemis',
-            'priority': 'high',
-            'custom': 'value'
-        }
+        context = {"agent": "artemis", "priority": "high", "custom": "value"}
 
-        result = await engine.execute(
-            "execute tool",
-            context=context
-        )
+        result = await engine.execute("execute tool", context=context)
 
         assert result.success is True
 
@@ -528,6 +509,7 @@ class TestPatternExecutionEngine:
 # ============================================================================
 # PERFORMANCE TESTS
 # ============================================================================
+
 
 class TestPerformance:
     """Performance tests to verify targets are met"""
@@ -556,9 +538,7 @@ class TestPerformance:
     ):
         """Test infrastructure execution (<50ms target)"""
         engine = PatternExecutionEngine(
-            session=mock_session,
-            cache_manager=cache_manager,
-            registry=pattern_registry
+            session=mock_session, cache_manager=cache_manager, registry=pattern_registry
         )
 
         # Execute multiple times
@@ -566,7 +546,7 @@ class TestPerformance:
         for _ in range(10):
             result = await engine.execute(
                 "execute tool",
-                use_cache=False  # Don't use cache for benchmark
+                use_cache=False,  # Don't use cache for benchmark
             )
             times.append(result.execution_time_ms)
 
@@ -575,14 +555,10 @@ class TestPerformance:
         assert avg_time < 50, f"Infrastructure execution too slow: {avg_time:.2f}ms"
 
     @pytest.mark.asyncio
-    async def test_cache_hit_performance(
-        self, mock_session, cache_manager, pattern_registry
-    ):
+    async def test_cache_hit_performance(self, mock_session, cache_manager, pattern_registry):
         """Test cache hit speed (<1ms target)"""
         engine = PatternExecutionEngine(
-            session=mock_session,
-            cache_manager=cache_manager,
-            registry=pattern_registry
+            session=mock_session, cache_manager=cache_manager, registry=pattern_registry
         )
 
         query = "execute tool"
@@ -606,23 +582,21 @@ class TestPerformance:
 # INTEGRATION TESTS
 # ============================================================================
 
+
 class TestIntegration:
     """Integration tests for complete workflows"""
 
     @pytest.mark.asyncio
     async def test_artemis_workflow(self, mock_session, cache_manager):
         """Test Artemis optimization workflow"""
-        engine = PatternExecutionEngine(
-            session=mock_session,
-            cache_manager=cache_manager
-        )
+        engine = PatternExecutionEngine(session=mock_session, cache_manager=cache_manager)
 
         # Simulate Artemis workflow
         tasks = [
             "recall optimization patterns",
             "analyze current performance",
             "find similar optimizations",
-            "store new pattern"
+            "store new pattern",
         ]
 
         results = []
@@ -630,9 +604,7 @@ class TestIntegration:
 
         for task in tasks:
             result = await engine.execute(
-                task,
-                execution_mode=ExecutionMode.BALANCED,
-                context={'agent': 'artemis'}
+                task, execution_mode=ExecutionMode.BALANCED, context={"agent": "artemis"}
             )
             results.append(result)
             total_tokens += result.tokens_used

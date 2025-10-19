@@ -10,7 +10,7 @@ import pytest
 
 from src.models.agent import AccessLevel
 from src.models.memory import Memory
-from src.services.memory_service import MemoryService
+from src.services.memory_service import HybridMemoryService
 
 
 @pytest.mark.database
@@ -23,10 +23,12 @@ class TestMemoryServiceIntegration:
         """Create memory service with PostgreSQL session."""
         # Mock embedding service for testing
         mock_embedding_service = AsyncMock()
-        mock_embedding_service.create_embedding.return_value = np.random.rand(384).tolist()
+        mock_embedding_service.create_embedding.return_value = np.random.rand(1024).tolist()  # v2.2.6: 1024-dim
 
-        with patch('src.services.memory_service.EmbeddingService', return_value=mock_embedding_service):
-            service = MemoryService(postgresql_session)
+        with patch(
+            "src.services.memory_service.EmbeddingService", return_value=mock_embedding_service
+        ):
+            service = HybridMemoryService(postgresql_session)  # v2.2.6: HybridMemoryService
             yield service
 
     async def test_create_memory_with_auto_embedding(self, memory_service, postgresql_session):
@@ -36,7 +38,7 @@ class TestMemoryServiceIntegration:
             "agent_id": "test-agent",
             "importance_score": 0.8,
             "tags": ["test", "auto_embedding"],
-            "access_level": AccessLevel.PRIVATE
+            "access_level": AccessLevel.PRIVATE,
         }
 
         created_memory = await memory_service.create_memory(**memory_data)
@@ -44,7 +46,7 @@ class TestMemoryServiceIntegration:
         assert created_memory["id"] is not None
         assert created_memory["content"] == memory_data["content"]
         assert created_memory["embedding"] is not None
-        assert len(created_memory["embedding"]) == 384
+        assert len(created_memory["embedding"]) == 1024  # v2.2.6: 1024-dim embedding
 
         # Verify in database
         db_memory = await postgresql_session.get(Memory, created_memory["id"])
@@ -60,22 +62,22 @@ class TestMemoryServiceIntegration:
                 "agent_id": "search-agent",
                 "importance_score": 0.9,
                 "tags": ["ai", "ml"],
-                "access_level": AccessLevel.PUBLIC
+                "access_level": AccessLevel.PUBLIC,
             },
             {
                 "content": "Deep learning uses neural networks with multiple layers",
                 "agent_id": "search-agent",
                 "importance_score": 0.8,
                 "tags": ["ai", "deep_learning"],
-                "access_level": AccessLevel.PUBLIC
+                "access_level": AccessLevel.PUBLIC,
             },
             {
                 "content": "The weather is sunny today",
                 "agent_id": "search-agent",
                 "importance_score": 0.3,
                 "tags": ["weather"],
-                "access_level": AccessLevel.PUBLIC
-            }
+                "access_level": AccessLevel.PUBLIC,
+            },
         ]
 
         created_memories = []
@@ -88,7 +90,7 @@ class TestMemoryServiceIntegration:
             query="artificial intelligence and neural networks",
             agent_id="search-agent",
             limit=5,
-            min_similarity=0.0
+            min_similarity=0.0,
         )
 
         assert len(search_results) >= 2
@@ -106,7 +108,7 @@ class TestMemoryServiceIntegration:
                 "agent_id": "agent-1",
                 "importance_score": 0.9,
                 "tags": ["private", "spec"],
-                "access_level": AccessLevel.PRIVATE
+                "access_level": AccessLevel.PRIVATE,
             },
             {
                 "content": "Team collaboration document",
@@ -114,15 +116,15 @@ class TestMemoryServiceIntegration:
                 "importance_score": 0.8,
                 "tags": ["team", "collab"],
                 "access_level": AccessLevel.TEAM,
-                "shared_with_agents": ["agent-2"]
+                "shared_with_agents": ["agent-2"],
             },
             {
                 "content": "Public knowledge base article",
                 "agent_id": "agent-1",
                 "importance_score": 0.7,
                 "tags": ["public", "kb"],
-                "access_level": AccessLevel.PUBLIC
-            }
+                "access_level": AccessLevel.PUBLIC,
+            },
         ]
 
         for memory_data in memories_data:
@@ -130,10 +132,7 @@ class TestMemoryServiceIntegration:
 
         # Search as agent-2
         search_results = await memory_service.search_memories(
-            query="document specification article",
-            agent_id="agent-2",
-            limit=10,
-            min_similarity=0.0
+            query="document specification article", agent_id="agent-2", limit=10, min_similarity=0.0
         )
 
         # Should see team and public memories only
@@ -151,22 +150,22 @@ class TestMemoryServiceIntegration:
                 "agent_id": "importance-agent",
                 "importance_score": 1.0,
                 "tags": ["critical", "alert"],
-                "access_level": AccessLevel.PUBLIC
+                "access_level": AccessLevel.PUBLIC,
             },
             {
                 "content": "Routine system message",
                 "agent_id": "importance-agent",
                 "importance_score": 0.3,
                 "tags": ["routine", "message"],
-                "access_level": AccessLevel.PUBLIC
+                "access_level": AccessLevel.PUBLIC,
             },
             {
                 "content": "Important system notification",
                 "agent_id": "importance-agent",
                 "importance_score": 0.8,
                 "tags": ["important", "notification"],
-                "access_level": AccessLevel.PUBLIC
-            }
+                "access_level": AccessLevel.PUBLIC,
+            },
         ]
 
         for memory_data in memories_data:
@@ -174,10 +173,7 @@ class TestMemoryServiceIntegration:
 
         # Search should weight by importance
         search_results = await memory_service.search_memories(
-            query="system",
-            agent_id="importance-agent",
-            limit=3,
-            min_similarity=0.0
+            query="system", agent_id="importance-agent", limit=3, min_similarity=0.0
         )
 
         # Critical and important should rank higher than routine
@@ -196,7 +192,7 @@ class TestMemoryServiceIntegration:
                 "agent_id": "consolidation-agent",
                 "importance_score": 0.7,
                 "tags": ["project", "milestone"],
-                "access_level": AccessLevel.PRIVATE
+                "access_level": AccessLevel.PRIVATE,
             }
             memory = await memory_service.create_memory(**memory_data)
             related_memories.append(memory)
@@ -207,7 +203,7 @@ class TestMemoryServiceIntegration:
             "source_memory_ids": [m["id"] for m in related_memories],
             "agent_id": "consolidation-agent",
             "importance_score": 0.9,
-            "consolidation_type": "manual"
+            "consolidation_type": "manual",
         }
 
         consolidation = await memory_service.create_consolidation(**consolidation_data)
@@ -219,9 +215,7 @@ class TestMemoryServiceIntegration:
 
         # Search should find consolidation
         search_results = await memory_service.search_memories(
-            query="project milestone summary",
-            agent_id="consolidation-agent",
-            limit=5
+            query="project milestone summary", agent_id="consolidation-agent", limit=5
         )
 
         consolidated_contents = [r["content"] for r in search_results]
@@ -235,7 +229,7 @@ class TestMemoryServiceIntegration:
             "agent_id": "update-agent",
             "importance_score": 0.5,
             "tags": ["original"],
-            "access_level": AccessLevel.PRIVATE
+            "access_level": AccessLevel.PRIVATE,
         }
 
         created_memory = await memory_service.create_memory(**memory_data)
@@ -246,7 +240,7 @@ class TestMemoryServiceIntegration:
             memory_id=created_memory["id"],
             agent_id="update-agent",
             content="Updated content about machine learning",
-            tags=["updated", "ml"]
+            tags=["updated", "ml"],
         )
 
         # Embedding should change due to content change
@@ -264,7 +258,7 @@ class TestMemoryServiceIntegration:
                 "agent_id": "batch-agent",
                 "importance_score": 0.5 + (i * 0.05),
                 "tags": ["batch", f"item_{i}"],
-                "access_level": AccessLevel.PRIVATE
+                "access_level": AccessLevel.PRIVATE,
             }
             batch_data.append(memory_data)
 
@@ -280,9 +274,7 @@ class TestMemoryServiceIntegration:
         search_queries = ["batch memory", "item_5", "batch item"]
         for query in search_queries:
             results = await memory_service.search_memories(
-                query=query,
-                agent_id="batch-agent",
-                limit=5
+                query=query, agent_id="batch-agent", limit=5
             )
             assert len(results) > 0
 
@@ -294,7 +286,7 @@ class TestMemoryServiceIntegration:
             "agent_id": "delete-agent",
             "importance_score": 0.5,
             "tags": ["temporary"],
-            "access_level": AccessLevel.PRIVATE
+            "access_level": AccessLevel.PRIVATE,
         }
 
         created_memory = await memory_service.create_memory(**memory_data)
@@ -327,7 +319,7 @@ class TestMemoryServiceIntegration:
                 "agent_id": f"concurrent-agent-{index % 3}",  # 3 different agents
                 "importance_score": 0.5,
                 "tags": ["concurrent", f"index_{index}"],
-                "access_level": AccessLevel.PRIVATE
+                "access_level": AccessLevel.PRIVATE,
             }
             return await memory_service.create_memory(**memory_data)
 

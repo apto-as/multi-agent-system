@@ -1,7 +1,7 @@
 from enum import Enum
 
 from sqlalchemy import Boolean, Column, DateTime, Index, Integer, String
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import JSON
 
 from ..core.database import Base
 
@@ -83,8 +83,8 @@ class SecurityAuditLog(Base):
     user_agent = Column(String(500))
     referer = Column(String(500))
     message = Column(String(1000))
-    details = Column(JSONB)
-    location = Column(JSONB)
+    details = Column(JSON)
+    location = Column(JSON)
     risk_score = Column(Integer, default=0, index=True)
     blocked = Column(Boolean, default=False)
     event_hash = Column(String(16), index=True)

@@ -14,11 +14,63 @@ import yaml
 logger = logging.getLogger(__name__)
 
 
+class ConfigurationError(Exception):
+    """Raised when required configuration is missing"""
+
+    pass
+
+
 class ConfigLoader:
     """
     Configuration loader with environment variable substitution
     Supports hierarchical configuration with overrides
     """
+
+    @staticmethod
+    def _get_secure_value(
+        env_var: str, default_value: str | None = None, required: bool = True
+    ) -> str:
+        """
+        Get environment variable with fail-secure behavior
+
+        Args:
+            env_var: Environment variable name
+            default_value: Default value (only used in development)
+            required: Whether this value is required in production
+
+        Returns:
+            Configuration value
+
+        Raises:
+            ConfigurationError: If required value missing in production
+        """
+        environment = os.environ.get("TMWS_ENVIRONMENT", "development")
+        value = os.environ.get(env_var)
+
+        if value:
+            return value
+
+        # Production: fail loudly if required secret missing
+        if environment == "production" and required:
+            raise ConfigurationError(
+                f"Required environment variable {env_var} not set in production. "
+                f"This is a security requirement."
+            )
+
+        # Development: warn and use default
+        if default_value:
+            logger.warning(
+                f"⚠️  Using default value for {env_var} in {environment} environment. "
+                f"Set environment variable for production use."
+            )
+            return default_value
+
+        # No default and not required
+        if not required:
+            return ""
+
+        # Required but no default in development
+        raise ConfigurationError(f"Required environment variable {env_var} not set")
 
     @staticmethod
     def load_config(config_path: str | None = None) -> dict[str, Any]:
@@ -66,15 +118,17 @@ class ConfigLoader:
         # Get all environment variables
         env_vars = os.environ.copy()
 
-        # Provide defaults for common variables
+        # Provide defaults for NON-SENSITIVE variables only
+        # Sensitive variables (passwords, keys) must be set via environment
         defaults = {
             "TMWS_ENVIRONMENT": "development",
             "TMWS_DB_HOST": "localhost",
             "TMWS_DB_PORT": "5432",
             "TMWS_DB_NAME": "tmws",
             "TMWS_DB_USER": "tmws_user",
-            "TMWS_DB_PASSWORD": "tmws_password",
-            "TMWS_SECRET_KEY": "dev-secret-key-change-in-production",
+            # TMWS_DB_PASSWORD: Must be set via environment variable
+            # TMWS_SECRET_KEY: Must be set via environment variable
+            # TMWS_ENCRYPTION_KEY: Must be set via environment variable
             "REDIS_HOST": "localhost",
             "REDIS_PORT": "6379",
             "LOG_LEVEL": "INFO",
@@ -111,17 +165,23 @@ class ConfigLoader:
                     "port": int(os.environ.get("TMWS_DB_PORT", "5432")),
                     "database": os.environ.get("TMWS_DB_NAME", "tmws"),
                     "user": os.environ.get("TMWS_DB_USER", "tmws_user"),
-                    "password": os.environ.get("TMWS_DB_PASSWORD", "tmws_password"),
+                    "password": ConfigLoader._get_secure_value(
+                        "TMWS_DB_PASSWORD", default_value="tmws_password", required=True
+                    ),
                 },
             },
             "memory": {"cache_size_mb": 100, "persistence": True},
             "security": {
                 "auth_enabled": False,
-                "secret_key": os.environ.get(
-                    "TMWS_SECRET_KEY", "dev-secret-key-change-in-production"
+                "secret_key": ConfigLoader._get_secure_value(
+                    "TMWS_SECRET_KEY",
+                    default_value="dev-secret-key-change-in-production",
+                    required=True,
                 ),
-                "encryption_master_key": os.environ.get(
-                    "TMWS_ENCRYPTION_KEY", "dev-encryption-key-change-in-production"
+                "encryption_master_key": ConfigLoader._get_secure_value(
+                    "TMWS_ENCRYPTION_KEY",
+                    default_value="dev-encryption-key-change-in-production",
+                    required=True,
                 ),
                 "jwt_algorithm": "HS256",
                 "jwt_expire_minutes": 480,  # 8 hours

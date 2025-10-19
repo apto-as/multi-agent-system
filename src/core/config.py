@@ -14,6 +14,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
 
+# Smart defaults for uvx one-command installation
+TMWS_HOME = Path.home() / ".tmws"
+TMWS_DATA_DIR = TMWS_HOME / "data"
+TMWS_CHROMA_DIR = TMWS_HOME / "chroma"
+TMWS_SECRET_FILE = TMWS_HOME / ".secret_key"
+
 
 class Settings(BaseSettings):
     """
@@ -54,23 +60,8 @@ class Settings(BaseSettings):
     db_pool_pre_ping: bool = Field(default=True)
     db_pool_recycle: int = Field(default=3600, ge=300, le=86400)
 
-    # ==== HYBRID CLOUD-LOCAL DATABASE ====
-    cloud_database_url: str = Field(
-        default="",
-        description="Cloud PostgreSQL URL for global/shared memories (optional)",
-    )
-    local_database_url: str = Field(
-        default="sqlite+aiosqlite:///./tmws_local.db",
-        description="Local database URL for project/private memories",
-    )
-    cloud_ssl_cert_path: str = Field(
-        default="",
-        description="Path to SSL certificate for cloud database connection",
-    )
-    hybrid_mode_enabled: bool = Field(
-        default=False,
-        description="Enable hybrid cloud-local storage (feature flag)",
-    )
+    # ==== LOCAL DATABASE (SQLite + Chroma) ====
+    # v2.2.6: Full migration to SQLite (metadata) + Chroma (vectors)
 
     # ==== API CONFIGURATION ====
     api_host: str = Field(default="127.0.0.1")  # Secure default: localhost only
@@ -150,10 +141,48 @@ class Settings(BaseSettings):
     # ==== REDIS CONFIGURATION ====
     redis_url: str = Field(default="redis://localhost:6379/0", description="Redis connection URL")
 
-    # ==== VECTORIZATION ====
-    embedding_model: str = Field(default="all-MiniLM-L6-v2")
-    vector_dimension: int = Field(default=384, ge=1, le=4096)
+    # ==== VECTORIZATION & CHROMADB (v2.2.6: 1024-dim Multilingual-E5 Large) ====
+    embedding_model: str = Field(default="zylonai/multilingual-e5-large")
+    vector_dimension: int = Field(default=1024, ge=1, le=4096)  # ✅ Updated to 1024-dim (v2.2.6)
     max_embedding_batch_size: int = Field(default=32, ge=1, le=1000)
+
+    # ChromaDB configuration
+    chroma_persist_directory: str = Field(
+        default=str(TMWS_CHROMA_DIR),
+        description="ChromaDB persistence directory (smart default: ~/.tmws/chroma)",
+    )
+    chroma_collection: str = Field(default="tmws_memories_v2")
+    chroma_cache_size: int = Field(default=10000, ge=100, le=100000)
+
+    # ==== OLLAMA EMBEDDING CONFIGURATION (v2.2.5) ====
+    # Provider selection: "auto" (Ollama → fallback), "ollama" (Ollama only), "sentence-transformers" (ST only)
+    embedding_provider: str = Field(
+        default="auto",
+        description="Embedding provider: auto (Ollama→fallback), ollama, or sentence-transformers",
+        pattern="^(auto|ollama|sentence-transformers)$",
+    )
+
+    # Ollama server configuration
+    ollama_base_url: str = Field(
+        default="http://localhost:11434", description="Ollama server URL for embedding generation"
+    )
+
+    # Ollama embedding model (zylonai/multilingual-e5-large for cross-lingual support)
+    ollama_embedding_model: str = Field(
+        default="zylonai/multilingual-e5-large",
+        description="Ollama embedding model name (default: multilingual-e5-large for Japanese-English)",
+    )
+
+    # Ollama request timeout
+    ollama_timeout: float = Field(
+        default=30.0, ge=5.0, le=300.0, description="Ollama API request timeout in seconds"
+    )
+
+    # Fallback configuration
+    embedding_fallback_enabled: bool = Field(
+        default=True,
+        description="Enable automatic fallback to sentence-transformers if Ollama unavailable",
+    )
 
     # ==== LOGGING & MONITORING ====
     log_level: str = Field(default="INFO", pattern="^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$")
@@ -172,39 +201,72 @@ class Settings(BaseSettings):
     @model_validator(mode="before")
     @classmethod
     def validate_required_env_vars(cls, values):
-        """404 Rule: Critical environment variables MUST be set."""
+        """
+        Smart defaults for uvx one-command installation.
+
+        Priority:
+        1. Explicit environment variables (TMWS_*)
+        2. Smart defaults (development only)
+        3. Error for production without explicit config
+        """
         import os
 
-        # Check if values are provided in .env or environment
-        # pydantic-settings should handle TMWS_ prefix automatically
+        # Get environment
+        environment = (
+            values.get("environment")
+            or values.get("ENVIRONMENT")
+            or os.environ.get("TMWS_ENVIRONMENT")
+            or os.environ.get("ENVIRONMENT", "development")
+        )
+        values["environment"] = environment
+
+        # Database URL
         if not values.get("database_url"):
             values["database_url"] = (
                 values.get("DATABASE_URL")
                 or os.environ.get("TMWS_DATABASE_URL")
                 or os.environ.get("DATABASE_URL", "")
             )
+
+        # Smart default for database (development only)
+        if not values.get("database_url") and environment == "development":
+            TMWS_DATA_DIR.mkdir(parents=True, exist_ok=True)
+            values["database_url"] = f"sqlite:///{TMWS_DATA_DIR}/tmws.db"
+            logger.info(f"📁 Using smart default database: {values['database_url']}")
+
+        # Secret Key
         if not values.get("secret_key"):
             values["secret_key"] = (
                 values.get("SECRET_KEY")
                 or os.environ.get("TMWS_SECRET_KEY")
                 or os.environ.get("SECRET_KEY", "")
             )
-        if not values.get("environment"):
-            values["environment"] = (
-                values.get("ENVIRONMENT")
-                or os.environ.get("TMWS_ENVIRONMENT")
-                or os.environ.get("ENVIRONMENT", "development")
-            )
 
-        # Validate required fields - only database_url and secret_key are truly required
-        errors = []
-        if not values.get("database_url"):
-            errors.append("TMWS_DATABASE_URL environment variable is required")
-        if not values.get("secret_key"):
-            errors.append("TMWS_SECRET_KEY environment variable is required")
+        # Smart default for secret key (development only)
+        if not values.get("secret_key") and environment == "development":
+            TMWS_HOME.mkdir(parents=True, exist_ok=True)
 
-        if errors:
-            raise ValueError(f"Critical configuration missing: {'; '.join(errors)}")
+            # Try to load existing secret key
+            if TMWS_SECRET_FILE.exists():
+                values["secret_key"] = TMWS_SECRET_FILE.read_text().strip()
+                logger.info("🔐 Using existing secret key from ~/.tmws/.secret_key")
+            else:
+                # Generate and save new secret key
+                values["secret_key"] = secrets.token_urlsafe(32)
+                TMWS_SECRET_FILE.write_text(values["secret_key"])
+                TMWS_SECRET_FILE.chmod(0o600)  # Read-only for owner
+                logger.info("🔑 Generated new secret key and saved to ~/.tmws/.secret_key")
+
+        # Validate required fields for production
+        if environment == "production":
+            errors = []
+            if not values.get("database_url"):
+                errors.append("TMWS_DATABASE_URL environment variable is required in production")
+            if not values.get("secret_key"):
+                errors.append("TMWS_SECRET_KEY environment variable is required in production")
+
+            if errors:
+                raise ValueError(f"Critical configuration missing: {'; '.join(errors)}")
 
         return values
 
@@ -253,14 +315,9 @@ class Settings(BaseSettings):
         """404 Security: Database URL validation."""
         environment = info.data.get("environment", "development") if info.data else "development"
 
-        if environment == "production":
-            # Check for weak credentials in URL
-            if "password" in v.lower() or "admin" in v.lower() or "root:root" in v.lower():
-                logger.warning("Potentially weak database credentials detected")
-
-            # Ensure SSL in production
-            if "sslmode=" not in v and "postgresql://" in v:
-                logger.warning("SSL not explicitly configured for database connection")
+        # SQLite file path security check - Ensure not in /tmp or world-writable location
+        if environment == "production" and v.startswith("sqlite") and ("/tmp/" in v or "world-writable" in v):
+            logger.warning("SQLite database in potentially insecure location")
 
         return v
 
@@ -372,9 +429,8 @@ class Settings(BaseSettings):
 
     @property
     def database_url_async(self) -> str:
-        """Get async database URL for asyncpg."""
-        if self.database_url.startswith("postgresql://"):
-            return self.database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        """Get async database URL (SQLite with aiosqlite)."""
+        # v2.2.6: SQLite-only architecture, no PostgreSQL conversion needed
         return self.database_url
 
     def generate_secure_secret_key(self) -> str:
@@ -521,8 +577,9 @@ def create_secure_env_template() -> str:
 # Never commit .env files to version control
 
 # ==== CRITICAL CONFIGURATION (REQUIRED) ====
-# Database connection - Use strong authentication
-TMWS_DATABASE_URL=postgresql://username:strong_password@localhost:5432/tmws
+# Database connection - SQLite (metadata) + Chroma (vectors)
+# Default: ~/.tmws/data/tmws.db (auto-created in development)
+TMWS_DATABASE_URL=sqlite+aiosqlite:///path/to/your/tmws.db
 
 # Cryptographic secret - Generate with: python -c "import secrets; print(secrets.token_urlsafe(32))"
 TMWS_SECRET_KEY=CHANGE_THIS_TO_A_SECURE_32_CHAR_RANDOM_KEY
@@ -582,10 +639,26 @@ TMWS_AUDIT_LOG_ENABLED=true
 TMWS_CACHE_TTL=3600
 TMWS_CACHE_MAX_SIZE=1000
 
-# ==== VECTORIZATION ====
-TMWS_EMBEDDING_MODEL=all-MiniLM-L6-v2
-TMWS_VECTOR_DIMENSION=384
+# ==== VECTORIZATION (v2.2.6: 1024-dim Multilingual-E5 Large) ====
+TMWS_EMBEDDING_MODEL=zylonai/multilingual-e5-large
+TMWS_VECTOR_DIMENSION=1024
 TMWS_MAX_EMBEDDING_BATCH_SIZE=32
+
+# ==== OLLAMA EMBEDDING CONFIGURATION (v2.2.5) ====
+# Provider: auto (Ollama→fallback), ollama (Ollama only), sentence-transformers (ST only)
+TMWS_EMBEDDING_PROVIDER=auto
+
+# Ollama server URL (default: localhost)
+TMWS_OLLAMA_BASE_URL=http://localhost:11434
+
+# Ollama embedding model (zylonai/multilingual-e5-large for cross-lingual support)
+TMWS_OLLAMA_EMBEDDING_MODEL=zylonai/multilingual-e5-large
+
+# Ollama request timeout (seconds)
+TMWS_OLLAMA_TIMEOUT=30.0
+
+# Fallback to sentence-transformers if Ollama unavailable
+TMWS_EMBEDDING_FALLBACK_ENABLED=true
 
 # ==== OPTIONAL CONFIGURATION ====
 # Log file path (optional)

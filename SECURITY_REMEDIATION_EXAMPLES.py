@@ -145,9 +145,8 @@ class SecurePatternExecutionEngine:
             return action in ["read", "execute"]
 
         # Shared patterns - check share list
-        if hasattr(pattern, 'access_level') and pattern.access_level == "shared":
-            if hasattr(pattern, 'shared_with_agents'):
-                return agent_id in (pattern.shared_with_agents or [])
+        if hasattr(pattern, 'access_level') and pattern.access_level == "shared" and hasattr(pattern, 'shared_with_agents'):
+            return agent_id in (pattern.shared_with_agents or [])
 
         # Default deny
         return False
@@ -349,7 +348,7 @@ class SecurePatternDataValidator:
 
             try:
                 sql_validator.validate_query_parameter(obj, path)
-            except Exception as e:
+            except Exception:
                 logger.critical(f"SQL injection pattern detected at {path}: {obj[:100]}")
                 raise ValidationError(
                     f"Pattern data contains SQL injection pattern at {path}"
@@ -444,9 +443,8 @@ class SecureMemoryQuery:
             return True
 
         # Shared memories
-        if memory.access_level == "shared":
-            if hasattr(memory, 'shared_with_agents'):
-                return agent_id in (memory.shared_with_agents or [])
+        if memory.access_level == "shared" and hasattr(memory, 'shared_with_agents'):
+            return agent_id in (memory.shared_with_agents or [])
 
         # Default deny
         return False

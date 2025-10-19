@@ -1,14 +1,17 @@
 """
 Base model classes for TMWS database models.
+
+Architecture: SQLite + Chroma (lightweight, zero-config)
+- SQLite: Metadata, relationships, ACID transactions
+- Chroma: Vector storage for semantic search
 """
 
 from datetime import datetime
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.dialects.postgresql import UUID as PGUUID
+from sqlalchemy import JSON, String
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
@@ -17,14 +20,14 @@ from src.core.database import Base
 
 
 class UUIDMixin:
-    """Mixin for UUID primary key."""
+    """Mixin for UUID primary key (SQLite-compatible)."""
 
-    id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True),
+    id: Mapped[str] = mapped_column(
+        String(36),  # UUID as string (e.g., "550e8400-e29b-41d4-a716-446655440000")
         primary_key=True,
-        default=uuid4,
+        default=lambda: str(uuid4()),
         nullable=False,
-        comment="Primary key UUID",
+        comment="Primary key UUID (string format)",
     )
 
 
@@ -48,14 +51,14 @@ class TimestampMixin:
 
 
 class MetadataMixin:
-    """Mixin for JSONB metadata fields."""
+    """Mixin for JSON metadata fields (SQLite-compatible)."""
 
     metadata_json: Mapped[dict[str, Any]] = mapped_column(
         "metadata",  # Actual column name in database
-        JSONB,
+        JSON,  # Standard JSON type (SQLite-compatible)
         nullable=False,
         default=dict,
-        server_default=sa.text("'{}'::jsonb"),
+        server_default=sa.text("'{}'"),  # SQLite-compatible default
         comment="JSON metadata",
     )
 
@@ -72,8 +75,7 @@ class TMWSBase(Base, UUIDMixin, TimestampMixin):
             value = getattr(self, column.name)
             if isinstance(value, datetime):
                 value = value.isoformat()
-            elif isinstance(value, UUID):
-                value = str(value)
+            # UUID is already stored as string in SQLite
             result[column.name] = value
         return result
 

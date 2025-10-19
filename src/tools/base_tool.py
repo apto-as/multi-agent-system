@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.database import get_db_session
-from ..services.memory_service import MemoryService
+from ..services.memory_service import HybridMemoryService
 from ..services.persona_service import PersonaService
 from ..services.task_service import TaskService
 from ..services.vectorization_service import VectorizationService
@@ -33,7 +33,7 @@ class BaseTool(ABC):
 
     def __init__(self):
         """Initialize base tool with service references."""
-        self._memory_service: MemoryService | None = None
+        self._memory_service: HybridMemoryService | None = None
         self._persona_service: PersonaService | None = None
         self._task_service: TaskService | None = None
         self._workflow_service: WorkflowService | None = None
@@ -42,7 +42,7 @@ class BaseTool(ABC):
     async def get_services(self, session: AsyncSession) -> dict[str, Any]:
         """Initialize and return all services with session."""
         return {
-            "memory_service": MemoryService(session),
+            "memory_service": HybridMemoryService(session),
             "persona_service": PersonaService(session),
             "task_service": TaskService(session),
             "workflow_service": WorkflowService(session),

@@ -6,12 +6,9 @@ Implements production-grade security with role-based access control.
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
-from uuid import UUID
 
 import sqlalchemy as sa
-from sqlalchemy import Boolean, DateTime, Index, String, Text
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.dialects.postgresql import UUID as PGUUID
+from sqlalchemy import Boolean, DateTime, Index, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import MetadataMixin, TMWSBase
@@ -111,11 +108,11 @@ class User(TMWSBase, MetadataMixin):
     )
 
     roles: Mapped[list[UserRole]] = mapped_column(
-        JSONB, nullable=False, default=lambda: [UserRole.USER], comment="List of user roles"
+        JSON, nullable=False, default=lambda: [UserRole.USER], comment="List of user roles"
     )
 
     permissions: Mapped[dict[str, Any]] = mapped_column(
-        JSONB, nullable=False, default=dict, comment="Additional granular permissions"
+        JSON, nullable=False, default=dict, comment="Additional granular permissions"
     )
 
     # MFA and security
@@ -128,7 +125,7 @@ class User(TMWSBase, MetadataMixin):
     )
 
     backup_codes: Mapped[list[str] | None] = mapped_column(
-        JSONB, nullable=True, comment="MFA backup codes"
+        JSON, nullable=True, comment="MFA backup codes"
     )
 
     # Session management
@@ -170,12 +167,11 @@ class User(TMWSBase, MetadataMixin):
         "APIKey", back_populates="user", cascade="all, delete-orphan", lazy="select"
     )
 
+    # SQLite-compatible indexes (v2.2.6)
     __table_args__ = (
         Index("ix_user_status_active", "status", "last_login_at"),
         Index("ix_user_email_status", "email", "status"),
         Index("ix_user_namespace", "agent_namespace"),
-        # Partial index for active users only
-        Index("ix_user_active_username", "username", postgresql_where=sa.text("status = 'active'")),
     )
 
     def __repr__(self) -> str:
@@ -290,11 +286,11 @@ class APIKey(TMWSBase, MetadataMixin):
 
     # Access control
     scopes: Mapped[list[APIKeyScope]] = mapped_column(
-        JSONB, nullable=False, default=lambda: [APIKeyScope.READ], comment="API key access scopes"
+        JSON, nullable=False, default=lambda: [APIKeyScope.READ], comment="API key access scopes"
     )
 
     allowed_ips: Mapped[list[str] | None] = mapped_column(
-        JSONB, nullable=True, comment="IP addresses allowed to use this key"
+        JSON, nullable=True, comment="IP addresses allowed to use this key"
     )
 
     rate_limit_per_hour: Mapped[int | None] = mapped_column(
@@ -322,8 +318,8 @@ class APIKey(TMWSBase, MetadataMixin):
     )
 
     # User relationship
-    user_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True),
+    user_id: Mapped[str] = mapped_column(
+        String(36),  # Match id column type (UUID as string)
         sa.ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -416,8 +412,8 @@ class RefreshToken(TMWSBase):
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # User relationship
-    user_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True),
+    user_id: Mapped[str] = mapped_column(
+        String(36),  # Match id column type (UUID as string)
         sa.ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,

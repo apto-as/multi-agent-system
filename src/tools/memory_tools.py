@@ -336,8 +336,10 @@ class MemoryTools(BaseTool):
             """
             Optimize memory vector indices for better search performance.
 
-            Rebuilds pgvector indices and analyzes query patterns for optimal performance.
+            Rebuilds ChromaDB indices and analyzes query patterns for optimal performance.
             Should be run periodically or when search performance degrades.
+
+            Note: Vector storage is managed by ChromaDB in v2.2.6+
 
             Returns:
                 Dict containing optimization results and performance metrics
