@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Trinitas System Installer for Linux/WSL/macOS v2.3.0
+# Trinitas System Installer for Linux/WSL/macOS v2.2.4
 # Usage: bash install.sh
 # This installer copies Trinitas agents, hooks, and configuration to ~/.claude/
 
@@ -12,7 +12,7 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 echo -e "${CYAN}========================================${NC}"
-echo -e "${CYAN}Trinitas System Installer v2.3.0${NC}"
+echo -e "${CYAN}Trinitas System Installer v2.2.4${NC}"
 echo -e "${CYAN}Linux/WSL/macOS${NC}"
 echo -e "${CYAN}========================================${NC}"
 echo

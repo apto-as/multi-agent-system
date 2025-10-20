@@ -1,9 +1,9 @@
-# Trinitas System Windows Installer v2.3.0 (PowerShell)
+# Trinitas System Windows Installer v2.2.4 (PowerShell)
 # Run with: powershell -ExecutionPolicy Bypass -File install.ps1
 # This installer copies Trinitas agents, hooks, and configuration to ~/.claude/
 
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "Trinitas System Installer v2.3.0" -ForegroundColor Cyan
+Write-Host "Trinitas System Installer v2.2.4" -ForegroundColor Cyan
 Write-Host "Windows (PowerShell)" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
