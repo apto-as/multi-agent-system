@@ -1,5 +1,5 @@
 {
-  "description": "Trinitas Global Hooks Configuration (v2.3.0)",
+  "description": "Trinitas Global Hooks Configuration (v2.2.4)",
   "hooks": {
     "UserPromptSubmit": [
       {
@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"~/.claude/hooks/core/dynamic_context_loader.py\"",
+            "command": "python3 \"{{GLOBAL_CONFIG_DIR}}/hooks/core/dynamic_context_loader.py\"",
             "description": "Dynamic context loading based on persona detection"
           }
         ]
@@ -19,7 +19,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"~/.claude/hooks/core/protocol_injector.py\" pre_compact",
+            "command": "python3 \"{{GLOBAL_CONFIG_DIR}}/hooks/core/protocol_injector.py\" pre_compact",
             "description": "Inject protocol reminder before context compression"
           }
         ]
