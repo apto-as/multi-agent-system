@@ -3,6 +3,7 @@ Authentication Service for TMWS.
 Production-grade user authentication with comprehensive security features.
 """
 
+import logging
 import secrets
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
@@ -16,6 +17,8 @@ from ..models.user import APIKey, APIKeyScope, RefreshToken, User, UserRole, Use
 from ..security.audit_logger import get_audit_logger
 from ..security.jwt_service import jwt_service, token_blacklist
 from ..utils.security import hash_password_with_salt, verify_password_with_salt
+
+logger = logging.getLogger(__name__)
 
 
 class AuthenticationError(Exception):
@@ -132,12 +135,16 @@ class AuthService:
                     "username": user.username,
                 },
             )
+        except (KeyboardInterrupt, SystemExit):
+            logger.critical("🚨 User interrupt during user creation audit logging")
+            raise
         except Exception as e:
             # Log audit error but don't fail the operation
-            import logging
-
-            logger = logging.getLogger(__name__)
-            logger.warning(f"Audit logging failed: {e}")
+            logger.warning(
+                f"Audit logging failed: {e}",
+                exc_info=True,
+                extra={"username": user.username, "user_id": str(user.id)}
+            )
 
         return user
 
@@ -205,11 +212,15 @@ class AuthService:
                     user_id=user.username,
                     details={"login_method": "password"},
                 )
+            except (KeyboardInterrupt, SystemExit):
+                logger.critical("🚨 User interrupt during login success audit logging")
+                raise
             except Exception as e:
-                import logging
-
-                logger = logging.getLogger(__name__)
-                logger.warning(f"Audit logging failed: {e}")
+                logger.warning(
+                    f"Audit logging failed: {e}",
+                    exc_info=True,
+                    extra={"username": user.username, "event": "login_success"}
+                )
 
             return user, access_token, refresh_token
 
@@ -519,11 +530,15 @@ class AuthService:
                 user_id=username,
                 details={"reason": reason, "login_method": "password"},
             )
+        except (KeyboardInterrupt, SystemExit):
+            logger.critical("🚨 User interrupt during login failure audit logging")
+            raise
         except Exception as e:
-            import logging
-
-            logger = logging.getLogger(__name__)
-            logger.warning(f"Audit logging failed: {e}")
+            logger.warning(
+                f"Audit logging failed: {e}",
+                exc_info=True,
+                extra={"username": username, "event": "login_failed", "reason": reason}
+            )
 
 
 # Global auth service instance

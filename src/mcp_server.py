@@ -21,6 +21,14 @@ from fastmcp import FastMCP
 
 from src.core.config import get_settings
 from src.core.database import get_session
+from src.core.exceptions import (
+    ChromaOperationError,
+    MCPInitializationError,
+    MemoryCreationError,
+    MemorySearchError,
+    ServiceInitializationError,
+    log_and_raise,
+)
 from src.integration.genai_toolbox_bridge import register_genai_integration
 from src.services.memory_service import HybridMemoryService
 from src.services.unified_embedding_service import get_unified_embedding_service
@@ -153,9 +161,20 @@ class HybridMCPServer:
                 f"(Chroma: {self.vector_service.HOT_CACHE_SIZE} hot cache)"
             )
 
-        except Exception as e:
-            logger.error(f"Failed to initialize HybridMCPServer: {e}")
+        except (KeyboardInterrupt, SystemExit):
+            # Never suppress user interrupts
             raise
+        except (ChromaOperationError, ServiceInitializationError):
+            # Expected initialization errors - already logged
+            raise
+        except Exception as e:
+            # Unexpected initialization errors
+            log_and_raise(
+                MCPInitializationError,
+                "Failed to initialize HybridMCPServer",
+                original_exception=e,
+                details={"instance_id": self.instance_id},
+            )
 
     async def store_memory_hybrid(
         self,
@@ -207,10 +226,18 @@ class HybridMCPServer:
                     "embedding_dimension": settings.vector_dimension,
                 }
 
-        except Exception as e:
+        except (KeyboardInterrupt, SystemExit):
+            # Never suppress user interrupts
+            raise
+        except (MemoryCreationError, ChromaOperationError) as e:
+            # Expected errors - already logged
             self.metrics["errors"] += 1
-            logger.error(f"Memory storage error: {e}")
-            return {"error": str(e), "status": "failed"}
+            return {"error": str(e), "status": "failed", "error_type": e.__class__.__name__}
+        except Exception as e:
+            # Unexpected errors - log and return error
+            self.metrics["errors"] += 1
+            logger.critical(f"Unexpected memory storage error: {e}", exc_info=True)
+            return {"error": str(e), "status": "failed", "error_type": "UnexpectedError"}
 
     async def search_memories_hybrid(
         self,
@@ -278,10 +305,23 @@ class HybridMCPServer:
                     "embedding_model": settings.embedding_model,
                 }
 
-        except Exception as e:
+        except (KeyboardInterrupt, SystemExit):
+            # Never suppress user interrupts
+            raise
+        except (MemorySearchError, ChromaOperationError) as e:
+            # Expected errors - already logged
             self.metrics["errors"] += 1
-            logger.error(f"Memory search error: {e}")
-            return {"error": str(e), "results": [], "count": 0}
+            return {
+                "error": str(e),
+                "results": [],
+                "count": 0,
+                "error_type": e.__class__.__name__,
+            }
+        except Exception as e:
+            # Unexpected errors - log and return error
+            self.metrics["errors"] += 1
+            logger.critical(f"Unexpected memory search error: {e}", exc_info=True)
+            return {"error": str(e), "results": [], "count": 0, "error_type": "UnexpectedError"}
 
     async def create_task_postgresql(
         self, title: str, description: str, priority: str, assigned_persona: str
@@ -310,10 +350,19 @@ class HybridMCPServer:
                     "storage": "postgresql",
                 }
 
-        except Exception as e:
+        except (KeyboardInterrupt, SystemExit):
+            # Never suppress user interrupts
+            raise
+        except ImportError as e:
+            # TaskService not available (expected during development)
             self.metrics["errors"] += 1
-            logger.error(f"Task creation error: {e}")
-            return {"error": str(e)}
+            logger.warning(f"TaskService not available: {e}")
+            return {"error": "TaskService not available", "error_type": "ImportError"}
+        except Exception as e:
+            # Unexpected errors - log and return error
+            self.metrics["errors"] += 1
+            logger.critical(f"Unexpected task creation error: {e}", exc_info=True)
+            return {"error": str(e), "error_type": "UnexpectedError"}
 
     async def get_agent_status_postgresql(self) -> dict:
         """Get agent status from PostgreSQL."""
@@ -342,10 +391,24 @@ class HybridMCPServer:
                     "storage": "postgresql",
                 }
 
-        except Exception as e:
+        except (KeyboardInterrupt, SystemExit):
+            # Never suppress user interrupts
+            raise
+        except ImportError as e:
+            # AgentService not available (expected during development)
             self.metrics["errors"] += 1
-            logger.error(f"Agent status error: {e}")
-            return {"error": str(e), "agents": [], "total": 0}
+            logger.warning(f"AgentService not available: {e}")
+            return {
+                "error": "AgentService not available",
+                "agents": [],
+                "total": 0,
+                "error_type": "ImportError",
+            }
+        except Exception as e:
+            # Unexpected errors - log and return error
+            self.metrics["errors"] += 1
+            logger.critical(f"Unexpected agent status error: {e}", exc_info=True)
+            return {"error": str(e), "agents": [], "total": 0, "error_type": "UnexpectedError"}
 
     async def get_hybrid_memory_stats(self) -> dict:
         """Get combined PostgreSQL + Chroma statistics."""
@@ -380,10 +443,14 @@ class HybridMCPServer:
 
                 return stats
 
+        except (KeyboardInterrupt, SystemExit):
+            # Never suppress user interrupts
+            raise
         except Exception as e:
+            # Unexpected errors - log and return error
             self.metrics["errors"] += 1
-            logger.error(f"Stats error: {e}")
-            return {"error": str(e)}
+            logger.critical(f"Unexpected stats error: {e}", exc_info=True)
+            return {"error": str(e), "error_type": "UnexpectedError"}
 
     async def clear_chroma_cache(self) -> dict:
         """Clear Chroma collection (use with caution)."""
@@ -396,9 +463,17 @@ class HybridMCPServer:
                 "warning": "Chroma cache cleared. PostgreSQL data intact.",
             }
 
-        except Exception as e:
+        except (KeyboardInterrupt, SystemExit):
+            # Never suppress user interrupts
+            raise
+        except ChromaOperationError as e:
+            # Expected ChromaDB errors
             logger.error(f"Cache clear error: {e}")
-            return {"error": str(e)}
+            return {"error": str(e), "error_type": "ChromaOperationError"}
+        except Exception as e:
+            # Unexpected errors - log critical
+            logger.critical(f"Unexpected cache clear error: {e}", exc_info=True)
+            return {"error": str(e), "error_type": "UnexpectedError"}
 
     def _update_avg_latency(self, latency_ms: float):
         """Update rolling average latency."""
@@ -423,8 +498,12 @@ class HybridMCPServer:
                 else "N/A"
             )
 
+        except (KeyboardInterrupt, SystemExit):
+            # Never suppress user interrupts during cleanup
+            raise
         except Exception as e:
-            logger.error(f"Cleanup error: {e}")
+            # Log but don't raise during cleanup
+            logger.error(f"Cleanup error: {e}", exc_info=True)
 
 
 def first_run_setup():
@@ -501,8 +580,12 @@ async def async_main():
 
     except KeyboardInterrupt:
         logger.info("Server stopped by user")
+    except (MCPInitializationError, ServiceInitializationError) as e:
+        # Expected initialization errors - already logged
+        logger.error(f"Server failed to initialize: {e}")
     except Exception as e:
-        logger.error(f"Server error: {e}")
+        # Unexpected errors - log critical
+        logger.critical(f"Unexpected server error: {e}", exc_info=True)
     finally:
         await server.cleanup()
 

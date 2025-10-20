@@ -308,8 +308,14 @@ class BatchProcessor:
 
             except asyncio.TimeoutError:
                 continue
+            except (KeyboardInterrupt, SystemExit):
+                raise
             except Exception as e:
-                logger.error(f"Error in job processing loop: {e}")
+                logger.critical(
+                    f"Unexpected error in job processing loop: {type(e).__name__}",
+                    exc_info=True,
+                    extra={"operation": "process_jobs_loop", "error": str(e)}
+                )
                 await asyncio.sleep(1.0)
 
     async def _monitor_job(self, job_id: str, task: asyncio.Task) -> None:
@@ -318,8 +324,14 @@ class BatchProcessor:
             await task
         except asyncio.CancelledError:
             pass
+        except (KeyboardInterrupt, SystemExit):
+            raise
         except Exception as e:
-            logger.error(f"Job {job_id} failed: {e}")
+            logger.error(
+                f"Job {job_id} failed: {type(e).__name__}",
+                exc_info=True,
+                extra={"operation": "monitor_job", "job_id": job_id, "error": str(e)}
+            )
         finally:
             if job_id in self.running_jobs:
                 del self.running_jobs[job_id]
@@ -356,10 +368,22 @@ class BatchProcessor:
             logger.info(f"Cancelled batch job {job.job_id}")
             raise
 
+        except (KeyboardInterrupt, SystemExit):
+            raise
+
         except Exception as e:
             job.status = BatchJobStatus.FAILED
             job.error_messages.append(str(e))
-            logger.error(f"Error in batch job {job.job_id}: {e}")
+            logger.error(
+                f"Batch job execution failed: {type(e).__name__}",
+                exc_info=True,
+                extra={
+                    "operation": "execute_job",
+                    "job_id": job.job_id,
+                    "operation_type": job.operation_type,
+                    "error": str(e)
+                }
+            )
 
         finally:
             job.completed_at = datetime.now()
@@ -382,15 +406,27 @@ class BatchProcessor:
         for batch_task in asyncio.as_completed(batch_tasks):
             try:
                 await batch_task
+            except (KeyboardInterrupt, SystemExit):
+                raise
             except Exception as e:
-                logger.error(f"Batch processing error in job {job.job_id}: {e}")
+                logger.error(
+                    f"Batch processing error: {type(e).__name__}",
+                    exc_info=True,
+                    extra={"operation": "process_batch_task", "job_id": job.job_id, "error": str(e)}
+                )
 
             # Update progress
             if job.progress_callback:
                 try:
                     await job.progress_callback(job.to_dict())
+                except (KeyboardInterrupt, SystemExit):
+                    raise
                 except Exception as e:
-                    logger.warning(f"Progress callback error: {e}")
+                    logger.warning(
+                        f"Progress callback error: {type(e).__name__}",
+                        exc_info=True,
+                        extra={"operation": "progress_callback", "job_id": job.job_id, "error": str(e)}
+                    )
 
     async def _process_batch(
         self, job: BatchJob, batch_id: str, items: list[dict[str, Any]], start_index: int
@@ -420,10 +456,24 @@ class BatchProcessor:
                         error_msg = result.get("error", "Unknown error")
                         job.error_messages.append(f"Item {start_index + i}: {error_msg}")
 
+            except (KeyboardInterrupt, SystemExit):
+                raise
             except Exception as e:
                 # Entire batch failed
                 batch_failure_count = len(items)
-                job.error_messages.append(f"Batch {batch_id} failed: {e}")
+                error_msg = f"Batch {batch_id} failed: {e}"
+                job.error_messages.append(error_msg)
+                logger.error(
+                    f"Batch failed: {type(e).__name__}",
+                    exc_info=True,
+                    extra={
+                        "operation": "process_batch",
+                        "job_id": job.job_id,
+                        "batch_id": batch_id,
+                        "items_count": len(items),
+                        "error": str(e)
+                    }
+                )
 
             # Update job counters atomically
             job.processed_count += len(items)
@@ -564,7 +614,14 @@ class BatchService:
                             {"success": True, "memory_id": None}
                         )  # Will be set after flush
 
+                    except (KeyboardInterrupt, SystemExit):
+                        raise
                     except Exception as e:
+                        logger.error(
+                            f"Memory creation failed: {type(e).__name__}",
+                            exc_info=True,
+                            extra={"operation": "create_memory", "error": str(e)}
+                        )
                         results.append({"success": False, "error": str(e)})
 
                 try:
@@ -576,8 +633,15 @@ class BatchService:
                             # This is a simplified approach - in practice, you'd track the created memories
                             success_idx += 1
 
+                except (KeyboardInterrupt, SystemExit):
+                    raise
                 except Exception as e:
                     # Mark all as failed if commit fails
+                    logger.error(
+                        f"Batch memory commit failed: {type(e).__name__}",
+                        exc_info=True,
+                        extra={"operation": "flush_memories", "error": str(e)}
+                    )
                     for result in results:
                         if result["success"]:
                             result["success"] = False
@@ -649,7 +713,14 @@ class BatchService:
 
                         results.append({"success": True, "agent_id": agent_id})
 
+                    except (KeyboardInterrupt, SystemExit):
+                        raise
                     except Exception as e:
+                        logger.error(
+                            f"Agent performance update failed: {type(e).__name__}",
+                            exc_info=True,
+                            extra={"operation": "update_agent_performance", "agent_id": item.get("agent_id"), "error": str(e)}
+                        )
                         results.append(
                             {"success": False, "error": str(e), "agent_id": item.get("agent_id")}
                         )
@@ -707,7 +778,14 @@ class BatchService:
                         }
                     )
 
+                except (KeyboardInterrupt, SystemExit):
+                    raise
                 except Exception as e:
+                    logger.error(
+                        f"Memory cleanup failed: {type(e).__name__}",
+                        exc_info=True,
+                        extra={"operation": "cleanup_expired_memories", "error": str(e)}
+                    )
                     results.append({"success": False, "error": str(e)})
 
             return results

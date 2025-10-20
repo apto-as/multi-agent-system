@@ -12,6 +12,8 @@ from pathlib import Path
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from .exceptions import ConfigurationError
+
 logger = logging.getLogger(__name__)
 
 # Smart defaults for uvx one-command installation
@@ -494,12 +496,20 @@ def get_settings() -> Settings:
 
         return settings
 
-    except Exception as e:
-        logger.error(f"Failed to load settings with error: {e}")
+    except (KeyboardInterrupt, SystemExit):
+        # Never suppress user interrupts
+        raise
+    except ValueError as e:
+        # Configuration validation errors (expected)
+        logger.error(f"Configuration validation failed: {e}")
         logger.error("Ensure all required environment variables are set:")
         logger.error("- TMWS_DATABASE_URL")
         logger.error("- TMWS_SECRET_KEY")
         logger.error("- TMWS_ENVIRONMENT")
+        raise ConfigurationError("Settings validation failed", details={"error": str(e)}) from e
+    except Exception as e:
+        # Unexpected errors - log with full context
+        logger.critical(f"Unexpected error loading settings: {e}", exc_info=True)
         raise
 
 
@@ -709,11 +719,26 @@ def validate_environment_security() -> dict:
 
         return results
 
-    except Exception as e:
+    except (KeyboardInterrupt, SystemExit):
+        # Never suppress user interrupts
+        raise
+    except ConfigurationError as e:
+        # Configuration errors (expected) - return structured error
+        logger.error(f"Configuration error during validation: {e}")
         return {
             "environment": "unknown",
             "security_level": "configuration_error",
             "issues": [str(e)],
+            "warnings": [],
+            "recommendations": ["Fix configuration errors before proceeding"],
+        }
+    except Exception as e:
+        # Unexpected errors - log and return error state
+        logger.critical(f"Unexpected error during security validation: {e}", exc_info=True)
+        return {
+            "environment": "unknown",
+            "security_level": "configuration_error",
+            "issues": [f"Unexpected error: {e}"],
             "warnings": [],
             "recommendations": ["Fix configuration errors before proceeding"],
         }

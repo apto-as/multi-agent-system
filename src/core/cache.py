@@ -64,8 +64,15 @@ class CacheManager:
                 self.redis_client = await redis.from_url(self.redis_url)
                 await self.redis_client.ping()
                 logger.info("Redis cache initialized")
+            except (KeyboardInterrupt, SystemExit):
+                logger.critical("🚨 User interrupt during Redis initialization")
+                raise
             except Exception as e:
-                logger.warning(f"Redis unavailable, using local cache only: {e}")
+                logger.warning(
+                    f"Redis unavailable, using local cache only: {e}",
+                    exc_info=True,
+                    extra={"redis_url": self.redis_url}
+                )
                 self.redis_client = None
 
     async def get(self, key: str, namespace: str = "default") -> Any | None:
@@ -209,8 +216,15 @@ class CacheManager:
             data = await self.redis_client.get(key)
             if data:
                 return json.loads(data)
+        except (KeyboardInterrupt, SystemExit):
+            logger.critical("🚨 User interrupt during Redis get operation")
+            raise
         except Exception as e:
-            logger.error(f"Redis get error: {e}")
+            logger.error(
+                f"Redis get error: {e}",
+                exc_info=True,
+                extra={"cache_key": key}
+            )
         return None
 
     async def _set_redis(self, key: str, value: Any, ttl: int):
@@ -218,8 +232,15 @@ class CacheManager:
         try:
             data = json.dumps(value)
             await self.redis_client.setex(key, ttl, data)
+        except (KeyboardInterrupt, SystemExit):
+            logger.critical("🚨 User interrupt during Redis set operation")
+            raise
         except Exception as e:
-            logger.error(f"Redis set error: {e}")
+            logger.error(
+                f"Redis set error: {e}",
+                exc_info=True,
+                extra={"cache_key": key, "ttl": ttl}
+            )
 
     def get_stats(self) -> dict[str, Any]:
         """Get cache statistics"""
@@ -328,6 +349,13 @@ class InvalidationManager:
             try:
                 invalidation = await self.invalidation_queue.get()
                 await self.invalidate_pattern(invalidation["pattern"], invalidation.get("reason"))
+            except (KeyboardInterrupt, SystemExit):
+                logger.critical("🚨 User interrupt during invalidation processing")
+                raise
             except Exception as e:
-                logger.error(f"Invalidation processing error: {e}")
+                logger.error(
+                    f"Invalidation processing error: {e}",
+                    exc_info=True,
+                    extra={"queue_size": self.invalidation_queue.qsize()}
+                )
             await asyncio.sleep(0.1)

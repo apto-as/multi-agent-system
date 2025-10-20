@@ -150,8 +150,15 @@ class MCPCompatibilityBridge:
                             return await tool_func(*args, **kwargs)
                         else:
                             return tool_func(*args, **kwargs)
+                except (KeyboardInterrupt, SystemExit):
+                    logger.critical(f"🚨 User interrupt during {tool_name} execution")
+                    raise
                 except Exception as e:
-                    logger.error(f"Tool {tool_name} execution error: {e}")
+                    logger.error(
+                        f"Tool {tool_name} execution error: {e}",
+                        exc_info=True,
+                        extra={"tool_name": tool_name, "connection_mode": "websocket" if self.connection_established else "stdio"}
+                    )
                     return {"error": f"Tool execution failed: {str(e)}"}
 
             # Register with legacy MCP
@@ -187,8 +194,15 @@ class MCPCompatibilityBridge:
                 logger.error("Invalid welcome message from WebSocket server")
                 return False
 
+        except (KeyboardInterrupt, SystemExit):
+            logger.critical("🚨 User interrupt during WebSocket connection")
+            raise
         except Exception as e:
-            logger.warning(f"WebSocket connection failed: {e}. Falling back to stdio mode.")
+            logger.warning(
+                f"WebSocket connection failed: {e}. Falling back to stdio mode.",
+                exc_info=True,
+                extra={"host": host, "port": port}
+            )
             self.connection_established = False
             return False
 
@@ -233,8 +247,15 @@ class MCPCompatibilityBridge:
             self.legacy_mcp.run()
         except KeyboardInterrupt:
             logger.info("👋 Stdio MCP server stopped by user")
+        except SystemExit:
+            logger.info("Stdio MCP server exiting")
+            raise
         except Exception as e:
-            logger.error(f"Stdio MCP server error: {e}")
+            logger.error(
+                f"Stdio MCP server error: {e}",
+                exc_info=True,
+                extra={"mode": "stdio"}
+            )
             raise
 
     async def run_hybrid_mode(self, ws_host: str = "127.0.0.1", ws_port: int = 8001):
@@ -282,7 +303,15 @@ class MCPCompatibilityBridge:
                     results["stdio_mode"][tool_name] = "async_ready"
                 else:
                     results["stdio_mode"][tool_name] = "sync_ready"
+            except (KeyboardInterrupt, SystemExit):
+                logger.warning("User interrupt during compatibility testing")
+                raise
             except Exception as e:
+                logger.error(
+                    f"Compatibility test failed for {tool_name}: {e}",
+                    exc_info=True,
+                    extra={"tool_name": tool_name}
+                )
                 results["stdio_mode"][tool_name] = f"error: {str(e)}"
 
         # Test WebSocket mode if available
@@ -293,7 +322,15 @@ class MCPCompatibilityBridge:
                     # Test if tool can be called via WebSocket
                     await self._call_via_websocket("get_system_stats", (), {})
                     results["websocket_mode"][tool_name] = "websocket_ready"
+                except (KeyboardInterrupt, SystemExit):
+                    logger.warning("User interrupt during WebSocket compatibility test")
+                    raise
                 except Exception as e:
+                    logger.error(
+                        f"WebSocket test failed for {tool_name}: {e}",
+                        exc_info=True,
+                        extra={"tool_name": tool_name, "session_id": self.session_id}
+                    )
                     results["websocket_mode"][tool_name] = f"ws_error: {str(e)}"
         else:
             results["websocket_mode"] = {"status": "websocket_not_available"}
@@ -333,8 +370,15 @@ async def main():
         else:  # hybrid mode (default)
             await bridge.run_hybrid_mode(ws_host, ws_port)
 
+    except (KeyboardInterrupt, SystemExit):
+        logger.info("👋 Bridge stopped by user or system")
+        sys.exit(0)
     except Exception as e:
-        logger.error(f"Bridge error: {e}")
+        logger.error(
+            f"Bridge error: {e}",
+            exc_info=True,
+            extra={"mode": mode, "ws_host": ws_host, "ws_port": ws_port}
+        )
         sys.exit(1)
 
 

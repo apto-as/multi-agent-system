@@ -61,9 +61,17 @@ class BaseService:
             await self.session.flush()  # Get the ID without committing
             await self.session.refresh(record)
             return record
+        except (KeyboardInterrupt, SystemExit):
+            logger.critical(f"🚨 User interrupt during {model.__name__} creation")
+            await self.session.rollback()
+            raise
         except Exception as e:
             await self.session.rollback()
-            logger.error(f"Error creating {model.__name__}: {e}")
+            logger.error(
+                f"Error creating {model.__name__}: {e}",
+                exc_info=True,
+                extra={"model": model.__name__, "kwargs": kwargs}
+            )
             raise ValidationError(f"Failed to create {model.__name__}: {str(e)}")
 
     async def update_record(self, record: T, **kwargs) -> T:
@@ -84,9 +92,17 @@ class BaseService:
             await self.session.flush()
             await self.session.refresh(record)
             return record
+        except (KeyboardInterrupt, SystemExit):
+            logger.critical("🚨 User interrupt during record update")
+            await self.session.rollback()
+            raise
         except Exception as e:
             await self.session.rollback()
-            logger.error(f"Error updating record: {e}")
+            logger.error(
+                f"Error updating record: {e}",
+                exc_info=True,
+                extra={"record_type": type(record).__name__, "updates": kwargs}
+            )
             raise ValidationError(f"Failed to update record: {str(e)}")
 
     async def delete_record(self, record: T) -> bool:
@@ -103,9 +119,17 @@ class BaseService:
             await self.session.delete(record)
             await self.session.flush()
             return True
+        except (KeyboardInterrupt, SystemExit):
+            logger.critical("🚨 User interrupt during record deletion")
+            await self.session.rollback()
+            raise
         except Exception as e:
             await self.session.rollback()
-            logger.error(f"Error deleting record: {e}")
+            logger.error(
+                f"Error deleting record: {e}",
+                exc_info=True,
+                extra={"record_type": type(record).__name__, "record_id": getattr(record, 'id', None)}
+            )
             raise ValidationError(f"Failed to delete record: {str(e)}")
 
     async def exists(self, model: type[T], record_id: UUID) -> bool:
@@ -178,9 +202,17 @@ class BaseService:
         """Commit the current transaction."""
         try:
             await self.session.commit()
+        except (KeyboardInterrupt, SystemExit):
+            logger.critical("🚨 User interrupt during transaction commit")
+            await self.session.rollback()
+            raise
         except Exception as e:
             await self.session.rollback()
-            logger.error(f"Error committing transaction: {e}")
+            logger.error(
+                f"Error committing transaction: {e}",
+                exc_info=True,
+                extra={"service": self.__class__.__name__}
+            )
             raise
 
     async def rollback(self):

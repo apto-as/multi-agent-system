@@ -92,9 +92,16 @@ class AgentService:
             logger.info(f"Created agent {agent_id}: {display_name} ({agent_type})")
             return agent
 
+        except (KeyboardInterrupt, SystemExit):
+            await self.session.rollback()
+            raise
         except Exception as e:
             await self.session.rollback()
-            logger.error(f"Failed to create agent {agent_id}: {e}")
+            logger.error(
+                f"Failed to create agent {agent_id}: {e}",
+                exc_info=True,
+                extra={"agent_id": agent_id, "agent_type": agent_type, "namespace": namespace}
+            )
             raise DatabaseError(f"Failed to create agent: {e}") from e
 
     async def get_agent_by_id(self, agent_id: str) -> Agent | None:
@@ -106,8 +113,14 @@ class AgentService:
                 .options(selectinload(Agent.memories), selectinload(Agent.tasks))
             )
             return result.scalar_one_or_none()
+        except (KeyboardInterrupt, SystemExit):
+            raise
         except Exception as e:
-            logger.error(f"Failed to get agent {agent_id}: {e}")
+            logger.error(
+                f"Failed to get agent {agent_id}: {e}",
+                exc_info=True,
+                extra={"agent_id": agent_id}
+            )
             return None
 
     async def get_agent_by_display_name(
@@ -121,8 +134,14 @@ class AgentService:
 
             result = await self.session.execute(query)
             return result.scalar_one_or_none()
+        except (KeyboardInterrupt, SystemExit):
+            raise
         except Exception as e:
-            logger.error(f"Failed to get agent by name {display_name}: {e}")
+            logger.error(
+                f"Failed to get agent by name {display_name}: {e}",
+                exc_info=True,
+                extra={"display_name": display_name, "namespace": namespace}
+            )
             return None
 
     async def list_agents(
@@ -157,8 +176,19 @@ class AgentService:
             result = await self.session.execute(query)
             return list(result.scalars().all())
 
+        except (KeyboardInterrupt, SystemExit):
+            raise
         except Exception as e:
-            logger.error(f"Failed to list agents: {e}")
+            logger.error(
+                f"Failed to list agents: {e}",
+                exc_info=True,
+                extra={
+                    "namespace": namespace,
+                    "agent_type": agent_type,
+                    "access_level": access_level,
+                    "is_active": is_active
+                }
+            )
             return []
 
     async def update_agent(self, agent_id: str, updates: dict[str, Any]) -> Agent:
@@ -182,9 +212,16 @@ class AgentService:
             logger.info(f"Updated agent {agent_id}")
             return agent
 
+        except (KeyboardInterrupt, SystemExit):
+            await self.session.rollback()
+            raise
         except Exception as e:
             await self.session.rollback()
-            logger.error(f"Failed to update agent {agent_id}: {e}")
+            logger.error(
+                f"Failed to update agent {agent_id}: {e}",
+                exc_info=True,
+                extra={"agent_id": agent_id, "updates": updates}
+            )
             raise DatabaseError(f"Failed to update agent: {e}") from e
 
     async def deactivate_agent(self, agent_id: str) -> Agent:
@@ -212,9 +249,16 @@ class AgentService:
             logger.info(f"Hard deleted agent {agent_id}")
             return True
 
+        except (KeyboardInterrupt, SystemExit):
+            await self.session.rollback()
+            raise
         except Exception as e:
             await self.session.rollback()
-            logger.error(f"Failed to delete agent {agent_id}: {e}")
+            logger.error(
+                f"Failed to delete agent {agent_id}: {e}",
+                exc_info=True,
+                extra={"agent_id": agent_id, "force_delete": force}
+            )
             raise DatabaseError(f"Failed to delete agent: {e}") from e
 
     # Agent Performance and Analytics
@@ -274,8 +318,14 @@ class AgentService:
                 "updated_at": agent.updated_at.isoformat(),
             }
 
+        except (KeyboardInterrupt, SystemExit):
+            raise
         except Exception as e:
-            logger.error(f"Failed to get agent stats for {agent_id}: {e}")
+            logger.error(
+                f"Failed to get agent stats for {agent_id}: {e}",
+                exc_info=True,
+                extra={"agent_id": agent_id}
+            )
             raise DatabaseError(f"Failed to get agent stats: {e}") from e
 
     async def update_performance_metrics(self, agent_id: str) -> None:
@@ -332,9 +382,16 @@ class AgentService:
 
             await self.session.commit()
 
+        except (KeyboardInterrupt, SystemExit):
+            await self.session.rollback()
+            raise
         except Exception as e:
             await self.session.rollback()
-            logger.error(f"Failed to update performance metrics for {agent_id}: {e}")
+            logger.error(
+                f"Failed to update performance metrics for {agent_id}: {e}",
+                exc_info=True,
+                extra={"agent_id": agent_id}
+            )
 
     # Agent Memory Management
 
@@ -363,8 +420,18 @@ class AgentService:
             result = await self.session.execute(query)
             return list(result.scalars().all())
 
+        except (KeyboardInterrupt, SystemExit):
+            raise
         except Exception as e:
-            logger.error(f"Failed to get memories for agent {agent_id}: {e}")
+            logger.error(
+                f"Failed to get memories for agent {agent_id}: {e}",
+                exc_info=True,
+                extra={
+                    "agent_id": agent_id,
+                    "memory_type": memory_type,
+                    "access_level": access_level
+                }
+            )
             return []
 
     async def get_agent_tasks(
@@ -397,8 +464,19 @@ class AgentService:
             result = await self.session.execute(query)
             return list(result.scalars().all())
 
+        except (KeyboardInterrupt, SystemExit):
+            raise
         except Exception as e:
-            logger.error(f"Failed to get tasks for agent {agent_id}: {e}")
+            logger.error(
+                f"Failed to get tasks for agent {agent_id}: {e}",
+                exc_info=True,
+                extra={
+                    "agent_id": agent_id,
+                    "status": status,
+                    "task_type": task_type,
+                    "include_collaborating": include_collaborating
+                }
+            )
             return []
 
     # Namespace Management
@@ -434,9 +512,16 @@ class AgentService:
             logger.info(f"Created namespace: {namespace}")
             return namespace_obj
 
+        except (KeyboardInterrupt, SystemExit):
+            await self.session.rollback()
+            raise
         except Exception as e:
             await self.session.rollback()
-            logger.error(f"Failed to create namespace {namespace}: {e}")
+            logger.error(
+                f"Failed to create namespace {namespace}: {e}",
+                exc_info=True,
+                extra={"namespace": namespace, "access_policy": access_policy}
+            )
             raise DatabaseError(f"Failed to create namespace: {e}") from e
 
     async def get_namespace(self, namespace: str) -> AgentNamespace | None:
@@ -446,8 +531,14 @@ class AgentService:
                 select(AgentNamespace).where(AgentNamespace.namespace == namespace)
             )
             return result.scalar_one_or_none()
+        except (KeyboardInterrupt, SystemExit):
+            raise
         except Exception as e:
-            logger.error(f"Failed to get namespace {namespace}: {e}")
+            logger.error(
+                f"Failed to get namespace {namespace}: {e}",
+                exc_info=True,
+                extra={"namespace": namespace}
+            )
             return None
 
     async def namespace_exists(self, namespace: str) -> bool:
@@ -476,8 +567,14 @@ class AgentService:
             result = await self.session.execute(query)
             return list(result.scalars().all())
 
+        except (KeyboardInterrupt, SystemExit):
+            raise
         except Exception as e:
-            logger.error(f"Failed to list namespaces: {e}")
+            logger.error(
+                f"Failed to list namespaces: {e}",
+                exc_info=True,
+                extra={"access_policy": access_policy, "is_active": is_active}
+            )
             return []
 
     # Team Management
@@ -515,9 +612,16 @@ class AgentService:
             logger.info(f"Created team: {team_id}")
             return team
 
+        except (KeyboardInterrupt, SystemExit):
+            await self.session.rollback()
+            raise
         except Exception as e:
             await self.session.rollback()
-            logger.error(f"Failed to create team {team_id}: {e}")
+            logger.error(
+                f"Failed to create team {team_id}: {e}",
+                exc_info=True,
+                extra={"team_id": team_id, "namespace": namespace, "team_type": team_type}
+            )
             raise DatabaseError(f"Failed to create team: {e}") from e
 
     async def get_team(self, team_id: str) -> AgentTeam | None:
@@ -527,8 +631,14 @@ class AgentService:
                 select(AgentTeam).where(AgentTeam.team_id == team_id)
             )
             return result.scalar_one_or_none()
+        except (KeyboardInterrupt, SystemExit):
+            raise
         except Exception as e:
-            logger.error(f"Failed to get team {team_id}: {e}")
+            logger.error(
+                f"Failed to get team {team_id}: {e}",
+                exc_info=True,
+                extra={"team_id": team_id}
+            )
             return None
 
     async def add_agent_to_team(self, team_id: str, agent_id: str) -> bool:
@@ -553,9 +663,16 @@ class AgentService:
                 return True
             return False
 
+        except (KeyboardInterrupt, SystemExit):
+            await self.session.rollback()
+            raise
         except Exception as e:
             await self.session.rollback()
-            logger.error(f"Failed to add agent {agent_id} to team {team_id}: {e}")
+            logger.error(
+                f"Failed to add agent {agent_id} to team {team_id}: {e}",
+                exc_info=True,
+                extra={"team_id": team_id, "agent_id": agent_id}
+            )
             return False
 
     async def remove_agent_from_team(self, team_id: str, agent_id: str) -> bool:
@@ -580,9 +697,16 @@ class AgentService:
                 return True
             return False
 
+        except (KeyboardInterrupt, SystemExit):
+            await self.session.rollback()
+            raise
         except Exception as e:
             await self.session.rollback()
-            logger.error(f"Failed to remove agent {agent_id} from team {team_id}: {e}")
+            logger.error(
+                f"Failed to remove agent {agent_id} from team {team_id}: {e}",
+                exc_info=True,
+                extra={"team_id": team_id, "agent_id": agent_id}
+            )
             return False
 
     # Migration and Compatibility
@@ -607,8 +731,10 @@ class AgentService:
             logger.info(f"Migration complete: created {len(created_agents)} agents")
             return {"created_agents": created_agents, "total_created": len(created_agents)}
 
+        except (KeyboardInterrupt, SystemExit):
+            raise
         except Exception as e:
-            logger.error(f"Migration failed: {e}")
+            logger.error(f"Migration failed: {e}", exc_info=True)
             raise DatabaseError(f"Migration failed: {e}") from e
 
     # Search and Discovery
@@ -635,8 +761,14 @@ class AgentService:
             result = await self.session.execute(search_query)
             return list(result.scalars().all())
 
+        except (KeyboardInterrupt, SystemExit):
+            raise
         except Exception as e:
-            logger.error(f"Failed to search agents with query '{query}': {e}")
+            logger.error(
+                f"Failed to search agents with query '{query}': {e}",
+                exc_info=True,
+                extra={"query": query, "namespace": namespace, "agent_type": agent_type}
+            )
             return []
 
     async def get_recommended_agents(
@@ -691,6 +823,16 @@ class AgentService:
             scored_agents.sort(key=lambda x: x[0], reverse=True)
             return [agent for _, agent in scored_agents[:limit]]
 
+        except (KeyboardInterrupt, SystemExit):
+            raise
         except Exception as e:
-            logger.error(f"Failed to get recommended agents: {e}")
+            logger.error(
+                f"Failed to get recommended agents: {e}",
+                exc_info=True,
+                extra={
+                    "task_type": _task_type,
+                    "capabilities": capabilities,
+                    "namespace": namespace
+                }
+            )
             return []

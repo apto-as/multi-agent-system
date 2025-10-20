@@ -146,8 +146,14 @@ class GenAIToolboxBridge:
 
             return result
 
+        except (KeyboardInterrupt, SystemExit):
+            raise
         except Exception as e:
-            logger.error(f"GenAI tool execution error: {e}")
+            logger.error(
+                f"GenAI tool execution error: {e}",
+                exc_info=True,
+                extra={"tool_name": tool_name, "prompt_length": len(prompt)}
+            )
             return {"error": str(e)}
 
     async def _execute_go_process(
@@ -233,8 +239,14 @@ class GenAIToolboxBridge:
 
                     logger.info(f"Started GenAI sidecar: {tool_name} (PID: {process.pid})")
 
+                except (KeyboardInterrupt, SystemExit):
+                    raise
                 except Exception as e:
-                    logger.error(f"Failed to start {tool_name}: {e}")
+                    logger.error(
+                        f"Failed to start {tool_name}: {e}",
+                        exc_info=True,
+                        extra={"tool_name": tool_name, "binary_path": tool_info.binary_path}
+                    )
                     tool_info.status = "failed"
 
     async def health_check_genai_tools(self) -> dict[str, Any]:
@@ -268,8 +280,17 @@ class GenAIToolboxBridge:
             except asyncio.TimeoutError:
                 process.kill()
                 logger.warning(f"Force killed {tool_name}")
+            except (KeyboardInterrupt, SystemExit):
+                # Best-effort shutdown - don't propagate interrupts during cleanup
+                process.kill()
+                logger.warning(f"Force killed {tool_name} during shutdown interrupt")
             except Exception as e:
-                logger.error(f"Error stopping {tool_name}: {e}")
+                # Best-effort shutdown - log warning but continue
+                logger.warning(
+                    f"Error stopping {tool_name}: {e}",
+                    exc_info=False,
+                    extra={"tool_name": tool_name}
+                )
 
 
 # MCPサーバーに統合

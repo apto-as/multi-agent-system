@@ -133,10 +133,18 @@ class ServiceManager:
             self._initialized = True
             logger.info("All services initialized successfully")
 
-        except Exception as e:
-            logger.error(f"Service initialization failed: {e}")
+        except (KeyboardInterrupt, SystemExit):
+            logger.critical("🚨 User interrupt during service initialization - shutting down")
             await self.shutdown_all()
-            raise ServiceError(f"Service initialization failed: {e}")
+            raise
+        except Exception as e:
+            logger.error(
+                f"Service initialization failed: {e}",
+                exc_info=True,
+                extra={"services_initialized": len([s for s in self.registry.get_service_names() if self.registry.is_initialized(s)])}
+            )
+            await self.shutdown_all()
+            raise ServiceError(f"Service initialization failed: {e}") from e
 
     async def shutdown_all(self, timeout: float = 60.0) -> None:
         """Shutdown all services gracefully."""
@@ -160,8 +168,15 @@ class ServiceManager:
                         await handler()
                     else:
                         handler()
+                except (KeyboardInterrupt, SystemExit):
+                    logger.warning(f"User interrupt during shutdown handler {handler.__name__}")
+                    raise
                 except Exception as e:
-                    logger.error(f"Shutdown handler error: {e}")
+                    logger.error(
+                        f"Shutdown handler error: {e}",
+                        exc_info=True,
+                        extra={"handler": handler.__name__ if hasattr(handler, '__name__') else str(handler)}
+                    )
 
             # Shutdown services in reverse dependency order
             init_order = self._get_initialization_order()
@@ -173,9 +188,17 @@ class ServiceManager:
             self._initialized = False
             logger.info("All services shut down successfully")
 
+        except (KeyboardInterrupt, SystemExit):
+            logger.critical("🚨 User interrupt during shutdown - forcing immediate stop")
+            self._initialized = False
+            raise
         except Exception as e:
-            logger.error(f"Error during shutdown: {e}")
-            raise ServiceError(f"Shutdown failed: {e}")
+            logger.error(
+                f"Error during shutdown: {e}",
+                exc_info=True,
+                extra={"services_remaining": len([s for s in self.registry.get_service_names() if self.registry.is_initialized(s)])}
+            )
+            raise ServiceError(f"Shutdown failed: {e}") from e
 
     async def get_service(self, service_name: str) -> Any:
         """Get a service instance, creating session-dependent services as needed."""
@@ -226,7 +249,15 @@ class ServiceManager:
                 self.registry.update_health_status(
                     service_name, health_result["status"], health_result.get("error")
                 )
+            except (KeyboardInterrupt, SystemExit):
+                logger.warning(f"User interrupt during health check of {service_name}")
+                raise
             except Exception as e:
+                logger.error(
+                    f"Health check failed for service '{service_name}': {e}",
+                    exc_info=True,
+                    extra={"service_name": service_name}
+                )
                 health_result = {
                     "status": "unhealthy",
                     "error": str(e),
@@ -316,10 +347,21 @@ class ServiceManager:
 
             logger.info(f"Service '{service_name}' initialized successfully")
 
+        except (KeyboardInterrupt, SystemExit):
+            logger.critical(f"🚨 User interrupt during '{service_name}' initialization")
+            self.registry.update_health_status(service_name, "interrupted", "User interrupt")
+            raise
         except Exception as e:
-            logger.error(f"Failed to initialize service '{service_name}': {e}")
+            logger.error(
+                f"Failed to initialize service '{service_name}': {e}",
+                exc_info=True,
+                extra={
+                    "service_name": service_name,
+                    "dependencies": self.registry.get_dependencies(service_name)
+                }
+            )
             self.registry.update_health_status(service_name, "unhealthy", str(e))
-            raise ServiceError(f"Service '{service_name}' initialization failed: {e}")
+            raise ServiceError(f"Service '{service_name}' initialization failed: {e}") from e
 
     async def _shutdown_service(self, service_name: str, timeout: float) -> None:
         """Shutdown a single service."""
@@ -349,8 +391,16 @@ class ServiceManager:
 
             logger.info(f"Service '{service_name}' shut down successfully")
 
+        except (KeyboardInterrupt, SystemExit):
+            logger.warning(f"User interrupt during '{service_name}' shutdown - service may be in inconsistent state")
+            self.registry.update_health_status(service_name, "interrupted", "User interrupt during shutdown")
+            raise
         except Exception as e:
-            logger.error(f"Error shutting down service '{service_name}': {e}")
+            logger.error(
+                f"Error shutting down service '{service_name}': {e}",
+                exc_info=True,
+                extra={"service_name": service_name}
+            )
             self.registry.update_health_status(service_name, "error", str(e))
 
     async def _health_check_service(self, service_name: str) -> dict[str, Any]:
@@ -391,7 +441,15 @@ class ServiceManager:
                     "last_check": datetime.now(),
                 }
 
+        except (KeyboardInterrupt, SystemExit):
+            # Health checks should not suppress user interrupts
+            raise
         except Exception as e:
+            logger.error(
+                f"Health check exception for '{service_name}': {e}",
+                exc_info=True,
+                extra={"service_name": service_name}
+            )
             return {"status": "unhealthy", "error": str(e), "last_check": datetime.now()}
 
     async def _start_health_monitoring(self) -> None:
@@ -403,9 +461,17 @@ class ServiceManager:
                     await self.health_check_all()
                     await asyncio.sleep(self._health_check_interval)
                 except asyncio.CancelledError:
+                    logger.info("Health monitoring cancelled")
+                    break
+                except (KeyboardInterrupt, SystemExit):
+                    logger.critical("🚨 User interrupt in health monitor - stopping")
                     break
                 except Exception as e:
-                    logger.error(f"Health monitoring error: {e}")
+                    logger.error(
+                        f"Health monitoring error: {e}",
+                        exc_info=True,
+                        extra={"health_check_interval": self._health_check_interval}
+                    )
                     await asyncio.sleep(self._health_check_interval)
 
         self._health_check_task = asyncio.create_task(health_monitor())

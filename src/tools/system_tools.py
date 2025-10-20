@@ -79,11 +79,17 @@ class SystemTools(BaseTool):
                     await session.execute("SELECT 1")
                     end_time = datetime.utcnow()
                     db_response_time = (end_time - start_time).total_seconds() * 1000  # ms
+                except (KeyboardInterrupt, SystemExit):
+                    raise
                 except Exception as e:
                     import logging
 
                     logger = logging.getLogger(__name__)
-                    logger.error(f"Database connection test failed: {type(e).__name__}: {str(e)}")
+                    logger.warning(
+                        f"Database connection test failed: {type(e).__name__}: {str(e)}",
+                        exc_info=True,
+                        extra={"operation": "db_connection_test"}
+                    )
                     db_connected = False
 
                 # Get recent activity
@@ -171,7 +177,16 @@ class SystemTools(BaseTool):
                         "response_time_ms": db_response_time,
                         "details": "Database connection successful",
                     }
+                except (KeyboardInterrupt, SystemExit):
+                    raise
                 except Exception as e:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.error(
+                        f"Database health check failed: {type(e).__name__}",
+                        exc_info=True,
+                        extra={"operation": "health_check_database", "error": str(e)}
+                    )
                     health_results["checks"]["database"] = {
                         "status": "unhealthy",
                         "error": str(e),
@@ -188,7 +203,16 @@ class SystemTools(BaseTool):
                         "memory_count": test_count,
                         "details": "Memory service operational",
                     }
+                except (KeyboardInterrupt, SystemExit):
+                    raise
                 except Exception as e:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.error(
+                        f"Memory service health check failed: {type(e).__name__}",
+                        exc_info=True,
+                        extra={"operation": "health_check_memory_service", "error": str(e)}
+                    )
                     health_results["checks"]["memory_service"] = {
                         "status": "unhealthy",
                         "error": str(e),
@@ -204,7 +228,16 @@ class SystemTools(BaseTool):
                         "embedding_dimensions": len(test_embedding),
                         "details": "Vectorization service operational",
                     }
+                except (KeyboardInterrupt, SystemExit):
+                    raise
                 except Exception as e:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.warning(
+                        f"Vectorization service health check failed: {type(e).__name__}",
+                        exc_info=True,
+                        extra={"operation": "health_check_vectorization", "error": str(e)}
+                    )
                     health_results["checks"]["vectorization"] = {
                         "status": "unhealthy",
                         "error": str(e),
@@ -244,7 +277,16 @@ class SystemTools(BaseTool):
                             "query_time_ms": perf_time,
                             "details": f"Database query completed in {perf_time:.1f}ms",
                         }
+                    except (KeyboardInterrupt, SystemExit):
+                        raise
                     except Exception as e:
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.warning(
+                            f"Performance test failed: {type(e).__name__}",
+                            exc_info=True,
+                            extra={"operation": "performance_test", "error": str(e)}
+                        )
                         health_results["checks"]["performance_test"] = {
                             "status": "failed",
                             "error": str(e),
@@ -332,7 +374,16 @@ class SystemTools(BaseTool):
                             if before_stats and before_stats.avg_dimensions
                             else 0,
                         }
+                    except (KeyboardInterrupt, SystemExit):
+                        raise
                     except Exception as e:
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.error(
+                            f"Vector optimization failed: {type(e).__name__}",
+                            exc_info=True,
+                            extra={"operation": "optimize_vectors", "error": str(e)}
+                        )
                         optimization_results["operations"]["vector_optimization"] = {
                             "status": "failed",
                             "error": str(e),
@@ -365,7 +416,16 @@ class SystemTools(BaseTool):
                             else 0,
                             "cutoff_date": cutoff_date.isoformat(),
                         }
+                    except (KeyboardInterrupt, SystemExit):
+                        raise
                     except Exception as e:
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.warning(
+                            f"Log cleanup skipped: {type(e).__name__}",
+                            exc_info=True,
+                            extra={"operation": "cleanup_logs", "error": str(e)}
+                        )
                         optimization_results["operations"]["log_cleanup"] = {
                             "status": "skipped",
                             "reason": "No log table found or cleanup not needed",
@@ -408,7 +468,16 @@ class SystemTools(BaseTool):
                             "duration_seconds": analysis_time,
                             "query_performance": query_performance,
                         }
+                    except (KeyboardInterrupt, SystemExit):
+                        raise
                     except Exception as e:
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.error(
+                            f"Performance analysis failed: {type(e).__name__}",
+                            exc_info=True,
+                            extra={"operation": "analyze_performance", "error": str(e)}
+                        )
                         optimization_results["operations"]["performance_analysis"] = {
                             "status": "failed",
                             "error": str(e),
@@ -430,7 +499,16 @@ class SystemTools(BaseTool):
                             "duration_seconds": vacuum_time,
                             "details": "Full database vacuum completed",
                         }
+                    except (KeyboardInterrupt, SystemExit):
+                        raise
                     except Exception as e:
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.error(
+                            f"Database vacuum failed: {type(e).__name__}",
+                            exc_info=True,
+                            extra={"operation": "vacuum_database", "error": str(e)}
+                        )
                         optimization_results["operations"]["database_vacuum"] = {
                             "status": "failed",
                             "error": str(e),
@@ -524,7 +602,16 @@ class SystemTools(BaseTool):
                         if memory_stats and time_window_hours > 0
                         else 0,
                     }
+                except (KeyboardInterrupt, SystemExit):
+                    raise
                 except Exception as e:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.warning(
+                        f"Database activity metrics failed: {type(e).__name__}",
+                        exc_info=True,
+                        extra={"operation": "get_database_activity", "error": str(e)}
+                    )
                     metrics["database_activity"] = {"error": str(e)}
 
                 # Query performance metrics
@@ -571,7 +658,16 @@ class SystemTools(BaseTool):
                             }
 
                         metrics["query_performance"] = query_metrics
+                    except (KeyboardInterrupt, SystemExit):
+                        raise
                     except Exception as e:
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.warning(
+                            f"Query performance metrics failed: {type(e).__name__}",
+                            exc_info=True,
+                            extra={"operation": "get_query_performance", "error": str(e)}
+                        )
                         metrics["query_performance"] = {"error": str(e)}
 
                 # Service health metrics
@@ -600,7 +696,16 @@ class SystemTools(BaseTool):
                             health_result = {"status": "healthy"}
 
                         services_health[service_name] = health_result
+                    except (KeyboardInterrupt, SystemExit):
+                        raise
                     except Exception as e:
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.warning(
+                            f"Service health check failed for {service_name}: {type(e).__name__}",
+                            exc_info=True,
+                            extra={"operation": "service_health_check", "service": service_name, "error": str(e)}
+                        )
                         services_health[service_name] = {"status": "unhealthy", "error": str(e)}
 
                 metrics["services_health"] = services_health
@@ -702,7 +807,16 @@ class SystemTools(BaseTool):
                                 "restart_time": datetime.utcnow().isoformat(),
                                 "health_check": "passed",
                             }
+                        except (KeyboardInterrupt, SystemExit):
+                            raise
                         except Exception as e:
+                            import logging
+                            logger = logging.getLogger(__name__)
+                            logger.error(
+                                f"Service restart failed for {service_name}: {type(e).__name__}",
+                                exc_info=True,
+                                extra={"operation": "restart_service", "service": service_name, "error": str(e)}
+                            )
                             restart_results["services"][service_name] = {
                                 "status": "failed",
                                 "error": str(e),
