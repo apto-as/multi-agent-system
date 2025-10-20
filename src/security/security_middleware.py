@@ -137,12 +137,16 @@ class UnifiedSecurityMiddleware(BaseHTTPMiddleware):
                 if user_info:
                     user_id = user_info.get("user_id")
                     user_roles = user_info.get("roles", [])
+            except (KeyboardInterrupt, SystemExit):
+                raise
             except Exception as e:
-                import logging
-
-                logger = logging.getLogger(__name__)
-                logger.warning(f"Failed to extract JWT user info: {type(e).__name__}: {str(e)}")
-                pass  # Invalid token, continue with IP-based limits
+                # JWT extraction failure - continue with IP-based limits only
+                logger.warning(
+                    f"⚠️  Failed to extract JWT user info (using IP-based limits): {type(e).__name__}: {str(e)}",
+                    exc_info=False,  # Expected for invalid/expired tokens
+                    extra={"client_ip": client_ip, "has_auth_header": True},
+                )
+                # Continue with IP-based limits
 
         # Try to extract API key info
         api_key = request.headers.get("X-API-Key")
@@ -156,12 +160,19 @@ class UnifiedSecurityMiddleware(BaseHTTPMiddleware):
                 user_id = str(user.id)
                 user_roles = [role.value for role in user.roles]
                 api_key_scopes = [scope.value for scope in key_record.scopes]
+            except (KeyboardInterrupt, SystemExit):
+                raise
             except Exception as e:
-                import logging
-
-                logger = logging.getLogger(__name__)
-                logger.warning(f"Failed to validate API key: {type(e).__name__}: {str(e)}")
-                pass  # Invalid API key, continue with IP-based limits
+                # API key validation failure - continue with IP-based limits only
+                logger.warning(
+                    f"⚠️  Failed to validate API key (using IP-based limits): {type(e).__name__}: {str(e)}",
+                    exc_info=False,  # Expected for invalid keys
+                    extra={
+                        "client_ip": client_ip,
+                        "api_key_prefix": api_key[:8] + "..." if len(api_key) > 8 else "***",
+                    },
+                )
+                # Continue with IP-based limits
 
         # Perform rate limit check
         await self.rate_limiter.check_rate_limit(
@@ -279,28 +290,30 @@ class UnifiedSecurityMiddleware(BaseHTTPMiddleware):
                 token = auth_header.split(" ", 1)[1]
                 user_info = verify_and_extract_user(token)
                 return user_info.get("user_id") if user_info else None
+            except (KeyboardInterrupt, SystemExit):
+                raise
             except Exception as e:
-                import logging
-
-                logger = logging.getLogger(__name__)
-                logger.debug(f"Failed to extract user ID from JWT: {type(e).__name__}: {str(e)}")
-                pass
+                # Failed to extract - log at DEBUG (non-critical for auditing)
+                logger.debug(
+                    f"Failed to extract user ID from JWT: {type(e).__name__}: {str(e)}",
+                    exc_info=False,
+                )
+                # Fall through to try API key
 
         # Try to extract from API key
         api_key = request.headers.get("X-API-Key")
         if api_key:
             try:
-                # This would require a cache or lightweight validation
-                # For now, return a placeholder
+                # Lightweight extraction - just use prefix for auditing
                 return f"api_key:{api_key[:8]}"
+            except (KeyboardInterrupt, SystemExit):
+                raise
             except Exception as e:
-                import logging
-
-                logger = logging.getLogger(__name__)
+                # Failed to extract - log at DEBUG (non-critical for auditing)
                 logger.debug(
-                    f"Failed to extract user ID from API key: {type(e).__name__}: {str(e)}"
+                    f"Failed to extract user ID from API key: {type(e).__name__}: {str(e)}",
+                    exc_info=False,
                 )
-                pass
 
         return None
 

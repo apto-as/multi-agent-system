@@ -193,12 +193,24 @@ class RateLimiter:
         """
         try:
             return await self._check_rate_limit_internal(request, endpoint_type, user_id)
+        except (KeyboardInterrupt, SystemExit):
+            # Never suppress user interrupts
+            raise
         except HTTPException:
-            # Re-raise HTTP exceptions
+            # Re-raise HTTP exceptions (rate limit exceeded, etc.)
             raise
         except Exception as e:
-            # Fail-secure: Any unexpected error = deny access
-            logger.error(f"Rate limiter error (fail-secure triggered): {e}")
+            # FAIL-SECURE: Any unexpected error = deny access
+            client_ip = self._get_client_ip(request)
+            logger.error(
+                f"❌ Rate limiter error (FAIL-SECURE activated): {e}",
+                exc_info=True,
+                extra={
+                    "client_ip": client_ip,
+                    "endpoint_type": endpoint_type,
+                    "user_id": user_id,
+                },
+            )
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Service temporarily unavailable",
@@ -406,13 +418,21 @@ class RateLimiter:
 
                 self._record_redis_success()  # H-2 fix: track success
                 return current_count <= limit.requests
+            except (KeyboardInterrupt, SystemExit):
+                raise
             except Exception as e:
                 # H-2 fix: explicit degraded mode tracking
                 self._record_redis_failure("global_rate_limit", e)
-                # Fail-secure: Redis failure = use stricter fallback limits
-                return (
-                    self.global_stats["total_requests"] < limit.requests // 2
-                )  # 50% stricter limit
+                # FAIL-SECURE: Redis failure = use 50% stricter fallback limits
+                fallback_allowed = limit.requests // 2
+                is_allowed = self.global_stats["total_requests"] < fallback_allowed
+                logger.warning(
+                    f"⚠️  Global rate limit using fallback (Redis unavailable). "
+                    f"Allowed: {fallback_allowed}, Current: {self.global_stats['total_requests']}, "
+                    f"Result: {'ALLOW' if is_allowed else 'DENY'}",
+                    extra={"degraded_mode": True, "fallback_limit": fallback_allowed},
+                )
+                return is_allowed
 
     async def _check_ip_limit(self, client_stats: ClientStats, _endpoint_type: str) -> bool:
         """Check IP-based rate limit."""
@@ -484,13 +504,20 @@ class RateLimiter:
 
             return True
 
+        except (KeyboardInterrupt, SystemExit):
+            raise
         except HTTPException:
             # Re-raise HTTP exceptions (not Redis errors)
             raise
         except Exception as e:
             # H-2 fix: explicit degraded mode tracking
             self._record_redis_failure("user_rate_limit", e)
-            # Fail-secure: Redis failure = deny access for safety
+            # FAIL-SECURE: Redis failure = deny access for safety
+            logger.error(
+                f"❌ User rate limit check failed (FAIL-SECURE: denying access). User: {user_id}, Error: {e}",
+                exc_info=True,
+                extra={"user_id": user_id, "degraded_mode": True},
+            )
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Service temporarily unavailable (degraded mode)",
@@ -548,14 +575,26 @@ class RateLimiter:
 
                 return True
 
+            except (KeyboardInterrupt, SystemExit):
+                raise
             except HTTPException:
                 # Re-raise HTTP exceptions (not Redis errors)
                 raise
             except Exception as e:
                 # H-2 fix: explicit degraded mode tracking
                 self._record_redis_failure("endpoint_rate_limit", e)
-                # Fail-secure: Redis failure = apply strict local limits
+                # FAIL-SECURE: Redis failure = apply strict local block
                 client_stats.blocked_until = datetime.utcnow() + timedelta(seconds=60)
+                logger.error(
+                    f"❌ Endpoint rate limit check failed (FAIL-SECURE: blocking client). "
+                    f"Endpoint: {endpoint_type}, IP: {client_stats.ip_address}, Error: {e}",
+                    exc_info=True,
+                    extra={
+                        "endpoint_type": endpoint_type,
+                        "client_ip": client_stats.ip_address,
+                        "degraded_mode": True,
+                    },
+                )
                 raise HTTPException(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                     detail="Service temporarily unavailable (degraded mode)",

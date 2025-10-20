@@ -143,10 +143,17 @@ class JWTService:
 
         return jwt.encode(claims, self.secret_key, algorithm=self.algorithm)
 
-    def verify_token(self, token: str) -> dict[str, Any] | None:
+    def verify_token(self, token: str, client_ip: str | None = None) -> dict[str, Any] | None:
         """
         Verify and decode JWT token.
         Optimized for <200ms performance requirement.
+
+        Args:
+            token: JWT token to verify
+            client_ip: Client IP address for security logging (optional)
+
+        Returns:
+            Decoded payload if valid, None if invalid/expired
         """
         try:
             # Fast path: decode and verify in one operation
@@ -168,96 +175,168 @@ class JWTService:
 
             # Additional validation
             if "sub" not in payload or "username" not in payload:
+                logger.error(
+                    "⚠️  JWT token missing required claims",
+                    extra={"client_ip": client_ip, "has_sub": "sub" in payload, "has_username": "username" in payload}
+                )
                 return None
 
             return payload
 
+        except (KeyboardInterrupt, SystemExit):
+            # Never suppress user interrupts
+            raise
         except ExpiredSignatureError:
-            # Token expired - this is expected behavior
+            # Token expired - this is EXPECTED behavior (not an error)
+            # Only log if we have client IP (indicates actual auth attempt)
+            if client_ip:
+                logger.info(
+                    f"Expired JWT token from {client_ip} (normal expiration)",
+                    extra={"client_ip": client_ip, "error_type": "expired"}
+                )
             return None
-        except InvalidTokenError:
-            # Invalid token format or signature
+        except InvalidTokenError as e:
+            # Invalid token format or signature - POSSIBLE ATTACK
+            logger.error(
+                f"🚨 Invalid JWT token detected{f' from {client_ip}' if client_ip else ''} (possible attack): {type(e).__name__}",
+                exc_info=False,  # Don't spam with full traces for expected invalid tokens
+                extra={
+                    "client_ip": client_ip or "unknown",
+                    "error_type": "invalid_token",
+                    "error_class": type(e).__name__,
+                    "token_prefix": token[:8] + "..." if len(token) > 8 else "***"  # Masked token
+                }
+            )
             return None
         except Exception as e:
-            # Unexpected error - log but don't expose details
-            import logging
-
-            logger = logging.getLogger(__name__)
-            logger.error(
-                f"JWT verification failed with unexpected error: {type(e).__name__}: {str(e)}",
+            # Unexpected error - CRITICAL (should never happen)
+            logger.critical(
+                f"❌ CRITICAL: Unexpected JWT verification error: {type(e).__name__}: {str(e)}",
                 exc_info=True,
+                extra={
+                    "client_ip": client_ip or "unknown",
+                    "error_type": "unexpected",
+                    "error_class": type(e).__name__
+                }
             )
             return None
 
-    def verify_refresh_token(self, token: str) -> str | None:
+    def verify_refresh_token(self, token: str, client_ip: str | None = None) -> str | None:
         """
         Verify refresh token and extract token_id.
-        Returns token_id if valid, None otherwise.
+
+        Args:
+            token: Refresh token in format "token_id.raw_token"
+            client_ip: Client IP for security logging (optional)
+
+        Returns:
+            token_id if valid format, None otherwise
         """
         try:
             # Parse token format: token_id.raw_token
             parts = token.split(".", 1)
             if len(parts) != 2:
+                logger.error(
+                    "⚠️  Invalid refresh token format (missing delimiter)",
+                    extra={"client_ip": client_ip or "unknown", "parts_count": len(parts)}
+                )
                 return None
 
             token_id, raw_token = parts
 
             # Validate token_id format (URL-safe base64)
             if len(token_id) < 32 or not token_id.replace("-", "").replace("_", "").isalnum():
+                logger.error(
+                    "🚨 Invalid refresh token_id format (possible attack)",
+                    extra={
+                        "client_ip": client_ip or "unknown",
+                        "token_id_length": len(token_id),
+                        "token_id_prefix": token_id[:8] + "..." if len(token_id) > 8 else "***"
+                    }
+                )
                 return None
 
             return token_id
 
+        except (KeyboardInterrupt, SystemExit):
+            raise
         except Exception as e:
-            import logging
-
-            logger = logging.getLogger(__name__)
-            logger.error(
-                f"Refresh token verification failed: {type(e).__name__}: {str(e)}", exc_info=True
+            logger.critical(
+                f"❌ CRITICAL: Unexpected refresh token verification error: {type(e).__name__}: {str(e)}",
+                exc_info=True,
+                extra={"client_ip": client_ip or "unknown", "error_type": "unexpected"}
             )
             return None
 
-    def verify_refresh_token_hash(self, raw_token: str, stored_hash: str) -> bool:
-        """Verify raw refresh token against stored hash."""
+    def verify_refresh_token_hash(self, raw_token: str, stored_hash: str, client_ip: str | None = None) -> bool:
+        """
+        Verify raw refresh token against stored hash.
+
+        Args:
+            raw_token: Raw refresh token from client
+            stored_hash: Stored bcrypt hash from database
+            client_ip: Client IP for security logging (optional)
+
+        Returns:
+            True if token matches hash, False otherwise
+        """
         try:
             return self.pwd_context.verify(raw_token, stored_hash)
+        except (KeyboardInterrupt, SystemExit):
+            raise
         except Exception as e:
-            import logging
-
-            logger = logging.getLogger(__name__)
+            # Hash verification failure could indicate attack or corrupted hash
             logger.error(
-                f"Refresh token hash verification failed: {type(e).__name__}: {str(e)}",
+                f"❌ Refresh token hash verification failed{f' from {client_ip}' if client_ip else ''}: {type(e).__name__}: {str(e)}",
                 exc_info=True,
+                extra={
+                    "client_ip": client_ip or "unknown",
+                    "error_type": "hash_verification_failed",
+                    "stored_hash_prefix": stored_hash[:10] + "..." if len(stored_hash) > 10 else "***"
+                }
             )
+            # FAIL-SECURE: On any error, deny access
             return False
 
     def decode_token_unsafe(self, token: str) -> dict[str, Any] | None:
         """
         Decode token without verification (for debugging/logging only).
-        WARNING: Never use for authentication!
+
+        WARNING: NEVER use for authentication! This bypasses all security checks.
         """
         try:
             return jwt.decode(token, options={"verify_signature": False})
+        except (KeyboardInterrupt, SystemExit):
+            raise
         except Exception as e:
-            import logging
-
-            logger = logging.getLogger(__name__)
-            logger.warning(f"Token decode (unsafe) failed: {type(e).__name__}: {str(e)}")
+            logger.warning(
+                f"⚠️  Unsafe token decode failed (debugging only): {type(e).__name__}: {str(e)}",
+                exc_info=False,  # Don't spam logs for debugging function
+                extra={"token_prefix": token[:8] + "..." if len(token) > 8 else "***"}
+            )
             return None
 
     def get_token_expiry(self, token: str) -> datetime | None:
-        """Get token expiration time without full verification."""
+        """
+        Get token expiration time without full verification.
+
+        Note: This is a convenience function for displaying token lifetime.
+        Do NOT use for security decisions.
+        """
         try:
             payload = self.decode_token_unsafe(token)
             if payload and "exp" in payload:
                 return datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
+            return None
+        except (KeyboardInterrupt, SystemExit):
+            raise
         except Exception as e:
-            import logging
-
-            logger = logging.getLogger(__name__)
-            logger.warning(f"Failed to extract token expiry: {type(e).__name__}: {str(e)}")
-            pass
-        return None
+            logger.warning(
+                f"⚠️  Failed to extract token expiry: {type(e).__name__}: {str(e)}",
+                exc_info=False,  # Non-critical operation
+                extra={"token_prefix": token[:8] + "..." if len(token) > 8 else "***"}
+            )
+            return None
 
     def create_password_reset_token(self, user: User) -> str:
         """Create password reset token (short-lived)."""

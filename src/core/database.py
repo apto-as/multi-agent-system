@@ -8,10 +8,12 @@ from contextlib import asynccontextmanager
 
 import sqlalchemy as sa
 from sqlalchemy import event, text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
 from .config import get_settings
+from .exceptions import DatabaseOperationError, log_and_raise
 
 logger = logging.getLogger(__name__)
 
@@ -128,9 +130,23 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     async with session_maker() as session:
         try:
             yield session
-        except Exception as e:
+        except (KeyboardInterrupt, SystemExit):
+            # Never suppress user interrupts
             await session.rollback()
-            logger.error(f"Database session error: {e}")
+            raise
+        except SQLAlchemyError as e:
+            # Database errors - rollback and raise with context
+            await session.rollback()
+            log_and_raise(
+                DatabaseOperationError,
+                "Database session error during operation",
+                original_exception=e,
+                details={"session_id": id(session)},
+            )
+        except Exception as e:
+            # Unexpected errors - rollback and log critical
+            await session.rollback()
+            logger.critical(f"Unexpected database session error: {e}", exc_info=True)
             raise
         finally:
             await session.close()
@@ -159,8 +175,16 @@ class DatabaseHealthCheck:
             async with get_db_session() as session:
                 result = await session.execute(sa.text("SELECT 1"))
                 return result.scalar() == 1
+        except (KeyboardInterrupt, SystemExit):
+            # Never suppress user interrupts
+            raise
+        except SQLAlchemyError as e:
+            # Database connection errors (expected during health checks)
+            logger.warning(f"Database health check failed (connection error): {e}")
+            return False
         except Exception as e:
-            logger.error(f"Database health check failed: {e}")
+            # Unexpected errors - log critical
+            logger.critical(f"Database health check failed (unexpected error): {e}", exc_info=True)
             return False
 
     @staticmethod
@@ -242,12 +266,24 @@ async def close_db_connections():
         try:
             pool_status = await DatabaseHealthCheck.get_pool_status()
             logger.info(f"Final pool status before shutdown: {pool_status}")
+        except (KeyboardInterrupt, SystemExit):
+            # Never suppress user interrupts
+            raise
         except Exception as e:
-            logger.error(f"Could not get final pool status: {e}")
+            # Expected errors during shutdown - log but continue
+            logger.warning(f"Could not get final pool status during shutdown: {e}")
 
-        await _engine.dispose()
-        _engine = None
-        logger.info("Database engine disposed")
+        try:
+            await _engine.dispose()
+            _engine = None
+            logger.info("Database engine disposed")
+        except (KeyboardInterrupt, SystemExit):
+            # Never suppress user interrupts
+            raise
+        except Exception as e:
+            # Unexpected errors during disposal - log critical
+            logger.critical(f"Error disposing database engine: {e}", exc_info=True)
+            _engine = None  # Clear anyway to prevent reuse
 
     if _session_maker:
         _session_maker = None
@@ -266,5 +302,18 @@ async def optimize_database():
             await session.commit()
 
             logger.info("SQLite database optimization completed (ANALYZE)")
+    except (KeyboardInterrupt, SystemExit):
+        # Never suppress user interrupts
+        raise
+    except SQLAlchemyError as e:
+        # Database optimization errors (expected)
+        log_and_raise(
+            DatabaseOperationError,
+            "Database optimization failed",
+            original_exception=e,
+            details={"operation": "ANALYZE"},
+        )
     except Exception as e:
-        logger.error(f"Database optimization failed: {e}")
+        # Unexpected errors - log critical
+        logger.critical(f"Unexpected error during database optimization: {e}", exc_info=True)
+        raise

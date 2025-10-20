@@ -126,8 +126,10 @@ class OllamaEmbeddingService:
                             f"⚠️ Ollama server found but model '{self.model_name}' not available"
                         )
                         logger.info(f"Run: ollama pull {self.model_name}")
+        except (KeyboardInterrupt, SystemExit):
+            raise
         except Exception as e:
-            logger.warning(f"⚠️ Ollama server not reachable: {e}")
+            logger.warning(f"⚠️ Ollama server not reachable: {e}", exc_info=False)
 
         self._is_ollama_available = False
         return False
@@ -194,8 +196,10 @@ class OllamaEmbeddingService:
                     normalize=normalize,
                     batch_size=batch_size,
                 )
+            except (KeyboardInterrupt, SystemExit):
+                raise
             except Exception as e:
-                logger.error(f"❌ Ollama encoding failed: {e}")
+                logger.error(f"❌ Ollama encoding failed: {e}", exc_info=True)
 
                 if self.fallback_enabled:
                     logger.info("🔄 Falling back to SentenceTransformers")
@@ -241,8 +245,10 @@ class OllamaEmbeddingService:
                     normalize=normalize,
                     batch_size=batch_size,
                 )
+            except (KeyboardInterrupt, SystemExit):
+                raise
             except Exception as e:
-                logger.error(f"❌ Ollama encoding failed: {e}")
+                logger.error(f"❌ Ollama encoding failed: {e}", exc_info=True)
 
                 if self.fallback_enabled:
                     logger.info("🔄 Falling back to SentenceTransformers")

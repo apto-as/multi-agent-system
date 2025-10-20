@@ -156,12 +156,15 @@ class FastMCPManager(BaseProcessManager):
             self.state = ServiceState.FAILED
             logger.error(f"[TACTICAL] FastMCP startup failed: {type(e).__name__}: {e}")
             return False
+        except (KeyboardInterrupt, SystemExit):
+            raise
         except Exception as e:
             # Unexpected errors - log with full context
             self.state = ServiceState.FAILED
-            logger.error(
-                f"[TACTICAL] FastMCP startup failed with unexpected error: {type(e).__name__}: {e}",
+            logger.critical(
+                f"[TACTICAL] FastMCP startup failed with unexpected error: {type(e).__name__}",
                 exc_info=True,
+                extra={"operation": "fastmcp_start", "error": str(e)}
             )
             return False
 
@@ -181,10 +184,14 @@ class FastMCPManager(BaseProcessManager):
             # Expected errors during MCP server operation
             logger.error(f"[TACTICAL] MCP server error: {type(e).__name__}: {e}")
             self.state = ServiceState.FAILED
+        except (KeyboardInterrupt, SystemExit):
+            raise
         except Exception as e:
             # Unexpected errors - log with full context
-            logger.error(
-                f"[TACTICAL] MCP server unexpected error: {type(e).__name__}: {e}", exc_info=True
+            logger.critical(
+                f"[TACTICAL] MCP server unexpected error: {type(e).__name__}",
+                exc_info=True,
+                extra={"operation": "run_mcp_server", "error": str(e)}
             )
             self.state = ServiceState.FAILED
 
@@ -209,11 +216,14 @@ class FastMCPManager(BaseProcessManager):
             # Expected errors during shutdown
             logger.error(f"[TACTICAL] FastMCP shutdown error: {type(e).__name__}: {e}")
             return False
+        except (KeyboardInterrupt, SystemExit):
+            raise
         except Exception as e:
             # Unexpected errors - log with full context
-            logger.error(
-                f"[TACTICAL] FastMCP shutdown unexpected error: {type(e).__name__}: {e}",
+            logger.critical(
+                f"[TACTICAL] FastMCP shutdown unexpected error: {type(e).__name__}",
                 exc_info=True,
+                extra={"operation": "fastmcp_stop", "error": str(e)}
             )
             return False
 
@@ -232,10 +242,14 @@ class FastMCPManager(BaseProcessManager):
             # Expected errors during health check (task state issues, attribute errors)
             logger.error(f"FastMCP health check failed: {type(e).__name__}: {e}")
             return False
+        except (KeyboardInterrupt, SystemExit):
+            raise
         except Exception as e:
             # Unexpected errors - log with full context
             logger.error(
-                f"FastMCP health check unexpected error: {type(e).__name__}: {e}", exc_info=True
+                f"FastMCP health check unexpected error: {type(e).__name__}",
+                exc_info=True,
+                extra={"operation": "health_check", "error": str(e)}
             )
             return False
 
@@ -252,10 +266,14 @@ class FastMCPManager(BaseProcessManager):
             # Expected errors when process is gone or inaccessible
             logger.warning(f"Failed to update FastMCP metrics: {type(e).__name__}: {e}")
             return self.metrics
+        except (KeyboardInterrupt, SystemExit):
+            raise
         except Exception as e:
             # Unexpected errors - log with full context
             logger.warning(
-                f"FastMCP metrics unexpected error: {type(e).__name__}: {e}", exc_info=True
+                f"FastMCP metrics unexpected error: {type(e).__name__}",
+                exc_info=True,
+                extra={"operation": "get_metrics", "error": str(e)}
             )
             return self.metrics
 
@@ -338,11 +356,14 @@ class TacticalProcessManager:
             logger.error(f"[TACTICAL] Service startup failed: {type(e).__name__}: {e}")
             await self.shutdown_all_services()
             return False
+        except (KeyboardInterrupt, SystemExit):
+            raise
         except Exception as e:
             # Unexpected errors - log with full context
-            logger.error(
-                f"[TACTICAL] Service startup unexpected error: {type(e).__name__}: {e}",
+            logger.critical(
+                f"[TACTICAL] Service startup unexpected error: {type(e).__name__}",
                 exc_info=True,
+                extra={"operation": "start_all_services", "error": str(e)}
             )
             await self.shutdown_all_services()
             return False
@@ -374,11 +395,14 @@ class TacticalProcessManager:
             except (RuntimeError, OSError, AttributeError) as e:
                 # Expected errors during shutdown
                 logger.error(f"[TACTICAL] Error stopping {service_name}: {type(e).__name__}: {e}")
+            except (KeyboardInterrupt, SystemExit):
+                raise
             except Exception as e:
                 # Unexpected errors - log with context
                 logger.error(
-                    f"[TACTICAL] Unexpected error stopping {service_name}: {type(e).__name__}: {e}",
+                    f"[TACTICAL] Unexpected error stopping {service_name}: {type(e).__name__}",
                     exc_info=True,
+                    extra={"operation": "shutdown_service", "service_name": service_name, "error": str(e)}
                 )
 
         logger.info("[TACTICAL] All services terminated. Tactical coordination complete.")
@@ -448,11 +472,14 @@ class TacticalProcessManager:
                 # Expected errors during monitoring (service state issues)
                 logger.warning(f"[TACTICAL] Monitoring error: {type(e).__name__}: {e}")
                 await asyncio.sleep(30)
+            except (KeyboardInterrupt, SystemExit):
+                raise
             except Exception as e:
                 # Unexpected errors - log with context
                 logger.error(
-                    f"[TACTICAL] Monitoring unexpected error: {type(e).__name__}: {e}",
+                    f"[TACTICAL] Monitoring unexpected error: {type(e).__name__}",
                     exc_info=True,
+                    extra={"operation": "monitor_services", "error": str(e)}
                 )
                 await asyncio.sleep(30)
 
@@ -484,11 +511,14 @@ class TacticalProcessManager:
                 # Expected errors from psutil (permission issues, process gone)
                 logger.warning(f"[TACTICAL] Resource monitoring error: {type(e).__name__}: {e}")
                 await asyncio.sleep(60)
+            except (KeyboardInterrupt, SystemExit):
+                raise
             except Exception as e:
                 # Unexpected errors - log with context
                 logger.error(
-                    f"[TACTICAL] Resource monitoring unexpected error: {type(e).__name__}: {e}",
+                    f"[TACTICAL] Resource monitoring unexpected error: {type(e).__name__}",
                     exc_info=True,
+                    extra={"operation": "monitor_resources", "error": str(e)}
                 )
                 await asyncio.sleep(60)
 

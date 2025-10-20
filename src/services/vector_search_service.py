@@ -12,6 +12,7 @@ import chromadb
 from chromadb.config import Settings
 
 from ..core.config import get_settings
+from ..core.exceptions import ChromaInitializationError, ChromaOperationError, log_and_raise
 
 logger = logging.getLogger(__name__)
 
@@ -109,9 +110,20 @@ class VectorSearchService:
             count = self._collection.count()
             logger.info(f"✅ Collection '{self.COLLECTION_NAME}' ready ({count} memories)")
 
-        except Exception as e:
-            logger.error(f"❌ Failed to initialize collection: {e}")
+        except (KeyboardInterrupt, SystemExit):
+            # Never suppress user interrupts
             raise
+        except Exception as e:
+            # ChromaDB initialization errors
+            log_and_raise(
+                ChromaInitializationError,
+                f"Failed to initialize ChromaDB collection '{self.COLLECTION_NAME}'",
+                original_exception=e,
+                details={
+                    "collection_name": self.COLLECTION_NAME,
+                    "persist_directory": str(self.persist_directory),
+                },
+            )
 
     def add_memory(
         self,
@@ -159,9 +171,17 @@ class VectorSearchService:
             )
             logger.debug(f"✅ Added memory {memory_id_str} to vector store")
 
-        except Exception as e:
-            logger.error(f"❌ Failed to add memory {memory_id_str}: {e}")
+        except (KeyboardInterrupt, SystemExit):
+            # Never suppress user interrupts
             raise
+        except Exception as e:
+            # ChromaDB add operation errors
+            log_and_raise(
+                ChromaOperationError,
+                "Failed to add memory to ChromaDB",
+                original_exception=e,
+                details={"memory_id": memory_id_str, "operation": "add"},
+            )
 
     def add_memories_batch(
         self,
@@ -204,9 +224,17 @@ class VectorSearchService:
             )
             logger.info(f"✅ Added {len(ids)} memories to vector store (batch)")
 
-        except Exception as e:
-            logger.error(f"❌ Failed to add batch: {e}")
+        except (KeyboardInterrupt, SystemExit):
+            # Never suppress user interrupts
             raise
+        except Exception as e:
+            # ChromaDB batch add operation errors
+            log_and_raise(
+                ChromaOperationError,
+                "Failed to batch add memories to ChromaDB",
+                original_exception=e,
+                details={"memory_count": len(ids), "operation": "add_batch"},
+            )
 
     def search(
         self,
@@ -275,9 +303,22 @@ class VectorSearchService:
             logger.debug(f"🔍 Found {len(processed)} results (top_k={top_k})")
             return processed
 
-        except Exception as e:
-            logger.error(f"❌ Search failed: {e}")
+        except (KeyboardInterrupt, SystemExit):
+            # Never suppress user interrupts
             raise
+        except Exception as e:
+            # ChromaDB search operation errors
+            log_and_raise(
+                ChromaOperationError,
+                "Failed to search in ChromaDB",
+                original_exception=e,
+                details={
+                    "top_k": top_k,
+                    "min_similarity": min_similarity,
+                    "has_filters": filters is not None,
+                    "operation": "search",
+                },
+            )
 
     def delete_memory(self, memory_id: str | UUID) -> None:
         """
@@ -295,9 +336,17 @@ class VectorSearchService:
             self._collection.delete(ids=[memory_id_str])
             logger.debug(f"🗑️ Deleted memory {memory_id_str} from vector store")
 
-        except Exception as e:
-            logger.error(f"❌ Failed to delete memory {memory_id_str}: {e}")
+        except (KeyboardInterrupt, SystemExit):
+            # Never suppress user interrupts
             raise
+        except Exception as e:
+            # ChromaDB delete operation errors
+            log_and_raise(
+                ChromaOperationError,
+                "Failed to delete memory from ChromaDB",
+                original_exception=e,
+                details={"memory_id": memory_id_str, "operation": "delete"},
+            )
 
     def delete_memories_batch(self, memory_ids: list[str | UUID]) -> None:
         """
@@ -315,9 +364,17 @@ class VectorSearchService:
             self._collection.delete(ids=ids)
             logger.info(f"🗑️ Deleted {len(ids)} memories from vector store (batch)")
 
-        except Exception as e:
-            logger.error(f"❌ Failed to delete batch: {e}")
+        except (KeyboardInterrupt, SystemExit):
+            # Never suppress user interrupts
             raise
+        except Exception as e:
+            # ChromaDB batch delete operation errors
+            log_and_raise(
+                ChromaOperationError,
+                "Failed to batch delete memories from ChromaDB",
+                original_exception=e,
+                details={"memory_count": len(ids), "operation": "delete_batch"},
+            )
 
     def get_collection_stats(self) -> dict[str, Any]:
         """

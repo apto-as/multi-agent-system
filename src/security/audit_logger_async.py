@@ -71,8 +71,25 @@ class AsyncSecurityAuditLogger:
                 await conn.run_sync(Base.metadata.create_all)
 
             logger.info("Async security audit database initialized")
+        except (KeyboardInterrupt, SystemExit):
+            # User interrupt - clean up and propagate
+            raise
         except Exception as e:
-            logger.error(f"Failed to initialize async audit database: {e}")
+            # CRITICAL: Audit log database failure means NO security event tracking
+            # This is a fail-secure scenario - we continue but with degraded logging
+            logger.critical(
+                f"❌ CRITICAL: Audit log database initialization failed. "
+                f"Security events will ONLY be logged to file/stdout. "
+                f"Error: {e}",
+                exc_info=True,
+                extra={
+                    "database_url": db_url.split("@")[-1] if "@" in db_url else "unknown",
+                    "fallback_mode": "file_only",
+                },
+            )
+            # DO NOT raise - allow service to start with file-only logging
+            self.engine = None
+            self.async_session_maker = None
 
     async def _init_geoip(self) -> None:
         """Initialize GeoIP database (optional)."""
@@ -84,8 +101,16 @@ class AsyncSecurityAuditLogger:
                 logger.info("GeoIP database loaded")
             else:
                 logger.info("GeoIP database not found - location tracking disabled")
+        except (KeyboardInterrupt, SystemExit):
+            raise
         except Exception as e:
-            logger.warning(f"Failed to load GeoIP database: {e}")
+            # GeoIP is optional - log warning and continue without location tracking
+            logger.warning(
+                f"⚠️  Failed to load GeoIP database (location tracking disabled): {e}",
+                exc_info=True,
+                extra={"geoip_path": str(geoip_path) if geoip_path else "unknown"},
+            )
+            self.geoip_reader = None
 
     async def log_event(
         self,
@@ -156,8 +181,16 @@ class AsyncSecurityAuditLogger:
         return event
 
     async def _store_event(self, event: SecurityEvent) -> None:
-        """Store event in database asynchronously."""
+        """
+        Store event in database asynchronously.
+
+        CRITICAL: This function MUST never lose audit logs.
+        Implements multi-tier fallback: DB → File → Stdout
+        """
         if not self.async_session_maker:
+            # DB not available - fallback to file immediately
+            logger.warning("⚠️  Audit log DB unavailable, using file fallback")
+            await self._async_log_to_file(event)
             return
 
         try:
@@ -200,8 +233,53 @@ class AsyncSecurityAuditLogger:
 
                 await session.commit()
 
+        except (KeyboardInterrupt, SystemExit):
+            # Flush pending logs before exit
+            logger.critical("🚨 User interrupt during audit log write - flushing to file")
+            await self._async_log_to_file(event)
+            raise
         except Exception as e:
-            logger.error(f"Failed to store security event: {e}")
+            # CRITICAL: Database write failed - MUST fallback to file
+            logger.critical(
+                f"❌ CRITICAL: Audit log database write failed, falling back to file. "
+                f"Event: {event.event_type.value}, IP: {event.client_ip}, Error: {e}",
+                exc_info=True,
+                extra={
+                    "event_type": event.event_type.value,
+                    "client_ip": event.client_ip,
+                    "severity": event.severity.value,
+                    "event_hash": self._generate_event_hash(event),
+                },
+            )
+            # Fallback to file logging (MUST succeed)
+            try:
+                await self._async_log_to_file(event)
+            except Exception as file_error:
+                # LAST RESORT: Both DB and file failed - dump to stdout
+                import sys
+                import json
+
+                emergency_log = {
+                    "EMERGENCY_AUDIT_LOG": True,
+                    "timestamp": event.timestamp.isoformat(),
+                    "event_type": event.event_type.value,
+                    "severity": event.severity.value,
+                    "client_ip": event.client_ip,
+                    "user_id": event.user_id,
+                    "endpoint": event.endpoint,
+                    "message": event.message,
+                    "db_error": str(e),
+                    "file_error": str(file_error),
+                }
+                print(
+                    f"\n🚨 EMERGENCY AUDIT LOG (ALL BACKENDS FAILED):\n{json.dumps(emergency_log, indent=2)}\n",
+                    file=sys.stderr,
+                )
+                logger.critical(
+                    f"🚨🚨🚨 CATASTROPHIC: All audit log backends failed! "
+                    f"Event dumped to stderr. DB error: {e}, File error: {file_error}",
+                    exc_info=True,
+                )
 
     def _generate_event_hash(self, event: SecurityEvent) -> str:
         """Generate hash for event deduplication."""
@@ -228,10 +306,18 @@ class AsyncSecurityAuditLogger:
                 if response.location.longitude
                 else None,
             }
+        except (KeyboardInterrupt, SystemExit):
+            raise
         except (geoip2.errors.AddressNotFoundError, ValueError):
+            # Expected errors for private/invalid IPs
             return {"country": "Unknown", "country_code": "XX"}
         except Exception as e:
-            logger.warning(f"GeoIP lookup failed for {ip_address}: {e}")
+            # Unexpected GeoIP errors - log but don't fail audit logging
+            logger.warning(
+                f"⚠️  GeoIP lookup failed for {ip_address} (non-critical): {e}",
+                exc_info=False,  # Don't spam with stack traces for geolocation failures
+                extra={"ip_address": ip_address},
+            )
             return None
 
     def _calculate_risk_score(self, event: SecurityEvent) -> int:
@@ -282,7 +368,12 @@ class AsyncSecurityAuditLogger:
         return min(score, 100)  # Cap at 100
 
     async def _async_log_to_file(self, event: SecurityEvent) -> None:
-        """Log event to file asynchronously."""
+        """
+        Log event to file asynchronously.
+
+        CRITICAL: This is the fallback when database fails.
+        MUST NOT fail silently.
+        """
         try:
             log_entry = {
                 "timestamp": event.timestamp.isoformat(),
@@ -306,8 +397,26 @@ class AsyncSecurityAuditLogger:
             else:
                 logger.info(f"SECURITY: {json.dumps(log_entry)}")
 
+        except (KeyboardInterrupt, SystemExit):
+            # User interrupt - flush log and propagate
+            raise
         except Exception as e:
-            logger.error(f"Failed to log security event: {e}")
+            # CRITICAL: File logging failed (this is the fallback!)
+            # Last resort: dump to stderr
+            import sys
+
+            logger.critical(
+                f"❌ CRITICAL: File audit logging failed! Event: {event.event_type.value}, "
+                f"IP: {event.client_ip}, Error: {e}",
+                exc_info=True,
+            )
+            print(
+                f"EMERGENCY_AUDIT: {event.event_type.value} from {event.client_ip} - "
+                f"File logging failed: {e}",
+                file=sys.stderr,
+            )
+            # Re-raise so caller knows file logging failed
+            raise
 
     async def _check_alert_conditions(self, event: SecurityEvent) -> None:
         """Check if event should trigger alerts."""
@@ -349,6 +458,11 @@ class AsyncSecurityAuditLogger:
     async def _check_brute_force(self, event: SecurityEvent) -> None:
         """Check for brute force attack patterns."""
         if not self.async_session_maker:
+            # DB not available - can't check historical patterns
+            logger.warning(
+                "⚠️  Brute force check skipped (audit DB unavailable)",
+                extra={"client_ip": event.client_ip},
+            )
             return
 
         try:
@@ -374,8 +488,19 @@ class AsyncSecurityAuditLogger:
                     # Add IP to high-risk list
                     self.risk_patterns["high_risk_ips"].add(event.client_ip)
 
+        except (KeyboardInterrupt, SystemExit):
+            raise
         except Exception as e:
-            logger.error(f"Failed to check brute force pattern: {e}")
+            # Brute force detection failure is CRITICAL - might miss active attack
+            logger.error(
+                f"❌ Failed to check brute force pattern (possible attack ongoing!): {e}",
+                exc_info=True,
+                extra={
+                    "client_ip": event.client_ip,
+                    "event_type": event.event_type.value,
+                },
+            )
+            # DO NOT re-raise - allow login attempt to proceed (fail-open for availability)
 
     async def get_recent_events(
         self,
@@ -421,9 +546,19 @@ class AsyncSecurityAuditLogger:
                     for e in events
                 ]
 
+        except (KeyboardInterrupt, SystemExit):
+            raise
         except Exception as e:
-            logger.error(f"Failed to get recent events: {e}")
-            return []
+            logger.error(
+                f"❌ Failed to retrieve recent security events: {e}",
+                exc_info=True,
+                extra={
+                    "minutes": minutes,
+                    "event_type": event_type.value if event_type else None,
+                    "severity": severity.value if severity else None,
+                },
+            )
+            return []  # Return empty list on failure (non-critical operation)
 
     async def log_pattern_execution(
         self,

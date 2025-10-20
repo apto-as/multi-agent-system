@@ -16,9 +16,17 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import and_, delete, func, or_, select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_session
+from src.core.exceptions import (
+    ChromaOperationError,
+    EmbeddingGenerationError,
+    MemoryCreationError,
+    MemorySearchError,
+    log_and_raise,
+)
 from src.models.memory import AccessLevel, Memory
 from src.services.unified_embedding_service import get_unified_embedding_service
 from src.services.vector_search_service import get_vector_search_service
@@ -56,11 +64,20 @@ class HybridMemoryService:
         try:
             self.vector_service.initialize()
             logger.info("HybridMemoryService initialized: SQLite (metadata) + Chroma (vectors)")
+        except (KeyboardInterrupt, SystemExit):
+            # Never suppress user interrupts
+            raise
+        except ChromaOperationError:
+            # ChromaDB specific errors - already logged by ChromaOperationError
+            raise
         except Exception as e:
-            logger.error(
-                f"Chroma initialization FAILED - system cannot function without vectors: {e}"
+            # Unexpected initialization errors
+            log_and_raise(
+                ChromaOperationError,
+                "Chroma initialization FAILED - system cannot function without vectors",
+                original_exception=e,
+                details={"component": "HybridMemoryService"},
             )
-            raise RuntimeError("Chroma is required for this architecture") from e
 
     async def create_memory(
         self,
@@ -110,21 +127,46 @@ class HybridMemoryService:
             # Write to Chroma (REQUIRED for vector storage)
             try:
                 await self._sync_to_chroma(memory, embedding_vector.tolist())
+            except (KeyboardInterrupt, SystemExit):
+                # Never suppress user interrupts
+                await self.session.rollback()
+                raise
+            except ChromaOperationError:
+                # ChromaDB specific errors - rollback and re-raise
+                await self.session.rollback()
+                raise
             except Exception as e:
                 # Chroma is required - rollback SQLite and raise error
                 await self.session.rollback()
-                logger.error(f"Chroma sync FAILED for memory - rolling back: {e}")
-                raise RuntimeError("Cannot create memory without Chroma vector storage") from e
+                log_and_raise(
+                    ChromaOperationError,
+                    "Cannot create memory without Chroma vector storage",
+                    original_exception=e,
+                    details={"memory_id": str(memory.id), "agent_id": agent_id},
+                )
 
             logger.info(
                 f"Memory created: {memory.id} (agent: {agent_id}, importance: {importance})"
             )
             return memory
 
-        except Exception as e:
+        except (KeyboardInterrupt, SystemExit):
+            # Never suppress user interrupts
             await self.session.rollback()
-            logger.error(f"Memory creation failed: {e}")
             raise
+        except (ChromaOperationError, SQLAlchemyError):
+            # Expected errors - already handled/logged
+            await self.session.rollback()
+            raise
+        except Exception as e:
+            # Unexpected errors
+            await self.session.rollback()
+            log_and_raise(
+                MemoryCreationError,
+                "Memory creation failed with unexpected error",
+                original_exception=e,
+                details={"agent_id": agent_id, "content_length": len(content)},
+            )
 
     async def _sync_to_chroma(self, memory: Memory, embedding: list[float]) -> None:
         """Sync memory to Chroma vector store."""
@@ -182,11 +224,23 @@ class HybridMemoryService:
             try:
                 await self.vector_service.delete_memory(str(memory_id))
                 await self._sync_to_chroma(memory, embedding_vector.tolist())
+            except (KeyboardInterrupt, SystemExit):
+                # Never suppress user interrupts
+                await self.session.rollback()
+                raise
+            except ChromaOperationError:
+                # ChromaDB specific errors - rollback and re-raise
+                await self.session.rollback()
+                raise
             except Exception as e:
                 # Chroma is required - rollback and raise error
                 await self.session.rollback()
-                logger.error(f"Chroma re-sync FAILED - rolling back: {e}")
-                raise RuntimeError("Cannot update memory without Chroma vector storage") from e
+                log_and_raise(
+                    ChromaOperationError,
+                    "Cannot update memory without Chroma vector storage",
+                    original_exception=e,
+                    details={"memory_id": str(memory_id)},
+                )
 
         if importance is not None:
             memory.importance_score = importance
@@ -211,8 +265,15 @@ class HybridMemoryService:
         if self.vector_service:
             try:
                 await self.vector_service.delete_memory(str(memory_id))
-            except Exception as e:
+            except (KeyboardInterrupt, SystemExit):
+                # Never suppress user interrupts
+                raise
+            except ChromaOperationError as e:
+                # ChromaDB errors (best-effort, log warning and continue)
                 logger.warning(f"Chroma deletion failed for {memory_id}: {e}")
+            except Exception as e:
+                # Unexpected errors (best-effort, log warning and continue)
+                logger.warning(f"Unexpected error during Chroma deletion for {memory_id}: {e}")
 
         # Delete from SQLite (must succeed)
         result = await self.session.execute(delete(Memory).where(Memory.id == memory_id))
@@ -275,9 +336,24 @@ class HybridMemoryService:
 
             return memories[:limit]
 
+        except (KeyboardInterrupt, SystemExit):
+            # Never suppress user interrupts
+            raise
+        except (ChromaOperationError, EmbeddingGenerationError):
+            # Expected errors - already logged
+            raise
         except Exception as e:
-            logger.error(f"Memory search failed (Chroma is required): {e}")
-            raise RuntimeError("Cannot search without Chroma vector storage") from e
+            # Unexpected errors
+            log_and_raise(
+                MemorySearchError,
+                "Memory search failed with unexpected error",
+                original_exception=e,
+                details={
+                    "query_length": len(query),
+                    "agent_id": agent_id,
+                    "namespace": namespace,
+                },
+            )
 
     async def _search_chroma(
         self,
@@ -401,21 +477,44 @@ class HybridMemoryService:
                     metadatas=metadatas,
                     documents=documents,
                 )
+            except (KeyboardInterrupt, SystemExit):
+                # Never suppress user interrupts
+                await self.session.rollback()
+                raise
+            except ChromaOperationError:
+                # ChromaDB specific errors - rollback and re-raise
+                await self.session.rollback()
+                raise
             except Exception as e:
                 # Chroma is required - rollback and raise error
                 await self.session.rollback()
-                logger.error(f"Chroma batch sync FAILED - rolling back: {e}")
-                raise RuntimeError(
-                    "Cannot batch create memories without Chroma vector storage"
-                ) from e
+                log_and_raise(
+                    ChromaOperationError,
+                    "Cannot batch create memories without Chroma vector storage",
+                    original_exception=e,
+                    details={"memory_count": len(memories)},
+                )
 
             logger.info(f"Batch created {len(memories)} memories")
             return memories
 
-        except Exception as e:
+        except (KeyboardInterrupt, SystemExit):
+            # Never suppress user interrupts
             await self.session.rollback()
-            logger.error(f"Batch memory creation failed: {e}")
             raise
+        except (ChromaOperationError, SQLAlchemyError, EmbeddingGenerationError):
+            # Expected errors - already handled/logged
+            await self.session.rollback()
+            raise
+        except Exception as e:
+            # Unexpected errors
+            await self.session.rollback()
+            log_and_raise(
+                MemoryCreationError,
+                "Batch memory creation failed with unexpected error",
+                original_exception=e,
+                details={"memory_count": len(memories_data)},
+            )
 
     async def count_memories(
         self,
@@ -451,8 +550,15 @@ class HybridMemoryService:
         if self.vector_service:
             try:
                 chroma_stats = await self.vector_service.get_collection_stats()
-            except Exception as e:
+            except (KeyboardInterrupt, SystemExit):
+                # Never suppress user interrupts
+                raise
+            except ChromaOperationError as e:
+                # ChromaDB errors (expected, log warning)
                 logger.warning(f"Chroma stats unavailable: {e}")
+            except Exception as e:
+                # Unexpected errors (log warning and continue)
+                logger.warning(f"Unexpected error retrieving Chroma stats: {e}")
 
         return {
             "total_memories": sqlite_count,
@@ -499,8 +605,15 @@ class HybridMemoryService:
         if self.vector_service:
             try:
                 await self.vector_service.delete_memories_batch([str(mid) for mid in memory_ids])
-            except Exception as e:
+            except (KeyboardInterrupt, SystemExit):
+                # Never suppress user interrupts
+                raise
+            except ChromaOperationError as e:
+                # ChromaDB errors (best-effort, log warning and continue)
                 logger.warning(f"Chroma cleanup failed: {e}")
+            except Exception as e:
+                # Unexpected errors (best-effort, log warning and continue)
+                logger.warning(f"Unexpected error during Chroma cleanup: {e}")
 
         # Delete from SQLite
         result = await self.session.execute(delete(Memory).where(Memory.id.in_(memory_ids)))
