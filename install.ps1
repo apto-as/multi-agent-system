@@ -1,13 +1,19 @@
-# Trinitas System Windows Installer (PowerShell)
+# Trinitas System Windows Installer v2.3.0 (PowerShell)
 # Run with: powershell -ExecutionPolicy Bypass -File install.ps1
+# This installer copies Trinitas agents, hooks, and configuration to ~/.claude/
 
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "Trinitas System Windows Installer" -ForegroundColor Cyan
+Write-Host "Trinitas System Installer v2.3.0" -ForegroundColor Cyan
+Write-Host "Windows (PowerShell)" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
 # ターゲットディレクトリの設定
-$targetDir = Join-Path $env:USERPROFILE ".claude"
+if ($env:CLAUDE_HOME) {
+    $targetDir = $env:CLAUDE_HOME
+} else {
+    $targetDir = Join-Path $env:USERPROFILE ".claude"
+}
 
 Write-Host "Target directory: $targetDir" -ForegroundColor Yellow
 Write-Host ""
@@ -65,7 +71,10 @@ Write-Host ""
 $directories = @(
     "agents",
     "commands",
-    "hooks"
+    "hooks",
+    "config",
+    "contexts",
+    "shared"
 )
 
 # ディレクトリのコピー
@@ -112,6 +121,44 @@ if ($executionPolicy -eq "Restricted") {
     Write-Host "  powershell -ExecutionPolicy Bypass -File install.ps1" -ForegroundColor White
     Write-Host ""
 }
+
+# Python installation check
+Write-Host "Checking Python installation..." -ForegroundColor Yellow
+$pythonFound = $false
+$pythonCmd = ""
+
+# Try python3 first (Windows Store version)
+try {
+    $null = python3 --version 2>&1
+    $pythonCmd = "python3"
+    $pythonFound = $true
+} catch {
+    # Try python
+    try {
+        $null = python --version 2>&1
+        $pythonCmd = "python"
+        $pythonFound = $true
+    } catch {
+        # Try py launcher
+        try {
+            $null = py --version 2>&1
+            $pythonCmd = "py"
+            $pythonFound = $true
+        } catch {
+            $pythonFound = $false
+        }
+    }
+}
+
+if ($pythonFound) {
+    Write-Host "  Python found: $pythonCmd" -ForegroundColor Green
+    Write-Host "  Note: Trinitas hooks require Python 3.8 or higher" -ForegroundColor White
+} else {
+    Write-Host "  Warning: Python not found in PATH" -ForegroundColor Yellow
+    Write-Host "  Trinitas hooks require Python 3.8 or higher" -ForegroundColor Yellow
+    Write-Host "  Please install Python from https://python.org" -ForegroundColor Yellow
+}
+Write-Host ""
 
 Write-Host "Press any key to exit..." -ForegroundColor Gray
 $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
