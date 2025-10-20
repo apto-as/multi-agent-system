@@ -21,12 +21,26 @@ class TestMemoryServiceIntegration:
     @pytest.fixture
     async def memory_service(self, postgresql_session, requires_postgresql):
         """Create memory service with PostgreSQL session."""
-        # Mock embedding service for testing
+        from unittest.mock import MagicMock
+
+        # Mock embedding service for testing (v2.2.6: UnifiedEmbeddingService)
         mock_embedding_service = AsyncMock()
-        mock_embedding_service.create_embedding.return_value = np.random.rand(1024).tolist()  # v2.2.6: 1024-dim
+        mock_embedding_service.encode_document.return_value = np.random.rand(
+            1024
+        )  # v2.2.6: 1024-dim numpy array
+        mock_embedding_service.encode_query.return_value = np.random.rand(1024)
+        # get_model_info is synchronous method
+        mock_embedding_service.get_model_info = MagicMock(
+            return_value={
+                "model_name": "zylonai/multilingual-e5-large",
+                "dimension": 1024,
+                "provider": "ollama",
+            }
+        )
 
         with patch(
-            "src.services.memory_service.EmbeddingService", return_value=mock_embedding_service
+            "src.services.memory_service.get_unified_embedding_service",
+            return_value=mock_embedding_service,
         ):
             service = HybridMemoryService(postgresql_session)  # v2.2.6: HybridMemoryService
             yield service
@@ -36,7 +50,7 @@ class TestMemoryServiceIntegration:
         memory_data = {
             "content": "Test memory content for automatic embedding",
             "agent_id": "test-agent",
-            "importance_score": 0.8,
+            "importance": 0.8,
             "tags": ["test", "auto_embedding"],
             "access_level": AccessLevel.PRIVATE,
         }
@@ -60,21 +74,21 @@ class TestMemoryServiceIntegration:
             {
                 "content": "Machine learning is a subset of artificial intelligence",
                 "agent_id": "search-agent",
-                "importance_score": 0.9,
+                "importance": 0.9,
                 "tags": ["ai", "ml"],
                 "access_level": AccessLevel.PUBLIC,
             },
             {
                 "content": "Deep learning uses neural networks with multiple layers",
                 "agent_id": "search-agent",
-                "importance_score": 0.8,
+                "importance": 0.8,
                 "tags": ["ai", "deep_learning"],
                 "access_level": AccessLevel.PUBLIC,
             },
             {
                 "content": "The weather is sunny today",
                 "agent_id": "search-agent",
-                "importance_score": 0.3,
+                "importance": 0.3,
                 "tags": ["weather"],
                 "access_level": AccessLevel.PUBLIC,
             },
@@ -106,14 +120,14 @@ class TestMemoryServiceIntegration:
             {
                 "content": "Private technical specification",
                 "agent_id": "agent-1",
-                "importance_score": 0.9,
+                "importance": 0.9,
                 "tags": ["private", "spec"],
                 "access_level": AccessLevel.PRIVATE,
             },
             {
                 "content": "Team collaboration document",
                 "agent_id": "agent-1",
-                "importance_score": 0.8,
+                "importance": 0.8,
                 "tags": ["team", "collab"],
                 "access_level": AccessLevel.TEAM,
                 "shared_with_agents": ["agent-2"],
@@ -121,7 +135,7 @@ class TestMemoryServiceIntegration:
             {
                 "content": "Public knowledge base article",
                 "agent_id": "agent-1",
-                "importance_score": 0.7,
+                "importance": 0.7,
                 "tags": ["public", "kb"],
                 "access_level": AccessLevel.PUBLIC,
             },
@@ -148,21 +162,21 @@ class TestMemoryServiceIntegration:
             {
                 "content": "Critical system alert",
                 "agent_id": "importance-agent",
-                "importance_score": 1.0,
+                "importance": 1.0,
                 "tags": ["critical", "alert"],
                 "access_level": AccessLevel.PUBLIC,
             },
             {
                 "content": "Routine system message",
                 "agent_id": "importance-agent",
-                "importance_score": 0.3,
+                "importance": 0.3,
                 "tags": ["routine", "message"],
                 "access_level": AccessLevel.PUBLIC,
             },
             {
                 "content": "Important system notification",
                 "agent_id": "importance-agent",
-                "importance_score": 0.8,
+                "importance": 0.8,
                 "tags": ["important", "notification"],
                 "access_level": AccessLevel.PUBLIC,
             },
@@ -190,7 +204,7 @@ class TestMemoryServiceIntegration:
             memory_data = {
                 "content": f"Related project milestone {i + 1}",
                 "agent_id": "consolidation-agent",
-                "importance_score": 0.7,
+                "importance": 0.7,
                 "tags": ["project", "milestone"],
                 "access_level": AccessLevel.PRIVATE,
             }
@@ -202,7 +216,7 @@ class TestMemoryServiceIntegration:
             "consolidated_content": "Project milestone summary",
             "source_memory_ids": [m["id"] for m in related_memories],
             "agent_id": "consolidation-agent",
-            "importance_score": 0.9,
+            "importance": 0.9,
             "consolidation_type": "manual",
         }
 
@@ -227,7 +241,7 @@ class TestMemoryServiceIntegration:
         memory_data = {
             "content": "Original content about databases",
             "agent_id": "update-agent",
-            "importance_score": 0.5,
+            "importance": 0.5,
             "tags": ["original"],
             "access_level": AccessLevel.PRIVATE,
         }
@@ -256,7 +270,7 @@ class TestMemoryServiceIntegration:
             memory_data = {
                 "content": f"Batch memory {i}",
                 "agent_id": "batch-agent",
-                "importance_score": 0.5 + (i * 0.05),
+                "importance": 0.5 + (i * 0.05),
                 "tags": ["batch", f"item_{i}"],
                 "access_level": AccessLevel.PRIVATE,
             }
@@ -284,7 +298,7 @@ class TestMemoryServiceIntegration:
         memory_data = {
             "content": "Memory to be deleted",
             "agent_id": "delete-agent",
-            "importance_score": 0.5,
+            "importance": 0.5,
             "tags": ["temporary"],
             "access_level": AccessLevel.PRIVATE,
         }
@@ -317,7 +331,7 @@ class TestMemoryServiceIntegration:
             memory_data = {
                 "content": f"Concurrent memory {index}",
                 "agent_id": f"concurrent-agent-{index % 3}",  # 3 different agents
-                "importance_score": 0.5,
+                "importance": 0.5,
                 "tags": ["concurrent", f"index_{index}"],
                 "access_level": AccessLevel.PRIVATE,
             }

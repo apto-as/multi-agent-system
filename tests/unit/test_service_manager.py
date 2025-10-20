@@ -346,7 +346,10 @@ class TestServiceManager:
         manager.registry.register("service1", mock_service1)
         manager.registry.register("service2", mock_service2, ["service1"])
 
-        with patch.object(manager, "_setup_signal_handlers"), patch.object(manager, "_start_health_monitoring", new_callable=AsyncMock):
+        with (
+            patch.object(manager, "_setup_signal_handlers"),
+            patch.object(manager, "_start_health_monitoring", new_callable=AsyncMock),
+        ):
             await manager.initialize_all()
 
         assert manager._initialized is True
@@ -598,7 +601,10 @@ class TestServiceManager:
         manager._initialized = True
 
         # Mock the monitoring loop
-        with patch.object(manager, "health_check_all", new_callable=AsyncMock), patch("asyncio.sleep", new_callable=AsyncMock):
+        with (
+            patch.object(manager, "health_check_all", new_callable=AsyncMock),
+            patch("asyncio.sleep", new_callable=AsyncMock),
+        ):
             # Run one iteration and then cancel
             async def health_monitor():
                 await manager.health_check_all()
@@ -668,11 +674,14 @@ class TestGlobalFunctions:
     @pytest.mark.asyncio
     async def test_service_context(self):
         """Test service_context context manager."""
-        with patch(
-            "src.core.service_manager.initialize_services", new_callable=AsyncMock
-        ) as mock_init, patch(
-            "src.core.service_manager.shutdown_services", new_callable=AsyncMock
-        ) as mock_shutdown:
+        with (
+            patch(
+                "src.core.service_manager.initialize_services", new_callable=AsyncMock
+            ) as mock_init,
+            patch(
+                "src.core.service_manager.shutdown_services", new_callable=AsyncMock
+            ) as mock_shutdown,
+        ):
             async with service_context() as manager:
                 assert manager is not None
 
@@ -698,7 +707,10 @@ class TestServiceManagerIntegration:
         manager.registry.register("service2", mock_service2, ["service1"])
 
         # Initialize
-        with patch.object(manager, "_setup_signal_handlers"), patch.object(manager, "_start_health_monitoring", new_callable=AsyncMock):
+        with (
+            patch.object(manager, "_setup_signal_handlers"),
+            patch.object(manager, "_start_health_monitoring", new_callable=AsyncMock),
+        ):
             await manager.initialize_all()
 
         assert manager._initialized is True

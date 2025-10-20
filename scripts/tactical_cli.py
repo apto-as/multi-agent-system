@@ -64,10 +64,7 @@ class TacticalCLI:
         if params:
             payload["params"] = params
 
-        async with self.session.post(
-            f"{self.base_url}/tactical/command",
-            json=payload
-        ) as response:
+        async with self.session.post(f"{self.base_url}/tactical/command", json=payload) as response:
             if response.status == 200:
                 return await response.json()
             else:
@@ -104,7 +101,9 @@ class TacticalCLI:
         failed = metrics.get("failed_services", 0)
         uptime = metrics.get("uptime_percentage", 0.0)
 
-        print(f"║ Services: {total} total, {healthy} healthy, {degraded} degraded, {failed} failed      ║")
+        print(
+            f"║ Services: {total} total, {healthy} healthy, {degraded} degraded, {failed} failed      ║"
+        )
         print(f"║ Uptime: {uptime:.1f}%{' ' * 49} ║")
         print("╠══════════════════════════════════════════════════════════════════╣")
 
@@ -117,7 +116,9 @@ class TacticalCLI:
                 cpu = service_info.get("metrics", {}).get("cpu_percent", 0.0)
                 memory = service_info.get("metrics", {}).get("memory_mb", 0.0)
 
-                print(f"║ {service_name:<10} | {state:<10} | CPU: {cpu:5.1f}% | MEM: {memory:6.1f}MB ║")
+                print(
+                    f"║ {service_name:<10} | {state:<10} | CPU: {cpu:5.1f}% | MEM: {memory:6.1f}MB ║"
+                )
 
         # Incidents
         incident_count = status.get("incidents", 0)
@@ -235,13 +236,17 @@ async def main():
 
     # Set mode command
     mode_parser = subparsers.add_parser("mode", help="Set tactical mode")
-    mode_parser.add_argument("mode", choices=["peacetime", "alert", "critical", "maintenance"],
-                            help="Tactical mode to set")
+    mode_parser.add_argument(
+        "mode",
+        choices=["peacetime", "alert", "critical", "maintenance"],
+        help="Tactical mode to set",
+    )
 
     # Monitor command
     monitor_parser = subparsers.add_parser("monitor", help="Continuous monitoring")
-    monitor_parser.add_argument("--interval", type=int, default=30,
-                               help="Monitoring interval in seconds")
+    monitor_parser.add_argument(
+        "--interval", type=int, default=30, help="Monitoring interval in seconds"
+    )
 
     args = parser.parse_args()
 

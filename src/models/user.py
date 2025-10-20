@@ -8,7 +8,7 @@ from enum import Enum
 from typing import Any
 
 import sqlalchemy as sa
-from sqlalchemy import Boolean, DateTime, Index, JSON, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import MetadataMixin, TMWSBase

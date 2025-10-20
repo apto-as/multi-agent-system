@@ -19,14 +19,13 @@ similarity (>0.85). Multilingual-E5 provides superior multilingual support
 compared to all-MiniLM-L6-v2.
 """
 
-
 import sqlalchemy as sa
 from alembic import op
 from pgvector.sqlalchemy import Vector
 
 # revision identifiers
-revision = '007'
-down_revision = '006'
+revision = "007"
+down_revision = "006"
 branch_labels = None
 depends_on = None
 
@@ -39,25 +38,25 @@ def upgrade():
     # 1. Add embedding_v2 column (768 dimensions for Multilingual-E5)
     print("📊 Adding embedding_v2 column (Vector(768))...")
     op.add_column(
-        'memories_v2',
+        "memories_v2",
         sa.Column(
-            'embedding_v2',
+            "embedding_v2",
             Vector(768),
             nullable=True,
-            comment="Multilingual-E5 embedding (768 dimensions) for cross-lingual semantic search"
-        )
+            comment="Multilingual-E5 embedding (768 dimensions) for cross-lingual semantic search",
+        ),
     )
 
     # 2. Add embedding_model column to track which model generated the embedding
     print("🏷️ Adding embedding_model column...")
     op.add_column(
-        'memories_v2',
+        "memories_v2",
         sa.Column(
-            'embedding_model',
+            "embedding_model",
             sa.Text(),
             nullable=True,
-            comment="Model used for embedding: 'all-MiniLM-L6-v2' or 'multilingual-e5-base'"
-        )
+            comment="Model used for embedding: 'all-MiniLM-L6-v2' or 'multilingual-e5-base'",
+        ),
     )
 
     # 3. Mark existing embeddings with their model type
@@ -96,9 +95,9 @@ def downgrade():
 
     # Drop columns
     print("📉 Dropping embedding_v2 column...")
-    op.drop_column('memories_v2', 'embedding_v2')
+    op.drop_column("memories_v2", "embedding_v2")
 
     print("🏷️ Dropping embedding_model column...")
-    op.drop_column('memories_v2', 'embedding_model')
+    op.drop_column("memories_v2", "embedding_model")
 
     print("✅ Rollback completed successfully!")

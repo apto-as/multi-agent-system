@@ -44,11 +44,11 @@ class TMWSServerManager:
         # Setup logging
         logging.basicConfig(
             level=logging.INFO,
-            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
             handlers=[
                 logging.StreamHandler(sys.stdout),
-                logging.FileHandler('tmws_server.log', mode='a')
-            ]
+                logging.FileHandler("tmws_server.log", mode="a"),
+            ],
         )
         self.logger = logging.getLogger(__name__)
 
@@ -91,12 +91,7 @@ class TMWSServerManager:
 
             # Configure uvicorn
             config = uvicorn.Config(
-                app,
-                host=host,
-                port=port,
-                log_level="info",
-                access_log=True,
-                loop="asyncio"
+                app, host=host, port=port, log_level="info", access_log=True, loop="asyncio"
             )
 
             server = uvicorn.Server(config)
@@ -127,8 +122,7 @@ class TMWSServerManager:
 
             # Wait for either server to complete (or fail)
             done, pending = await asyncio.wait(
-                [mcp_task, fastapi_task],
-                return_when=asyncio.FIRST_COMPLETED
+                [mcp_task, fastapi_task], return_when=asyncio.FIRST_COMPLETED
             )
 
             # Cancel remaining tasks
@@ -207,40 +201,31 @@ Examples:
   python scripts/start_mcp_server.py --mode mcp
   python scripts/start_mcp_server.py --mode fastapi --port 8000
   python scripts/start_mcp_server.py --mode hybrid --host 127.0.0.1 --port 8080
-        """
+        """,
     )
 
     parser.add_argument(
         "--mode",
         choices=["mcp", "fastapi", "hybrid"],
         default="mcp",
-        help="Server mode (default: mcp)"
+        help="Server mode (default: mcp)",
     )
 
     parser.add_argument(
-        "--host",
-        default="0.0.0.0",
-        help="Host address for FastAPI server (default: 0.0.0.0)"
+        "--host", default="0.0.0.0", help="Host address for FastAPI server (default: 0.0.0.0)"
     )
 
     parser.add_argument(
-        "--port",
-        type=int,
-        default=8000,
-        help="Port for FastAPI server (default: 8000)"
+        "--port", type=int, default=8000, help="Port for FastAPI server (default: 8000)"
     )
 
-    parser.add_argument(
-        "--health-check",
-        action="store_true",
-        help="Perform health check and exit"
-    )
+    parser.add_argument("--health-check", action="store_true", help="Perform health check and exit")
 
     parser.add_argument(
         "--log-level",
         choices=["DEBUG", "INFO", "WARNING", "ERROR"],
         default="INFO",
-        help="Logging level (default: INFO)"
+        help="Logging level (default: INFO)",
     )
 
     args = parser.parse_args()
@@ -262,11 +247,7 @@ Examples:
             sys.exit(1)
     else:
         # Start server
-        server_manager.run(
-            mode=args.mode,
-            host=args.host,
-            port=args.port
-        )
+        server_manager.run(mode=args.mode, host=args.host, port=args.port)
 
 
 if __name__ == "__main__":

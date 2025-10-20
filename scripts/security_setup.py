@@ -28,10 +28,13 @@ def cli():
 
 
 @cli.command()
-@click.option('--environment', '-e', default='development',
-              help='Target environment (development, staging, production)')
-@click.option('--force', is_flag=True,
-              help='Overwrite existing configuration')
+@click.option(
+    "--environment",
+    "-e",
+    default="development",
+    help="Target environment (development, staging, production)",
+)
+@click.option("--force", is_flag=True, help="Overwrite existing configuration")
 def init(environment: str, force: bool):
     """
     Initialize security configuration.
@@ -40,12 +43,12 @@ def init(environment: str, force: bool):
     click.echo("🛡️  Initializing Hestia's Security Configuration...")
 
     # Validate environment
-    if environment not in ['development', 'staging', 'production']:
+    if environment not in ["development", "staging", "production"]:
         click.echo("❌ Invalid environment. Use: development, staging, or production")
         sys.exit(1)
 
     # Check existing .env
-    env_path = Path('.env')
+    env_path = Path(".env")
     if env_path.exists() and not force:
         click.echo("⚠️  .env file already exists. Use --force to overwrite.")
         sys.exit(1)
@@ -93,10 +96,10 @@ def validate():
         display_validation_results(validation_results)
 
         # Exit with appropriate code
-        if validation_results['has_critical_issues']:
+        if validation_results["has_critical_issues"]:
             click.echo("💀 Critical security issues found! Do not deploy to production.")
             sys.exit(1)
-        elif validation_results['has_warnings']:
+        elif validation_results["has_warnings"]:
             click.echo("⚠️  Security warnings found. Review before production deployment.")
             sys.exit(2)
         else:
@@ -109,8 +112,7 @@ def validate():
 
 
 @cli.command()
-@click.option('--output', '-o', default='security_audit.json',
-              help='Output file for audit report')
+@click.option("--output", "-o", default="security_audit.json", help="Output file for audit report")
 def audit(output: str):
     """
     Generate comprehensive security audit report.
@@ -127,9 +129,10 @@ def audit(output: str):
 
         # Write report
         output_path = Path(output)
-        with open(output_path, 'w') as f:
-            if output_path.suffix.lower() == '.json':
+        with open(output_path, "w") as f:
+            if output_path.suffix.lower() == ".json":
                 import json
+
                 json.dump(report, f, indent=2, default=str)
             else:
                 yaml.dump(report, f, default_flow_style=False)
@@ -154,11 +157,11 @@ def generate_keys():
 
     # Generate various keys
     keys = {
-        'SECRET_KEY': secrets.token_urlsafe(32),
-        'JWT_SECRET_KEY': secrets.token_urlsafe(32),
-        'SESSION_SECRET': secrets.token_urlsafe(24),
-        'ENCRYPTION_KEY': secrets.token_urlsafe(32),
-        'API_KEY': secrets.token_urlsafe(48)
+        "SECRET_KEY": secrets.token_urlsafe(32),
+        "JWT_SECRET_KEY": secrets.token_urlsafe(32),
+        "SESSION_SECRET": secrets.token_urlsafe(24),
+        "ENCRYPTION_KEY": secrets.token_urlsafe(32),
+        "API_KEY": secrets.token_urlsafe(48),
     }
 
     click.echo("\n🔑 Generated Secure Keys:")
@@ -174,11 +177,9 @@ def generate_keys():
 
 
 @cli.command()
-@click.argument('ip_address')
-@click.option('--duration', '-d', default=3600,
-              help='Block duration in seconds (default: 1 hour)')
-@click.option('--reason', '-r', default='Manual block',
-              help='Reason for blocking')
+@click.argument("ip_address")
+@click.option("--duration", "-d", default=3600, help="Block duration in seconds (default: 1 hour)")
+@click.option("--reason", "-r", default="Manual block", help="Reason for blocking")
 def block_ip(ip_address: str, duration: int, reason: str):
     """
     Block IP address for security purposes.
@@ -210,43 +211,49 @@ def generate_secure_config(environment: str) -> dict[str, Any]:
 
     # Base configuration
     config = {
-        'TMWS_ENVIRONMENT': environment,
-        'TMWS_SECRET_KEY': secrets.token_urlsafe(32),
-        'TMWS_JWT_SECRET_KEY': secrets.token_urlsafe(32),
+        "TMWS_ENVIRONMENT": environment,
+        "TMWS_SECRET_KEY": secrets.token_urlsafe(32),
+        "TMWS_JWT_SECRET_KEY": secrets.token_urlsafe(32),
     }
 
     # Environment-specific settings
-    if environment == 'development':
-        config.update({
-            'TMWS_AUTH_ENABLED': 'false',
-            'TMWS_DATABASE_URL': 'sqlite:///./dev_tmws.db',
-            'TMWS_LOG_LEVEL': 'DEBUG',
-            'TMWS_CORS_ORIGINS': '["http://localhost:3000","http://localhost:8000"]',
-            'TMWS_RATE_LIMIT_REQUESTS': '1000',
-            'TMWS_SESSION_COOKIE_SECURE': 'false',  # HTTP OK for dev
-        })
+    if environment == "development":
+        config.update(
+            {
+                "TMWS_AUTH_ENABLED": "false",
+                "TMWS_DATABASE_URL": "sqlite:///./dev_tmws.db",
+                "TMWS_LOG_LEVEL": "DEBUG",
+                "TMWS_CORS_ORIGINS": '["http://localhost:3000","http://localhost:8000"]',
+                "TMWS_RATE_LIMIT_REQUESTS": "1000",
+                "TMWS_SESSION_COOKIE_SECURE": "false",  # HTTP OK for dev
+            }
+        )
 
-    elif environment == 'staging':
-        config.update({
-            'TMWS_AUTH_ENABLED': 'true',
-            'TMWS_DATABASE_URL': 'postgresql://tmws_staging:CHANGE_ME@localhost:5432/tmws_staging',
-            'TMWS_LOG_LEVEL': 'INFO',
-            'TMWS_CORS_ORIGINS': '["https://staging.example.com"]',
-            'TMWS_RATE_LIMIT_REQUESTS': '500',
-            'TMWS_SESSION_COOKIE_SECURE': 'true',
-        })
+    elif environment == "staging":
+        config.update(
+            {
+                "TMWS_AUTH_ENABLED": "true",
+                "TMWS_DATABASE_URL": "postgresql://tmws_staging:CHANGE_ME@localhost:5432/tmws_staging",
+                "TMWS_LOG_LEVEL": "INFO",
+                "TMWS_CORS_ORIGINS": '["https://staging.example.com"]',
+                "TMWS_RATE_LIMIT_REQUESTS": "500",
+                "TMWS_SESSION_COOKIE_SECURE": "true",
+            }
+        )
 
-    elif environment == 'production':
-        config.update({
-            'TMWS_AUTH_ENABLED': 'true',
-            'TMWS_DATABASE_URL': 'postgresql://tmws_prod:CHANGE_TO_SECURE_PASSWORD@localhost:5432/tmws_prod',
-            'TMWS_LOG_LEVEL': 'WARNING',
-            'TMWS_CORS_ORIGINS': '["https://yourdomain.com"]',
-            'TMWS_RATE_LIMIT_REQUESTS': '100',
-            'TMWS_SESSION_COOKIE_SECURE': 'true',
-            'TMWS_SECURITY_HEADERS_ENABLED': 'true',
-            'TMWS_CSP_ENABLED': 'true',
-        })
+    elif environment == "production":
+        config.update(
+            {
+                "TMWS_AUTH_ENABLED": "true",
+                "TMWS_DATABASE_URL": "postgresql://tmws_prod:CHANGE_TO_SECURE_PASSWORD@localhost:5432/tmws_prod",
+                "TMWS_LOG_LEVEL": "WARNING",
+                "TMWS_CORS_ORIGINS": '["https://yourdomain.com"]',
+                "TMWS_RATE_LIMIT_REQUESTS": "100",
+                "TMWS_SESSION_COOKIE_SECURE": "true",
+                "TMWS_SECURITY_HEADERS_ENABLED": "true",
+                "TMWS_CSP_ENABLED": "true",
+            }
+        )
 
     return config
 
@@ -254,7 +261,7 @@ def generate_secure_config(environment: str) -> dict[str, Any]:
 def write_env_file(config: dict[str, Any], path: Path) -> None:
     """Write configuration to .env file."""
 
-    with open(path, 'w') as f:
+    with open(path, "w") as f:
         f.write("# TMWS Security Configuration\n")
         f.write("# Generated by Hestia's Security Setup\n")
         f.write(f"# Environment: {config['TMWS_ENVIRONMENT']}\n")
@@ -271,10 +278,10 @@ def setup_security_directories() -> None:
     """Create necessary security directories."""
 
     directories = [
-        'logs',
-        'data/audit',
-        'data/backups',
-        'config/security',
+        "logs",
+        "data/audit",
+        "data/backups",
+        "config/security",
     ]
 
     for directory in directories:
@@ -295,43 +302,43 @@ def perform_security_validation(settings) -> dict[str, Any]:
     """Perform comprehensive security validation."""
 
     results = {
-        'has_critical_issues': False,
-        'has_warnings': False,
-        'critical_issues': [],
-        'warnings': [],
-        'passed_checks': []
+        "has_critical_issues": False,
+        "has_warnings": False,
+        "critical_issues": [],
+        "warnings": [],
+        "passed_checks": [],
     }
 
     # Critical security checks
-    if settings.environment == 'production':
+    if settings.environment == "production":
         if not settings.auth_enabled:
-            results['critical_issues'].append("Authentication disabled in production")
-            results['has_critical_issues'] = True
+            results["critical_issues"].append("Authentication disabled in production")
+            results["has_critical_issues"] = True
 
-        if settings.secret_key == 'debug' or len(settings.secret_key) < 32:
-            results['critical_issues'].append("Weak or default secret key in production")
-            results['has_critical_issues'] = True
+        if settings.secret_key == "debug" or len(settings.secret_key) < 32:
+            results["critical_issues"].append("Weak or default secret key in production")
+            results["has_critical_issues"] = True
 
-        if not settings.cors_origins or '*' in settings.cors_origins:
-            results['critical_issues'].append("CORS origins not properly configured")
-            results['has_critical_issues'] = True
+        if not settings.cors_origins or "*" in settings.cors_origins:
+            results["critical_issues"].append("CORS origins not properly configured")
+            results["has_critical_issues"] = True
 
-        if 'localhost' in str(settings.cors_origins):
-            results['warnings'].append("Localhost origins configured in production")
-            results['has_warnings'] = True
+        if "localhost" in str(settings.cors_origins):
+            results["warnings"].append("Localhost origins configured in production")
+            results["has_warnings"] = True
 
     # Security feature checks
     if settings.rate_limit_enabled:
-        results['passed_checks'].append("Rate limiting enabled")
+        results["passed_checks"].append("Rate limiting enabled")
     else:
-        results['warnings'].append("Rate limiting disabled")
-        results['has_warnings'] = True
+        results["warnings"].append("Rate limiting disabled")
+        results["has_warnings"] = True
 
     if settings.security_headers_enabled:
-        results['passed_checks'].append("Security headers enabled")
+        results["passed_checks"].append("Security headers enabled")
     else:
-        results['warnings'].append("Security headers disabled")
-        results['has_warnings'] = True
+        results["warnings"].append("Security headers disabled")
+        results["has_warnings"] = True
 
     return results
 
@@ -340,32 +347,32 @@ def display_validation_results(results: dict[str, Any]) -> None:
     """Display security validation results."""
 
     # Critical issues
-    if results['critical_issues']:
+    if results["critical_issues"]:
         click.echo("\n💀 CRITICAL SECURITY ISSUES:")
-        for issue in results['critical_issues']:
+        for issue in results["critical_issues"]:
             click.echo(f"   ❌ {issue}")
 
     # Warnings
-    if results['warnings']:
+    if results["warnings"]:
         click.echo("\n⚠️  SECURITY WARNINGS:")
-        for warning in results['warnings']:
+        for warning in results["warnings"]:
             click.echo(f"   🟡 {warning}")
 
     # Passed checks
-    if results['passed_checks']:
+    if results["passed_checks"]:
         click.echo("\n✅ SECURITY CHECKS PASSED:")
-        for check in results['passed_checks']:
+        for check in results["passed_checks"]:
             click.echo(f"   ✓ {check}")
 
 
 def show_security_warnings(environment: str, config: dict[str, Any]) -> None:
     """Show important security warnings."""
 
-    click.echo("\n" + "="*60)
+    click.echo("\n" + "=" * 60)
     click.echo("🛡️  HESTIA'S SECURITY REMINDERS")
-    click.echo("="*60)
+    click.echo("=" * 60)
 
-    if environment == 'production':
+    if environment == "production":
         click.echo("🔴 PRODUCTION ENVIRONMENT - CRITICAL SECURITY REQUIRED!")
         click.echo("   1. Change all default passwords in database URL")
         click.echo("   2. Configure proper CORS origins")
@@ -374,7 +381,7 @@ def show_security_warnings(environment: str, config: dict[str, Any]) -> None:
         click.echo("   5. Set up monitoring and alerting")
         click.echo("   6. Regular security audits and updates")
 
-    elif environment == 'staging':
+    elif environment == "staging":
         click.echo("🟡 STAGING ENVIRONMENT - PRODUCTION-LIKE SECURITY")
         click.echo("   1. Use production-like security settings")
         click.echo("   2. Test all security features")
@@ -388,7 +395,7 @@ def show_security_warnings(environment: str, config: dict[str, Any]) -> None:
 
     click.echo("\n🚫 NEVER COMMIT .env FILES TO VERSION CONTROL!")
     click.echo("🔑 Store secrets securely (HashiCorp Vault, AWS Secrets Manager, etc.)")
-    click.echo("="*60)
+    click.echo("=" * 60)
 
 
 def generate_security_audit_report(audit_logger) -> dict[str, Any]:
@@ -404,11 +411,11 @@ def generate_security_audit_report(audit_logger) -> dict[str, Any]:
         stats = await audit_logger.get_statistics()
 
         return {
-            'report_timestamp': str(datetime.utcnow()),
-            'total_events': len(events),
-            'statistics': stats,
-            'recent_events': events[:50],  # Last 50 events
-            'recommendations': generate_security_recommendations(events, stats)
+            "report_timestamp": str(datetime.utcnow()),
+            "total_events": len(events),
+            "statistics": stats,
+            "recent_events": events[:50],  # Last 50 events
+            "recommendations": generate_security_recommendations(events, stats),
         }
 
     return asyncio.run(_generate_report())
@@ -420,21 +427,25 @@ def generate_security_recommendations(events: list, stats: dict) -> list:
     recommendations = []
 
     # Analyze patterns and generate recommendations
-    if stats.get('critical_events_24h', 0) > 10:
-        recommendations.append({
-            'priority': 'HIGH',
-            'issue': 'High number of critical security events',
-            'recommendation': 'Investigate and address recurring security issues'
-        })
+    if stats.get("critical_events_24h", 0) > 10:
+        recommendations.append(
+            {
+                "priority": "HIGH",
+                "issue": "High number of critical security events",
+                "recommendation": "Investigate and address recurring security issues",
+            }
+        )
 
     # Check for brute force patterns
-    login_failures = [e for e in events if e.get('event_type') == 'login_failed']
+    login_failures = [e for e in events if e.get("event_type") == "login_failed"]
     if len(login_failures) > 50:
-        recommendations.append({
-            'priority': 'MEDIUM',
-            'issue': 'Multiple login failures detected',
-            'recommendation': 'Consider implementing CAPTCHA or account lockouts'
-        })
+        recommendations.append(
+            {
+                "priority": "MEDIUM",
+                "issue": "Multiple login failures detected",
+                "recommendation": "Consider implementing CAPTCHA or account lockouts",
+            }
+        )
 
     return recommendations
 
@@ -443,24 +454,24 @@ def display_audit_summary(report: dict[str, Any]) -> None:
     """Display audit report summary."""
 
     click.echo("\n📊 SECURITY AUDIT SUMMARY")
-    click.echo("="*40)
+    click.echo("=" * 40)
     click.echo(f"Total Events: {report['total_events']}")
 
-    stats = report.get('statistics', {})
+    stats = report.get("statistics", {})
     if stats:
         click.echo(f"Critical Events (24h): {stats.get('critical_events_24h', 0)}")
 
-        events_by_severity = stats.get('events_by_severity', {})
+        events_by_severity = stats.get("events_by_severity", {})
         for severity, count in events_by_severity.items():
             click.echo(f"{severity.upper()}: {count}")
 
     # Show recommendations
-    recommendations = report.get('recommendations', [])
+    recommendations = report.get("recommendations", [])
     if recommendations:
         click.echo("\n🎯 SECURITY RECOMMENDATIONS:")
         for rec in recommendations:
             click.echo(f"   [{rec['priority']}] {rec['recommendation']}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     cli()

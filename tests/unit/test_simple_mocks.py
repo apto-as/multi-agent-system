@@ -475,7 +475,11 @@ class TestBusinessLogicValidation:
                     errors.append(f"Missing required field: {field}")
 
             # Check date consistency
-            if "created_at" in data and "updated_at" in data and data["updated_at"] < data["created_at"]:
+            if (
+                "created_at" in data
+                and "updated_at" in data
+                and data["updated_at"] < data["created_at"]
+            ):
                 errors.append("Updated date cannot be before created date")
 
             return errors

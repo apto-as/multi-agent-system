@@ -6,8 +6,7 @@ Implements the exact database schema specification for api_audit_log table.
 from ipaddress import IPv4Address, IPv6Address, ip_address
 from typing import Any
 
-from sqlalchemy import CheckConstraint, Index, Integer, String
-from sqlalchemy import JSON
+from sqlalchemy import JSON, CheckConstraint, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, validates
 
 from .base import TMWSBase

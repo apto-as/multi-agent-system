@@ -15,17 +15,16 @@ This migration supports the SQLite + Chroma architecture where:
 """
 
 import contextlib
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.dialects import sqlite
 
 # revision identifiers, used by Alembic.
 revision: str = "009"
-down_revision: Union[str, None] = "008"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "008"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -105,15 +104,9 @@ def downgrade() -> None:
 
             # Note: Cannot restore vector data - would need to regenerate from Chroma
             # Adding placeholder columns only
-            batch_op.add_column(
-                sa.Column("embedding", sa.JSON(), nullable=True)
-            )
-            batch_op.add_column(
-                sa.Column("embedding_v2", sa.JSON(), nullable=True)
-            )
-            batch_op.add_column(
-                sa.Column("embedding_v3", sa.JSON(), nullable=True)
-            )
+            batch_op.add_column(sa.Column("embedding", sa.JSON(), nullable=True))
+            batch_op.add_column(sa.Column("embedding_v2", sa.JSON(), nullable=True))
+            batch_op.add_column(sa.Column("embedding_v3", sa.JSON(), nullable=True))
     else:
         # PostgreSQL path
         from pgvector.sqlalchemy import Vector

@@ -22,11 +22,9 @@ settings = get_settings()
 # Override database URL from settings
 # Convert async URL to sync URL for Alembic migrations
 # asyncpg → psycopg2, aiosqlite → sqlite
-sync_database_url = (
-    settings.database_url
-    .replace("postgresql+asyncpg://", "postgresql+psycopg2://")
-    .replace("sqlite+aiosqlite://", "sqlite://")
-)
+sync_database_url = settings.database_url.replace(
+    "postgresql+asyncpg://", "postgresql+psycopg2://"
+).replace("sqlite+aiosqlite://", "sqlite://")
 config.set_main_option("sqlalchemy.url", sync_database_url)
 
 # Interpret the config file for Python logging.
@@ -82,9 +80,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()

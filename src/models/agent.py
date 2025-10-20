@@ -10,8 +10,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 import sqlalchemy as sa
-from sqlalchemy import Boolean, DateTime, Float, Index, Integer, Text
-from sqlalchemy import JSON
+from sqlalchemy import JSON, Boolean, DateTime, Float, Index, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import MetadataMixin, TMWSBase

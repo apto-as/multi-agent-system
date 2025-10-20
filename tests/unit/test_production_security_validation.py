@@ -45,7 +45,10 @@ class TestProductionSecurityValidation:
         env = PRODUCTION_BASE_ENV.copy()
         env["TMWS_RATE_LIMIT_ENABLED"] = "false"
 
-        with patch.dict(os.environ, env, clear=True), pytest.raises(ValueError, match="Rate limiting MUST be enabled"):
+        with (
+            patch.dict(os.environ, env, clear=True),
+            pytest.raises(ValueError, match="Rate limiting MUST be enabled"),
+        ):
             Settings()
 
     def test_production_requires_security_headers(self):
@@ -53,7 +56,10 @@ class TestProductionSecurityValidation:
         env = PRODUCTION_BASE_ENV.copy()
         env["TMWS_SECURITY_HEADERS_ENABLED"] = "false"
 
-        with patch.dict(os.environ, env, clear=True), pytest.raises(ValueError, match="Security headers MUST be enabled"):
+        with (
+            patch.dict(os.environ, env, clear=True),
+            pytest.raises(ValueError, match="Security headers MUST be enabled"),
+        ):
             Settings()
 
     def test_production_requires_audit_logging(self):
@@ -61,7 +67,10 @@ class TestProductionSecurityValidation:
         env = PRODUCTION_BASE_ENV.copy()
         env["TMWS_AUDIT_LOG_ENABLED"] = "false"
 
-        with patch.dict(os.environ, env, clear=True), pytest.raises(ValueError, match="Audit logging MUST be enabled"):
+        with (
+            patch.dict(os.environ, env, clear=True),
+            pytest.raises(ValueError, match="Audit logging MUST be enabled"),
+        ):
             Settings()
 
     def test_production_requires_strong_secret_key(self):
@@ -70,12 +79,18 @@ class TestProductionSecurityValidation:
         env = PRODUCTION_BASE_ENV.copy()
         env["TMWS_SECRET_KEY"] = "short"
 
-        with patch.dict(os.environ, env, clear=True), pytest.raises(ValidationError, match="at least 32 characters"):
+        with (
+            patch.dict(os.environ, env, clear=True),
+            pytest.raises(ValidationError, match="at least 32 characters"),
+        ):
             Settings()
 
         # Weak key
         env["TMWS_SECRET_KEY"] = "development" * 5
-        with patch.dict(os.environ, env, clear=True), pytest.raises(ValueError, match="Weak or default secret key"):
+        with (
+            patch.dict(os.environ, env, clear=True),
+            pytest.raises(ValueError, match="Weak or default secret key"),
+        ):
             Settings()
 
     def test_production_all_security_features_enabled(self):
@@ -141,7 +156,10 @@ class TestSecretKeyValidation:
             env = PRODUCTION_BASE_ENV.copy()
             env["TMWS_SECRET_KEY"] = weak_key
 
-            with patch.dict(os.environ, env, clear=True), pytest.raises(ValueError, match="Weak or default secret key"):
+            with (
+                patch.dict(os.environ, env, clear=True),
+                pytest.raises(ValueError, match="Weak or default secret key"),
+            ):
                 Settings()
 
     def test_entropy_check_passes_with_mixed_chars(self):
@@ -171,7 +189,10 @@ class TestCORSValidation:
         env = PRODUCTION_BASE_ENV.copy()
         env["TMWS_CORS_ORIGINS"] = ""
 
-        with patch.dict(os.environ, env, clear=True), pytest.raises(ValueError, match="CORS origins must be explicitly configured"):
+        with (
+            patch.dict(os.environ, env, clear=True),
+            pytest.raises(ValueError, match="CORS origins must be explicitly configured"),
+        ):
             Settings()
 
     def test_production_rejects_wildcard_cors(self):
@@ -179,5 +200,8 @@ class TestCORSValidation:
         env = PRODUCTION_BASE_ENV.copy()
         env["TMWS_CORS_ORIGINS"] = '["*"]'
 
-        with patch.dict(os.environ, env, clear=True), pytest.raises(ValueError, match="Wildcard CORS origins not allowed"):
+        with (
+            patch.dict(os.environ, env, clear=True),
+            pytest.raises(ValueError, match="Wildcard CORS origins not allowed"),
+        ):
             Settings()

@@ -19,15 +19,16 @@ from pathlib import Path
 
 # Color codes for output
 class Colors:
-    GREEN = '\033[92m'
-    RED = '\033[91m'
-    YELLOW = '\033[93m'
-    BLUE = '\033[94m'
-    PURPLE = '\033[95m'
-    CYAN = '\033[96m'
-    WHITE = '\033[97m'
-    BOLD = '\033[1m'
-    END = '\033[0m'
+    GREEN = "\033[92m"
+    RED = "\033[91m"
+    YELLOW = "\033[93m"
+    BLUE = "\033[94m"
+    PURPLE = "\033[95m"
+    CYAN = "\033[96m"
+    WHITE = "\033[97m"
+    BOLD = "\033[1m"
+    END = "\033[0m"
+
 
 class TestRunner:
     """Comprehensive test runner with quality gate validation."""
@@ -41,14 +42,14 @@ class TestRunner:
             "security": None,
             "performance": None,
             "e2e": None,
-            "coverage": None
+            "coverage": None,
         }
 
     def print_header(self, title: str, color: str = Colors.CYAN):
         """Print formatted header."""
-        print(f"\n{color}{Colors.BOLD}{'='*80}")
+        print(f"\n{color}{Colors.BOLD}{'=' * 80}")
         print(f"{title.center(80)}")
-        print(f"{'='*80}{Colors.END}\n")
+        print(f"{'=' * 80}{Colors.END}\n")
 
     def print_status(self, message: str, status: str):
         """Print status message with color coding."""
@@ -74,7 +75,7 @@ class TestRunner:
         required_vars = {
             "TMWS_ENVIRONMENT": "test",
             "TMWS_SECRET_KEY": "test_secret_key_for_comprehensive_testing_suite_validation",
-            "TMWS_AUTH_ENABLED": "true"
+            "TMWS_AUTH_ENABLED": "true",
         }
 
         for var, default_value in required_vars.items():
@@ -86,7 +87,9 @@ class TestRunner:
         db_url = os.environ.get("TMWS_DATABASE_URL")
         if not db_url:
             if self.check_postgres():
-                os.environ["TMWS_DATABASE_URL"] = "postgresql://postgres:postgres@localhost:5432/tmws_test"
+                os.environ["TMWS_DATABASE_URL"] = (
+                    "postgresql://postgres:postgres@localhost:5432/tmws_test"
+                )
                 self.print_status("Using PostgreSQL test database", "PASS")
             else:
                 os.environ["TMWS_DATABASE_URL"] = "sqlite:///./test.db"
@@ -98,7 +101,7 @@ class TestRunner:
                 ["python", "-m", "alembic", "upgrade", "head"],
                 cwd=self.project_root,
                 capture_output=True,
-                text=True
+                text=True,
             )
             if result.returncode == 0:
                 self.print_status("Database migrations completed", "PASS")
@@ -112,9 +115,7 @@ class TestRunner:
         """Check if PostgreSQL is available."""
         try:
             result = subprocess.run(
-                ["pg_isready", "-h", "localhost", "-p", "5432"],
-                capture_output=True,
-                text=True
+                ["pg_isready", "-h", "localhost", "-p", "5432"], capture_output=True, text=True
             )
             return result.returncode == 0
         except FileNotFoundError:
@@ -131,32 +132,32 @@ class TestRunner:
                 "path": "tests/unit/",
                 "marker": "unit",
                 "timeout": 300,
-                "description": "Unit Tests (Artemis Technical Excellence)"
+                "description": "Unit Tests (Artemis Technical Excellence)",
             },
             "integration": {
                 "path": "tests/integration/",
                 "marker": "integration",
                 "timeout": 600,
-                "description": "Integration Tests (Eris Coordination)"
+                "description": "Integration Tests (Eris Coordination)",
             },
             "security": {
                 "path": "tests/security/",
                 "marker": "security",
                 "timeout": 900,
-                "description": "Security Tests (Hestia Guardian)"
+                "description": "Security Tests (Hestia Guardian)",
             },
             "performance": {
                 "path": "tests/",
                 "marker": "performance",
                 "timeout": 1200,
-                "description": "Performance Tests (Artemis/Hera Validation)"
+                "description": "Performance Tests (Artemis/Hera Validation)",
             },
             "e2e": {
                 "path": "tests/e2e/",
                 "marker": "e2e",
                 "timeout": 1800,
-                "description": "End-to-End Tests (Hera Strategic Validation)"
-            }
+                "description": "End-to-End Tests (Hera Strategic Validation)",
+            },
         }
 
         if category not in test_configs:
@@ -168,23 +169,28 @@ class TestRunner:
 
         # Build pytest command
         cmd = [
-            "python", "-m", "pytest",
+            "python",
+            "-m",
+            "pytest",
             config["path"],
             "-v",
-            "-m", config["marker"],
+            "-m",
+            config["marker"],
             f"--timeout={config['timeout']}",
             f"--junitxml={category}-junit.xml",
             f"--html={category}-report.html",
-            "--self-contained-html"
+            "--self-contained-html",
         ]
 
         # Add coverage for unit and integration tests
         if category in ["unit", "integration"]:
-            cmd.extend([
-                "--cov=src",
-                f"--cov-report=xml:{category}-coverage.xml",
-                "--cov-report=term-missing"
-            ])
+            cmd.extend(
+                [
+                    "--cov=src",
+                    f"--cov-report=xml:{category}-coverage.xml",
+                    "--cov-report=term-missing",
+                ]
+            )
 
         cmd.extend(args)
 
@@ -192,11 +198,7 @@ class TestRunner:
 
         start_time = time.time()
         try:
-            result = subprocess.run(
-                cmd,
-                cwd=self.project_root,
-                text=True
-            )
+            result = subprocess.run(cmd, cwd=self.project_root, text=True)
 
             duration = time.time() - start_time
             success = result.returncode == 0
@@ -205,26 +207,25 @@ class TestRunner:
             self.print_status(f"{config['description']} completed in {duration:.1f}s", status)
 
             # Parse results
-            results = {
-                "success": success,
-                "duration": duration,
-                "return_code": result.returncode
-            }
+            results = {"success": success, "duration": duration, "return_code": result.returncode}
 
             # Try to parse JUnit XML for detailed results
             junit_file = self.project_root / f"{category}-junit.xml"
             if junit_file.exists():
                 try:
                     import xml.etree.ElementTree as ET
+
                     tree = ET.parse(junit_file)
-                    testsuite = tree.getroot().find('testsuite')
+                    testsuite = tree.getroot().find("testsuite")
                     if testsuite is not None:
-                        results.update({
-                            "tests": int(testsuite.get('tests', 0)),
-                            "failures": int(testsuite.get('failures', 0)),
-                            "errors": int(testsuite.get('errors', 0)),
-                            "skipped": int(testsuite.get('skipped', 0))
-                        })
+                        results.update(
+                            {
+                                "tests": int(testsuite.get("tests", 0)),
+                                "failures": int(testsuite.get("failures", 0)),
+                                "errors": int(testsuite.get("errors", 0)),
+                                "skipped": int(testsuite.get("skipped", 0)),
+                            }
+                        )
                 except Exception as e:
                     self.print_status(f"Failed to parse JUnit results: {e}", "WARN")
 
@@ -256,31 +257,38 @@ class TestRunner:
             cov.load()
 
             # Generate combined report
-            subprocess.run([
-                "python", "-m", "coverage", "combine"
-            ], cwd=self.project_root, capture_output=True)
+            subprocess.run(
+                ["python", "-m", "coverage", "combine"], cwd=self.project_root, capture_output=True
+            )
 
-            subprocess.run([
-                "python", "-m", "coverage", "report", "--show-missing"
-            ], cwd=self.project_root)
+            subprocess.run(
+                ["python", "-m", "coverage", "report", "--show-missing"], cwd=self.project_root
+            )
 
-            subprocess.run([
-                "python", "-m", "coverage", "html", "-d", "htmlcov"
-            ], cwd=self.project_root, capture_output=True)
+            subprocess.run(
+                ["python", "-m", "coverage", "html", "-d", "htmlcov"],
+                cwd=self.project_root,
+                capture_output=True,
+            )
 
             # Get coverage percentage
-            result = subprocess.run([
-                "python", "-m", "coverage", "report", "--format=total"
-            ], cwd=self.project_root, capture_output=True, text=True)
+            result = subprocess.run(
+                ["python", "-m", "coverage", "report", "--format=total"],
+                cwd=self.project_root,
+                capture_output=True,
+                text=True,
+            )
 
             if result.returncode == 0:
                 overall_coverage = float(result.stdout.strip())
-                self.print_status(f"Overall coverage: {overall_coverage:.1f}%",
-                                 "PASS" if overall_coverage >= 90 else "WARN")
+                self.print_status(
+                    f"Overall coverage: {overall_coverage:.1f}%",
+                    "PASS" if overall_coverage >= 90 else "WARN",
+                )
 
                 return overall_coverage >= 90, {
                     "overall": overall_coverage,
-                    "critical_paths": overall_coverage  # Simplified for now
+                    "critical_paths": overall_coverage,  # Simplified for now
                 }
             else:
                 self.print_status("Failed to get coverage report", "FAIL")
@@ -300,10 +308,12 @@ class TestRunner:
         gates = {
             "security_tests": self.results["security"] and self.results["security"]["success"],
             "unit_tests": self.results["unit"] and self.results["unit"]["success"],
-            "integration_tests": self.results["integration"] and self.results["integration"]["success"],
-            "performance_tests": self.results["performance"] and self.results["performance"]["success"],
+            "integration_tests": self.results["integration"]
+            and self.results["integration"]["success"],
+            "performance_tests": self.results["performance"]
+            and self.results["performance"]["success"],
             "e2e_tests": self.results["e2e"] and self.results["e2e"]["success"],
-            "code_coverage": self.results["coverage"] and self.results["coverage"]["success"]
+            "code_coverage": self.results["coverage"] and self.results["coverage"]["success"],
         }
 
         passed_gates = sum(1 for gate in gates.values() if gate)
@@ -315,7 +325,9 @@ class TestRunner:
             status = "PASS" if passed else "FAIL"
             self.print_status(f"{gate_name.replace('_', ' ').title()}", status)
 
-        print(f"\n{Colors.BOLD}Overall Score: {success_rate:.1f}% ({passed_gates}/{total_gates}){Colors.END}")
+        print(
+            f"\n{Colors.BOLD}Overall Score: {success_rate:.1f}% ({passed_gates}/{total_gates}){Colors.END}"
+        )
 
         # Quality gate decision
         deployment_ready = success_rate >= 80 and gates.get("security_tests", False)
@@ -342,13 +354,13 @@ class TestRunner:
             "environment": {
                 "python_version": sys.version,
                 "platform": sys.platform,
-                "database_url": os.environ.get("TMWS_DATABASE_URL", "not_set")
-            }
+                "database_url": os.environ.get("TMWS_DATABASE_URL", "not_set"),
+            },
         }
 
         # Write report to file
         report_file = self.project_root / "test_execution_report.json"
-        with open(report_file, 'w') as f:
+        with open(report_file, "w") as f:
             json.dump(report, f, indent=2, default=str)
 
         self.print_status(f"Test report saved to {report_file}", "PASS")
@@ -391,10 +403,7 @@ class TestRunner:
 
         # Analyze coverage
         coverage_success, coverage_data = self.analyze_coverage()
-        self.results["coverage"] = {
-            "success": coverage_success,
-            **coverage_data
-        }
+        self.results["coverage"] = {"success": coverage_success, **coverage_data}
         if coverage_success:
             success_count += 1
 
@@ -411,7 +420,9 @@ class TestRunner:
         self.print_header("Final Results", Colors.BOLD)
 
         if deployment_ready:
-            print(f"{Colors.GREEN}{Colors.BOLD}🎉 SUCCESS: TMWS Phase 1 is ready for deployment!{Colors.END}")
+            print(
+                f"{Colors.GREEN}{Colors.BOLD}🎉 SUCCESS: TMWS Phase 1 is ready for deployment!{Colors.END}"
+            )
             print(f"Quality Score: {success_rate:.1f}%")
             print("All critical requirements met.")
         else:
@@ -440,46 +451,34 @@ Examples:
   python scripts/test-runner.py --category unit    # Run unit tests only
   python scripts/test-runner.py --security-only    # Run security tests only
   python scripts/test-runner.py --fast             # Run fast tests only
-        """
+        """,
     )
 
     parser.add_argument(
-        "--category", "-c",
+        "--category",
+        "-c",
         choices=["unit", "integration", "security", "performance", "e2e"],
         action="append",
-        help="Run specific test categories (can be used multiple times)"
+        help="Run specific test categories (can be used multiple times)",
     )
 
     parser.add_argument(
-        "--security-only",
-        action="store_true",
-        help="Run only security tests (Hestia focus)"
+        "--security-only", action="store_true", help="Run only security tests (Hestia focus)"
     )
 
     parser.add_argument(
-        "--fast",
-        action="store_true",
-        help="Run only fast tests (exclude slow marker)"
+        "--fast", action="store_true", help="Run only fast tests (exclude slow marker)"
     )
 
     parser.add_argument(
-        "--coverage-only",
-        action="store_true",
-        help="Run tests required for coverage analysis"
+        "--coverage-only", action="store_true", help="Run tests required for coverage analysis"
     )
 
     parser.add_argument(
-        "--parallel", "-j",
-        type=int,
-        default=1,
-        help="Run tests in parallel (number of workers)"
+        "--parallel", "-j", type=int, default=1, help="Run tests in parallel (number of workers)"
     )
 
-    parser.add_argument(
-        "--verbose", "-v",
-        action="store_true",
-        help="Increase output verbosity"
-    )
+    parser.add_argument("--verbose", "-v", action="store_true", help="Increase output verbosity")
 
     args = parser.parse_args()
 

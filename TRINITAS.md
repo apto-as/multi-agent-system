@@ -1,1 +1,0 @@
-/Users/apto-as/workspace/github.com/apto-as/tmws/.claude/trinitas_integration.md

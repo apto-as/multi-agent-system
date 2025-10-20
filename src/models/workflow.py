@@ -9,8 +9,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 import sqlalchemy as sa
-from sqlalchemy import DateTime, Index, Integer, Text
-from sqlalchemy import JSON
+from sqlalchemy import JSON, DateTime, Index, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import MetadataMixin, TMWSBase
@@ -61,9 +60,7 @@ class Workflow(TMWSBase, MetadataMixin):
     )
 
     # Workflow definition
-    steps: Mapped[list[dict]] = mapped_column(
-        JSON, nullable=False, default=list
-    )
+    steps: Mapped[list[dict]] = mapped_column(JSON, nullable=False, default=list)
 
     # Execution tracking
     current_step_index: Mapped[int] = mapped_column(
@@ -93,14 +90,10 @@ class Workflow(TMWSBase, MetadataMixin):
     created_by: Mapped[str | None] = mapped_column(Text, nullable=True, index=True)
 
     # Tags for categorization
-    tags: Mapped[list[str]] = mapped_column(
-        JSON, nullable=False, default=list
-    )
+    tags: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
 
     # Execution configuration
-    config: Mapped[dict] = mapped_column(
-        JSON, nullable=False, default=dict
-    )
+    config: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
 
     # Relationships
     executions: Mapped[list[WorkflowExecution]] = relationship(

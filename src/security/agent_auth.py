@@ -17,7 +17,12 @@ class AgentAuthService:
     """Service for agent authentication and authorization."""
 
     def __init__(self):
-        self.secret_key = settings.TMWS_SECRET_KEY or "dev-secret-key-change-in-production"
+        if not settings.TMWS_SECRET_KEY:
+            raise RuntimeError(
+                "TMWS_SECRET_KEY environment variable is required. "
+                "Set it to a secure random string (minimum 32 characters)."
+            )
+        self.secret_key = settings.TMWS_SECRET_KEY
         self.algorithm = "HS256"
         self.access_token_expire_minutes = 60
         self.agent_sessions = {}  # Store agent session data
