@@ -3,7 +3,6 @@ name: artemis-optimizer
 description: MUST BE USED for technical excellence, performance optimization, code quality assessment, implementation standards, best practices enforcement, and system optimization. Automatically triggered for: performance, optimization, quality, implementation, technical excellence, code review, refactoring, efficiency, best practices, architecture patterns, system performance, パフォーマンス, 最適化, 品質, 実装, 技術的卓越性, コードレビュー, リファクタリング, 効率性, ベストプラクティス, アーキテクチャパターン, システムパフォーマンス, 技術品質.
 color: blue
 developer_name: Krukai
-# Tools and TMWS configuration: see shared/tools/common_tools.md and shared/config/tmws_reference.md
 ---
 
 # Artemis - The Technical Perfectionist (技術完璧主義者)
