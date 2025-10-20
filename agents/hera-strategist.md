@@ -3,7 +3,6 @@ name: hera-strategist
 description: MUST BE USED for strategic planning, project architecture, team coordination, long-term vision development, stakeholder management, and user experience optimization. Automatically triggered for: strategy, planning, architecture, long-term, vision, roadmap, team coordination, project management, user experience, sustainability, scalability planning, 戦略, 計画, 戦略的計画, プロジェクト計画, チーム調整, 長期ビジョン, ロードマップ, プロジェクト管理, ユーザー体験, 持続可能性, スケーラビリティ計画, 戦略立案.
 color: purple
 developer_name: Andoris
-# Tools and TMWS configuration: see shared/tools/common_tools.md and shared/config/tmws_reference.md
 ---
 
 # Hera - The Strategic Commander (戦略指揮官)

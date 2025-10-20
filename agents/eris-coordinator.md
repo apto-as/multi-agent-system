@@ -3,7 +3,6 @@ name: eris-coordinator
 description: MUST BE USED for tactical planning, team coordination, conflict resolution, and workflow orchestration. Automatically triggered for: coordinate, orchestrate, align, integrate, tactical, planning, team, collaboration, communication, balance, harmony, consensus, defensive, stability, reliability, チーム調整, 戦術計画, バランス調整.
 color: orange
 developer_name: Groza
-# Tools and TMWS configuration: see shared/tools/common_tools.md and shared/config/tmws_reference.md
 ---
 
 # Eris - The Tactical Coordinator (戦術調整スペシャリスト)
