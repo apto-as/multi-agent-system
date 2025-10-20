@@ -10,25 +10,19 @@ Performance targets achieved:
 """
 
 import asyncio
-import json
 import time
-from typing import Any, Dict, List
 
-from src.core.cache import CacheManager
-from src.core.config import get_settings
-from src.core.database import get_db_session
 from src.services.pattern_execution_service import (
     ExecutionMode,
     PatternDefinition,
-    PatternExecutionEngine,
     PatternType,
-    create_pattern_execution_engine
+    create_pattern_execution_engine,
 )
-
 
 # ============================================================================
 # EXAMPLE 1: Basic Pattern Execution
 # ============================================================================
+
 
 async def example_basic_execution():
     """
@@ -36,9 +30,9 @@ async def example_basic_execution():
 
     Expected performance: <100ms
     """
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("EXAMPLE 1: Basic Pattern Execution")
-    print("="*80)
+    print("=" * 80)
 
     # Create engine
     engine = await create_pattern_execution_engine()
@@ -47,7 +41,7 @@ async def example_basic_execution():
     queries = [
         "recall memories about security optimization",
         "execute the memory search tool",
-        "analyze the authentication system"
+        "analyze the authentication system",
     ]
 
     for query in queries:
@@ -67,6 +61,7 @@ async def example_basic_execution():
 # EXAMPLE 2: Execution Modes
 # ============================================================================
 
+
 async def example_execution_modes():
     """
     Demonstrate different execution modes
@@ -76,9 +71,9 @@ async def example_execution_modes():
     - BALANCED: Smart routing (<200ms)
     - COMPREHENSIVE: Full hybrid (<300ms)
     """
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("EXAMPLE 2: Execution Modes")
-    print("="*80)
+    print("=" * 80)
 
     engine = await create_pattern_execution_engine()
 
@@ -88,7 +83,7 @@ async def example_execution_modes():
     modes = [
         (ExecutionMode.FAST, "Infrastructure only"),
         (ExecutionMode.BALANCED, "Smart routing"),
-        (ExecutionMode.COMPREHENSIVE, "Full hybrid")
+        (ExecutionMode.COMPREHENSIVE, "Full hybrid"),
     ]
 
     for mode, description in modes:
@@ -104,31 +99,31 @@ async def example_execution_modes():
 # EXAMPLE 3: Custom Pattern Registration
 # ============================================================================
 
+
 async def example_custom_patterns():
     """
     Register and use custom patterns
 
     Shows how to extend the system with project-specific patterns
     """
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("EXAMPLE 3: Custom Pattern Registration")
-    print("="*80)
+    print("=" * 80)
 
     engine = await create_pattern_execution_engine()
 
     # Register custom pattern
-    custom_pattern = PatternDefinition.from_config({
-        'name': 'database_optimization',
-        'pattern_type': 'memory',
-        'trigger_pattern': r'optimize\s+(database|query|index)',
-        'cost_tokens': 120,
-        'priority': 10,
-        'cache_ttl': 300,
-        'metadata': {
-            'category': 'database',
-            'custom': True
+    custom_pattern = PatternDefinition.from_config(
+        {
+            "name": "database_optimization",
+            "pattern_type": "memory",
+            "trigger_pattern": r"optimize\s+(database|query|index)",
+            "cost_tokens": 120,
+            "priority": 10,
+            "cache_ttl": 300,
+            "metadata": {"category": "database", "custom": True},
         }
-    })
+    )
 
     engine.registry.register(custom_pattern)
     print(f"Registered custom pattern: {custom_pattern.name}")
@@ -145,6 +140,7 @@ async def example_custom_patterns():
 # EXAMPLE 4: Batch Execution with Caching
 # ============================================================================
 
+
 async def example_batch_execution():
     """
     Demonstrate batch execution and cache effectiveness
@@ -152,9 +148,9 @@ async def example_batch_execution():
     First run: Cache misses, slower
     Second run: Cache hits, much faster
     """
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("EXAMPLE 4: Batch Execution with Caching")
-    print("="*80)
+    print("=" * 80)
 
     engine = await create_pattern_execution_engine()
 
@@ -163,7 +159,7 @@ async def example_batch_execution():
         "find performance optimizations",
         "analyze error handling",
         "recall security patterns",  # Duplicate for cache test
-        "find performance optimizations"  # Duplicate for cache test
+        "find performance optimizations",  # Duplicate for cache test
     ]
 
     # First run - populate cache
@@ -173,7 +169,9 @@ async def example_batch_execution():
     for query in queries:
         result = await engine.execute(query)
         first_run_times.append(result.execution_time_ms)
-        print(f"{query[:40]:40} | {result.execution_time_ms:6.2f}ms | Cache hit: {result.cache_hit}")
+        print(
+            f"{query[:40]:40} | {result.execution_time_ms:6.2f}ms | Cache hit: {result.cache_hit}"
+        )
 
     # Second run - use cache
     print("\nSecond run (using cache):")
@@ -182,7 +180,9 @@ async def example_batch_execution():
     for query in queries:
         result = await engine.execute(query)
         second_run_times.append(result.execution_time_ms)
-        print(f"{query[:40]:40} | {result.execution_time_ms:6.2f}ms | Cache hit: {result.cache_hit}")
+        print(
+            f"{query[:40]:40} | {result.execution_time_ms:6.2f}ms | Cache hit: {result.cache_hit}"
+        )
 
     # Statistics
     print(f"\nFirst run average: {sum(first_run_times) / len(first_run_times):.2f}ms")
@@ -196,15 +196,16 @@ async def example_batch_execution():
 # EXAMPLE 5: Performance Benchmarking
 # ============================================================================
 
+
 async def example_performance_benchmark():
     """
     Comprehensive performance benchmark
 
     Tests all pattern types and reports statistics
     """
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("EXAMPLE 5: Performance Benchmark")
-    print("="*80)
+    print("=" * 80)
 
     engine = await create_pattern_execution_engine()
 
@@ -213,23 +214,17 @@ async def example_performance_benchmark():
         ("check database health", PatternType.INFRASTRUCTURE, 50),
         ("execute memory tool", PatternType.INFRASTRUCTURE, 50),
         ("install dependencies", PatternType.INFRASTRUCTURE, 50),
-
         # Memory patterns (target: <100ms)
         ("recall architecture decisions", PatternType.MEMORY, 100),
         ("store optimization pattern", PatternType.MEMORY, 100),
         ("search tagged security", PatternType.MEMORY, 100),
-
         # Hybrid patterns (target: <200ms)
         ("analyze system performance", PatternType.HYBRID, 200),
         ("find similar patterns", PatternType.HYBRID, 200),
         ("compare implementations", PatternType.HYBRID, 200),
     ]
 
-    results = {
-        PatternType.INFRASTRUCTURE: [],
-        PatternType.MEMORY: [],
-        PatternType.HYBRID: []
-    }
+    results = {PatternType.INFRASTRUCTURE: [], PatternType.MEMORY: [], PatternType.HYBRID: []}
 
     print("\nRunning benchmark...")
     print(f"{'Query':<40} | {'Type':<15} | {'Time':<10} | {'Target':<10} | {'Status'}")
@@ -238,7 +233,7 @@ async def example_performance_benchmark():
     for query, _, target_ms in test_cases:
         result = await engine.execute(query, use_cache=False)  # No cache for benchmark
 
-        actual_type = PatternType(result.metadata.get('pattern_type', 'unknown'))
+        actual_type = PatternType(result.metadata.get("pattern_type", "unknown"))
         results[actual_type].append(result.execution_time_ms)
 
         status = "✓ PASS" if result.execution_time_ms <= target_ms else "✗ FAIL"
@@ -251,9 +246,9 @@ async def example_performance_benchmark():
         )
 
     # Statistics
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("BENCHMARK STATISTICS")
-    print("="*80)
+    print("=" * 80)
 
     for pattern_type, times in results.items():
         if not times:
@@ -284,15 +279,16 @@ async def example_performance_benchmark():
 # EXAMPLE 6: Router Analysis
 # ============================================================================
 
+
 async def example_router_analysis():
     """
     Analyze routing decisions for different queries
 
     Shows how the router intelligently chooses execution paths
     """
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("EXAMPLE 6: Router Analysis")
-    print("="*80)
+    print("=" * 80)
 
     engine = await create_pattern_execution_engine()
 
@@ -302,7 +298,7 @@ async def example_router_analysis():
         "find similar security issues",
         "check service health",
         "analyze performance bottlenecks",
-        "recall past decisions"
+        "recall past decisions",
     ]
 
     print("\nRouting decisions:")
@@ -328,7 +324,7 @@ async def example_router_analysis():
     print("\nROUTER STATISTICS:")
     print(f"  Total routes: {router_stats['total_routes']}")
     print("\n  Distribution:")
-    for route_type, percentage in router_stats['route_distribution'].items():
+    for route_type, percentage in router_stats["route_distribution"].items():
         print(f"    {route_type}: {percentage:.1f}%")
 
 
@@ -336,36 +332,28 @@ async def example_router_analysis():
 # EXAMPLE 7: Real-world Integration
 # ============================================================================
 
+
 async def example_realworld_integration():
     """
     Real-world integration example for Trinitas agents
 
     Demonstrates how Artemis (optimizer) would use the pattern service
     """
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("EXAMPLE 7: Real-world Integration (Artemis Optimizer)")
-    print("="*80)
+    print("=" * 80)
 
     engine = await create_pattern_execution_engine()
 
     # Artemis optimization workflow
     optimization_tasks = [
         {
-            'query': 'recall all past optimization patterns',
-            'description': 'Retrieve historical optimizations'
+            "query": "recall all past optimization patterns",
+            "description": "Retrieve historical optimizations",
         },
-        {
-            'query': 'analyze current database performance',
-            'description': 'Analyze current state'
-        },
-        {
-            'query': 'find similar optimization strategies',
-            'description': 'Find similar cases'
-        },
-        {
-            'query': 'store new optimization pattern',
-            'description': 'Store learned pattern'
-        }
+        {"query": "analyze current database performance", "description": "Analyze current state"},
+        {"query": "find similar optimization strategies", "description": "Find similar cases"},
+        {"query": "store new optimization pattern", "description": "Store learned pattern"},
     ]
 
     print("\nArtemis optimization workflow:")
@@ -378,9 +366,9 @@ async def example_realworld_integration():
         print(f"Query: {task['query']}")
 
         result = await engine.execute(
-            task['query'],
+            task["query"],
             execution_mode=ExecutionMode.BALANCED,
-            context={'agent': 'artemis', 'workflow': 'optimization'}
+            context={"agent": "artemis", "workflow": "optimization"},
         )
 
         print(f"  Result: {result.success}")
@@ -391,7 +379,7 @@ async def example_realworld_integration():
         total_time += result.execution_time_ms
         total_tokens += result.tokens_used
 
-    print(f"\nWorkflow complete:")
+    print("\nWorkflow complete:")
     print(f"  Total time: {total_time:.2f}ms")
     print(f"  Total tokens: {total_tokens}")
     print(f"  Average per step: {total_time / len(optimization_tasks):.2f}ms")
@@ -400,14 +388,14 @@ async def example_realworld_integration():
     target_time = 200 * len(optimization_tasks)  # 200ms per step
     target_tokens = 150 * len(optimization_tasks)  # 150 tokens per step
 
-    print(f"\nPerformance vs targets:")
+    print("\nPerformance vs targets:")
     print(f"  Time: {total_time:.0f}ms / {target_time}ms target")
     print(f"  Tokens: {total_tokens} / {target_tokens} target")
 
     time_efficiency = (target_time - total_time) / target_time * 100
     token_efficiency = (target_tokens - total_tokens) / target_tokens * 100
 
-    print(f"\nEfficiency gains:")
+    print("\nEfficiency gains:")
     print(f"  Time: {time_efficiency:+.1f}% vs target")
     print(f"  Tokens: {token_efficiency:+.1f}% vs target")
 
@@ -416,15 +404,16 @@ async def example_realworld_integration():
 # EXAMPLE 8: Error Handling and Fallbacks
 # ============================================================================
 
+
 async def example_error_handling():
     """
     Demonstrate robust error handling
 
     Shows how the system handles errors gracefully
     """
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("EXAMPLE 8: Error Handling and Fallbacks")
-    print("="*80)
+    print("=" * 80)
 
     engine = await create_pattern_execution_engine()
 
@@ -450,12 +439,13 @@ async def example_error_handling():
 # MAIN RUNNER
 # ============================================================================
 
+
 async def run_all_examples():
     """Run all examples"""
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("TMWS v2.2.0 Pattern Execution Examples")
     print("Demonstrating: Hybrid execution, caching, performance optimization")
-    print("="*80)
+    print("=" * 80)
 
     # Run examples
     await example_basic_execution()
@@ -467,9 +457,9 @@ async def run_all_examples():
     await example_realworld_integration()
     await example_error_handling()
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("All examples completed!")
-    print("="*80)
+    print("=" * 80)
 
 
 if __name__ == "__main__":

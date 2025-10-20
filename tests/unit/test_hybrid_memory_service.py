@@ -72,12 +72,15 @@ def mock_vector_service():
 @pytest.fixture
 def hybrid_service(mock_session, mock_embedding_service, mock_vector_service):
     """Create HybridMemoryService with mocked dependencies."""
-    with patch(
-        "src.services.memory_service.get_unified_embedding_service",
-        return_value=mock_embedding_service,
-    ), patch(
-        "src.services.memory_service.get_vector_search_service",
-        return_value=mock_vector_service,
+    with (
+        patch(
+            "src.services.memory_service.get_unified_embedding_service",
+            return_value=mock_embedding_service,
+        ),
+        patch(
+            "src.services.memory_service.get_vector_search_service",
+            return_value=mock_vector_service,
+        ),
     ):
         service = HybridMemoryService(mock_session)
         return service
@@ -312,10 +315,13 @@ async def test_cleanup_old_memories(hybrid_service, mock_session, mock_vector_se
 async def test_chroma_unavailable_raises_error(mock_session, mock_embedding_service):
     """Test that service initialization fails when Chroma is unavailable (v2.2.6: Chroma is REQUIRED)."""
     # Arrange
-    with patch(
-        "src.services.memory_service.get_unified_embedding_service",
-        return_value=mock_embedding_service,
-    ), patch("src.services.memory_service.get_vector_search_service") as mock_get_vector:
+    with (
+        patch(
+            "src.services.memory_service.get_unified_embedding_service",
+            return_value=mock_embedding_service,
+        ),
+        patch("src.services.memory_service.get_vector_search_service") as mock_get_vector,
+    ):
         mock_vector = MagicMock()
         mock_vector.initialize = MagicMock(side_effect=Exception("Chroma unavailable"))
         mock_get_vector.return_value = mock_vector

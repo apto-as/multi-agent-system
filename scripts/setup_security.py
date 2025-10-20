@@ -33,7 +33,9 @@ from security.access_control import (
 from security.agent_auth import AgentAccessLevel, create_agent_authenticator
 from security.data_encryption import DataClassification, create_encryption_service
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 
@@ -103,9 +105,7 @@ class SecuritySetup:
         logger.info("🛡️ Initializing security services...")
 
         # Initialize agent authenticator
-        self.authenticator = create_agent_authenticator(
-            self.config["security"]["secret_key"]
-        )
+        self.authenticator = create_agent_authenticator(self.config["security"]["secret_key"])
 
         # Initialize access control
         self.access_control = create_access_control_manager()
@@ -129,7 +129,12 @@ class SecuritySetup:
             policy_id="trinitas_core_agents",
             name="Trinitas Core Agents Access",
             description="Enhanced access for Trinitas core system agents",
-            resource_types={ResourceType.MEMORY, ResourceType.TASK, ResourceType.WORKFLOW, ResourceType.LEARNING_PATTERN},
+            resource_types={
+                ResourceType.MEMORY,
+                ResourceType.TASK,
+                ResourceType.WORKFLOW,
+                ResourceType.LEARNING_PATTERN,
+            },
             actions={ActionType.READ, ActionType.CREATE, ActionType.UPDATE, ActionType.EXECUTE},
             agent_patterns=[
                 r"athena-conductor",
@@ -137,12 +142,12 @@ class SecuritySetup:
                 r"hestia-auditor",
                 r"eris-coordinator",
                 r"hera-strategist",
-                r"muses-documenter"
+                r"muses-documenter",
             ],
             conditions=[],
             decision=AccessDecision.ALLOW,
             priority=250,
-            created_by="setup_system"
+            created_by="setup_system",
         )
         self.access_control.add_policy(trinitas_policy)
         policies_created += 1
@@ -157,11 +162,11 @@ class SecuritySetup:
             agent_patterns=[r".*"],
             conditions=[
                 {"type": "resource_owner", "require_ownership": False},
-                {"type": "agent_namespace", "allowed_namespaces": ["trinitas", "system"]}
+                {"type": "agent_namespace", "allowed_namespaces": ["trinitas", "system"]},
             ],
             decision=AccessDecision.DENY,
             priority=180,
-            created_by="setup_system"
+            created_by="setup_system",
         )
         self.access_control.add_policy(namespace_isolation)
         policies_created += 1
@@ -174,12 +179,10 @@ class SecuritySetup:
             resource_types={ResourceType.MEMORY, ResourceType.LEARNING_PATTERN},
             actions={ActionType.READ, ActionType.UPDATE, ActionType.DELETE},
             agent_patterns=[r".*"],
-            conditions=[
-                {"type": "data_classification", "max_classification": "restricted"}
-            ],
+            conditions=[{"type": "data_classification", "max_classification": "restricted"}],
             decision=AccessDecision.REQUIRE_APPROVAL,
             priority=200,
-            created_by="setup_system"
+            created_by="setup_system",
         )
         self.access_control.add_policy(sensitive_data_policy)
         policies_created += 1
@@ -192,12 +195,10 @@ class SecuritySetup:
             resource_types=set(ResourceType),
             actions=set(ActionType),
             agent_patterns=[r"^(?!system-|.*-admin$).*"],  # Exclude system agents
-            conditions=[
-                {"type": "request_frequency", "max_requests_per_hour": 500}
-            ],
+            conditions=[{"type": "request_frequency", "max_requests_per_hour": 500}],
             decision=AccessDecision.CONDITIONAL,
             priority=100,
-            created_by="setup_system"
+            created_by="setup_system",
         )
         self.access_control.add_policy(rate_limit_policy)
         policies_created += 1
@@ -214,7 +215,7 @@ class SecuritySetup:
             decision=AccessDecision.DENY,
             priority=1000,
             created_by="setup_system",
-            is_active=False  # Disabled by default
+            is_active=False,  # Disabled by default
         )
         self.access_control.add_policy(emergency_policy)
         policies_created += 1
@@ -232,43 +233,43 @@ class SecuritySetup:
                 "display_name": "Athena - Harmonious Conductor",
                 "namespace": "trinitas",
                 "access_level": AgentAccessLevel.ELEVATED,
-                "description": "System orchestration and workflow automation"
+                "description": "System orchestration and workflow automation",
             },
             {
                 "agent_id": "artemis-optimizer",
                 "display_name": "Artemis - Technical Perfectionist",
                 "namespace": "trinitas",
                 "access_level": AgentAccessLevel.ELEVATED,
-                "description": "Performance optimization and quality assurance"
+                "description": "Performance optimization and quality assurance",
             },
             {
                 "agent_id": "hestia-auditor",
                 "display_name": "Hestia - Security Guardian",
                 "namespace": "trinitas",
                 "access_level": AgentAccessLevel.ADMIN,
-                "description": "Security auditing and threat detection"
+                "description": "Security auditing and threat detection",
             },
             {
                 "agent_id": "eris-coordinator",
                 "display_name": "Eris - Tactical Coordinator",
                 "namespace": "trinitas",
                 "access_level": AgentAccessLevel.ELEVATED,
-                "description": "Tactical planning and conflict resolution"
+                "description": "Tactical planning and conflict resolution",
             },
             {
                 "agent_id": "hera-strategist",
                 "display_name": "Hera - Strategic Commander",
                 "namespace": "trinitas",
                 "access_level": AgentAccessLevel.ELEVATED,
-                "description": "Strategic planning and architecture design"
+                "description": "Strategic planning and architecture design",
             },
             {
                 "agent_id": "muses-documenter",
                 "display_name": "Muses - Knowledge Architect",
                 "namespace": "trinitas",
                 "access_level": AgentAccessLevel.STANDARD,
-                "description": "Documentation and knowledge management"
-            }
+                "description": "Documentation and knowledge management",
+            },
         ]
 
         registered_agents = []
@@ -278,15 +279,17 @@ class SecuritySetup:
                 registration = await self.authenticator.register_agent(
                     agent_id=agent_info["agent_id"],
                     namespace=agent_info["namespace"],
-                    access_level=agent_info["access_level"]
+                    access_level=agent_info["access_level"],
                 )
 
-                registered_agents.append({
-                    "agent_id": registration["agent_id"],
-                    "namespace": registration["namespace"],
-                    "api_key": registration["api_key"],  # Store securely!
-                    "access_level": agent_info["access_level"].value
-                })
+                registered_agents.append(
+                    {
+                        "agent_id": registration["agent_id"],
+                        "namespace": registration["namespace"],
+                        "api_key": registration["api_key"],  # Store securely!
+                        "access_level": agent_info["access_level"].value,
+                    }
+                )
 
                 logger.info(f"✅ Registered {agent_info['agent_id']}")
 
@@ -328,9 +331,7 @@ class SecuritySetup:
         encrypted = await self.encryption.encrypt_agent_data(
             test_data, "test", "validation-agent", DataClassification.INTERNAL
         )
-        decrypted = await self.encryption.decrypt_agent_data(
-            encrypted, "test", "validation-agent"
-        )
+        decrypted = await self.encryption.decrypt_agent_data(encrypted, "test", "validation-agent")
 
         if decrypted["test"] != "security validation":
             raise ValueError("Encryption validation failed")
@@ -352,14 +353,14 @@ class SecuritySetup:
 # Generated by Hestia Security Setup on {datetime.utcnow().isoformat()}
 
 # Security Keys (KEEP THESE SECRET!)
-TMWS_SECRET_KEY={self.config['security']['secret_key']}
-TMWS_ENCRYPTION_KEY={self.config['security']['encryption_master_key']}
+TMWS_SECRET_KEY={self.config["security"]["secret_key"]}
+TMWS_ENCRYPTION_KEY={self.config["security"]["encryption_master_key"]}
 
 # Authentication Settings
 TMWS_AUTH_ENABLED=true
 
 # Rate Limiting
-TMWS_RATE_LIMIT={self.config['security'].get('rate_limit_period', 60)}
+TMWS_RATE_LIMIT={self.config["security"].get("rate_limit_period", 60)}
 
 # Environment
 TMWS_ENVIRONMENT=production
@@ -376,7 +377,9 @@ TMWS_ENVIRONMENT=production
 
         for agent in self.setup_results.get("registered_agents", []):
             agents_content += f"# {agent['agent_id']} ({agent['access_level']})\n"
-            agents_content += f"{agent['agent_id'].upper().replace('-', '_')}_API_KEY={agent['api_key']}\n\n"
+            agents_content += (
+                f"{agent['agent_id'].upper().replace('-', '_')}_API_KEY={agent['api_key']}\n\n"
+            )
 
         agents_file = Path(__file__).parent.parent / ".agents.credentials"
         agents_file.write_text(agents_content)
@@ -387,7 +390,7 @@ TMWS_ENVIRONMENT=production
 
         self.setup_results["config_files"] = {
             "env_file": str(env_file),
-            "agents_file": str(agents_file)
+            "agents_file": str(agents_file),
         }
 
         logger.info("✅ Configuration files generated")
@@ -400,7 +403,9 @@ async def main():
 
     parser = argparse.ArgumentParser(description="TMWS Security Setup")
     parser.add_argument("--config", help="Configuration file path")
-    parser.add_argument("--validate-only", action="store_true", help="Only validate existing config")
+    parser.add_argument(
+        "--validate-only", action="store_true", help="Only validate existing config"
+    )
 
     args = parser.parse_args()
 
@@ -414,9 +419,9 @@ async def main():
         else:
             results = await setup.run_setup()
 
-            print("\n" + "="*60)
+            print("\n" + "=" * 60)
             print("🔥 HESTIA SECURITY SETUP COMPLETE")
-            print("="*60)
+            print("=" * 60)
             print(f"Status: {results['status']}")
             print(f"Registered agents: {len(results.get('registered_agents', []))}")
             print(f"Security policies: {results.get('policies_created', 0)}")

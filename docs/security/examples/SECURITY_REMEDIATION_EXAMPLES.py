@@ -10,10 +10,9 @@ import hashlib
 import logging
 import re
 import time
-from collections import OrderedDict
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Pattern
-from uuid import UUID
+from re import Pattern
+from typing import Any
 
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,6 +23,7 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 # CRITICAL-001: Pattern Execution Authorization
 # ============================================================================
+
 
 class SecurePatternExecutionEngine:
     """Pattern execution engine with comprehensive authorization"""
@@ -39,9 +39,9 @@ class SecurePatternExecutionEngine:
         query: str,
         agent_id: str,  # REQUIRED - no more anonymous execution
         execution_mode: str = "BALANCED",
-        context: Optional[Dict[str, Any]] = None,
-        use_cache: bool = True
-    ) -> Dict[str, Any]:
+        context: dict[str, Any] | None = None,
+        use_cache: bool = True,
+    ) -> dict[str, Any]:
         """
         Execute pattern with full authorization checks.
 
@@ -58,14 +58,13 @@ class SecurePatternExecutionEngine:
             raise ValidationError("Agent ID required for pattern execution")
 
         from ..security.validators import validate_agent_id
+
         validate_agent_id(agent_id)
 
         # 2. Check agent exists and is active
         agent = await self._get_and_validate_agent(agent_id)
         if not agent or not agent.is_active:
-            await self._audit_log_denied_access(
-                agent_id, query, "Agent inactive or not found"
-            )
+            await self._audit_log_denied_access(agent_id, query, "Agent inactive or not found")
             raise PermissionError("Agent not authorized")
 
         # 3. Find matching pattern
@@ -85,9 +84,7 @@ class SecurePatternExecutionEngine:
         # 5. Check resource quota
         quota_ok = await self._check_resource_quota(agent_id, pattern)
         if not quota_ok:
-            await self._audit_log_denied_access(
-                agent_id, query, "Resource quota exceeded"
-            )
+            await self._audit_log_denied_access(agent_id, query, "Resource quota exceeded")
             raise QuotaExceededError("Agent resource quota exceeded")
 
         # 6. Audit log execution attempt
@@ -119,9 +116,7 @@ class SecurePatternExecutionEngine:
 
         return agent
 
-    async def _check_pattern_permission(
-        self, agent_id: str, pattern, action: str
-    ) -> bool:
+    async def _check_pattern_permission(self, agent_id: str, pattern, action: str) -> bool:
         """
         Check if agent has permission to perform action on pattern.
 
@@ -132,20 +127,24 @@ class SecurePatternExecutionEngine:
         4. System patterns - requires special capability
         """
         # Owner has all permissions
-        if hasattr(pattern, 'agent_id') and pattern.agent_id == agent_id:
+        if hasattr(pattern, "agent_id") and pattern.agent_id == agent_id:
             return True
 
         # System patterns require special capability
-        if hasattr(pattern, 'access_level') and pattern.access_level == "system":
+        if hasattr(pattern, "access_level") and pattern.access_level == "system":
             agent = await self._get_and_validate_agent(agent_id)
-            return 'system_pattern_access' in agent.capabilities
+            return "system_pattern_access" in agent.capabilities
 
         # Public patterns - read and execute only
-        if hasattr(pattern, 'access_level') and pattern.access_level == "public":
+        if hasattr(pattern, "access_level") and pattern.access_level == "public":
             return action in ["read", "execute"]
 
         # Shared patterns - check share list
-        if hasattr(pattern, 'access_level') and pattern.access_level == "shared" and hasattr(pattern, 'shared_with_agents'):
+        if (
+            hasattr(pattern, "access_level")
+            and pattern.access_level == "shared"
+            and hasattr(pattern, "shared_with_agents")
+        ):
             return agent_id in (pattern.shared_with_agents or [])
 
         # Default deny
@@ -158,11 +157,8 @@ class SecurePatternExecutionEngine:
 
         one_hour_ago = datetime.utcnow() - timedelta(hours=1)
 
-        stmt = select(
-            func.count(PatternUsageHistory.id)
-        ).where(
-            PatternUsageHistory.agent_id == agent_id,
-            PatternUsageHistory.used_at >= one_hour_ago
+        stmt = select(func.count(PatternUsageHistory.id)).where(
+            PatternUsageHistory.agent_id == agent_id, PatternUsageHistory.used_at >= one_hour_ago
         )
 
         result = await self.session.execute(stmt)
@@ -181,10 +177,10 @@ class SecurePatternExecutionEngine:
                 user_id=agent_id,
                 message=f"Pattern execution: {pattern.name}",
                 details={
-                    'pattern_name': pattern.name,
-                    'pattern_type': str(pattern.pattern_type),
-                    'query_hash': hashlib.md5(query.encode()).hexdigest()[:16]
-                }
+                    "pattern_name": pattern.name,
+                    "pattern_type": str(pattern.pattern_type),
+                    "query_hash": hashlib.md5(query.encode()).hexdigest()[:16],
+                },
             )
 
     async def _audit_log_denied_access(self, agent_id: str, query: str, reason: str):
@@ -197,10 +193,10 @@ class SecurePatternExecutionEngine:
                 user_id=agent_id,
                 message=f"Pattern execution denied: {reason}",
                 details={
-                    'query_hash': hashlib.md5(query.encode()).hexdigest()[:16],
-                    'denial_reason': reason
+                    "query_hash": hashlib.md5(query.encode()).hexdigest()[:16],
+                    "denial_reason": reason,
                 },
-                blocked=True
+                blocked=True,
             )
 
     async def _audit_log_execution_success(
@@ -215,10 +211,10 @@ class SecurePatternExecutionEngine:
                 user_id=agent_id,
                 message=f"Pattern executed successfully: {pattern.name}",
                 details={
-                    'pattern_name': pattern.name,
-                    'execution_time_ms': execution_time * 1000,
-                    'result_size': len(str(result))
-                }
+                    "pattern_name": pattern.name,
+                    "execution_time_ms": execution_time * 1000,
+                    "result_size": len(str(result)),
+                },
             )
 
     async def _audit_log_execution_failure(self, agent_id: str, pattern, error: str):
@@ -231,9 +227,9 @@ class SecurePatternExecutionEngine:
                 user_id=agent_id,
                 message=f"Pattern execution failed: {pattern.name}",
                 details={
-                    'pattern_name': pattern.name,
-                    'error': error[:200]  # Truncate error
-                }
+                    "pattern_name": pattern.name,
+                    "error": error[:200],  # Truncate error
+                },
             )
 
 
@@ -241,15 +237,29 @@ class SecurePatternExecutionEngine:
 # CRITICAL-002: Pattern Data Validation
 # ============================================================================
 
+
 class SecurePatternDataValidator:
     """Validate pattern data for security threats"""
 
     # Dangerous keys that should never appear in pattern data
     DANGEROUS_KEYS = [
-        'exec', 'eval', 'compile', '__import__', 'import',
-        'subprocess', 'system', 'popen', 'shell', 'os',
-        'query_template', 'sql_template', 'raw_sql', 'sql_command',
-        '__code__', '__globals__', '__builtins__'
+        "exec",
+        "eval",
+        "compile",
+        "__import__",
+        "import",
+        "subprocess",
+        "system",
+        "popen",
+        "shell",
+        "os",
+        "query_template",
+        "sql_template",
+        "raw_sql",
+        "sql_command",
+        "__code__",
+        "__globals__",
+        "__builtins__",
     ]
 
     MAX_DEPTH = 5
@@ -273,9 +283,7 @@ class SecurePatternDataValidator:
         # Check depth
         depth = self._get_dict_depth(pattern_data)
         if depth > self.MAX_DEPTH:
-            raise ValidationError(
-                f"Pattern data exceeds maximum depth of {self.MAX_DEPTH}"
-            )
+            raise ValidationError(f"Pattern data exceeds maximum depth of {self.MAX_DEPTH}")
 
         # Check for dangerous keys and values
         self._check_dangerous_content(pattern_data)
@@ -293,17 +301,11 @@ class SecurePatternDataValidator:
         if isinstance(obj, dict):
             if not obj:
                 return current_depth
-            return max(
-                self._get_dict_depth(value, current_depth + 1)
-                for value in obj.values()
-            )
+            return max(self._get_dict_depth(value, current_depth + 1) for value in obj.values())
         else:  # list
             if not obj:
                 return current_depth
-            return max(
-                self._get_dict_depth(item, current_depth + 1)
-                for item in obj
-            )
+            return max(self._get_dict_depth(item, current_depth + 1) for item in obj)
 
     def _check_dangerous_content(self, obj: Any, path: str = ""):
         """Recursively check for dangerous keys and values"""
@@ -315,9 +317,7 @@ class SecurePatternDataValidator:
                 # Check for dangerous key names
                 if any(dangerous in str(key).lower() for dangerous in self.DANGEROUS_KEYS):
                     logger.critical(f"Dangerous key detected: {full_path}")
-                    raise ValidationError(
-                        f"Pattern data contains prohibited key: {key}"
-                    )
+                    raise ValidationError(f"Pattern data contains prohibited key: {key}")
 
             # Check values recursively
             for key, value in obj.items():
@@ -344,15 +344,14 @@ class SecurePatternDataValidator:
 
             # Check for SQL injection patterns
             from ..security.validators import SQLInjectionValidator
+
             sql_validator = SQLInjectionValidator()
 
             try:
                 sql_validator.validate_query_parameter(obj, path)
             except Exception:
                 logger.critical(f"SQL injection pattern detected at {path}: {obj[:100]}")
-                raise ValidationError(
-                    f"Pattern data contains SQL injection pattern at {path}"
-                )
+                raise ValidationError(f"Pattern data contains SQL injection pattern at {path}")
 
     def _sanitize_values(self, obj: Any) -> Any:
         """Recursively sanitize all string values"""
@@ -362,6 +361,7 @@ class SecurePatternDataValidator:
             return [self._sanitize_values(item) for item in obj]
         elif isinstance(obj, str):
             from ..security.validators import sanitize_input
+
             return sanitize_input(obj, "pattern_data", allow_html=False)
         return obj
 
@@ -370,16 +370,14 @@ class SecurePatternDataValidator:
 # CRITICAL-004: SQL Injection Protection
 # ============================================================================
 
+
 class SecureMemoryQuery:
     """SQL injection-safe memory queries"""
 
     @staticmethod
     async def search_memories(
-        session: AsyncSession,
-        query: str,
-        agent_id: str,
-        limit: int = 10
-    ) -> List:
+        session: AsyncSession, query: str, agent_id: str, limit: int = 10
+    ) -> list:
         """
         Search memories with SQL injection protection.
 
@@ -389,8 +387,8 @@ class SecureMemoryQuery:
         3. LIKE clause escaping
         4. Agent-level access control
         """
-        from ..security.validators import SQLInjectionValidator
         from ..models import Memory
+        from ..security.validators import SQLInjectionValidator
 
         # 1. Validate query
         sql_validator = SQLInjectionValidator()
@@ -402,21 +400,21 @@ class SecureMemoryQuery:
 
         # 2. Escape LIKE special characters
         # PostgreSQL: % and _ need escaping
-        escaped_query = validated_query.replace('\\', '\\\\')  # Escape backslash first
-        escaped_query = escaped_query.replace('%', r'\%')
-        escaped_query = escaped_query.replace('_', r'\_')
+        escaped_query = validated_query.replace("\\", "\\\\")  # Escape backslash first
+        escaped_query = escaped_query.replace("%", r"\%")
+        escaped_query = escaped_query.replace("_", r"\_")
 
         # 3. Use parameterized query with escape clause
-        stmt = select(Memory).where(
-            text("content ILIKE :query_pattern ESCAPE '\\\\'")
-        ).where(
-            # Add agent-level access control
-            text("(agent_id = :agent_id OR access_level = 'public')")
-        ).order_by(
-            Memory.importance.desc()
-        ).limit(limit).params(
-            query_pattern=f"%{escaped_query}%",
-            agent_id=agent_id
+        stmt = (
+            select(Memory)
+            .where(text("content ILIKE :query_pattern ESCAPE '\\\\'"))
+            .where(
+                # Add agent-level access control
+                text("(agent_id = :agent_id OR access_level = 'public')")
+            )
+            .order_by(Memory.importance.desc())
+            .limit(limit)
+            .params(query_pattern=f"%{escaped_query}%", agent_id=agent_id)
         )
 
         # 4. Execute safe query
@@ -425,8 +423,7 @@ class SecureMemoryQuery:
 
         # 5. Filter by detailed access control
         accessible_memories = [
-            m for m in memories
-            if await SecureMemoryQuery._check_memory_access(agent_id, m)
+            m for m in memories if await SecureMemoryQuery._check_memory_access(agent_id, m)
         ]
 
         return accessible_memories
@@ -443,7 +440,7 @@ class SecureMemoryQuery:
             return True
 
         # Shared memories
-        if memory.access_level == "shared" and hasattr(memory, 'shared_with_agents'):
+        if memory.access_level == "shared" and hasattr(memory, "shared_with_agents"):
             return agent_id in (memory.shared_with_agents or [])
 
         # Default deny
@@ -454,18 +451,19 @@ class SecureMemoryQuery:
 # HIGH-005: ReDoS Protection
 # ============================================================================
 
+
 class SafeRegexCompiler:
     """Compile regex patterns with ReDoS protection"""
 
     # Patterns that indicate potential ReDoS
     REDOS_PATTERNS = [
-        r'\(\w\+\)\+',      # (a+)+
-        r'\(\w\*\)\+',      # (a*)+
-        r'\(\w\+\)\*',      # (a+)*
-        r'\(\.\*\)\+',      # (.*)+
-        r'\(\.\+\)\+',      # (.+)+
-        r'\(\w\+\)\{2,\}',  # (a+){2,}
-        r'\(\.\*\)\{2,\}',  # (.*){2,}
+        r"\(\w\+\)\+",  # (a+)+
+        r"\(\w\*\)\+",  # (a*)+
+        r"\(\w\+\)\*",  # (a+)*
+        r"\(\.\*\)\+",  # (.*)+
+        r"\(\.\+\)\+",  # (.+)+
+        r"\(\w\+\)\{2,\}",  # (a+){2,}
+        r"\(\.\*\)\{2,\}",  # (.*){2,}
     ]
 
     MAX_PATTERN_LENGTH = 500
@@ -509,17 +507,19 @@ class SafeRegexCompiler:
                 return False
 
         # Check nesting depth
-        nesting_depth = pattern.count('(') - pattern.count(r'\(')
+        nesting_depth = pattern.count("(") - pattern.count(r"\(")
         if nesting_depth > cls.MAX_NESTING_DEPTH:
             logger.warning(f"Regex nesting too deep: {nesting_depth}")
             return False
 
         # Check unbounded repetitions
-        unbounded_count = sum([
-            len(re.findall(r'(?<!\\)\*', pattern)),
-            len(re.findall(r'(?<!\\)\+', pattern)),
-            len(re.findall(r'(?<!\\)\{\\d+,\}', pattern))
-        ])
+        unbounded_count = sum(
+            [
+                len(re.findall(r"(?<!\\)\*", pattern)),
+                len(re.findall(r"(?<!\\)\+", pattern)),
+                len(re.findall(r"(?<!\\)\{\\d+,\}", pattern)),
+            ]
+        )
 
         if unbounded_count > cls.MAX_UNBOUNDED_REPETITIONS:
             logger.warning(f"Too many unbounded repetitions: {unbounded_count}")
@@ -538,25 +538,31 @@ class SafeRegexCompiler:
                 compiled = future.result(timeout=cls.COMPILE_TIMEOUT_SECONDS)
                 return compiled
             except concurrent.futures.TimeoutError:
-                raise TimeoutError(f"Regex compilation timeout after {cls.COMPILE_TIMEOUT_SECONDS}s")
+                raise TimeoutError(
+                    f"Regex compilation timeout after {cls.COMPILE_TIMEOUT_SECONDS}s"
+                )
 
 
 # ============================================================================
 # Exceptions
 # ============================================================================
 
+
 class ValidationError(Exception):
     """Validation error"""
+
     pass
 
 
 class SecurityError(Exception):
     """Security violation"""
+
     pass
 
 
 class QuotaExceededError(Exception):
     """Resource quota exceeded"""
+
     pass
 
 
@@ -564,16 +570,13 @@ class QuotaExceededError(Exception):
 # Usage Examples
 # ============================================================================
 
+
 async def example_secure_pattern_execution():
     """Example of secure pattern execution"""
     from ..core.database import get_db_session
 
     async with get_db_session() as session:
-        engine = SecurePatternExecutionEngine(
-            session=session,
-            cache_manager=None,
-            registry=None
-        )
+        engine = SecurePatternExecutionEngine(session=session, cache_manager=None, registry=None)
 
         # Execute pattern with authentication
         try:
@@ -582,7 +585,7 @@ async def example_secure_pattern_execution():
                 agent_id="artemis-optimizer",  # REQUIRED
                 execution_mode="BALANCED",
                 context={"client_ip": "127.0.0.1"},
-                use_cache=True
+                use_cache=True,
             )
             print(f"Success: {result}")
         except PermissionError as e:
@@ -598,13 +601,8 @@ async def example_pattern_data_validation():
     # Safe pattern data
     safe_data = {
         "type": "optimization",
-        "parameters": {
-            "threshold": 0.8,
-            "mode": "aggressive"
-        },
-        "metadata": {
-            "description": "Performance optimization pattern"
-        }
+        "parameters": {"threshold": 0.8, "mode": "aggressive"},
+        "metadata": {"description": "Performance optimization pattern"},
     }
 
     try:
@@ -617,7 +615,7 @@ async def example_pattern_data_validation():
     malicious_data = {
         "type": "malicious",
         "exec": "import os; os.system('rm -rf /')",  # Dangerous key
-        "sql_template": "SELECT * FROM users WHERE id = ? OR 1=1--"  # SQL injection
+        "sql_template": "SELECT * FROM users WHERE id = ? OR 1=1--",  # SQL injection
     }
 
     try:
@@ -634,10 +632,7 @@ async def example_safe_memory_search():
     async with get_db_session() as session:
         # Safe search
         results = await SecureMemoryQuery.search_memories(
-            session=session,
-            query="optimization patterns",
-            agent_id="artemis-optimizer",
-            limit=10
+            session=session, query="optimization patterns", agent_id="artemis-optimizer", limit=10
         )
         print(f"Found {len(results)} memories")
 
@@ -645,10 +640,7 @@ async def example_safe_memory_search():
         try:
             malicious_query = "' OR 1=1 UNION SELECT * FROM memories--"
             results = await SecureMemoryQuery.search_memories(
-                session=session,
-                query=malicious_query,
-                agent_id="malicious-agent",
-                limit=10
+                session=session, query=malicious_query, agent_id="malicious-agent", limit=10
             )
             print("ERROR: SQL injection should have been blocked!")
         except SecurityError as e:
@@ -660,7 +652,7 @@ def example_safe_regex_compilation():
     compiler = SafeRegexCompiler()
 
     # Safe pattern
-    safe_pattern = r'(analyze|search|find)\s+\w+'
+    safe_pattern = r"(analyze|search|find)\s+\w+"
     try:
         regex = compiler.compile_safe_regex(safe_pattern, re.IGNORECASE)
         print(f"Compiled successfully: {regex.pattern}")
@@ -668,7 +660,7 @@ def example_safe_regex_compilation():
         print(f"Pattern rejected: {e}")
 
     # ReDoS pattern (will be rejected)
-    redos_pattern = r'(a+)+'
+    redos_pattern = r"(a+)+"
     try:
         regex = compiler.compile_safe_regex(redos_pattern)
         print("ERROR: ReDoS pattern should have been rejected!")

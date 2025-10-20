@@ -23,14 +23,13 @@ The zylonai/multilingual-e5-large model provides:
 - Automatic fallback to SentenceTransformers
 """
 
-
 import sqlalchemy as sa
 from alembic import op
 from pgvector.sqlalchemy import Vector
 
 # revision identifiers
-revision = '008'
-down_revision = '007'
+revision = "008"
+down_revision = "007"
 branch_labels = None
 depends_on = None
 
@@ -43,13 +42,13 @@ def upgrade():
     # 1. Add embedding_v3 column (1024 dimensions for Multilingual-E5 Large)
     print("📊 Adding embedding_v3 column (Vector(1024))...")
     op.add_column(
-        'memories_v2',
+        "memories_v2",
         sa.Column(
-            'embedding_v3',
+            "embedding_v3",
             Vector(1024),
             nullable=True,
-            comment="Multilingual-E5 Large embedding (1024 dimensions) for enhanced semantic search with Ollama"
-        )
+            comment="Multilingual-E5 Large embedding (1024 dimensions) for enhanced semantic search with Ollama",
+        ),
     )
 
     # 2. Add support for 'multilingual-e5-large' in embedding_model column
@@ -87,7 +86,7 @@ def downgrade():
 
     # Drop embedding_v3 column
     print("📉 Dropping embedding_v3 column...")
-    op.drop_column('memories_v2', 'embedding_v3')
+    op.drop_column("memories_v2", "embedding_v3")
 
     print("✅ Rollback completed successfully!")
     print("⚠️ Note: embedding_model still supports 'multilingual-e5-large'")

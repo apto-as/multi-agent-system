@@ -5,7 +5,7 @@ Tracks workflow execution history and logs for auditing and debugging
 
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Index, Integer, JSON, String, Text
+from sqlalchemy import JSON, Column, DateTime, Float, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import relationship
 
 from .base import TMWSBase as Base
@@ -71,9 +71,7 @@ class WorkflowStepExecution(Base):
     __tablename__ = "workflow_step_executions"
 
     id = Column(String(36), primary_key=True)  # UUID as string (v2.2.6)
-    workflow_execution_id = Column(
-        String(36), ForeignKey("workflow_executions.id"), nullable=False
-    )
+    workflow_execution_id = Column(String(36), ForeignKey("workflow_executions.id"), nullable=False)
 
     # Step identification
     step_name = Column(String(200), nullable=False)
@@ -119,9 +117,7 @@ class WorkflowExecutionLog(Base):
     __tablename__ = "workflow_execution_logs"
 
     id = Column(String(36), primary_key=True)  # UUID as string (v2.2.6)
-    workflow_execution_id = Column(
-        String(36), ForeignKey("workflow_executions.id"), nullable=False
-    )
+    workflow_execution_id = Column(String(36), ForeignKey("workflow_executions.id"), nullable=False)
     step_execution_id = Column(String(36), ForeignKey("workflow_step_executions.id"))
 
     # Log details

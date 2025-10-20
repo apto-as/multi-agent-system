@@ -316,7 +316,11 @@ class Settings(BaseSettings):
         environment = info.data.get("environment", "development") if info.data else "development"
 
         # SQLite file path security check - Ensure not in /tmp or world-writable location
-        if environment == "production" and v.startswith("sqlite") and ("/tmp/" in v or "world-writable" in v):
+        if (
+            environment == "production"
+            and v.startswith("sqlite")
+            and ("/tmp/" in v or "world-writable" in v)
+        ):
             logger.warning("SQLite database in potentially insecure location")
 
         return v

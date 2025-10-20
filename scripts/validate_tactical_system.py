@@ -12,6 +12,7 @@ from pathlib import Path
 tmws_root = Path(__file__).parent.parent
 sys.path.insert(0, str(tmws_root))
 
+
 async def validate_tactical_system():
     """Validate tactical system components"""
     print("╔══════════════════════════════════════════════════════════════╗")
@@ -23,6 +24,7 @@ async def validate_tactical_system():
     # Test 1: Import tactical coordinator
     try:
         from src.core.tactical_coordinator import create_tactical_coordinator
+
         print("✅ Tactical Coordinator import: SUCCESS")
         validation_results.append(("Tactical Coordinator Import", True))
     except ImportError as e:
@@ -38,6 +40,7 @@ async def validate_tactical_system():
             create_fastmcp_manager,
             create_tactical_process_manager,
         )
+
         print("✅ Process Manager import: SUCCESS")
         validation_results.append(("Process Manager Import", True))
     except ImportError as e:
@@ -169,7 +172,7 @@ def check_dependencies():
         ("psutil", "pip install psutil"),
         ("aiohttp", "pip install aiohttp"),
         ("fastapi", "pip install fastapi"),
-        ("uvicorn", "pip install uvicorn")
+        ("uvicorn", "pip install uvicorn"),
     ]
 
     for dep_name, install_cmd in dependencies:

@@ -1,7 +1,6 @@
 from enum import Enum
 
-from sqlalchemy import Boolean, Column, DateTime, Index, Integer, String
-from sqlalchemy import JSON
+from sqlalchemy import JSON, Boolean, Column, DateTime, Index, Integer, String
 
 from ..core.database import Base
 

@@ -56,12 +56,32 @@ def hash_password_with_salt(password: str) -> tuple[str, str]:
     """
     Hash a password with a separate salt (for legacy compatibility).
 
+    WARNING: This function uses SHA256 which is NOT secure for password hashing.
+    It is vulnerable to GPU-accelerated brute force attacks.
+
+    DEPRECATED: Use hash_password() instead, which uses bcrypt.
+    This function exists only for backward compatibility with existing data.
+    It will be removed in a future version.
+
     Args:
         password: Plain text password to hash
 
     Returns:
         Tuple of (hashed_password, salt)
     """
+    import warnings
+
+    warnings.warn(
+        "hash_password_with_salt() is deprecated and insecure. "
+        "Use hash_password() instead, which uses bcrypt.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    logger.warning(
+        "SECURITY: hash_password_with_salt() uses weak SHA256 hashing. "
+        "Migrate to hash_password() which uses bcrypt."
+    )
+
     salt = secrets.token_hex(32)
     combined = password + salt
     hashed = hashlib.sha256(combined.encode()).hexdigest()
