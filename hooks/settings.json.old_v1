@@ -1,14 +1,14 @@
 {
-  "description": "Trinitas Global Hooks Configuration (v2.3.0)",
+  "description": "Minimal Hooks - Protocol Injection Only (v3.0)",
   "hooks": {
-    "UserPromptSubmit": [
+    "SessionStart": [
       {
         "matcher": "*",
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"~/.claude/hooks/core/dynamic_context_loader.py\"",
-            "description": "Dynamic context loading based on persona detection"
+            "command": "python3 /Users/apto-as/.claude/hooks/core/protocol_injector.py session_start",
+            "description": "Inject TRINITAS-CORE-PROTOCOL.md at session start"
           }
         ]
       }
@@ -19,7 +19,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"~/.claude/hooks/core/protocol_injector.py\" pre_compact",
+            "command": "python3 /Users/apto-as/.claude/hooks/core/protocol_injector.py pre_compact",
             "description": "Inject protocol reminder before context compression"
           }
         ]
