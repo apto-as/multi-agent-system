@@ -7,6 +7,5 @@ TMWS now operates as a pure MCP server.
 """
 
 from .genai_toolbox_bridge import GenAIToolboxBridge
-from .mcp_compatibility_bridge import MCPCompatibilityBridge
 
-__all__ = ["GenAIToolboxBridge", "MCPCompatibilityBridge"]
+__all__ = ["GenAIToolboxBridge"]
