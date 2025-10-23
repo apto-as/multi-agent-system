@@ -557,7 +557,17 @@ def first_run_setup():
 
                 settings = get_settings()
                 print(f"🔍 Current working directory: {os.getcwd()}", file=sys.stderr)
+                print(f"🔍 HOME: {os.environ.get('HOME')}", file=sys.stderr)
+                print(f"🔍 USER: {os.environ.get('USER')}", file=sys.stderr)
                 print(f"🔍 Settings database_url_async: {settings.database_url_async}", file=sys.stderr)
+
+                # Extract and verify database path
+                if "sqlite" in settings.database_url_async:
+                    db_path_str = settings.database_url_async.replace("sqlite+aiosqlite://", "").replace("sqlite://", "")
+                    db_path = Path(db_path_str)
+                    print(f"🔍 Database file path: {db_path}", file=sys.stderr)
+                    print(f"🔍 Database parent exists: {db_path.parent.exists()}", file=sys.stderr)
+                    print(f"🔍 Database parent writable: {os.access(db_path.parent, os.W_OK)}", file=sys.stderr)
 
                 # Get the engine - let aiosqlite create the database file automatically
                 engine = get_engine()
@@ -568,6 +578,11 @@ def first_run_setup():
                 async with engine.begin() as conn:
                     await conn.run_sync(TMWSBase.metadata.create_all)
                 await engine.dispose()
+
+                # Clear engine cache to avoid event loop conflicts
+                import src.core.database as db_module
+                db_module._engine = None
+
                 print("✅ Database schema initialized", file=sys.stderr)
 
             asyncio.run(init_db_schema())
