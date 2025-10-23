@@ -66,23 +66,12 @@ def get_engine():
     if _engine is None:
         settings = get_settings()
 
-        # Environment-specific pool sizing for 50% throughput improvement
-        if settings.environment == "production":
-            pool_size = 20
-            max_overflow = 50
-        elif settings.environment == "staging":
-            pool_size = 10
-            max_overflow = 20
-        else:  # development
-            pool_size = 5
-            max_overflow = 10
-
         # SQLite engine configuration (v2.2.6: SQLite-only architecture)
+        # SQLite uses StaticPool - connection pooling settings not applicable
+        from sqlalchemy.pool import StaticPool
+
         engine_config = {
-            "pool_size": pool_size,
-            "max_overflow": max_overflow,
-            "pool_pre_ping": True,  # Test connections before use
-            "pool_recycle": 1800,  # Recycle connections every 30 minutes
+            "poolclass": StaticPool,
             "echo_pool": settings.environment == "development",  # Pool debug logs in dev only
         }
 
