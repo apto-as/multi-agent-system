@@ -233,7 +233,7 @@ class Settings(BaseSettings):
         # Smart default for database (development only)
         if not values.get("database_url") and environment == "development":
             TMWS_DATA_DIR.mkdir(parents=True, exist_ok=True)
-            values["database_url"] = f"sqlite:///{TMWS_DATA_DIR}/tmws.db"
+            values["database_url"] = f"sqlite+aiosqlite:///{TMWS_DATA_DIR}/tmws.db"
             logger.info(f"📁 Using smart default database: {values['database_url']}")
 
         # Secret Key
