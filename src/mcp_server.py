@@ -568,8 +568,9 @@ def first_run_setup():
                         print(f"📝 Creating database file: {db_path}", file=sys.stderr)
                         # Use synchronous sqlite3 to create and properly initialize the file
                         conn = sqlite3.connect(str(db_path))
-                        # Execute a simple query to initialize the database header
-                        conn.execute("SELECT 1")
+                        # Create a dummy table to force SQLite to write the database header
+                        conn.execute("CREATE TABLE _init (id INTEGER PRIMARY KEY)")
+                        conn.execute("DROP TABLE _init")
                         conn.commit()
                         conn.close()
                         print(f"✅ Database file created successfully", file=sys.stderr)
