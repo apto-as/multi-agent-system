@@ -575,8 +575,8 @@ async def async_main():
             f"   Instance: {server.instance_id}"
         )
 
-        # Run MCP server
-        await server.mcp.run()
+        # Run MCP server (async version to work within existing event loop)
+        await server.mcp.run_async()
 
     except KeyboardInterrupt:
         logger.info("Server stopped by user")
