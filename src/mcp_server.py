@@ -550,7 +550,7 @@ def first_run_setup():
             from src.core.database import get_engine
             from src.core.config import get_settings
             from src.models import TMWSBase
-            import sqlite3
+            import aiosqlite
 
             async def init_db_schema():
                 settings = get_settings()
@@ -568,13 +568,12 @@ def first_run_setup():
                     # Create empty database file if it doesn't exist
                     if not db_path.exists():
                         print(f"📝 Creating database file: {db_path}", file=sys.stderr)
-                        # Use synchronous sqlite3 to create and properly initialize the file
-                        conn = sqlite3.connect(str(db_path))
-                        # Create a dummy table to force SQLite to write the database header
-                        conn.execute("CREATE TABLE _init (id INTEGER PRIMARY KEY)")
-                        conn.execute("DROP TABLE _init")
-                        conn.commit()
-                        conn.close()
+                        # Use aiosqlite to create and properly initialize the file (avoids locking issues)
+                        async with aiosqlite.connect(str(db_path)) as db:
+                            # Create a dummy table to force SQLite to write the database header
+                            await db.execute("CREATE TABLE _init (id INTEGER PRIMARY KEY)")
+                            await db.execute("DROP TABLE _init")
+                            await db.commit()
                         print(f"✅ Database file created: size={db_path.stat().st_size} bytes", file=sys.stderr)
 
                 # NOW get the engine (after file exists)
