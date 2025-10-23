@@ -554,12 +554,16 @@ def first_run_setup():
 
             async def init_db_schema():
                 settings = get_settings()
+                print(f"🔍 Settings database_url_async: {settings.database_url_async}", file=sys.stderr)
 
                 # For file-based SQLite, ensure the file exists BEFORE getting engine
                 if "sqlite" in settings.database_url_async and ":memory:" not in settings.database_url_async:
                     # Extract file path from URL (keep the leading / for absolute path)
                     db_path_str = settings.database_url_async.replace("sqlite+aiosqlite://", "").replace("sqlite://", "")
                     db_path = Path(db_path_str)
+                    print(f"🔍 Extracted DB path: {db_path}", file=sys.stderr)
+                    print(f"🔍 DB path exists: {db_path.exists()}", file=sys.stderr)
+                    print(f"🔍 DB path is absolute: {db_path.is_absolute()}", file=sys.stderr)
 
                     # Create empty database file if it doesn't exist
                     if not db_path.exists():
@@ -571,13 +575,14 @@ def first_run_setup():
                         conn.execute("DROP TABLE _init")
                         conn.commit()
                         conn.close()
-                        print(f"✅ Database file created successfully", file=sys.stderr)
+                        print(f"✅ Database file created: size={db_path.stat().st_size} bytes", file=sys.stderr)
 
                 # NOW get the engine (after file exists)
                 engine = get_engine()
-                print(f"🔍 Database URL: {engine.url}", file=sys.stderr)
+                print(f"🔍 Engine URL: {engine.url}", file=sys.stderr)
 
                 # Create tables
+                print(f"🔧 Creating tables via SQLAlchemy...", file=sys.stderr)
                 async with engine.begin() as conn:
                     await conn.run_sync(TMWSBase.metadata.create_all)
                 await engine.dispose()
