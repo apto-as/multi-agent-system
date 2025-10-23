@@ -548,11 +548,29 @@ def first_run_setup():
         print("🔧 Initializing database schema...", file=sys.stderr)
         try:
             from src.core.database import get_engine
+            from src.core.config import get_settings
             from src.models import TMWSBase
+            import sqlite3
 
             async def init_db_schema():
+                settings = get_settings()
                 engine = get_engine()
                 print(f"🔍 Database URL: {engine.url}", file=sys.stderr)
+
+                # For file-based SQLite, ensure the file exists first
+                if "sqlite" in str(engine.url) and ":memory:" not in str(engine.url):
+                    # Extract file path from URL
+                    db_path_str = str(engine.url).replace("sqlite+aiosqlite:///", "").replace("sqlite:///", "")
+                    db_path = Path(db_path_str)
+
+                    # Create empty database file if it doesn't exist
+                    if not db_path.exists():
+                        print(f"📝 Creating database file: {db_path}", file=sys.stderr)
+                        # Use synchronous sqlite3 to create the file
+                        conn = sqlite3.connect(str(db_path))
+                        conn.close()
+
+                # Now create tables
                 async with engine.begin() as conn:
                     await conn.run_sync(TMWSBase.metadata.create_all)
                 await engine.dispose()
