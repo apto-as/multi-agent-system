@@ -553,35 +553,18 @@ def first_run_setup():
             import aiosqlite
 
             async def init_db_schema():
+                import os
+
                 settings = get_settings()
+                print(f"🔍 Current working directory: {os.getcwd()}", file=sys.stderr)
                 print(f"🔍 Settings database_url_async: {settings.database_url_async}", file=sys.stderr)
 
-                # For file-based SQLite, ensure the file exists BEFORE getting engine
-                if "sqlite" in settings.database_url_async and ":memory:" not in settings.database_url_async:
-                    # Extract file path from URL (keep the leading / for absolute path)
-                    db_path_str = settings.database_url_async.replace("sqlite+aiosqlite://", "").replace("sqlite://", "")
-                    db_path = Path(db_path_str)
-                    print(f"🔍 Extracted DB path: {db_path}", file=sys.stderr)
-                    print(f"🔍 DB path exists: {db_path.exists()}", file=sys.stderr)
-                    print(f"🔍 DB path is absolute: {db_path.is_absolute()}", file=sys.stderr)
-
-                    # Create empty database file if it doesn't exist
-                    if not db_path.exists():
-                        print(f"📝 Creating database file: {db_path}", file=sys.stderr)
-                        # Use aiosqlite to create and properly initialize the file (avoids locking issues)
-                        async with aiosqlite.connect(str(db_path)) as db:
-                            # Create a dummy table to force SQLite to write the database header
-                            await db.execute("CREATE TABLE _init (id INTEGER PRIMARY KEY)")
-                            await db.execute("DROP TABLE _init")
-                            await db.commit()
-                        print(f"✅ Database file created: size={db_path.stat().st_size} bytes", file=sys.stderr)
-
-                # NOW get the engine (after file exists)
+                # Get the engine - let aiosqlite create the database file automatically
                 engine = get_engine()
                 print(f"🔍 Engine URL: {engine.url}", file=sys.stderr)
 
-                # Create tables
-                print(f"🔧 Creating tables via SQLAlchemy...", file=sys.stderr)
+                # Create tables (aiosqlite will create the database file if it doesn't exist)
+                print(f"🔧 Creating database schema...", file=sys.stderr)
                 async with engine.begin() as conn:
                     await conn.run_sync(TMWSBase.metadata.create_all)
                 await engine.dispose()
