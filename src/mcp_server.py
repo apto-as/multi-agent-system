@@ -510,8 +510,9 @@ def first_run_setup():
     """
     First-run setup for uvx one-command installation.
 
-    Creates necessary directories and displays setup information.
+    Creates necessary directories, initializes database schema, and displays setup information.
     """
+    import asyncio
     from pathlib import Path
 
     TMWS_HOME = Path.home() / ".tmws"
@@ -536,6 +537,30 @@ def first_run_setup():
         print("   • Multilingual-E5 embeddings (1024-dim)")
         print("   • ChromaDB vector search")
         print()
+
+        # Create TMWS_HOME directory
+        TMWS_HOME.mkdir(parents=True, exist_ok=True)
+        TMWS_DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+        # Initialize database schema
+        print("🔧 Initializing database schema...")
+        try:
+            from src.core.database import get_engine
+            from src.models import TMWSBase
+
+            async def init_db_schema():
+                engine = get_engine()
+                async with engine.begin() as conn:
+                    await conn.run_sync(TMWSBase.metadata.create_all)
+                await engine.dispose()
+
+            asyncio.run(init_db_schema())
+            print("✅ Database schema initialized")
+        except Exception as e:
+            print(f"⚠️  Database initialization skipped: {e}")
+            logger.debug(f"Database initialization error: {e}", exc_info=True)
+
+        print()
         print("📝 For Claude Desktop, add to config:")
         print("""
 {
@@ -548,8 +573,7 @@ def first_run_setup():
         print("=" * 60)
         print()
 
-        # Create TMWS_HOME directory and mark as initialized
-        TMWS_HOME.mkdir(parents=True, exist_ok=True)
+        # Mark as initialized
         INITIALIZED_FLAG.touch()
 
 
