@@ -67,11 +67,12 @@ def get_engine():
         settings = get_settings()
 
         # SQLite engine configuration (v2.2.6: SQLite-only architecture)
-        # SQLite uses StaticPool - connection pooling settings not applicable
-        from sqlalchemy.pool import StaticPool
+        # SQLite uses NullPool - creates connections on-demand without pooling
+        # This allows the database file to be created on first connection
+        from sqlalchemy.pool import NullPool
 
         engine_config = {
-            "poolclass": StaticPool,
+            "poolclass": NullPool,
             "echo_pool": settings.environment == "development",  # Pool debug logs in dev only
         }
 
