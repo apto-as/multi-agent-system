@@ -559,8 +559,8 @@ def first_run_setup():
 
                 # For file-based SQLite, ensure the file exists first
                 if "sqlite" in str(engine.url) and ":memory:" not in str(engine.url):
-                    # Extract file path from URL
-                    db_path_str = str(engine.url).replace("sqlite+aiosqlite:///", "").replace("sqlite:///", "")
+                    # Extract file path from URL (keep the leading / for absolute path)
+                    db_path_str = str(engine.url).replace("sqlite+aiosqlite://", "").replace("sqlite://", "")
                     db_path = Path(db_path_str)
 
                     # Create empty database file if it doesn't exist
