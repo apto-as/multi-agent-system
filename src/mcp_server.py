@@ -513,6 +513,7 @@ def first_run_setup():
     Creates necessary directories, initializes database schema, and displays setup information.
     """
     import asyncio
+    import sys
     from pathlib import Path
 
     TMWS_HOME = Path.home() / ".tmws"
@@ -522,46 +523,49 @@ def first_run_setup():
 
     # Check if this is first run
     if not INITIALIZED_FLAG.exists():
-        print("=" * 60)
-        print("🚀 TMWS v2.2.6 - First-time Setup")
-        print("=" * 60)
-        print()
-        print(f"📁 Data directory: {TMWS_HOME}")
-        print(f"   ├── Database: {TMWS_DATA_DIR}/tmws.db")
-        print(f"   ├── ChromaDB: {TMWS_CHROMA_DIR}")
-        print(f"   └── Secret key: {TMWS_HOME}/.secret_key")
-        print()
-        print("✅ Smart defaults enabled:")
-        print("   • SQLite database (development)")
-        print("   • Auto-generated secret key")
-        print("   • Multilingual-E5 embeddings (1024-dim)")
-        print("   • ChromaDB vector search")
-        print()
+        # Output to stderr for visibility
+        print("=" * 60, file=sys.stderr)
+        print("🚀 TMWS v2.2.6 - First-time Setup", file=sys.stderr)
+        print("=" * 60, file=sys.stderr)
+        print(file=sys.stderr)
+        print(f"📁 Data directory: {TMWS_HOME}", file=sys.stderr)
+        print(f"   ├── Database: {TMWS_DATA_DIR}/tmws.db", file=sys.stderr)
+        print(f"   ├── ChromaDB: {TMWS_CHROMA_DIR}", file=sys.stderr)
+        print(f"   └── Secret key: {TMWS_HOME}/.secret_key", file=sys.stderr)
+        print(file=sys.stderr)
+        print("✅ Smart defaults enabled:", file=sys.stderr)
+        print("   • SQLite database (development)", file=sys.stderr)
+        print("   • Auto-generated secret key", file=sys.stderr)
+        print("   • Multilingual-E5 embeddings (1024-dim)", file=sys.stderr)
+        print("   • ChromaDB vector search", file=sys.stderr)
+        print(file=sys.stderr)
 
         # Create TMWS_HOME directory
         TMWS_HOME.mkdir(parents=True, exist_ok=True)
         TMWS_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
         # Initialize database schema
-        print("🔧 Initializing database schema...")
+        print("🔧 Initializing database schema...", file=sys.stderr)
         try:
             from src.core.database import get_engine
             from src.models import TMWSBase
 
             async def init_db_schema():
                 engine = get_engine()
+                print(f"🔍 Database URL: {engine.url}", file=sys.stderr)
                 async with engine.begin() as conn:
                     await conn.run_sync(TMWSBase.metadata.create_all)
                 await engine.dispose()
+                print("✅ Database schema initialized", file=sys.stderr)
 
             asyncio.run(init_db_schema())
-            print("✅ Database schema initialized")
         except Exception as e:
-            print(f"⚠️  Database initialization skipped: {e}")
-            logger.debug(f"Database initialization error: {e}", exc_info=True)
+            print(f"⚠️  Database initialization error: {e}", file=sys.stderr)
+            import traceback
+            traceback.print_exc(file=sys.stderr)
 
-        print()
-        print("📝 For Claude Desktop, add to config:")
+        print(file=sys.stderr)
+        print("📝 For Claude Desktop, add to config:", file=sys.stderr)
         print("""
 {
   "tmws": {
@@ -569,9 +573,9 @@ def first_run_setup():
     "args": ["tmws-mcp-server"]
   }
 }
-""")
-        print("=" * 60)
-        print()
+""", file=sys.stderr)
+        print("=" * 60, file=sys.stderr)
+        print(file=sys.stderr)
 
         # Mark as initialized
         INITIALIZED_FLAG.touch()
