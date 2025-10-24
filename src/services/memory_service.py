@@ -627,5 +627,5 @@ class HybridMemoryService:
 # Dependency injection for FastAPI
 async def get_memory_service() -> HybridMemoryService:
     """Get HybridMemoryService instance with database session."""
-    async for session in get_session():
+    async with get_session() as session:
         yield HybridMemoryService(session)
