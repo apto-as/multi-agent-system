@@ -52,7 +52,7 @@ class VectorSearchService:
         )
     """
 
-    COLLECTION_NAME = "tmws_memories_v2"
+    COLLECTION_NAME = "tmws_memories"
     HOT_CACHE_SIZE = 10000  # Maximum memories in hot cache
 
     def __init__(self, persist_directory: str | Path | None = None):

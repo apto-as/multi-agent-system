@@ -27,7 +27,7 @@ class LearningPattern(TMWSBase, MetadataMixin):
     - performance optimization with selective indexing
     """
 
-    __tablename__ = "learning_patterns_v2"
+    __tablename__ = "learning_patterns"
 
     # Pattern identification
     pattern_name: Mapped[str] = mapped_column(
@@ -83,7 +83,7 @@ class LearningPattern(TMWSBase, MetadataMixin):
 
     parent_pattern_id: Mapped[str | None] = mapped_column(
         String(36),  # Match id column type (UUID as string)
-        sa.ForeignKey("learning_patterns_v2.id", ondelete="SET NULL"),
+        sa.ForeignKey("learning_patterns.id", ondelete="SET NULL"),
         nullable=True,
         comment="Parent pattern for versioning hierarchy",
     )
@@ -198,10 +198,10 @@ class LearningPattern(TMWSBase, MetadataMixin):
         CheckConstraint("usage_count >= 0", name="ck_learning_patterns_usage_count"),
         CheckConstraint("agent_usage_count >= 0", name="ck_learning_patterns_agent_usage_count"),
         # SQLite-compatible indexes (PostgreSQL-specific features removed for v2.2.6)
-        Index("idx_learning_patterns_v2_agent_namespace", "agent_id", "namespace"),
-        Index("idx_learning_patterns_v2_category_access", "category", "access_level"),
-        Index("idx_learning_patterns_v2_usage", "usage_count"),
-        Index("idx_learning_patterns_v2_last_used", "last_used_at"),
+        Index("idx_learning_patterns_agent_namespace", "agent_id", "namespace"),
+        Index("idx_learning_patterns_category_access", "category", "access_level"),
+        Index("idx_learning_patterns_usage", "usage_count"),
+        Index("idx_learning_patterns_last_used", "last_used_at"),
     )
 
     def increment_usage(self, by_owner: bool = False, execution_time: float | None = None) -> None:
@@ -351,7 +351,7 @@ class PatternUsageHistory(TMWSBase):
 
     pattern_id: Mapped[str] = mapped_column(
         String(36),  # Match id column type (UUID as string)
-        sa.ForeignKey("learning_patterns_v2.id", ondelete="CASCADE"),
+        sa.ForeignKey("learning_patterns.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )

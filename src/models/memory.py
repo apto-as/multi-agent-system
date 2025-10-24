@@ -20,7 +20,7 @@ from .base import MetadataMixin, TMWSBase
 class Memory(TMWSBase, MetadataMixin):
     """Enhanced memory model with multi-agent support and learning capabilities."""
 
-    __tablename__ = "memories_v2"
+    __tablename__ = "memories"
 
     # Core content
     content: Mapped[str] = mapped_column(Text, nullable=False, comment="The actual memory content")
@@ -126,7 +126,7 @@ class Memory(TMWSBase, MetadataMixin):
     # Parent-child relationships for memory consolidation
     parent_memory_id: Mapped[str | None] = mapped_column(
         String(36),  # UUID as string (e.g., "550e8400-e29b-41d4-a716-446655440000")
-        ForeignKey("memories_v2.id"),
+        ForeignKey("memories.id"),
         nullable=True,
         comment="Parent memory for hierarchical organization",
     )
@@ -210,7 +210,7 @@ class MemorySharing(TMWSBase):
     __tablename__ = "memory_sharing"
 
     memory_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("memories_v2.id"), nullable=False, primary_key=True
+        String(36), ForeignKey("memories.id"), nullable=False, primary_key=True
     )
 
     shared_with_agent_id: Mapped[str] = mapped_column(Text, nullable=False, primary_key=True)
@@ -291,7 +291,7 @@ class MemoryConsolidation(TMWSBase):
 
     consolidated_memory_id: Mapped[str] = mapped_column(
         String(36),
-        ForeignKey("memories_v2.id"),
+        ForeignKey("memories.id"),
         nullable=False,
         comment="Resulting consolidated memory",
     )

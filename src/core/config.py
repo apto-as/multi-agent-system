@@ -153,7 +153,7 @@ class Settings(BaseSettings):
         default=str(TMWS_CHROMA_DIR),
         description="ChromaDB persistence directory (smart default: ~/.tmws/chroma)",
     )
-    chroma_collection: str = Field(default="tmws_memories_v2")
+    chroma_collection: str = Field(default="tmws_memories")
     chroma_cache_size: int = Field(default=10000, ge=100, le=100000)
 
     # ==== OLLAMA EMBEDDING CONFIGURATION (v2.2.5) ====
