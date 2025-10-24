@@ -194,7 +194,7 @@ class HybridMCPServer:
 
         try:
             # Get database session
-            async for session in get_session():
+            async with get_session() as session:
                 memory_service = HybridMemoryService(session)
 
                 # Create memory (writes to both PostgreSQL and Chroma)
@@ -256,7 +256,7 @@ class HybridMCPServer:
         self.metrics["requests"] += 1
 
         try:
-            async for session in get_session():
+            async with get_session() as session:
                 memory_service = HybridMemoryService(session)
 
                 # Search (Chroma first, PostgreSQL fallback)
@@ -332,7 +332,7 @@ class HybridMCPServer:
         try:
             from src.services.task_service import TaskService
 
-            async for session in get_session():
+            async with get_session() as session:
                 task_service = TaskService(session)
 
                 task = await task_service.create_task(
@@ -371,7 +371,7 @@ class HybridMCPServer:
         try:
             from src.services.agent_service import AgentService
 
-            async for session in get_session():
+            async with get_session() as session:
                 agent_service = AgentService(session)
 
                 agents = await agent_service.list_agents(status="active")
@@ -415,7 +415,7 @@ class HybridMCPServer:
         self.metrics["requests"] += 1
 
         try:
-            async for session in get_session():
+            async with get_session() as session:
                 memory_service = HybridMemoryService(session)
 
                 stats = await memory_service.get_memory_stats(
