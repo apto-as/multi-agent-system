@@ -305,7 +305,7 @@ class HybridMemoryService:
         """
         try:
             # Generate query embedding
-            query_embedding = self.embedding_service.encode_query(query)
+            query_embedding = await self.embedding_service.encode_query(query)
 
             # Search Chroma (REQUIRED - no fallback)
             chroma_results = await self._search_chroma(
