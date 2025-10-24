@@ -221,7 +221,7 @@ class HybridMCPServer:
                     "status": "stored",
                     "importance": importance,
                     "latency_ms": round(latency_ms, 2),
-                    "stored_in": ["postgresql", "chroma"],
+                    "stored_in": ["sqlite", "chroma"],
                     "embedding_model": settings.embedding_model,
                     "embedding_dimension": settings.vector_dimension,
                 }
@@ -347,7 +347,7 @@ class HybridMCPServer:
                     "status": "created",
                     "assigned_to": assigned_persona or self.agent_id,
                     "priority": priority,
-                    "storage": "postgresql",
+                    "storage": "sqlite",
                 }
 
         except (KeyboardInterrupt, SystemExit):
@@ -388,7 +388,7 @@ class HybridMCPServer:
                     ],
                     "total": len(agents),
                     "current_instance": self.instance_id,
-                    "storage": "postgresql",
+                    "storage": "sqlite",
                 }
 
         except (KeyboardInterrupt, SystemExit):
