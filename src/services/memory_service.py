@@ -322,7 +322,14 @@ class HybridMemoryService:
                 return []
 
             # Fetch full Memory objects from SQLite
-            memory_ids = [UUID(r["id"]) for r in chroma_results]
+            # ChromaDB stores UUIDs without hyphens, need to restore them
+            def restore_uuid_hyphens(uuid_str: str) -> str:
+                """Restore hyphens to UUID (ChromaDB removes them). Format: 8-4-4-4-12"""
+                if len(uuid_str) == 32 and '-' not in uuid_str:
+                    return f"{uuid_str[:8]}-{uuid_str[8:12]}-{uuid_str[12:16]}-{uuid_str[16:20]}-{uuid_str[20:]}"
+                return uuid_str
+
+            memory_ids = [UUID(restore_uuid_hyphens(r["id"])) for r in chroma_results]
             memories = await self._fetch_memories_by_ids(
                 memory_ids,
                 agent_id=agent_id,
