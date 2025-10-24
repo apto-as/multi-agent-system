@@ -5,6 +5,7 @@ Implements comprehensive security headers and enhanced CORS handling.
 
 from __future__ import annotations
 
+import logging
 import time
 
 from fastapi import FastAPI, HTTPException, Request, Response, status
@@ -15,6 +16,8 @@ from ..api.security import SecurityHeaders
 from ..core.config import get_settings
 from .audit_logger_async import AsyncSecurityAuditLogger
 from .rate_limiter import RateLimiter
+
+logger = logging.getLogger(__name__)
 
 
 class UnifiedSecurityMiddleware(BaseHTTPMiddleware):

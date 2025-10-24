@@ -3,6 +3,7 @@ JWT Service for TMWS Authentication System.
 High-performance JWT token generation, validation, and refresh with comprehensive security.
 """
 
+import logging
 import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -15,6 +16,7 @@ from ..core.config import get_settings
 from ..models.user import RefreshToken, User
 from ..utils.security import hash_password_with_salt, verify_password_with_salt
 
+logger = logging.getLogger(__name__)
 settings = get_settings()
 
 

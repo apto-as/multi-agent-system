@@ -256,8 +256,8 @@ class AsyncSecurityAuditLogger:
                 await self._async_log_to_file(event)
             except Exception as file_error:
                 # LAST RESORT: Both DB and file failed - dump to stdout
-                import sys
                 import json
+                import sys
 
                 emergency_log = {
                     "EMERGENCY_AUDIT_LOG": True,
