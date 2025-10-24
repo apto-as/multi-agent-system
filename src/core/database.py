@@ -241,6 +241,7 @@ async def drop_tables():
     logger.info("Database tables dropped")
 
 
+@asynccontextmanager
 async def get_session():
     """Alias for get_db_session_dependency for backward compatibility."""
     async with get_db_session() as session:
