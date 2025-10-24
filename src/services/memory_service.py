@@ -184,7 +184,7 @@ class HybridMemoryService:
             else memory.created_at,
         }
 
-        await self.vector_service.add_memory(
+        self.vector_service.add_memory(
             memory_id=str(memory.id),
             embedding=embedding,
             metadata=metadata,
@@ -222,7 +222,7 @@ class HybridMemoryService:
 
             # Re-sync to Chroma (REQUIRED)
             try:
-                await self.vector_service.delete_memory(str(memory_id))
+                self.vector_service.delete_memory(str(memory_id))
                 await self._sync_to_chroma(memory, embedding_vector.tolist())
             except (KeyboardInterrupt, SystemExit):
                 # Never suppress user interrupts
@@ -264,7 +264,7 @@ class HybridMemoryService:
         # Delete from Chroma first (best-effort)
         if self.vector_service:
             try:
-                await self.vector_service.delete_memory(str(memory_id))
+                self.vector_service.delete_memory(str(memory_id))
             except (KeyboardInterrupt, SystemExit):
                 # Never suppress user interrupts
                 raise
@@ -376,7 +376,7 @@ class HybridMemoryService:
         if tags:
             filters["tags"] = {"$in": tags}
 
-        return await self.vector_service.search(
+        return self.vector_service.search(
             query_embedding=query_embedding,
             top_k=limit,
             filters=filters,
@@ -471,7 +471,7 @@ class HybridMemoryService:
                 ]
                 documents = [m.content for m in memories]
 
-                await self.vector_service.add_memories_batch(
+                self.vector_service.add_memories_batch(
                     memory_ids=memory_ids,
                     embeddings=embeddings,
                     metadatas=metadatas,
@@ -549,7 +549,7 @@ class HybridMemoryService:
         chroma_stats = {}
         if self.vector_service:
             try:
-                chroma_stats = await self.vector_service.get_collection_stats()
+                chroma_stats = self.vector_service.get_collection_stats()
             except (KeyboardInterrupt, SystemExit):
                 # Never suppress user interrupts
                 raise
@@ -604,7 +604,7 @@ class HybridMemoryService:
         # Delete from Chroma (best-effort)
         if self.vector_service:
             try:
-                await self.vector_service.delete_memories_batch([str(mid) for mid in memory_ids])
+                self.vector_service.delete_memories_batch([str(mid) for mid in memory_ids])
             except (KeyboardInterrupt, SystemExit):
                 # Never suppress user interrupts
                 raise
