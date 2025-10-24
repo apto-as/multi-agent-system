@@ -547,10 +547,10 @@ def first_run_setup():
         # Initialize database schema
         print("🔧 Initializing database schema...", file=sys.stderr)
         try:
-            from src.core.database import get_engine
+
             from src.core.config import get_settings
+            from src.core.database import get_engine
             from src.models import TMWSBase
-            import aiosqlite
 
             async def init_db_schema():
                 import os
@@ -574,7 +574,7 @@ def first_run_setup():
                 print(f"🔍 Engine URL: {engine.url}", file=sys.stderr)
 
                 # Create tables (aiosqlite will create the database file if it doesn't exist)
-                print(f"🔧 Creating database schema...", file=sys.stderr)
+                print("🔧 Creating database schema...", file=sys.stderr)
                 async with engine.begin() as conn:
                     await conn.run_sync(TMWSBase.metadata.create_all)
                 await engine.dispose()
