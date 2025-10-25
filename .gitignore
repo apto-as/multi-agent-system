@@ -48,6 +48,22 @@ htmlcov/
 # IDE
 .idea/
 .vscode/
+
+# ============================================
+# SECURITY: Sensitive environment files
+# Added: 2025-10-24 - CRITICAL security fix
+# ============================================
+.env
+.env.*
+!.env.example
+.env.cloud
+.env.local
+.env.*.local
+config/*.env
+!config/*.env.example
+!config/*.env.template
+config/production.env.secure
+config/development.env
 *.swp
 *.swo
 *~
