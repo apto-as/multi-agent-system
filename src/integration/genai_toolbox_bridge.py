@@ -39,7 +39,7 @@ class GenAIToolboxBridge:
     統合パターン:
     1. サイドカーパターン - GenAI ToolboxをGoプロセスとして並列実行
     2. プロキシパターン - TMWSを通じてツールを公開
-    3. 共有リソース - PostgreSQL/Redisで状態管理
+    3. 共有リソース - SQLite/Redisで状態管理
     """
 
     def __init__(self, mcp_server: FastMCP):

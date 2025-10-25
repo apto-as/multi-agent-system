@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
-TMWS MCP Server - Hybrid PostgreSQL + Chroma Implementation
+TMWS MCP Server - Hybrid SQLite + Chroma Implementation
 
 MCP Server providing Trinitas agents with:
 - Ultra-fast vector search via Chroma (P95: 0.47ms)
 - Multilingual-E5 embeddings (1024-dimensional, cross-lingual)
-- PostgreSQL as source of truth
+- SQLite as relational data store
 - Agent coordination and task management
 
-Phase: 4b (TMWS v2.2.6)
+Phase: 4b (TMWS v2.2.6 - SQLite + ChromaDB architecture)
 """
 
 import asyncio
@@ -43,13 +43,13 @@ class HybridMCPServer:
     MCP Server with Hybrid Memory Architecture.
 
     Architecture:
-    - HybridMemoryService: PostgreSQL + Chroma unified interface
+    - HybridMemoryService: SQLite + Chroma unified interface
     - MultilingualEmbeddingService: 1024-dimensional embeddings
     - VectorSearchService: Chroma with P95 latency 0.47ms
 
     Performance improvements over legacy:
     - store_memory: 10ms → 2ms (5x faster)
-    - search_memories: 200ms → 0.5ms (400x faster)
+    - search_memories: 200ms → 0.5ms (400x faster, Chroma-first strategy)
     """
 
     def __init__(self):
@@ -87,7 +87,7 @@ class HybridMCPServer:
 
         @self.mcp.tool(
             name="store_memory",
-            description="Store information in hybrid semantic memory (PostgreSQL + Chroma)",
+            description="Store information in hybrid semantic memory (SQLite + Chroma)",
         )
         async def store_memory(
             content: str,
