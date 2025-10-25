@@ -120,13 +120,10 @@ class ConfigLoader:
 
         # Provide defaults for NON-SENSITIVE variables only
         # Sensitive variables (passwords, keys) must be set via environment
+        # SQLite + ChromaDB architecture (v2.2.6+)
         defaults = {
             "TMWS_ENVIRONMENT": "development",
-            "TMWS_DB_HOST": "localhost",
-            "TMWS_DB_PORT": "5432",
-            "TMWS_DB_NAME": "tmws",
-            "TMWS_DB_USER": "tmws_user",
-            # TMWS_DB_PASSWORD: Must be set via environment variable
+            "TMWS_DB_PATH": "./data/tmws.db",
             # TMWS_SECRET_KEY: Must be set via environment variable
             # TMWS_ENCRYPTION_KEY: Must be set via environment variable
             "REDIS_HOST": "localhost",
@@ -159,15 +156,9 @@ class ConfigLoader:
                 "fastapi": {"enabled": True, "host": "0.0.0.0", "port": 8000},
             },
             "database": {
-                "primary": "postgresql",
+                "primary": "sqlite",
                 "connection": {
-                    "host": os.environ.get("TMWS_DB_HOST", "localhost"),
-                    "port": int(os.environ.get("TMWS_DB_PORT", "5432")),
-                    "database": os.environ.get("TMWS_DB_NAME", "tmws"),
-                    "user": os.environ.get("TMWS_DB_USER", "tmws_user"),
-                    "password": ConfigLoader._get_secure_value(
-                        "TMWS_DB_PASSWORD", default_value="tmws_password", required=True
-                    ),
+                    "path": os.environ.get("TMWS_DB_PATH", "./data/tmws.db"),
                 },
             },
             "memory": {"cache_size_mb": 100, "persistence": True},

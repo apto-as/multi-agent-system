@@ -16,9 +16,8 @@ env:
   TMWS_SECRET_KEY: "test_secret_key_for_ci_pipeline_at_least_32_characters_long"
   TMWS_AUTH_ENABLED: "false"  # Disable auth for testing
 
-  # Database
-  TMWS_DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/tmws_test"
-  TEST_USE_POSTGRESQL: "true"
+  # Database (SQLite + ChromaDB architecture v2.2.6+)
+  TMWS_DATABASE_URL: "sqlite+aiosqlite:///:memory:"
 
   # Redis (optional for tests)
   TMWS_REDIS_URL: "redis://localhost:6379/0"
@@ -36,20 +35,6 @@ jobs:
     runs-on: ubuntu-latest
 
     services:
-      postgres:
-        image: pgvector/pgvector:0.8.1-pg17
-        env:
-          POSTGRES_DB: tmws_test
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
       redis:
         image: redis:7-alpine
         options: >-
@@ -81,36 +66,6 @@ jobs:
           key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}
           restore-keys: |
             ${{ runner.os }}-pip-
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y postgresql-client
-
-      - name: Wait for PostgreSQL
-        run: |
-          until PGPASSWORD=postgres psql -h localhost -U postgres -d tmws_test -c '\q'; do
-            echo "Waiting for PostgreSQL..."
-            sleep 2
-          done
-          echo "PostgreSQL is ready!"
-
-      - name: Setup PostgreSQL with pgvector
-        run: |
-          # List available extensions
-          echo "Available extensions:"
-          PGPASSWORD=postgres psql -h localhost -U postgres -d tmws_test -c "SELECT name FROM pg_available_extensions WHERE name LIKE '%vector%';"
-
-          # Create extensions (try 'vector' first, fallback to 'pgvector')
-          PGPASSWORD=postgres psql -h localhost -U postgres -d tmws_test -c "CREATE EXTENSION IF NOT EXISTS vector;" || \
-          PGPASSWORD=postgres psql -h localhost -U postgres -d tmws_test -c "CREATE EXTENSION IF NOT EXISTS pgvector;"
-
-          PGPASSWORD=postgres psql -h localhost -U postgres -d tmws_test -c "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";"
-          PGPASSWORD=postgres psql -h localhost -U postgres -d tmws_test -c "CREATE EXTENSION IF NOT EXISTS pg_trgm;"
-
-          # Verify extensions are created
-          echo "Installed extensions:"
-          PGPASSWORD=postgres psql -h localhost -U postgres -d tmws_test -c "SELECT extname, extversion FROM pg_extension WHERE extname IN ('vector', 'pgvector', 'uuid-ossp', 'pg_trgm');"
 
       - name: Install Python dependencies
         run: |
