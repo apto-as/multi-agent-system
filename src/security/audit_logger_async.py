@@ -56,10 +56,8 @@ class AsyncSecurityAuditLogger:
     async def _init_database(self) -> None:
         """Initialize async database connection."""
         try:
-            # Convert database URL for async
+            # SQLite + ChromaDB architecture (v2.2.6+)
             db_url = self.settings.database_url
-            if db_url.startswith("postgresql://"):
-                db_url = db_url.replace("postgresql://", "postgresql+asyncpg://")
 
             self.engine = create_async_engine(db_url, echo=False)
             self.async_session_maker = async_sessionmaker(

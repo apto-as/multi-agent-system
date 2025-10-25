@@ -29,9 +29,9 @@ class VectorSearchService:
     - 10K memory hot cache capacity
 
     Architecture:
-    - Chroma: Hot cache for fast retrieval (5-20ms P95)
-    - PostgreSQL: Source of truth for all data (50-200ms P95)
-    - Speedup: 5-10x faster queries
+    - ChromaDB: Vector search with DuckDB persistence (5-20ms P95)
+    - SQLite: Relational data storage (10-50ms P95)
+    - Dual-storage architecture for optimal performance
 
     Usage:
         service = VectorSearchService()
