@@ -19,18 +19,8 @@ os.environ["TMWS_ENVIRONMENT"] = "test"
 os.environ["TMWS_AUTH_ENABLED"] = "false"
 os.environ["TMWS_SECRET_KEY"] = "test_secret_key_for_testing_only_32_chars"
 
-# Database URL configuration - support both SQLite and PostgreSQL
-# Default to SQLite for CI/CD, PostgreSQL for integration tests
-TEST_USE_POSTGRESQL = os.getenv("TEST_USE_POSTGRESQL", "false").lower() == "true"
-
-if TEST_USE_POSTGRESQL:
-    # PostgreSQL for integration tests with pgvector support
-    os.environ["TMWS_DATABASE_URL"] = (
-        "postgresql+asyncpg://tmws_user:tmws_password@localhost:5433/tmws_test"
-    )
-else:
-    # SQLite for unit tests
-    os.environ["TMWS_DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
+# Database URL configuration - SQLite + ChromaDB architecture (v2.2.6+)
+os.environ["TMWS_DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 
 # Import after environment setup - environment variables must be set first
 from src.core.config import get_settings  # noqa: E402
@@ -71,35 +61,6 @@ async def test_engine():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)  # Drop all tables for a clean slate
         await conn.run_sync(Base.metadata.create_all)
-
-        # PostgreSQL specific setup
-        if TEST_USE_POSTGRESQL:
-            # Ensure pgvector extension is available
-            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-
-    yield engine
-
-    await engine.dispose()
-
-
-@pytest_asyncio.fixture
-async def postgresql_engine():
-    """Create PostgreSQL test database engine for integration tests."""
-    if not TEST_USE_POSTGRESQL:
-        pytest.skip("PostgreSQL tests require TEST_USE_POSTGRESQL=true")
-
-    get_settings()
-    engine = create_async_engine(
-        "postgresql+asyncpg://tmws_user:tmws_password@localhost:5433/tmws_test",
-        poolclass=NullPool,
-        echo=False,
-    )
-
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
-        # Ensure pgvector extension is available
-        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
 
     yield engine
 
@@ -418,28 +379,9 @@ def performance_timer():
     return PerformanceTimer()
 
 
-# PostgreSQL specific fixtures and helpers
-@pytest.fixture
-def requires_postgresql():
-    """Skip test if PostgreSQL is not available."""
-    if not TEST_USE_POSTGRESQL:
-        pytest.skip("PostgreSQL tests require TEST_USE_POSTGRESQL=true")
-
-
-@pytest_asyncio.fixture
-async def postgresql_session(postgresql_engine) -> AsyncGenerator[AsyncSession, None]:
-    """Create PostgreSQL test database session."""
-    async_session = async_sessionmaker(
-        postgresql_engine, class_=AsyncSession, expire_on_commit=False
-    )
-
-    async with async_session() as session:
-        yield session
-
-
 @pytest.fixture
 def sample_vector_data():
-    """Sample vector data for testing pgvector functionality."""
+    """Sample vector data for testing ChromaDB vector functionality."""
     import numpy as np
 
     return {
@@ -453,5 +395,5 @@ def sample_vector_data():
 
 @pytest.fixture
 def database_marker():
-    """Helper to identify current database type."""
-    return "postgresql" if TEST_USE_POSTGRESQL else "sqlite"
+    """Helper to identify current database type (SQLite + ChromaDB architecture)."""
+    return "sqlite"
