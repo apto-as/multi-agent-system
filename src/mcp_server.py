@@ -66,7 +66,7 @@ class HybridMCPServer:
         self.metrics = {
             "requests": 0,
             "chroma_hits": 0,
-            "postgresql_fallbacks": 0,
+            "sqlite_fallbacks": 0,
             "errors": 0,
             "avg_latency_ms": 0.0,
         }
@@ -117,7 +117,7 @@ class HybridMCPServer:
             """
             Search memories with Chroma ultra-fast vector search.
 
-            Performance: ~0.5ms P95 (400x faster than legacy PostgreSQL)
+            Performance: ~0.5ms P95 (ChromaDB vector search + SQLite metadata)
             """
             return await self.search_memories_hybrid(query, limit, min_similarity, namespace, tags)
 
@@ -129,16 +129,16 @@ class HybridMCPServer:
             assigned_persona: str = None,
         ) -> dict:
             """Create coordinated task."""
-            return await self.create_task_postgresql(title, description, priority, assigned_persona)
+            return await self._create_task(title, description, priority, assigned_persona)
 
         @self.mcp.tool(name="get_agent_status", description="Get status of connected agents")
         async def get_agent_status() -> dict:
             """Get status of connected agents."""
-            return await self.get_agent_status_postgresql()
+            return await self._get_agent_status()
 
         @self.mcp.tool(name="get_memory_stats", description="Get memory statistics")
         async def get_memory_stats() -> dict:
-            """Get combined PostgreSQL + Chroma statistics."""
+            """Get combined SQLite + ChromaDB statistics."""
             return await self.get_hybrid_memory_stats()
 
         @self.mcp.tool(name="invalidate_cache", description="Clear Chroma cache (for testing)")
@@ -187,7 +187,7 @@ class HybridMCPServer:
         """
         Store memory using HybridMemoryService.
 
-        Write-through pattern: PostgreSQL + Chroma simultaneously.
+        Write-through pattern: SQLite + ChromaDB simultaneously.
         """
         start_time = datetime.utcnow()
         self.metrics["requests"] += 1
@@ -197,7 +197,7 @@ class HybridMCPServer:
             async with get_session() as session:
                 memory_service = HybridMemoryService(session)
 
-                # Create memory (writes to both PostgreSQL and Chroma)
+                # Create memory (writes to both SQLite and ChromaDB)
                 memory = await memory_service.create_memory(
                     content=content,
                     agent_id=self.agent_id,
@@ -250,7 +250,7 @@ class HybridMCPServer:
         """
         Search memories using HybridMemoryService.
 
-        Read-first pattern: Chroma (0.47ms) → PostgreSQL fallback.
+        Read-first pattern: ChromaDB vector search (0.47ms) → SQLite fallback.
         """
         start_time = datetime.utcnow()
         self.metrics["requests"] += 1
@@ -259,7 +259,7 @@ class HybridMCPServer:
             async with get_session() as session:
                 memory_service = HybridMemoryService(session)
 
-                # Search (Chroma first, PostgreSQL fallback)
+                # Search (ChromaDB vector search first, SQLite metadata fallback)
                 memories = await memory_service.search_memories(
                     query=query,
                     agent_id=self.agent_id,
@@ -273,13 +273,13 @@ class HybridMCPServer:
                 latency_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
                 self._update_avg_latency(latency_ms)
 
-                # Track Chroma vs PostgreSQL
+                # Track ChromaDB vs SQLite
                 if latency_ms < 5.0:
                     self.metrics["chroma_hits"] += 1
-                    search_source = "chroma"
+                    search_source = "chromadb"
                 else:
-                    self.metrics["postgresql_fallbacks"] += 1
-                    search_source = "postgresql_fallback"
+                    self.metrics["sqlite_fallbacks"] += 1
+                    search_source = "sqlite_fallback"
 
                 logger.info(
                     f"Memory search: {len(memories)} results (latency: {latency_ms:.2f}ms, "
@@ -323,10 +323,10 @@ class HybridMCPServer:
             logger.critical(f"Unexpected memory search error: {e}", exc_info=True)
             return {"error": str(e), "results": [], "count": 0, "error_type": "UnexpectedError"}
 
-    async def create_task_postgresql(
+    async def _create_task(
         self, title: str, description: str, priority: str, assigned_persona: str
     ) -> dict:
-        """Create task in PostgreSQL."""
+        """Create task in SQLite database."""
         self.metrics["requests"] += 1
 
         try:
@@ -364,8 +364,8 @@ class HybridMCPServer:
             logger.critical(f"Unexpected task creation error: {e}", exc_info=True)
             return {"error": str(e), "error_type": "UnexpectedError"}
 
-    async def get_agent_status_postgresql(self) -> dict:
-        """Get agent status from PostgreSQL."""
+    async def _get_agent_status(self) -> dict:
+        """Get agent status from SQLite database."""
         self.metrics["requests"] += 1
 
         try:
@@ -411,7 +411,7 @@ class HybridMCPServer:
             return {"error": str(e), "agents": [], "total": 0, "error_type": "UnexpectedError"}
 
     async def get_hybrid_memory_stats(self) -> dict:
-        """Get combined PostgreSQL + Chroma statistics."""
+        """Get combined SQLite + ChromaDB statistics."""
         self.metrics["requests"] += 1
 
         try:
@@ -426,17 +426,17 @@ class HybridMCPServer:
                 stats["mcp_metrics"] = {
                     "total_requests": self.metrics["requests"],
                     "chroma_hits": self.metrics["chroma_hits"],
-                    "postgresql_fallbacks": self.metrics["postgresql_fallbacks"],
+                    "sqlite_fallbacks": self.metrics["sqlite_fallbacks"],
                     "errors": self.metrics["errors"],
                     "avg_latency_ms": round(self.metrics["avg_latency_ms"], 2),
                     "chroma_hit_rate": (
                         round(
                             self.metrics["chroma_hits"]
-                            / (self.metrics["chroma_hits"] + self.metrics["postgresql_fallbacks"])
+                            / (self.metrics["chroma_hits"] + self.metrics["sqlite_fallbacks"])
                             * 100,
                             1,
                         )
-                        if (self.metrics["chroma_hits"] + self.metrics["postgresql_fallbacks"]) > 0
+                        if (self.metrics["chroma_hits"] + self.metrics["sqlite_fallbacks"]) > 0
                         else 0.0
                     ),
                 }
@@ -460,7 +460,7 @@ class HybridMCPServer:
 
             return {
                 "status": "cleared",
-                "warning": "Chroma cache cleared. PostgreSQL data intact.",
+                "warning": "ChromaDB cache cleared. SQLite data intact.",
             }
 
         except (KeyboardInterrupt, SystemExit):
@@ -492,9 +492,9 @@ class HybridMCPServer:
             logger.info(
                 f"HybridMCPServer shutdown: {self.instance_id}\n"
                 f"Final metrics: {self.metrics}\n"
-                f"Chroma hit rate: "
-                f"{self.metrics['chroma_hits'] / (self.metrics['chroma_hits'] + self.metrics['postgresql_fallbacks']) * 100:.1f}%"
-                if (self.metrics["chroma_hits"] + self.metrics["postgresql_fallbacks"]) > 0
+                f"ChromaDB hit rate: "
+                f"{self.metrics['chroma_hits'] / (self.metrics['chroma_hits'] + self.metrics['sqlite_fallbacks']) * 100:.1f}%"
+                if (self.metrics["chroma_hits"] + self.metrics["sqlite_fallbacks"]) > 0
                 else "N/A"
             )
 
