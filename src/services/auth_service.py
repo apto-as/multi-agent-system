@@ -12,6 +12,7 @@ from sqlalchemy import and_, or_, select, update
 from sqlalchemy.orm import selectinload
 
 from ..core.database import get_db_session
+from ..core.exceptions import AuthenticationException
 from ..models.audit_log import SecurityEventSeverity, SecurityEventType
 from ..models.user import APIKey, APIKeyScope, RefreshToken, User, UserRole, UserStatus
 from ..security.audit_logger import get_audit_logger
@@ -21,37 +22,32 @@ from ..utils.security import hash_password_with_salt, verify_password_with_salt
 logger = logging.getLogger(__name__)
 
 
-class AuthenticationError(Exception):
-    """Base authentication error."""
-
-    pass
-
-
-class InvalidCredentialsError(AuthenticationError):
+# Use unified exception hierarchy from core.exceptions
+class InvalidCredentialsError(AuthenticationException):
     """Invalid username/password."""
 
     pass
 
 
-class AccountLockedError(AuthenticationError):
+class AccountLockedError(AuthenticationException):
     """Account is locked due to failed login attempts."""
 
     pass
 
 
-class AccountDisabledError(AuthenticationError):
+class AccountDisabledError(AuthenticationException):
     """Account is disabled or suspended."""
 
     pass
 
 
-class TokenExpiredError(AuthenticationError):
+class TokenExpiredError(AuthenticationException):
     """Token has expired."""
 
     pass
 
 
-class InsufficientPermissionsError(AuthenticationError):
+class InsufficientPermissionsError(AuthenticationException):
     """User lacks required permissions."""
 
     pass
