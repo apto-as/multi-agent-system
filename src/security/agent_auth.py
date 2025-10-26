@@ -156,55 +156,8 @@ class MemoryAccessControl:
         return result
 
 
-class RateLimiter:
-    """Rate limiting for agent API calls."""
-
-    def __init__(self):
-        self.limits = {
-            "default": {"requests": 1000, "window": 60},  # 1000 req/min
-            "search": {"requests": 100, "window": 60},  # 100 searches/min
-            "write": {"requests": 500, "window": 60},  # 500 writes/min
-        }
-        self.agent_requests = {}  # agent_id -> list of timestamps
-
-    def check_rate_limit(self, agent_id: str, operation: str = "default") -> bool:
-        """Check if agent is within rate limits."""
-
-        limit_config = self.limits.get(operation, self.limits["default"])
-        now = datetime.utcnow()
-        window_start = now - timedelta(seconds=limit_config["window"])
-
-        # Get agent's request history
-        if agent_id not in self.agent_requests:
-            self.agent_requests[agent_id] = []
-
-        # Clean old requests
-        self.agent_requests[agent_id] = [
-            ts for ts in self.agent_requests[agent_id] if ts > window_start
-        ]
-
-        # Check limit
-        if len(self.agent_requests[agent_id]) >= limit_config["requests"]:
-            return False
-
-        # Record this request
-        self.agent_requests[agent_id].append(now)
-        return True
-
-    def get_remaining_requests(self, agent_id: str, operation: str = "default") -> int:
-        """Get remaining requests for agent in current window."""
-
-        limit_config = self.limits.get(operation, self.limits["default"])
-        now = datetime.utcnow()
-        window_start = now - timedelta(seconds=limit_config["window"])
-
-        if agent_id not in self.agent_requests:
-            return limit_config["requests"]
-
-        # Count recent requests
-        recent_requests = [ts for ts in self.agent_requests[agent_id] if ts > window_start]
-
-        return max(0, limit_config["requests"] - len(recent_requests))
+# RateLimiter removed - use the comprehensive implementation from rate_limiter.py instead:
+# from .rate_limiter import RateLimiter
 
 
 def create_agent_authenticator(secret_key: str | None = None) -> AgentAuthService:
