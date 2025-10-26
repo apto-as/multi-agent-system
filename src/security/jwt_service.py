@@ -50,13 +50,8 @@ class JWTService:
             "aud": self.audience,
         }
 
-    def hash_password(self, password: str) -> tuple[str, str]:
-        """Hash password with salt - delegates to unified security utils."""
-        return hash_password_with_salt(password)
-
-    def verify_password(self, password: str, hashed: str, salt: str) -> bool:
-        """Verify password against hash with salt - delegates to unified security utils."""
-        return verify_password_with_salt(password, hashed, salt)
+    # Password hashing methods removed - use unified implementations directly:
+    # from ..utils.security import hash_password_with_salt, verify_password_with_salt
 
     def create_access_token(
         self,
