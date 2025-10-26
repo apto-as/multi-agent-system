@@ -11,13 +11,9 @@ from typing import Any
 
 import yaml
 
+from .exceptions import ConfigurationError
+
 logger = logging.getLogger(__name__)
-
-
-class ConfigurationError(Exception):
-    """Raised when required configuration is missing"""
-
-    pass
 
 
 class ConfigLoader:

@@ -14,11 +14,13 @@ from urllib.parse import urlparse
 
 import numpy as np
 
+from ..core.exceptions import ValidationError as BaseValidationError
+
 logger = logging.getLogger(__name__)
 
 
-class ValidationError(Exception):
-    """Custom exception for validation failures."""
+class ValidationError(BaseValidationError):
+    """Extended validation error with field and value context."""
 
     def __init__(self, message: str, field: str = None, value: Any = None):
         self.message = message
