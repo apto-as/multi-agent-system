@@ -77,7 +77,7 @@ class LearningTools(BaseTool):
 
             async def _learn_pattern(_session, services):
                 memory_service = services["memory_service"]
-                vectorization_service = services["vectorization_service"]
+                embedding_service = services["embedding_service"]
 
                 # Create comprehensive pattern data
                 pattern_data = {
@@ -101,7 +101,7 @@ class LearningTools(BaseTool):
                 """
 
                 # Generate vector embedding
-                embedding = await vectorization_service.vectorize_text(searchable_content.strip())
+                embedding = await embedding_service.encode_document(searchable_content.strip())
 
                 # Store as high-importance memory
                 memory = await memory_service.create_memory(
@@ -154,13 +154,13 @@ class LearningTools(BaseTool):
 
             async def _apply_pattern(_session, services):
                 memory_service = services["memory_service"]
-                vectorization_service = services["vectorization_service"]
+                embedding_service = services["embedding_service"]
 
                 # Create search query combining pattern query and context
                 search_query = f"PATTERN SEARCH: {request.pattern_query} CONTEXT: {request.context}"
 
                 # Generate query embedding
-                query_embedding = await vectorization_service.vectorize_text(search_query)
+                query_embedding = await embedding_service.encode_query(search_query)
 
                 # Search for relevant patterns
                 patterns = await memory_service.search_similar_memories(

@@ -221,8 +221,8 @@ class SystemTools(BaseTool):
 
                 # Vectorization service check
                 try:
-                    vectorization_service = services["vectorization_service"]
-                    test_embedding = await vectorization_service.vectorize_text("health check test")
+                    embedding_service = services["embedding_service"]
+                    test_embedding = await embedding_service.encode_document("health check test")
                     health_results["checks"]["vectorization"] = {
                         "status": "healthy",
                         "embedding_dimensions": len(test_embedding),
