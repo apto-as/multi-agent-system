@@ -19,7 +19,7 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.services.embedding_service import get_embedding_service
+from src.services.ollama_embedding_service import get_ollama_embedding_service as get_embedding_service
 
 
 def test_model_initialization():
