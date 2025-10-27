@@ -293,7 +293,7 @@ class HybridMCPServer:
                             "id": str(m.id),
                             "content": m.content,
                             "similarity": getattr(m, "similarity", 0.0),
-                            "importance": m.importance,
+                            "importance": m.importance_score,
                             "tags": m.tags,
                             "created_at": m.created_at.isoformat(),
                         }
