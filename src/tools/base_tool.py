@@ -10,10 +10,10 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.database import get_db_session
+from ..services import get_embedding_service
 from ..services.memory_service import HybridMemoryService
 from ..services.persona_service import PersonaService
 from ..services.task_service import TaskService
-from ..services.vectorization_service import VectorizationService
 from ..services.workflow_service import WorkflowService
 
 T = TypeVar("T", bound=BaseModel)
@@ -37,7 +37,6 @@ class BaseTool(ABC):
         self._persona_service: PersonaService | None = None
         self._task_service: TaskService | None = None
         self._workflow_service: WorkflowService | None = None
-        self._vectorization_service: VectorizationService | None = None
 
     async def get_services(self, session: AsyncSession) -> dict[str, Any]:
         """Initialize and return all services with session."""
@@ -46,7 +45,7 @@ class BaseTool(ABC):
             "persona_service": PersonaService(session),
             "task_service": TaskService(session),
             "workflow_service": WorkflowService(session),
-            "vectorization_service": VectorizationService(),
+            "embedding_service": get_embedding_service(),
         }
 
     async def execute_with_session(self, func, *args, **kwargs) -> dict[str, Any]:

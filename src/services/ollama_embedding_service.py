@@ -33,18 +33,18 @@ import logging
 import httpx
 import numpy as np
 
-from ..core.exceptions import log_and_raise
+from ..core.exceptions import IntegrationError, log_and_raise
 
 logger = logging.getLogger(__name__)
 
 
-class OllamaConnectionError(Exception):
+class OllamaConnectionError(IntegrationError):
     """Raised when Ollama server is unavailable or unreachable."""
 
     pass
 
 
-class OllamaModelNotFoundError(Exception):
+class OllamaModelNotFoundError(IntegrationError):
     """Raised when required model is not available in Ollama."""
 
     pass
@@ -294,7 +294,7 @@ class OllamaEmbeddingService:
             raise
         except Exception as e:
             log_and_raise(
-                RuntimeError,
+                OllamaConnectionError,
                 f"Failed to encode text using Ollama. "
                 f"Please check that Ollama server is running at {self.ollama_base_url}",
                 original_exception=e,

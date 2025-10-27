@@ -87,10 +87,10 @@ class MemoryTools(BaseTool):
 
             async def _create_memory(_session, services):
                 memory_service = services["memory_service"]
-                vectorization_service = services["vectorization_service"]
+                embedding_service = services["embedding_service"]
 
                 # Generate vector embedding
-                embedding = await vectorization_service.vectorize_text(request.content)
+                embedding = await embedding_service.encode_document(request.content)
 
                 # Create memory
                 memory = await memory_service.create_memory(
@@ -157,8 +157,8 @@ class MemoryTools(BaseTool):
 
                 if request.semantic_search:
                     # Vector similarity search
-                    vectorization_service = services["vectorization_service"]
-                    query_embedding = await vectorization_service.vectorize_text(request.query)
+                    embedding_service = services["embedding_service"]
+                    query_embedding = await embedding_service.encode_query(request.query)
 
                     memories = await memory_service.search_similar_memories(
                         embedding=query_embedding.tolist(),
@@ -238,8 +238,8 @@ class MemoryTools(BaseTool):
                 if request.content is not None:
                     updates["content"] = request.content
                     # Regenerate embedding if content changed
-                    vectorization_service = services["vectorization_service"]
-                    embedding = await vectorization_service.vectorize_text(request.content)
+                    embedding_service = services["embedding_service"]
+                    embedding = await embedding_service.encode_document(request.content)
                     updates["embedding"] = embedding.tolist()
 
                 if request.tags is not None:

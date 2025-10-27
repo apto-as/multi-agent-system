@@ -28,7 +28,7 @@ from src.core.exceptions import (
     log_and_raise,
 )
 from src.models.memory import AccessLevel, Memory
-from src.services.unified_embedding_service import get_unified_embedding_service
+from src.services.ollama_embedding_service import get_ollama_embedding_service
 from src.services.vector_search_service import get_vector_search_service
 
 logger = logging.getLogger(__name__)
@@ -52,7 +52,7 @@ class HybridMemoryService:
 
     def __init__(self, session: AsyncSession):
         self.session = session
-        self.embedding_service = get_unified_embedding_service()
+        self.embedding_service = get_ollama_embedding_service()
         self.vector_service = get_vector_search_service()
 
         # Get model info for metadata tracking

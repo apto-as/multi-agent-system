@@ -31,7 +31,7 @@ from src.core.exceptions import (
 )
 from src.integration.genai_toolbox_bridge import register_genai_integration
 from src.services.memory_service import HybridMemoryService
-from src.services.unified_embedding_service import get_unified_embedding_service
+from src.services.ollama_embedding_service import get_ollama_embedding_service
 from src.services.vector_search_service import get_vector_search_service
 
 logger = logging.getLogger(__name__)
@@ -59,7 +59,7 @@ class HybridMCPServer:
 
         # Services (initialized in initialize())
         self.memory_service = None
-        self.embedding_service = get_unified_embedding_service()
+        self.embedding_service = get_ollama_embedding_service()
         self.vector_service = get_vector_search_service()
 
         # Performance metrics

@@ -265,6 +265,6 @@ class TestErrorHandling:
             "_encode_single_ollama",
             side_effect=mock_encode_single,
         ):
-            # Should raise RuntimeError with clear message
-            with pytest.raises(RuntimeError, match="500"):
+            # Should raise OllamaConnectionError with clear message
+            with pytest.raises(OllamaConnectionError, match="Failed to encode text"):
                 await ollama_service_with_server.encode_document("test")
