@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 """
-Unit tests for OllamaEmbeddingService.
+Unit tests for OllamaEmbeddingService (Ollama-only, no fallback).
 
 Tests cover:
-- Ollama server detection
+- Ollama server detection (with clear error messages when unavailable)
 - Embedding generation (document/query)
-- Fallback mechanism
-- Error handling
+- Error handling (explicit failures, no silent fallback)
 - Model dimension detection
 """
 
@@ -15,7 +14,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import numpy as np
 import pytest
 
-from src.services.ollama_embedding_service import OllamaEmbeddingService
+from src.services.ollama_embedding_service import (
+    OllamaConnectionError,
+    OllamaEmbeddingService,
+    OllamaModelNotFoundError,
+)
 
 
 @pytest.fixture
@@ -39,19 +42,6 @@ def ollama_service_with_server():
         return service
 
 
-@pytest.fixture
-def ollama_service_without_server():
-    """OllamaEmbeddingService with mocked server detection (unavailable)."""
-    with patch.object(
-        OllamaEmbeddingService,
-        "_detect_ollama_server",
-        return_value=False,
-    ):
-        service = OllamaEmbeddingService(auto_detect=False, fallback_enabled=True)
-        service._is_ollama_available = False
-        return service
-
-
 class TestOllamaServerDetection:
     """Test Ollama server detection and initialization."""
 
@@ -72,20 +62,20 @@ class TestOllamaServerDetection:
         assert service._is_ollama_available is True
 
     @patch("httpx.Client")
-    def test_detect_ollama_unavailable(self, mock_client):
-        """Test Ollama server unavailable detection."""
+    def test_detect_ollama_unavailable_raises_error(self, mock_client):
+        """Test Ollama server unavailable raises clear error."""
         # Mock connection error
         mock_client.return_value.__enter__.return_value.get.side_effect = Exception(
             "Connection refused"
         )
 
-        service = OllamaEmbeddingService(auto_detect=True)
-
-        assert service._is_ollama_available is False
+        # Should raise OllamaConnectionError with clear message
+        with pytest.raises(OllamaConnectionError, match="not reachable"):
+            OllamaEmbeddingService(auto_detect=True)
 
     @patch("httpx.Client")
-    def test_detect_ollama_model_not_available(self, mock_client):
-        """Test Ollama server available but model not pulled."""
+    def test_detect_ollama_model_not_available_raises_error(self, mock_client):
+        """Test Ollama server available but model not pulled raises error."""
         # Mock response with different model
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -93,9 +83,9 @@ class TestOllamaServerDetection:
 
         mock_client.return_value.__enter__.return_value.get.return_value = mock_response
 
-        service = OllamaEmbeddingService(auto_detect=True)
-
-        assert service._is_ollama_available is False
+        # Should raise OllamaModelNotFoundError
+        with pytest.raises(OllamaModelNotFoundError, match="not found"):
+            OllamaEmbeddingService(auto_detect=True)
 
 
 class TestEmbeddingGeneration:
@@ -171,70 +161,6 @@ class TestEmbeddingGeneration:
             assert np.isclose(norm, 1.0, atol=1e-5)
 
 
-class TestFallbackMechanism:
-    """Test fallback to sentence-transformers."""
-
-    @pytest.mark.asyncio
-    async def test_fallback_on_ollama_error(self, ollama_service_with_server):
-        """Test fallback when Ollama API fails."""
-        test_text = "Fallback test"
-        fallback_embedding = np.random.rand(768).astype(np.float32)  # ST is 768-dim
-
-        # Mock Ollama error
-        with patch.object(
-            ollama_service_with_server,
-            "_encode_ollama",
-            side_effect=Exception("Ollama API error"),
-        ):
-            # Mock fallback service
-            mock_fallback = AsyncMock()
-            mock_fallback.encode_document.return_value = fallback_embedding
-
-            with patch.object(
-                ollama_service_with_server,
-                "_get_fallback_service",
-                return_value=mock_fallback,
-            ):
-                result = await ollama_service_with_server.encode_document(test_text)
-
-                assert isinstance(result, np.ndarray)
-                # Fallback was called
-                mock_fallback.encode_document.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_use_fallback_when_ollama_unavailable(self, ollama_service_without_server):
-        """Test using fallback when Ollama server is unavailable."""
-        test_text = "No Ollama server"
-        fallback_embedding = np.random.rand(768).astype(np.float32)
-
-        # Mock fallback service
-        mock_fallback = AsyncMock()
-        mock_fallback.encode_document.return_value = fallback_embedding
-
-        with patch.object(
-            ollama_service_without_server,
-            "_get_fallback_service",
-            return_value=mock_fallback,
-        ):
-            result = await ollama_service_without_server.encode_document(test_text)
-
-            assert isinstance(result, np.ndarray)
-            # Fallback was used
-            mock_fallback.encode_document.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_raise_error_when_fallback_disabled(self):
-        """Test error when Ollama unavailable and fallback disabled."""
-        service = OllamaEmbeddingService(
-            auto_detect=False,
-            fallback_enabled=False,
-        )
-        service._is_ollama_available = False
-
-        with pytest.raises(RuntimeError, match="Ollama server unavailable"):
-            await service.encode_document("test")
-
-
 class TestDimensionDetection:
     """Test embedding dimension detection."""
 
@@ -274,21 +200,15 @@ class TestDimensionDetection:
 class TestModelInfo:
     """Test model information retrieval."""
 
-    def test_get_model_info_ollama_active(self, ollama_service_with_server):
-        """Test model info when Ollama is active."""
+    def test_get_model_info(self, ollama_service_with_server):
+        """Test model info (Ollama-only, no fallback)."""
         info = ollama_service_with_server.get_model_info()
 
         assert info["provider"] == "ollama"
         assert info["model_name"] == "zylonai/multilingual-e5-large"
         assert info["ollama_available"] is True
-        assert info["fallback_enabled"] is True
-
-    def test_get_model_info_fallback(self, ollama_service_without_server):
-        """Test model info when using fallback."""
-        info = ollama_service_without_server.get_model_info()
-
-        assert info["provider"] == "sentence-transformers"
-        assert info["ollama_available"] is False
+        # No fallback_enabled field anymore
+        assert "fallback_enabled" not in info
 
 
 class TestBatchProcessing:
@@ -319,43 +239,25 @@ class TestBatchProcessing:
 
 
 class TestErrorHandling:
-    """Test error handling scenarios."""
+    """Test error handling scenarios (Ollama-only, no fallback)."""
 
     @pytest.mark.asyncio
-    async def test_timeout_handling(self, ollama_service_with_server):
-        """Test handling of API timeout."""
-        import asyncio
-
+    async def test_ollama_error_raises_clear_exception(self, ollama_service_with_server):
+        """Test that Ollama errors raise clear exceptions (no silent fallback)."""
         with patch.object(
             ollama_service_with_server,
             "_encode_ollama",
-            side_effect=asyncio.TimeoutError("Request timeout"),
+            side_effect=RuntimeError("Ollama API error"),
         ):
-            # Mock fallback
-            mock_fallback = AsyncMock()
-            mock_fallback.encode_document.return_value = np.random.rand(768)
-
-            with patch.object(
-                ollama_service_with_server,
-                "_get_fallback_service",
-                return_value=mock_fallback,
-            ):
-                result = await ollama_service_with_server.encode_document("test")
-
-                # Should fallback successfully
-                assert result is not None
+            # Should raise RuntimeError, NOT fallback silently
+            with pytest.raises(RuntimeError, match="Ollama API error"):
+                await ollama_service_with_server.encode_document("test")
 
     @pytest.mark.asyncio
     async def test_api_error_response(self, ollama_service_with_server):
         """Test handling of Ollama API error response."""
 
         async def mock_encode_single(client, text):
-            mock_response = MagicMock()
-            mock_response.status_code = 500
-            mock_response.text = "Internal Server Error"
-
-            type("Response", (), {"status_code": 500, "text": "Internal Server Error"})()
-
             raise RuntimeError("Ollama API error: 500 - Internal Server Error")
 
         with patch.object(
@@ -363,16 +265,6 @@ class TestErrorHandling:
             "_encode_single_ollama",
             side_effect=mock_encode_single,
         ):
-            # Mock fallback
-            mock_fallback = AsyncMock()
-            mock_fallback.encode_document.return_value = np.random.rand(768)
-
-            with patch.object(
-                ollama_service_with_server,
-                "_get_fallback_service",
-                return_value=mock_fallback,
-            ):
-                result = await ollama_service_with_server.encode_document("test")
-
-                # Should fallback on API error
-                assert result is not None
+            # Should raise RuntimeError with clear message
+            with pytest.raises(RuntimeError, match="500"):
+                await ollama_service_with_server.encode_document("test")
