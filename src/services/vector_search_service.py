@@ -482,27 +482,41 @@ class VectorSearchService:
 
         return sanitized
 
-    def _build_where_clause(self, filters: dict[str, Any]) -> dict[str, Any]:
+    def _build_where_clause(self, filters: dict[str, Any]) -> dict[str, Any] | None:
         """
         Build ChromaDB where clause from filters.
 
         Args:
-            filters: Filter dict (e.g., {"agent_id": "athena"})
+            filters: Filter dict (e.g., {"agent_id": "athena", "namespace": "default"})
 
         Returns:
-            ChromaDB where clause
-        """
-        where = {}
+            ChromaDB where clause (None if no filters)
 
+        Note:
+            ChromaDB requires multiple conditions to be wrapped in $and operator.
+            Example: {"$and": [{"namespace": "default"}, {"agent_id": "athena"}]}
+        """
+        if not filters:
+            return None
+
+        conditions = []
         for key, value in filters.items():
             if isinstance(value, list):
                 # List filters: use $in operator
-                where[key] = {"$in": value}
+                conditions.append({key: {"$in": value}})
+            elif isinstance(value, dict):
+                # Already an operator dict (e.g., {"tags": {"$in": ["tag1"]}})
+                conditions.append({key: value})
             else:
                 # Exact match
-                where[key] = value
+                conditions.append({key: value})
 
-        return where
+        # Single condition: return as-is
+        if len(conditions) == 1:
+            return conditions[0]
+
+        # Multiple conditions: wrap in $and
+        return {"$and": conditions}
 
 
 # Singleton instance
