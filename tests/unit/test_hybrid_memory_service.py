@@ -74,7 +74,7 @@ def hybrid_service(mock_session, mock_embedding_service, mock_vector_service):
     """Create HybridMemoryService with mocked dependencies."""
     with (
         patch(
-            "src.services.memory_service.get_unified_embedding_service",
+            "src.services.memory_service.get_ollama_embedding_service",
             return_value=mock_embedding_service,
         ),
         patch(
@@ -317,7 +317,7 @@ async def test_chroma_unavailable_raises_error(mock_session, mock_embedding_serv
     # Arrange
     with (
         patch(
-            "src.services.memory_service.get_unified_embedding_service",
+            "src.services.memory_service.get_ollama_embedding_service",
             return_value=mock_embedding_service,
         ),
         patch("src.services.memory_service.get_vector_search_service") as mock_get_vector,
