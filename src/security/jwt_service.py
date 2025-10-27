@@ -14,7 +14,6 @@ from passlib.context import CryptContext
 
 from ..core.config import get_settings
 from ..models.user import RefreshToken, User
-from ..utils.security import hash_password_with_salt, verify_password_with_salt
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
