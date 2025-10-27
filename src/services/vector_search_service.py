@@ -1,8 +1,12 @@
 """
 Vector Search Service using ChromaDB for TMWS v2.2.6
 Provides high-speed semantic search with 5-20ms P95 latency.
+
+IMPORTANT: All methods are async to prevent blocking the event loop.
+ChromaDB operations are wrapped in asyncio.to_thread() for non-blocking execution.
 """
 
+import asyncio
 import logging
 from pathlib import Path
 from typing import Any
@@ -35,17 +39,17 @@ class VectorSearchService:
 
     Usage:
         service = VectorSearchService()
-        service.initialize()
+        await service.initialize()
 
         # Add memory
-        service.add_memory(
+        await service.add_memory(
             memory_id="mem_123",
             embedding=[0.1, 0.2, ...],  # 1024-dim
             metadata={"agent_id": "athena", "namespace": "default"}
         )
 
         # Search
-        results = service.search(
+        results = await service.search(
             query_embedding=[0.1, 0.2, ...],
             top_k=10,
             filters={"agent_id": "athena"}
@@ -86,18 +90,22 @@ class VectorSearchService:
         self._collection = None
         logger.info(f"🚀 VectorSearchService initialized (persist: {persist_directory})")
 
-    def initialize(self) -> None:
+    async def initialize(self) -> None:
         """
-        Initialize or get collection with HNSW index.
+        Initialize or get collection with HNSW index (async).
 
         HNSW Parameters:
         - space: cosine (for normalized embeddings)
         - M: 16 (number of bi-directional links per node)
         - ef_construction: 200 (search breadth during construction)
         - ef_search: 100 (search breadth during query)
+
+        Note: ChromaDB operations run in thread pool to avoid blocking event loop.
         """
         try:
-            self._collection = self._client.get_or_create_collection(
+            # Run sync ChromaDB operation in thread pool
+            self._collection = await asyncio.to_thread(
+                self._client.get_or_create_collection,
                 name=self.COLLECTION_NAME,
                 metadata={
                     "description": "TMWS v2.2.6 semantic memory search (1024-dim)",
@@ -107,7 +115,7 @@ class VectorSearchService:
                     "hnsw:search_ef": 100,
                 },
             )
-            count = self._collection.count()
+            count = await asyncio.to_thread(self._collection.count)
             logger.info(f"✅ Collection '{self.COLLECTION_NAME}' ready ({count} memories)")
 
         except (KeyboardInterrupt, SystemExit):
@@ -125,7 +133,7 @@ class VectorSearchService:
                 },
             )
 
-    def add_memory(
+    async def add_memory(
         self,
         memory_id: str | UUID,
         embedding: list[float],
@@ -133,7 +141,7 @@ class VectorSearchService:
         content: str | None = None,
     ) -> None:
         """
-        Add single memory to vector store.
+        Add single memory to vector store (async).
 
         Args:
             memory_id: Unique memory identifier (UUID string)
@@ -142,7 +150,7 @@ class VectorSearchService:
             content: Optional content text (for debugging)
 
         Example:
-            >>> service.add_memory(
+            >>> await service.add_memory(
             ...     memory_id="mem_123",
             ...     embedding=doc_embedding.tolist(),
             ...     metadata={
@@ -152,6 +160,8 @@ class VectorSearchService:
             ...         "tags": ["architecture", "design"]
             ...     }
             ... )
+
+        Note: ChromaDB operation runs in thread pool to avoid blocking event loop.
         """
         if self._collection is None:
             raise RuntimeError("Collection not initialized. Call initialize() first.")
@@ -163,7 +173,9 @@ class VectorSearchService:
         sanitized_metadata = self._sanitize_metadata(metadata)
 
         try:
-            self._collection.add(
+            # Run sync ChromaDB operation in thread pool
+            await asyncio.to_thread(
+                self._collection.add,
                 ids=[memory_id_str],
                 embeddings=[embedding],
                 metadatas=[sanitized_metadata],
@@ -183,7 +195,7 @@ class VectorSearchService:
                 details={"memory_id": memory_id_str, "operation": "add"},
             )
 
-    def add_memories_batch(
+    async def add_memories_batch(
         self,
         memory_ids: list[str | UUID],
         embeddings: list[list[float]],
@@ -191,7 +203,7 @@ class VectorSearchService:
         contents: list[str] | None = None,
     ) -> None:
         """
-        Add multiple memories in batch (more efficient).
+        Add multiple memories in batch (async, more efficient).
 
         Args:
             memory_ids: List of memory IDs
@@ -200,7 +212,7 @@ class VectorSearchService:
             contents: Optional list of content texts
 
         Example:
-            >>> service.add_memories_batch(
+            >>> await service.add_memories_batch(
             ...     memory_ids=["mem_1", "mem_2"],
             ...     embeddings=[emb1.tolist(), emb2.tolist()],
             ...     metadatas=[
@@ -208,6 +220,8 @@ class VectorSearchService:
             ...         {"agent_id": "artemis", "namespace": "default"}
             ...     ]
             ... )
+
+        Note: ChromaDB operation runs in thread pool to avoid blocking event loop.
         """
         if self._collection is None:
             raise RuntimeError("Collection not initialized. Call initialize() first.")
@@ -219,8 +233,13 @@ class VectorSearchService:
         sanitized = [self._sanitize_metadata(m) for m in metadatas]
 
         try:
-            self._collection.add(
-                ids=ids, embeddings=embeddings, metadatas=sanitized, documents=contents
+            # Run sync ChromaDB operation in thread pool
+            await asyncio.to_thread(
+                self._collection.add,
+                ids=ids,
+                embeddings=embeddings,
+                metadatas=sanitized,
+                documents=contents,
             )
             logger.info(f"✅ Added {len(ids)} memories to vector store (batch)")
 
@@ -236,7 +255,7 @@ class VectorSearchService:
                 details={"memory_count": len(ids), "operation": "add_batch"},
             )
 
-    def search(
+    async def search(
         self,
         query_embedding: list[float],
         top_k: int = 10,
@@ -244,7 +263,7 @@ class VectorSearchService:
         min_similarity: float = 0.0,
     ) -> list[dict[str, Any]]:
         """
-        Search for similar memories.
+        Search for similar memories (async).
 
         Args:
             query_embedding: 1024-dim query embedding
@@ -256,7 +275,7 @@ class VectorSearchService:
             List of results with id, similarity, and metadata
 
         Example:
-            >>> results = service.search(
+            >>> results = await service.search(
             ...     query_embedding=query_emb.tolist(),
             ...     top_k=5,
             ...     filters={"agent_id": "athena", "namespace": "default"},
@@ -264,6 +283,8 @@ class VectorSearchService:
             ... )
             >>> for result in results:
             ...     print(f"{result['id']}: {result['similarity']:.4f}")
+
+        Note: ChromaDB operation runs in thread pool to avoid blocking event loop.
         """
         if self._collection is None:
             raise RuntimeError("Collection not initialized. Call initialize() first.")
@@ -272,7 +293,9 @@ class VectorSearchService:
         where = self._build_where_clause(filters) if filters else None
 
         try:
-            results = self._collection.query(
+            # Run sync ChromaDB operation in thread pool
+            results = await asyncio.to_thread(
+                self._collection.query,
                 query_embeddings=[query_embedding],
                 n_results=top_k,
                 where=where,
@@ -320,12 +343,14 @@ class VectorSearchService:
                 },
             )
 
-    def delete_memory(self, memory_id: str | UUID) -> None:
+    async def delete_memory(self, memory_id: str | UUID) -> None:
         """
-        Delete memory from vector store.
+        Delete memory from vector store (async).
 
         Args:
             memory_id: Memory ID to delete
+
+        Note: ChromaDB operation runs in thread pool to avoid blocking event loop.
         """
         if self._collection is None:
             raise RuntimeError("Collection not initialized. Call initialize() first.")
@@ -333,7 +358,8 @@ class VectorSearchService:
         memory_id_str = str(memory_id)
 
         try:
-            self._collection.delete(ids=[memory_id_str])
+            # Run sync ChromaDB operation in thread pool
+            await asyncio.to_thread(self._collection.delete, ids=[memory_id_str])
             logger.debug(f"🗑️ Deleted memory {memory_id_str} from vector store")
 
         except (KeyboardInterrupt, SystemExit):
@@ -348,12 +374,14 @@ class VectorSearchService:
                 details={"memory_id": memory_id_str, "operation": "delete"},
             )
 
-    def delete_memories_batch(self, memory_ids: list[str | UUID]) -> None:
+    async def delete_memories_batch(self, memory_ids: list[str | UUID]) -> None:
         """
-        Delete multiple memories in batch.
+        Delete multiple memories in batch (async).
 
         Args:
             memory_ids: List of memory IDs to delete
+
+        Note: ChromaDB operation runs in thread pool to avoid blocking event loop.
         """
         if self._collection is None:
             raise RuntimeError("Collection not initialized. Call initialize() first.")
@@ -361,7 +389,8 @@ class VectorSearchService:
         ids = [str(mid) for mid in memory_ids]
 
         try:
-            self._collection.delete(ids=ids)
+            # Run sync ChromaDB operation in thread pool
+            await asyncio.to_thread(self._collection.delete, ids=ids)
             logger.info(f"🗑️ Deleted {len(ids)} memories from vector store (batch)")
 
         except (KeyboardInterrupt, SystemExit):
@@ -376,17 +405,20 @@ class VectorSearchService:
                 details={"memory_count": len(ids), "operation": "delete_batch"},
             )
 
-    def get_collection_stats(self) -> dict[str, Any]:
+    async def get_collection_stats(self) -> dict[str, Any]:
         """
-        Get collection statistics.
+        Get collection statistics (async).
 
         Returns:
             Dictionary with stats (count, capacity_usage, etc.)
+
+        Note: ChromaDB operation runs in thread pool to avoid blocking event loop.
         """
         if self._collection is None:
             raise RuntimeError("Collection not initialized. Call initialize() first.")
 
-        count = self._collection.count()
+        # Run sync ChromaDB operation in thread pool
+        count = await asyncio.to_thread(self._collection.count)
         capacity_usage = count / self.HOT_CACHE_SIZE
 
         return {
@@ -398,16 +430,19 @@ class VectorSearchService:
             "persist_directory": str(self.persist_directory),
         }
 
-    def clear_collection(self) -> None:
+    async def clear_collection(self) -> None:
         """
-        Clear all memories from collection (dangerous!).
+        Clear all memories from collection (async, dangerous!).
+
+        Note: ChromaDB operations run in thread pool to avoid blocking event loop.
         """
         if self._collection is None:
             raise RuntimeError("Collection not initialized. Call initialize() first.")
 
         logger.warning(f"⚠️ Clearing all memories from collection '{self.COLLECTION_NAME}'")
-        self._client.delete_collection(name=self.COLLECTION_NAME)
-        self.initialize()  # Recreate empty collection
+        # Run sync ChromaDB operation in thread pool
+        await asyncio.to_thread(self._client.delete_collection, name=self.COLLECTION_NAME)
+        await self.initialize()  # Recreate empty collection
 
     def _sanitize_metadata(self, metadata: dict[str, Any]) -> dict[str, Any]:
         """
@@ -476,20 +511,21 @@ _vector_search_service_instance = None
 
 def get_vector_search_service() -> VectorSearchService:
     """
-    Get singleton instance of VectorSearchService.
+    Get singleton instance of VectorSearchService (sync factory).
 
     Returns:
-        Singleton instance
+        Singleton instance (not yet initialized)
 
     Example:
         >>> from src.services.vector_search_service import get_vector_search_service
         >>> service = get_vector_search_service()
-        >>> service.initialize()
+        >>> await service.initialize()  # Must initialize after getting instance
+
+    Note: You MUST call await service.initialize() after getting the instance.
     """
     global _vector_search_service_instance
 
     if _vector_search_service_instance is None:
         _vector_search_service_instance = VectorSearchService()
-        _vector_search_service_instance.initialize()
 
     return _vector_search_service_instance
