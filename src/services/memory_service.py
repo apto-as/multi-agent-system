@@ -350,7 +350,8 @@ class HybridMemoryService:
                     return restored
                 return uuid_str
 
-            memory_ids = [UUID(restore_uuid_hyphens(r["id"])) for r in chroma_results]
+            # Memory.id is String(36), so we need string UUIDs, not UUID objects
+            memory_ids = [restore_uuid_hyphens(r["id"]) for r in chroma_results]
             logger.debug(f"🔍 Querying {len(memory_ids)} memory IDs from SQLite")
             memories = await self._fetch_memories_by_ids(
                 memory_ids,
@@ -416,7 +417,7 @@ class HybridMemoryService:
 
     async def _fetch_memories_by_ids(
         self,
-        memory_ids: list[UUID],
+        memory_ids: list[str],  # Memory.id is String(36), not UUID
         agent_id: str | None,
         min_importance: float,
     ) -> list[Memory]:
@@ -428,11 +429,13 @@ class HybridMemoryService:
 
         # Apply filters
         if agent_id:
+            # TEMPORARY FIX: SQLite doesn't support .contains() on JSON columns like PostgreSQL
+            # For now, only check agent_id and access_level
             query = query.where(
                 or_(
                     Memory.agent_id == agent_id,
                     Memory.access_level == AccessLevel.PUBLIC,
-                    Memory.shared_with_agents.contains([agent_id]),
+                    # Memory.shared_with_agents.contains([agent_id]),  # TODO: Fix for SQLite
                 )
             )
 
@@ -595,7 +598,7 @@ class HybridMemoryService:
 
         return {
             "total_memories": sqlite_count,
-            "chroma_vector_count": chroma_stats.get("count", 0),
+            "chroma_vector_count": chroma_stats.get("memory_count", 0),
             "chroma_available": self.vector_service is not None,
             "embedding_model": self.embedding_model_name,
             "embedding_dimension": self.embedding_dimension,
