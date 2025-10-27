@@ -149,8 +149,8 @@ class HybridMCPServer:
     async def initialize(self):
         """Initialize MCP server with database session and services."""
         try:
-            # Initialize Chroma vector service
-            self.vector_service.initialize()
+            # Initialize Chroma vector service (async)
+            await self.vector_service.initialize()
             logger.info("Chroma vector service initialized")
 
             # Start GenAI Toolbox sidecar services

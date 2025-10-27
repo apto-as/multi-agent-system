@@ -60,9 +60,19 @@ class HybridMemoryService:
         self.embedding_model_name = model_info.get("model_name", "zylonai/multilingual-e5-large")
         self.embedding_dimension = model_info.get("dimension", 1024)
 
+        # Note: Chroma initialization is deferred to first async method call
+        # This is required because __init__ cannot be async
+        self._initialized = False
+
+    async def _ensure_initialized(self) -> None:
+        """Ensure vector service is initialized (called from async methods)."""
+        if self._initialized:
+            return
+
         # Chroma is REQUIRED for vector storage (SQLite stores metadata only)
         try:
-            self.vector_service.initialize()
+            await self.vector_service.initialize()
+            self._initialized = True
             logger.info("HybridMemoryService initialized: SQLite (metadata) + Chroma (vectors)")
         except (KeyboardInterrupt, SystemExit):
             # Never suppress user interrupts
@@ -170,6 +180,8 @@ class HybridMemoryService:
 
     async def _sync_to_chroma(self, memory: Memory, embedding: list[float]) -> None:
         """Sync memory to Chroma vector store."""
+        await self._ensure_initialized()
+
         if not self.vector_service:
             return
 
@@ -184,7 +196,7 @@ class HybridMemoryService:
             else memory.created_at,
         }
 
-        self.vector_service.add_memory(
+        await self.vector_service.add_memory(
             memory_id=str(memory.id),
             embedding=embedding,
             metadata=metadata,
@@ -222,7 +234,8 @@ class HybridMemoryService:
 
             # Re-sync to Chroma (REQUIRED)
             try:
-                self.vector_service.delete_memory(str(memory_id))
+                await self._ensure_initialized()
+                await self.vector_service.delete_memory(str(memory_id))
                 await self._sync_to_chroma(memory, embedding_vector.tolist())
             except (KeyboardInterrupt, SystemExit):
                 # Never suppress user interrupts
@@ -264,7 +277,8 @@ class HybridMemoryService:
         # Delete from Chroma first (best-effort)
         if self.vector_service:
             try:
-                self.vector_service.delete_memory(str(memory_id))
+                await self._ensure_initialized()
+                await self.vector_service.delete_memory(str(memory_id))
             except (KeyboardInterrupt, SystemExit):
                 # Never suppress user interrupts
                 raise
@@ -380,6 +394,8 @@ class HybridMemoryService:
         limit: int,
     ) -> list[dict[str, Any]]:
         """Search Chroma with metadata filtering."""
+        await self._ensure_initialized()
+
         if not self.vector_service:
             return []
 
@@ -391,7 +407,7 @@ class HybridMemoryService:
         if tags:
             filters["tags"] = {"$in": tags}
 
-        return self.vector_service.search(
+        return await self.vector_service.search(
             query_embedding=query_embedding,
             top_k=limit,
             filters=filters,
@@ -486,7 +502,8 @@ class HybridMemoryService:
                 ]
                 documents = [m.content for m in memories]
 
-                self.vector_service.add_memories_batch(
+                await self._ensure_initialized()
+                await self.vector_service.add_memories_batch(
                     memory_ids=memory_ids,
                     embeddings=embeddings,
                     metadatas=metadatas,
@@ -564,7 +581,8 @@ class HybridMemoryService:
         chroma_stats = {}
         if self.vector_service:
             try:
-                chroma_stats = self.vector_service.get_collection_stats()
+                await self._ensure_initialized()
+                chroma_stats = await self.vector_service.get_collection_stats()
             except (KeyboardInterrupt, SystemExit):
                 # Never suppress user interrupts
                 raise
@@ -619,7 +637,8 @@ class HybridMemoryService:
         # Delete from Chroma (best-effort)
         if self.vector_service:
             try:
-                self.vector_service.delete_memories_batch([str(mid) for mid in memory_ids])
+                await self._ensure_initialized()
+                await self.vector_service.delete_memories_batch([str(mid) for mid in memory_ids])
             except (KeyboardInterrupt, SystemExit):
                 # Never suppress user interrupts
                 raise
