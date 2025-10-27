@@ -97,8 +97,13 @@ pip install -e ".[dev]"
 
 **注意**: 初回インストール時、以下のパッケージがダウンロードされます:
 - FastAPI, SQLAlchemy, Alembic（Web/DB関連）
-- pgvector, sentence-transformers（ベクトル検索）
+- ChromaDB（ベクトルストレージ）
 - pytest, ruff, mypy（開発ツール）
+
+**重要**: Ollamaは別途インストールが必要です（v2.3.0+で必須）:
+1. https://ollama.ai/download からダウンロード
+2. `ollama pull zylonai/multilingual-e5-large` でモデル取得
+3. `ollama serve` でサーバー起動
 
 進捗が表示されるので、そのままお待ちください。
 

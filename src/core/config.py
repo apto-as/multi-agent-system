@@ -156,13 +156,11 @@ class Settings(BaseSettings):
     chroma_collection: str = Field(default="tmws_memories")
     chroma_cache_size: int = Field(default=10000, ge=100, le=100000)
 
-    # ==== OLLAMA EMBEDDING CONFIGURATION (v2.2.5) ====
-    # Provider selection: "auto" (Ollama → fallback), "ollama" (Ollama only), "sentence-transformers" (ST only)
-    embedding_provider: str = Field(
-        default="auto",
-        description="Embedding provider: auto (Ollama→fallback), ollama, or sentence-transformers",
-        pattern="^(auto|ollama|sentence-transformers)$",
-    )
+    # ==== OLLAMA EMBEDDING CONFIGURATION (v2.3.0 - Ollama Required) ====
+    # ⚠️ CRITICAL: Ollama is REQUIRED - no fallback mechanisms
+    # This ensures consistent embedding dimensions and prevents silent failures
+    # Install: https://ollama.ai/download
+    # Setup: ollama pull zylonai/multilingual-e5-large && ollama serve
 
     # Ollama server configuration
     ollama_base_url: str = Field(
@@ -178,12 +176,6 @@ class Settings(BaseSettings):
     # Ollama request timeout
     ollama_timeout: float = Field(
         default=30.0, ge=5.0, le=300.0, description="Ollama API request timeout in seconds"
-    )
-
-    # Fallback configuration
-    embedding_fallback_enabled: bool = Field(
-        default=True,
-        description="Enable automatic fallback to sentence-transformers if Ollama unavailable",
     )
 
     # ==== LOGGING & MONITORING ====
@@ -658,9 +650,10 @@ TMWS_EMBEDDING_MODEL=zylonai/multilingual-e5-large
 TMWS_VECTOR_DIMENSION=1024
 TMWS_MAX_EMBEDDING_BATCH_SIZE=32
 
-# ==== OLLAMA EMBEDDING CONFIGURATION (v2.2.5) ====
-# Provider: auto (Ollama→fallback), ollama (Ollama only), sentence-transformers (ST only)
-TMWS_EMBEDDING_PROVIDER=auto
+# ==== OLLAMA EMBEDDING CONFIGURATION (v2.3.0 - Ollama Required) ====
+# ⚠️ CRITICAL: Ollama is REQUIRED - no fallback mechanisms
+# Install: https://ollama.ai/download
+# Setup: ollama pull zylonai/multilingual-e5-large && ollama serve
 
 # Ollama server URL (default: localhost)
 TMWS_OLLAMA_BASE_URL=http://localhost:11434
@@ -670,9 +663,6 @@ TMWS_OLLAMA_EMBEDDING_MODEL=zylonai/multilingual-e5-large
 
 # Ollama request timeout (seconds)
 TMWS_OLLAMA_TIMEOUT=30.0
-
-# Fallback to sentence-transformers if Ollama unavailable
-TMWS_EMBEDDING_FALLBACK_ENABLED=true
 
 # ==== OPTIONAL CONFIGURATION ====
 # Log file path (optional)

@@ -266,9 +266,9 @@ else
     echo "Installing dependencies with pip..."
     pip install --upgrade pip
     pip install -e .
-    pip install chromadb sentence-transformers  # Ensure Chroma + Multilingual-E5
+    pip install chromadb  # Ensure ChromaDB for vector storage
 fi
-print_success "Dependencies installed (including ChromaDB + Multilingual-E5)"
+print_success "Dependencies installed (including ChromaDB)"
 
 # Step 6: Environment Configuration
 print_header "Step 6: Environment Configuration (v2.3.0)"

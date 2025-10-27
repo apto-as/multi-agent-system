@@ -123,19 +123,19 @@ TMWS v2.3.0は3つのデータストアを統合した高性能アーキテク�
 
 #### 1. ChromaDB (Primary for Vector Search)
 
-- **Purpose**: Ultra-fast semantic search (0.47ms P95)
+- **Purpose**: Ultra-fast semantic search (5-20ms P95)
 - **Technology**: HNSW index (M=16, ef_construction=200)
 - **Capacity**: 10,000 hot memories in-memory
-- **Embedding**: Multilingual-E5 (768-dimensional)
+- **Embedding**: Multilingual-E5-Large (1024-dimensional via Ollama)
 
 ```python
-# Read-First Pattern: Chroma → PostgreSQL fallback
+# Semantic search with ChromaDB + Ollama embeddings
 results = await memory_service.search_memories(
     query="機械学習の最適化",
     min_similarity=0.7,
     limit=10
 )
-# → Searches Chroma first (0.47ms), falls back to PostgreSQL if needed
+# → ChromaDB vector search with Ollama-generated embeddings
 ```
 
 #### 2. Redis (Primary for Agent/Task Management)
@@ -419,27 +419,23 @@ TMWS_CHROMA_COLLECTION=tmws_memories
 TMWS_LOG_LEVEL=INFO  # DEBUG, INFO, WARNING, ERROR
 ```
 
-### Ollama Embedding Configuration (v2.2.5+)
+### Ollama Embedding Configuration (v2.3.0 - Required)
+
+⚠️ **CRITICAL**: Ollama is now REQUIRED for TMWS v2.3.0+
 
 ```bash
-# Embedding provider selection
-TMWS_EMBEDDING_PROVIDER=auto  # auto, ollama, sentence-transformers
-
-# Ollama server configuration
+# Ollama server configuration (REQUIRED)
 TMWS_OLLAMA_BASE_URL=http://localhost:11434
 TMWS_OLLAMA_EMBEDDING_MODEL=zylonai/multilingual-e5-large
 TMWS_OLLAMA_TIMEOUT=30.0
-
-# Fallback configuration
-TMWS_EMBEDDING_FALLBACK_ENABLED=true
 ```
 
-**Provider選択ガイド**:
-- `auto`: Ollamaが利用可能ならOllama、不可ならSentenceTransformers（推奨）
-- `ollama`: Ollama専用（フォールバックなし）
-- `sentence-transformers`: 従来のPyTorchベース埋め込み
+**インストール手順**:
+1. Ollamaをインストール: https://ollama.ai/download
+2. モデルをダウンロード: `ollama pull zylonai/multilingual-e5-large`
+3. サーバーを起動: `ollama serve`
 
-詳細は [OLLAMA_QUICKSTART.md](OLLAMA_QUICKSTART.md) を参照。
+**重要**: フォールバック機構は削除されました。Ollamaが利用できない場合は明確なエラーメッセージが表示されます。
 
 ### Performance Tuning
 
@@ -597,9 +593,9 @@ Licensed under the MIT License. See [LICENSE](LICENSE) for details.
 ## 🙏 Acknowledgments
 
 - **ChromaDB**: Ultra-fast vector database
-- **Multilingual-E5**: Sentence-transformers embedding model
+- **Ollama**: Local embedding generation (Multilingual-E5-Large 1024-dim)
+- **SQLite**: Lightweight metadata storage
 - **Redis**: In-memory data structure store
-- **PostgreSQL + pgvector**: Robust vector search foundation
 - **FastMCP**: Model Context Protocol framework
 - **Trinitas**: Multi-agent AI system
 - **Claude Code**: Claude Desktop integration

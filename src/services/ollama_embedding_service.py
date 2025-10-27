@@ -1,27 +1,30 @@
 #!/usr/bin/env python3
 """
-Ollama Embedding Service for TMWS v2.2.5 - Internal Implementation
+Ollama Embedding Service for TMWS v2.3.0 - Ollama-Only Architecture
 
-This module provides embedding generation using Ollama's local inference server,
-with automatic fallback to sentence-transformers for high availability.
+This module provides embedding generation using Ollama's local inference server.
 
-⚠️ INTERNAL USE ONLY
-This module is an internal implementation detail used by UnifiedEmbeddingService.
-For embedding operations, use:
-    from src.services import get_embedding_service
-
-This will automatically use the best available provider (Ollama → SentenceTransformers).
+⚠️ CRITICAL: Ollama is REQUIRED for TMWS operation
+- No fallback mechanisms (anti-pattern - hides configuration issues)
+- Clear error messages guide users to fix Ollama setup
+- Fail-fast approach ensures proper infrastructure
 
 Key Features:
-- Windows-compatible embedding generation via Ollama
-- Automatic fallback to sentence-transformers
-- Uses zylonai/multilingual-e5-large for multilingual support
+- Ollama-only embedding generation (no hidden dependencies)
+- Uses zylonai/multilingual-e5-large for multilingual support (1024-dim)
 - Cross-platform compatibility (Windows/Mac/Linux)
+- Clear error messages when Ollama is unavailable
 
 Architecture:
-- Primary: Ollama API (http://localhost:11434)
-- Fallback: SentenceTransformers (local PyTorch)
-- Model: zylonai/multilingual-e5-large (1024-dim expected)
+- Embedding Provider: Ollama API (http://localhost:11434)
+- Model: zylonai/multilingual-e5-large (1024-dim)
+- Storage: ChromaDB for vector search
+- Metadata: SQLite for relational data
+
+Setup Instructions:
+1. Install Ollama: https://ollama.ai/download
+2. Pull model: ollama pull zylonai/multilingual-e5-large
+3. Start server: ollama serve
 """
 
 import asyncio
@@ -30,17 +33,30 @@ import logging
 import httpx
 import numpy as np
 
+from ..core.exceptions import log_and_raise
+
 logger = logging.getLogger(__name__)
+
+
+class OllamaConnectionError(Exception):
+    """Raised when Ollama server is unavailable or unreachable."""
+
+    pass
+
+
+class OllamaModelNotFoundError(Exception):
+    """Raised when required model is not available in Ollama."""
+
+    pass
 
 
 class OllamaEmbeddingService:
     """
-    Ollama-based embedding service with automatic fallback.
+    Ollama-based embedding service (required dependency).
 
-    This service provides robust embedding generation with:
-    - Primary: Ollama server (Windows-friendly)
-    - Fallback: SentenceTransformers (existing implementation)
-    - Zero-downtime operation
+    This service requires Ollama to be installed and running.
+    There is no fallback - this ensures consistent embedding dimensions
+    and prevents silent failures.
 
     Usage:
         service = OllamaEmbeddingService()
@@ -54,6 +70,11 @@ class OllamaEmbeddingService:
         # Batch processing
         docs = ["doc1", "doc2", "doc3"]
         embeddings = await service.encode_document(docs)
+
+    Error Handling:
+        If Ollama is not available, clear error messages guide users:
+        - OllamaConnectionError: Server not reachable
+        - OllamaModelNotFoundError: Model not pulled
     """
 
     # Model configuration
@@ -68,7 +89,6 @@ class OllamaEmbeddingService:
         self,
         ollama_base_url: str | None = None,
         model_name: str | None = None,
-        fallback_enabled: bool = True,
         timeout: float = DEFAULT_TIMEOUT,
         auto_detect: bool = True,
     ):
@@ -78,18 +98,19 @@ class OllamaEmbeddingService:
         Args:
             ollama_base_url: Ollama server URL (default: http://localhost:11434)
             model_name: Model name (default: zylonai/multilingual-e5-large)
-            fallback_enabled: Enable automatic fallback to sentence-transformers
             timeout: Request timeout in seconds
             auto_detect: Automatically detect Ollama availability on init
+
+        Raises:
+            OllamaConnectionError: If auto_detect=True and Ollama is unreachable
+            OllamaModelNotFoundError: If auto_detect=True and model is not available
         """
         self.ollama_base_url = ollama_base_url or self.DEFAULT_OLLAMA_URL
         self.model_name = model_name or self.DEFAULT_MODEL
-        self.fallback_enabled = fallback_enabled
         self.timeout = timeout
 
         # State tracking
         self._is_ollama_available = False
-        self._fallback_service = None
         self._model_dimension = None
 
         # Auto-detect Ollama server
@@ -101,7 +122,11 @@ class OllamaEmbeddingService:
         Detect if Ollama server is available and responsive.
 
         Returns:
-            True if Ollama server is available, False otherwise
+            True if Ollama server is available
+
+        Raises:
+            OllamaConnectionError: If Ollama server is unreachable
+            OllamaModelNotFoundError: If required model is not available
         """
         try:
             with httpx.Client(timeout=5.0) as client:
@@ -122,52 +147,39 @@ class OllamaEmbeddingService:
                         self._is_ollama_available = True
                         return True
                     else:
-                        logger.warning(
-                            f"⚠️ Ollama server found but model '{self.model_name}' not available"
+                        # Model not found - provide clear instructions
+                        log_and_raise(
+                            OllamaModelNotFoundError,
+                            f"Ollama model '{self.model_name}' not found. "
+                            f"Please pull the model: ollama pull {self.model_name}",
+                            details={
+                                "ollama_url": self.ollama_base_url,
+                                "model_name": self.model_name,
+                                "available_models": [m.get("name") for m in models],
+                            },
                         )
-                        logger.info(f"Run: ollama pull {self.model_name}")
         except (KeyboardInterrupt, SystemExit):
             raise
+        except OllamaModelNotFoundError:
+            # Re-raise our custom exception
+            raise
         except Exception as e:
-            logger.warning(f"⚠️ Ollama server not reachable: {e}", exc_info=False)
+            # Connection error - provide clear instructions
+            log_and_raise(
+                OllamaConnectionError,
+                f"Ollama server is not reachable at {self.ollama_base_url}. "
+                f"Please ensure Ollama is installed and running:\n"
+                f"  1. Install: https://ollama.ai/download\n"
+                f"  2. Start server: ollama serve\n"
+                f"  3. Pull model: ollama pull {self.model_name}",
+                original_exception=e,
+                details={
+                    "ollama_url": self.ollama_base_url,
+                    "model_name": self.model_name,
+                },
+            )
 
-        self._is_ollama_available = False
-        return False
-
-    async def _get_fallback_service(self):
-        """
-        Lazy-load fallback embedding service.
-
-        ⚠️ DIMENSION SAFETY: Validates dimension compatibility with primary model.
-        Ollama (1024-dim) → SentenceTransformers (768-dim) is incompatible!
-
-        Returns:
-            Existing EmbeddingService instance
-
-        Raises:
-            RuntimeError: If fallback dimension doesn't match Ollama dimension
-        """
-        if self._fallback_service is None:
-            from .embedding_service import get_embedding_service
-
-            self._fallback_service = get_embedding_service()
-            fallback_dim = self._fallback_service.get_model_info()["dimension"]
-
-            # CRITICAL: Dimension validation
-            if fallback_dim != self.DEFAULT_DIMENSION:
-                logger.critical(
-                    f"🚨 DIMENSION MISMATCH: Ollama={self.DEFAULT_DIMENSION}d, "
-                    f"Fallback={fallback_dim}d - THIS WILL BREAK VECTOR SEARCH!"
-                )
-                raise RuntimeError(
-                    f"Embedding dimension mismatch: Primary model uses {self.DEFAULT_DIMENSION}d "
-                    f"but fallback provides {fallback_dim}d. Vector database operations will fail. "
-                    f"Ensure Ollama server is running: ollama serve"
-                )
-
-            logger.info(f"✅ Fallback service initialized (dimension: {fallback_dim})")
-
-        return self._fallback_service
+        return False  # Unreachable due to log_and_raise, but satisfies type checker
 
     async def encode_document(
         self,
@@ -187,35 +199,20 @@ class OllamaEmbeddingService:
 
         Returns:
             Embedding array (1D for single text, 2D for multiple)
+
+        Raises:
+            OllamaConnectionError: If Ollama server is unavailable
+            RuntimeError: If encoding fails
         """
-        if self._is_ollama_available:
-            try:
-                return await self._encode_ollama(
-                    text=text,
-                    prefix="passage: ",
-                    normalize=normalize,
-                    batch_size=batch_size,
-                )
-            except (KeyboardInterrupt, SystemExit):
-                raise
-            except Exception as e:
-                logger.error(f"❌ Ollama encoding failed: {e}", exc_info=True)
+        if not self._is_ollama_available:
+            # Re-check availability before failing
+            self._detect_ollama_server()
 
-                if self.fallback_enabled:
-                    logger.info("🔄 Falling back to SentenceTransformers")
-                    fallback = await self._get_fallback_service()
-                    return fallback.encode_document(text, normalize=normalize)
-
-                raise
-
-        # Ollama not available, use fallback
-        if self.fallback_enabled:
-            logger.debug("Using fallback service (Ollama not available)")
-            fallback = await self._get_fallback_service()
-            return fallback.encode_document(text, normalize=normalize)
-
-        raise RuntimeError(
-            f"Ollama server unavailable at {self.ollama_base_url} and fallback is disabled"
+        return await self._encode_ollama(
+            text=text,
+            prefix="passage: ",
+            normalize=normalize,
+            batch_size=batch_size,
         )
 
     async def encode_query(
@@ -236,35 +233,20 @@ class OllamaEmbeddingService:
 
         Returns:
             Embedding array (1D for single query, 2D for multiple)
+
+        Raises:
+            OllamaConnectionError: If Ollama server is unavailable
+            RuntimeError: If encoding fails
         """
-        if self._is_ollama_available:
-            try:
-                return await self._encode_ollama(
-                    text=text,
-                    prefix="query: ",
-                    normalize=normalize,
-                    batch_size=batch_size,
-                )
-            except (KeyboardInterrupt, SystemExit):
-                raise
-            except Exception as e:
-                logger.error(f"❌ Ollama encoding failed: {e}", exc_info=True)
+        if not self._is_ollama_available:
+            # Re-check availability before failing
+            self._detect_ollama_server()
 
-                if self.fallback_enabled:
-                    logger.info("🔄 Falling back to SentenceTransformers")
-                    fallback = await self._get_fallback_service()
-                    return fallback.encode_query(text, normalize=normalize)
-
-                raise
-
-        # Ollama not available, use fallback
-        if self.fallback_enabled:
-            logger.debug("Using fallback service (Ollama not available)")
-            fallback = await self._get_fallback_service()
-            return fallback.encode_query(text, normalize=normalize)
-
-        raise RuntimeError(
-            f"Ollama server unavailable at {self.ollama_base_url} and fallback is disabled"
+        return await self._encode_ollama(
+            text=text,
+            prefix="query: ",
+            normalize=normalize,
+            batch_size=batch_size,
         )
 
     async def _encode_ollama(
@@ -285,6 +267,9 @@ class OllamaEmbeddingService:
 
         Returns:
             Embedding array
+
+        Raises:
+            RuntimeError: If API call fails
         """
         # Normalize input
         single_input = isinstance(text, str)
@@ -292,17 +277,33 @@ class OllamaEmbeddingService:
 
         embeddings = []
 
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            # Process in batches
-            for i in range(0, len(texts), batch_size):
-                batch = texts[i : i + batch_size]
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                # Process in batches
+                for i in range(0, len(texts), batch_size):
+                    batch = texts[i : i + batch_size]
 
-                # Encode each text in batch
-                batch_embeddings = await asyncio.gather(
-                    *[self._encode_single_ollama(client, f"{prefix}{t}") for t in batch]
-                )
+                    # Encode each text in batch
+                    batch_embeddings = await asyncio.gather(
+                        *[self._encode_single_ollama(client, f"{prefix}{t}") for t in batch]
+                    )
 
-                embeddings.extend(batch_embeddings)
+                    embeddings.extend(batch_embeddings)
+
+        except (KeyboardInterrupt, SystemExit):
+            raise
+        except Exception as e:
+            log_and_raise(
+                RuntimeError,
+                f"Failed to encode text using Ollama. "
+                f"Please check that Ollama server is running at {self.ollama_base_url}",
+                original_exception=e,
+                details={
+                    "ollama_url": self.ollama_base_url,
+                    "model_name": self.model_name,
+                    "batch_size": len(texts),
+                },
+            )
 
         # Convert to numpy array
         embeddings_array = np.vstack(embeddings)
@@ -334,6 +335,9 @@ class OllamaEmbeddingService:
 
         Returns:
             1D embedding array
+
+        Raises:
+            RuntimeError: If API call fails
         """
         response = await client.post(
             f"{self.ollama_base_url}/api/embeddings",
@@ -356,11 +360,10 @@ class OllamaEmbeddingService:
             Dictionary with model metadata
         """
         return {
-            "provider": "ollama" if self._is_ollama_available else "sentence-transformers",
+            "provider": "ollama",
             "model_name": self.model_name,
             "dimension": self._model_dimension or self.DEFAULT_DIMENSION,
             "ollama_url": self.ollama_base_url,
-            "fallback_enabled": self.fallback_enabled,
             "ollama_available": self._is_ollama_available,
         }
 
@@ -372,6 +375,9 @@ class OllamaEmbeddingService:
 
         Returns:
             Embedding dimension size
+
+        Raises:
+            OllamaConnectionError: If Ollama is unavailable
         """
         if self._model_dimension is None:
             # Encode test text to detect dimension
@@ -381,7 +387,7 @@ class OllamaEmbeddingService:
         return self._model_dimension
 
 
-# Singleton accessor (optional, for backward compatibility)
+# Singleton accessor
 _ollama_service_instance = None
 
 
@@ -391,6 +397,10 @@ def get_ollama_embedding_service() -> OllamaEmbeddingService:
 
     Returns:
         Shared OllamaEmbeddingService instance
+
+    Raises:
+        OllamaConnectionError: If Ollama server is not available
+        OllamaModelNotFoundError: If required model is not pulled
     """
     global _ollama_service_instance
 

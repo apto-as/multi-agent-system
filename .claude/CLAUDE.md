@@ -160,6 +160,53 @@ except Exception:  # ❌ Too broad, may catch KeyboardInterrupt
 
 **Reference**: `docs/dev/EXCEPTION_HANDLING_GUIDELINES.md`
 
+### Failover and Redundancy
+
+**CRITICAL**: Avoid unnecessary failover mechanisms - they are a breeding ground for bugs
+
+**Philosophy**:
+- Explicit dependencies are better than hidden fallbacks
+- Fail fast and clearly rather than silently degrading
+- Error messages should guide users to fix the real problem
+- Required infrastructure should be documented, not worked around
+
+```python
+# WRONG - Silent failover hides problems
+try:
+    result = ollama_service.embed(text)
+except Exception:
+    result = fallback_service.embed(text)  # ❌ Hides Ollama failures
+
+# CORRECT - Explicit requirement with clear error
+try:
+    result = ollama_service.embed(text)
+except OllamaConnectionError as e:
+    log_and_raise(
+        EmbeddingServiceError,
+        "Ollama is required but unavailable. Please ensure Ollama is running.",
+        original_exception=e,
+        details={"ollama_url": settings.OLLAMA_BASE_URL}
+    )  # ✅ Clear error message guides user to solution
+```
+
+**When Failover IS Justified**:
+1. **Distributed systems**: Multiple equivalent servers for load balancing
+2. **Data replication**: Read replicas for high availability
+3. **Circuit breaker pattern**: Temporary failures with automatic recovery
+4. **Graceful degradation**: Non-critical features that enhance but aren't required
+
+**When Failover is HARMFUL**:
+1. **Development dependencies**: Don't hide missing required tools
+2. **Configuration errors**: Don't mask misconfiguration
+3. **Data format mismatches**: Don't silently use incompatible alternatives
+4. **Business logic**: Don't change behavior based on failures
+
+**Current Architecture**:
+- **Ollama is REQUIRED** for embedding generation (1024-dim Multilingual-E5-Large)
+- **No fallback to SentenceTransformers** - removed as of 2025-10-27
+- **Circuit breaker recommended** for Ollama connection failures (retry with exponential backoff)
+- **Clear error messages** guide users to install/configure Ollama properly
+
 ### Async Patterns
 
 **Rules**:
