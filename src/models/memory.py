@@ -157,10 +157,28 @@ class Memory(TMWSBase, MetadataMixin):
         """Update learning weight based on usage patterns."""
         self.learning_weight = max(0.1, min(10.0, self.learning_weight + delta))
 
-    def is_accessible_by(self, agent_id: str, agent_namespace: str = None) -> bool:
-        """Check if memory is accessible by given agent."""
+    def is_accessible_by(self, requesting_agent_id: str, requesting_agent_namespace: str) -> bool:
+        """
+        Check if memory is accessible by the given agent.
+
+        SECURITY-CRITICAL: This method implements namespace isolation for multi-tenant security.
+        The requesting agent's namespace MUST be verified by the caller against the database
+        before calling this method.
+
+        Args:
+            requesting_agent_id: ID of the agent requesting access
+            requesting_agent_namespace: Verified namespace of the requesting agent (MUST be verified against DB)
+
+        Returns:
+            bool: True if access is allowed, False otherwise
+
+        Security Notes:
+            - The namespace parameter MUST come from a verified Agent record in the database
+            - Never accept namespace from user input or JWT claims directly
+            - Always verify: SELECT namespace FROM agents WHERE agent_id = ?
+        """
         # Owner always has access
-        if agent_id == self.agent_id:
+        if requesting_agent_id == self.agent_id:
             return True
 
         # Check access level
@@ -169,10 +187,16 @@ class Memory(TMWSBase, MetadataMixin):
         elif self.access_level == AccessLevel.SYSTEM:
             return True  # System memories are accessible to all
         elif self.access_level == AccessLevel.SHARED:
-            return agent_id in self.shared_with_agents
+            # Must be explicitly shared with this agent
+            if requesting_agent_id not in self.shared_with_agents:
+                return False
+            # Additional check: verify namespace matches
+            # This prevents namespace spoofing attacks
+            return requesting_agent_namespace == self.namespace
         elif self.access_level == AccessLevel.TEAM:
-            # Check if in same namespace (team)
-            return agent_namespace == self.namespace
+            # SECURITY FIX: Verify namespace matches AND it's the memory's namespace
+            # This prevents cross-namespace access attacks
+            return requesting_agent_namespace == self.namespace
         else:  # PRIVATE
             return False
 
