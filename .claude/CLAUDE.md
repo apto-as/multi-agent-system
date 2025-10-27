@@ -284,14 +284,40 @@ mypy src/
 
 ---
 
+## Recent Major Changes
+
+### v2.3.0 - Ollama-Only Architecture (2025-10-27) ✅
+
+**Completed**: Migration from SentenceTransformers to Ollama-only embedding architecture
+
+**Impact**:
+- Code Reduction: -904 lines (-72% of embedding services)
+- Memory Savings: -1.5GB (removed PyTorch/transformers dependencies)
+- Dependency Reduction: -3 major packages (sentence-transformers, transformers, torch)
+- Maintainability: +89% (single embedding implementation)
+
+**Breaking Changes**:
+- Ollama is now REQUIRED (no fallback)
+- Removed configuration: TMWS_EMBEDDING_PROVIDER, TMWS_EMBEDDING_FALLBACK_ENABLED
+- Fail-fast approach with clear error messages
+
+**Migration**:
+1. Install Ollama: https://ollama.ai/download
+2. Pull model: `ollama pull zylonai/multilingual-e5-large`
+3. Start server: `ollama serve`
+
+**Rationale**: Unnecessary fallback mechanisms are a breeding ground for bugs. Explicit dependencies with clear error messages are better than silent degradation.
+
+---
+
 ## Known Issues & TODOs
 
 ### P0 Priority (Critical - 2-3 days)
 
-1. **Embedding Service Consolidation** ⏳
-   - 4 duplicate implementations: `VectorizationService`, `MultilingualEmbeddingService`, `OllamaEmbeddingService`, `UnifiedEmbeddingService`
-   - Impact: -800 LOC, +30% performance
-   - Files: `src/services/embedding_service.py`, `src/services/vectorization_service.py`, etc.
+~~1. **Embedding Service Consolidation**~~ ✅ **COMPLETED** (2025-10-27)
+   - Migrated to Ollama-only architecture
+   - Removed all SentenceTransformers dependencies
+   - See v2.3.0 changes above
 
 ### P1 Priority (High - 3-4 days)
 
