@@ -14,8 +14,8 @@ from ..core.database import get_db_session
 from ..core.exceptions import AuthenticationException
 from ..models.audit_log import SecurityEventSeverity, SecurityEventType
 from ..models.user import APIKey, APIKeyScope, RefreshToken, User, UserRole, UserStatus
-from ..security.audit_logger import get_audit_logger
 from ..security.jwt_service import jwt_service, token_blacklist
+from ..security.security_audit_facade import get_audit_logger
 from ..utils.security import hash_password_with_salt, verify_password_with_salt
 
 logger = logging.getLogger(__name__)

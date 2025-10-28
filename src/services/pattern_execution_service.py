@@ -34,9 +34,9 @@ from ..core.config import get_settings
 from ..core.database import get_db_session
 from ..core.exceptions import NotFoundError, ValidationError
 from ..models import Memory
-from ..security.security_audit_facade import get_audit_logger
 from ..security.pattern_auth import pattern_auth_manager
 from ..security.pattern_validator import pattern_validator
+from ..security.security_audit_facade import get_audit_logger
 
 logger = logging.getLogger(__name__)
 
