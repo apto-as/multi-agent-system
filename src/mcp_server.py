@@ -55,6 +55,9 @@ class HybridMCPServer:
         self.agent_id = os.getenv("TMWS_AGENT_ID", f"agent-{uuid4().hex[:8]}")
         self.instance_id = f"{self.agent_id}-{os.getpid()}"
 
+        # Namespace (detected once at initialization)
+        self.default_namespace = None
+
         # Services (initialized in initialize())
         self.memory_service = None
         self.embedding_service = get_ollama_embedding_service()
@@ -101,10 +104,9 @@ class HybridMCPServer:
             Security: Namespace is auto-detected from project context if not provided.
             Explicit 'default' namespace is rejected to prevent cross-project leakage.
             """
-            # Auto-detect namespace if not provided
+            # Use cached namespace if not provided (detected once at server startup)
             if namespace is None:
-                from src.utils.namespace import detect_project_namespace
-                namespace = await detect_project_namespace()
+                namespace = self.default_namespace
 
             # Validate namespace (rejects 'default')
             from src.utils.namespace import validate_namespace
@@ -130,10 +132,9 @@ class HybridMCPServer:
             Security: Namespace is auto-detected from project context if not provided.
             Explicit 'default' namespace is rejected to prevent cross-project leakage.
             """
-            # Auto-detect namespace if not provided
+            # Use cached namespace if not provided (detected once at server startup)
             if namespace is None:
-                from src.utils.namespace import detect_project_namespace
-                namespace = await detect_project_namespace()
+                namespace = self.default_namespace
 
             # Validate namespace (rejects 'default')
             from src.utils.namespace import validate_namespace
@@ -169,6 +170,11 @@ class HybridMCPServer:
     async def initialize(self):
         """Initialize MCP server with database session and services."""
         try:
+            # Detect namespace once at startup (cache for all subsequent operations)
+            from src.utils.namespace import detect_project_namespace
+            self.default_namespace = await detect_project_namespace()
+            logger.info(f"🔖 Default namespace detected: {self.default_namespace}")
+
             # Initialize Chroma vector service (async)
             await self.vector_service.initialize()
             logger.info("Chroma vector service initialized")

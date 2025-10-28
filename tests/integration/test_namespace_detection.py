@@ -19,8 +19,8 @@ from unittest.mock import patch
 
 import pytest
 
-from src.core.exceptions import NamespaceError
 from src.utils.namespace import (
+    NamespaceError,
     detect_git_root,
     detect_project_namespace,
     get_git_remote_url,
