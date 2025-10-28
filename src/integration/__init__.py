@@ -1,5 +1,4 @@
-"""
-TMWS Integration Package
+"""TMWS Integration Package
 Provides integration modules for various protocols and frameworks.
 
 Note: FastAPI integration has been removed in v3.0.

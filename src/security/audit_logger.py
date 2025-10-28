@@ -1,5 +1,4 @@
-"""
-Synchronous Security Audit Logger - Thin Wrapper
+"""Synchronous Security Audit Logger - Thin Wrapper
 This is a lightweight wrapper around AsyncSecurityAuditLogger for synchronous contexts.
 
 For new code, prefer using audit_logger_async.AsyncSecurityAuditLogger directly.
@@ -22,8 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 class SecurityAuditLogger:
-    """
-    Synchronous wrapper around AsyncSecurityAuditLogger.
+    """Synchronous wrapper around AsyncSecurityAuditLogger.
 
     This class provides a synchronous interface to the async audit logger
     by running async methods in a new event loop. This is primarily for
@@ -68,8 +66,7 @@ class SecurityAuditLogger:
         details: dict[str, Any] | None = None,
         blocked: bool = False,
     ) -> SecurityEvent:
-        """
-        Log a security event (async wrapper for sync context).
+        """Log a security event (async wrapper for sync context).
 
         This method can be called with await in async contexts.
         For synchronous contexts, use the synchronous wrapper methods.
@@ -99,8 +96,7 @@ class SecurityAuditLogger:
         details: dict[str, Any] | None = None,
         blocked: bool = False,
     ) -> SecurityEvent:
-        """
-        Log a security event synchronously.
+        """Log a security event synchronously.
 
         Note: This creates a new event loop for each call, which has performance overhead.
         For better performance, use the async version directly.
@@ -117,7 +113,7 @@ class SecurityAuditLogger:
                 session_id=session_id,
                 details=details,
                 blocked=blocked,
-            )
+            ),
         )
 
     async def get_events(
@@ -130,8 +126,7 @@ class SecurityAuditLogger:
         start_time: datetime | None = None,  # noqa: ARG002 - Reserved for future time-based filtering
         end_time: datetime | None = None,  # noqa: ARG002 - Reserved for future time-based filtering
     ) -> list[dict[str, Any]]:
-        """
-        Retrieve security events with filtering (async).
+        """Retrieve security events with filtering (async).
 
         Note: start_time and end_time are reserved for future implementation
         when AsyncSecurityAuditLogger supports time-based filtering.
@@ -157,8 +152,7 @@ class SecurityAuditLogger:
         return filtered[:limit]
 
     async def get_statistics(self) -> dict[str, Any]:
-        """
-        Get security event statistics (async).
+        """Get security event statistics (async).
 
         Note: This is a simplified version. The full statistics from the original
         implementation would require adding this method to AsyncSecurityAuditLogger.
@@ -196,7 +190,7 @@ class SecurityAuditLogger:
             "events_by_severity": severity_counts,
             "events_by_type": type_counts,
             "top_attacking_ips": dict(
-                sorted(ip_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+                sorted(ip_counts.items(), key=lambda x: x[1], reverse=True)[:10],
             ),
         }
 
@@ -206,8 +200,7 @@ _audit_logger: SecurityAuditLogger | None = None
 
 
 def get_audit_logger() -> SecurityAuditLogger:
-    """
-    Get global audit logger instance (synchronous wrapper).
+    """Get global audit logger instance (synchronous wrapper).
 
     For new code, prefer using get_async_audit_logger() from audit_logger_async.
     """

@@ -1,5 +1,4 @@
-"""
-Enhanced Security Middleware for TMWS.
+"""Enhanced Security Middleware for TMWS.
 Implements comprehensive security headers and enhanced CORS handling.
 """
 
@@ -21,8 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class UnifiedSecurityMiddleware(BaseHTTPMiddleware):
-    """
-    Unified security middleware combining rate limiting, authentication, and audit logging.
+    """Unified security middleware combining rate limiting, authentication, and audit logging.
     High-performance middleware optimized for <200ms response times.
     """
 
@@ -93,7 +91,7 @@ class UnifiedSecurityMiddleware(BaseHTTPMiddleware):
             # Audit unexpected errors
             await self._audit_system_error(request, e, client_ip, start_time)
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error",
             )
 
     def _should_bypass(self, request: Request) -> bool:
@@ -158,7 +156,7 @@ class UnifiedSecurityMiddleware(BaseHTTPMiddleware):
                 from ..services.auth_service import auth_service
 
                 user, key_record = await auth_service.validate_api_key(
-                    api_key=api_key, ip_address=client_ip
+                    api_key=api_key, ip_address=client_ip,
                 )
                 user_id = str(user.id)
                 user_roles = [role.value for role in user.roles]
@@ -208,7 +206,7 @@ class UnifiedSecurityMiddleware(BaseHTTPMiddleware):
         return "default"
 
     async def _audit_request(
-        self, request: Request, response: Response, client_ip: str, start_time: float
+        self, request: Request, response: Response, client_ip: str, start_time: float,
     ) -> None:
         """Audit successful request."""
         processing_time = time.time() - start_time
@@ -233,7 +231,7 @@ class UnifiedSecurityMiddleware(BaseHTTPMiddleware):
         )
 
     async def _audit_security_violation(
-        self, request: Request, exception: HTTPException, client_ip: str, start_time: float
+        self, request: Request, exception: HTTPException, client_ip: str, start_time: float,
     ) -> None:
         """Audit security violations."""
         processing_time = time.time() - start_time
@@ -254,7 +252,7 @@ class UnifiedSecurityMiddleware(BaseHTTPMiddleware):
         )
 
     async def _audit_system_error(
-        self, request: Request, exception: Exception, client_ip: str, start_time: float
+        self, request: Request, exception: Exception, client_ip: str, start_time: float,
     ) -> None:
         """Audit system errors."""
         processing_time = time.time() - start_time
@@ -384,8 +382,7 @@ def setup_security_middleware(
     rate_limiter: RateLimiter | None = None,
     audit_logger: AsyncSecurityAuditLogger | None = None,
 ) -> None:
-    """
-    Set up all security middleware in the correct order.
+    """Set up all security middleware in the correct order.
     Order matters for security effectiveness.
     """
     settings = get_settings()
@@ -399,5 +396,5 @@ def setup_security_middleware(
 
     # 3. Unified Security (rate limiting + audit logging)
     app.add_middleware(
-        UnifiedSecurityMiddleware, rate_limiter=rate_limiter, audit_logger=audit_logger
+        UnifiedSecurityMiddleware, rate_limiter=rate_limiter, audit_logger=audit_logger,
     )

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Ollama Embedding Service for TMWS v2.3.0 - Ollama-Only Architecture
+"""Ollama Embedding Service for TMWS v2.3.0 - Ollama-Only Architecture
 
 This module provides embedding generation using Ollama's local inference server.
 
@@ -51,8 +50,7 @@ class OllamaModelNotFoundError(IntegrationError):
 
 
 class OllamaEmbeddingService:
-    """
-    Ollama-based embedding service (required dependency).
+    """Ollama-based embedding service (required dependency).
 
     This service requires Ollama to be installed and running.
     There is no fallback - this ensures consistent embedding dimensions
@@ -92,8 +90,7 @@ class OllamaEmbeddingService:
         timeout: float = DEFAULT_TIMEOUT,
         auto_detect: bool = True,
     ):
-        """
-        Initialize Ollama embedding service.
+        """Initialize Ollama embedding service.
 
         Args:
             ollama_base_url: Ollama server URL (default: http://localhost:11434)
@@ -104,6 +101,7 @@ class OllamaEmbeddingService:
         Raises:
             OllamaConnectionError: If auto_detect=True and Ollama is unreachable
             OllamaModelNotFoundError: If auto_detect=True and model is not available
+
         """
         self.ollama_base_url = ollama_base_url or self.DEFAULT_OLLAMA_URL
         self.model_name = model_name or self.DEFAULT_MODEL
@@ -118,8 +116,7 @@ class OllamaEmbeddingService:
             self._detect_ollama_server()
 
     def _detect_ollama_server(self) -> bool:
-        """
-        Detect if Ollama server is available and responsive.
+        """Detect if Ollama server is available and responsive.
 
         Returns:
             True if Ollama server is available
@@ -127,6 +124,7 @@ class OllamaEmbeddingService:
         Raises:
             OllamaConnectionError: If Ollama server is unreachable
             OllamaModelNotFoundError: If required model is not available
+
         """
         try:
             with httpx.Client(timeout=5.0) as client:
@@ -187,8 +185,7 @@ class OllamaEmbeddingService:
         normalize: bool = True,
         batch_size: int = 32,
     ) -> np.ndarray:
-        """
-        Encode document(s) for storage/indexing.
+        """Encode document(s) for storage/indexing.
 
         Uses "passage: " prefix for E5-style encoding.
 
@@ -203,6 +200,7 @@ class OllamaEmbeddingService:
         Raises:
             OllamaConnectionError: If Ollama server is unavailable
             RuntimeError: If encoding fails
+
         """
         if not self._is_ollama_available:
             # Re-check availability before failing
@@ -221,8 +219,7 @@ class OllamaEmbeddingService:
         normalize: bool = True,
         batch_size: int = 32,
     ) -> np.ndarray:
-        """
-        Encode query/question for retrieval.
+        """Encode query/question for retrieval.
 
         Uses "query: " prefix for E5-style encoding.
 
@@ -237,6 +234,7 @@ class OllamaEmbeddingService:
         Raises:
             OllamaConnectionError: If Ollama server is unavailable
             RuntimeError: If encoding fails
+
         """
         if not self._is_ollama_available:
             # Re-check availability before failing
@@ -256,8 +254,7 @@ class OllamaEmbeddingService:
         normalize: bool,
         batch_size: int,
     ) -> np.ndarray:
-        """
-        Internal method to encode using Ollama API.
+        """Internal method to encode using Ollama API.
 
         Args:
             text: Text(s) to encode
@@ -270,6 +267,7 @@ class OllamaEmbeddingService:
 
         Raises:
             RuntimeError: If API call fails
+
         """
         # Normalize input
         single_input = isinstance(text, str)
@@ -285,7 +283,7 @@ class OllamaEmbeddingService:
 
                     # Encode each text in batch
                     batch_embeddings = await asyncio.gather(
-                        *[self._encode_single_ollama(client, f"{prefix}{t}") for t in batch]
+                        *[self._encode_single_ollama(client, f"{prefix}{t}") for t in batch],
                     )
 
                     embeddings.extend(batch_embeddings)
@@ -326,8 +324,7 @@ class OllamaEmbeddingService:
         client: httpx.AsyncClient,
         text: str,
     ) -> np.ndarray:
-        """
-        Encode a single text using Ollama API.
+        """Encode a single text using Ollama API.
 
         Args:
             client: HTTP client instance
@@ -338,6 +335,7 @@ class OllamaEmbeddingService:
 
         Raises:
             RuntimeError: If API call fails
+
         """
         response = await client.post(
             f"{self.ollama_base_url}/api/embeddings",
@@ -353,11 +351,11 @@ class OllamaEmbeddingService:
         return embedding
 
     def get_model_info(self) -> dict:
-        """
-        Get information about the current embedding model.
+        """Get information about the current embedding model.
 
         Returns:
             Dictionary with model metadata
+
         """
         return {
             "provider": "ollama",
@@ -368,8 +366,7 @@ class OllamaEmbeddingService:
         }
 
     async def get_dimension(self) -> int:
-        """
-        Get the embedding dimension.
+        """Get the embedding dimension.
 
         If not yet determined, encodes a test text to detect dimension.
 
@@ -378,6 +375,7 @@ class OllamaEmbeddingService:
 
         Raises:
             OllamaConnectionError: If Ollama is unavailable
+
         """
         if self._model_dimension is None:
             # Encode test text to detect dimension
@@ -392,8 +390,7 @@ _ollama_service_instance = None
 
 
 def get_ollama_embedding_service() -> OllamaEmbeddingService:
-    """
-    Get singleton instance of OllamaEmbeddingService.
+    """Get singleton instance of OllamaEmbeddingService.
 
     Returns:
         Shared OllamaEmbeddingService instance
@@ -401,6 +398,7 @@ def get_ollama_embedding_service() -> OllamaEmbeddingService:
     Raises:
         OllamaConnectionError: If Ollama server is not available
         OllamaModelNotFoundError: If required model is not pulled
+
     """
     global _ollama_service_instance
 

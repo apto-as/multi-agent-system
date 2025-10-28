@@ -1,5 +1,4 @@
-"""
-Agent service for TMWS v2.0 - Universal Multi-Agent Platform.
+"""Agent service for TMWS v2.0 - Universal Multi-Agent Platform.
 Replaces PersonaService with universal agent management capabilities.
 """
 
@@ -19,8 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 class AgentService:
-    """
-    Universal agent management service.
+    """Universal agent management service.
 
     Provides comprehensive agent lifecycle management, namespace organization,
     and performance tracking for any AI agent type.
@@ -100,7 +98,7 @@ class AgentService:
             logger.error(
                 f"Failed to create agent {agent_id}: {e}",
                 exc_info=True,
-                extra={"agent_id": agent_id, "agent_type": agent_type, "namespace": namespace}
+                extra={"agent_id": agent_id, "agent_type": agent_type, "namespace": namespace},
             )
             raise DatabaseError(f"Failed to create agent: {e}") from e
 
@@ -110,7 +108,7 @@ class AgentService:
             result = await self.session.execute(
                 select(Agent)
                 .where(Agent.agent_id == agent_id)
-                .options(selectinload(Agent.memories), selectinload(Agent.tasks))
+                .options(selectinload(Agent.memories), selectinload(Agent.tasks)),
             )
             return result.scalar_one_or_none()
         except (KeyboardInterrupt, SystemExit):
@@ -119,12 +117,12 @@ class AgentService:
             logger.error(
                 f"Failed to get agent {agent_id}: {e}",
                 exc_info=True,
-                extra={"agent_id": agent_id}
+                extra={"agent_id": agent_id},
             )
             return None
 
     async def get_agent_by_display_name(
-        self, display_name: str, namespace: str = None
+        self, display_name: str, namespace: str = None,
     ) -> Agent | None:
         """Get an agent by their display name, optionally within a namespace."""
         try:
@@ -140,7 +138,7 @@ class AgentService:
             logger.error(
                 f"Failed to get agent by name {display_name}: {e}",
                 exc_info=True,
-                extra={"display_name": display_name, "namespace": namespace}
+                extra={"display_name": display_name, "namespace": namespace},
             )
             return None
 
@@ -186,8 +184,8 @@ class AgentService:
                     "namespace": namespace,
                     "agent_type": agent_type,
                     "access_level": access_level,
-                    "is_active": is_active
-                }
+                    "is_active": is_active,
+                },
             )
             return []
 
@@ -220,7 +218,7 @@ class AgentService:
             logger.error(
                 f"Failed to update agent {agent_id}: {e}",
                 exc_info=True,
-                extra={"agent_id": agent_id, "updates": updates}
+                extra={"agent_id": agent_id, "updates": updates},
             )
             raise DatabaseError(f"Failed to update agent: {e}") from e
 
@@ -257,7 +255,7 @@ class AgentService:
             logger.error(
                 f"Failed to delete agent {agent_id}: {e}",
                 exc_info=True,
-                extra={"agent_id": agent_id, "force_delete": force}
+                extra={"agent_id": agent_id, "force_delete": force},
             )
             raise DatabaseError(f"Failed to delete agent: {e}") from e
 
@@ -272,27 +270,27 @@ class AgentService:
         try:
             # Count memories
             memory_count = await self.session.scalar(
-                select(func.count(Memory.id)).where(Memory.agent_id == agent_id)
+                select(func.count(Memory.id)).where(Memory.agent_id == agent_id),
             )
 
             # Count tasks
             task_count = await self.session.scalar(
-                select(func.count(Task.id)).where(Task.assigned_agent_id == agent_id)
+                select(func.count(Task.id)).where(Task.assigned_agent_id == agent_id),
             )
 
             # Count completed tasks
             completed_tasks = await self.session.scalar(
                 select(func.count(Task.id)).where(
-                    and_(Task.assigned_agent_id == agent_id, Task.status == "completed")
-                )
+                    and_(Task.assigned_agent_id == agent_id, Task.status == "completed"),
+                ),
             )
 
             # Average quality score
             avg_quality = (
                 await self.session.scalar(
                     select(func.avg(Task.quality_score)).where(
-                        and_(Task.assigned_agent_id == agent_id, Task.quality_score.isnot(None))
-                    )
+                        and_(Task.assigned_agent_id == agent_id, Task.quality_score.isnot(None)),
+                    ),
                 )
                 or 0.0
             )
@@ -324,7 +322,7 @@ class AgentService:
             logger.error(
                 f"Failed to get agent stats for {agent_id}: {e}",
                 exc_info=True,
-                extra={"agent_id": agent_id}
+                extra={"agent_id": agent_id},
             )
             raise DatabaseError(f"Failed to get agent stats: {e}") from e
 
@@ -347,8 +345,8 @@ class AgentService:
                         Task.assigned_agent_id == agent_id,
                         Task.completed_at >= thirty_days_ago,
                         Task.status == "completed",
-                    )
-                )
+                    ),
+                ),
             )
 
             tasks = list(recent_tasks.scalars().all())
@@ -370,10 +368,10 @@ class AgentService:
 
             # Update counters
             memory_count = await self.session.scalar(
-                select(func.count(Memory.id)).where(Memory.agent_id == agent_id)
+                select(func.count(Memory.id)).where(Memory.agent_id == agent_id),
             )
             task_count = await self.session.scalar(
-                select(func.count(Task.id)).where(Task.assigned_agent_id == agent_id)
+                select(func.count(Task.id)).where(Task.assigned_agent_id == agent_id),
             )
 
             agent.total_memories = memory_count or 0
@@ -390,7 +388,7 @@ class AgentService:
             logger.error(
                 f"Failed to update performance metrics for {agent_id}: {e}",
                 exc_info=True,
-                extra={"agent_id": agent_id}
+                extra={"agent_id": agent_id},
             )
 
     # Agent Memory Management
@@ -429,8 +427,8 @@ class AgentService:
                 extra={
                     "agent_id": agent_id,
                     "memory_type": memory_type,
-                    "access_level": access_level
-                }
+                    "access_level": access_level,
+                },
             )
             return []
 
@@ -449,7 +447,7 @@ class AgentService:
                 # Include tasks where agent is assigned or collaborating
                 query = select(Task).where(
                     (Task.assigned_agent_id == agent_id)
-                    | (Task.collaborating_agents.contains([agent_id]))
+                    | (Task.collaborating_agents.contains([agent_id])),
                 )
             else:
                 query = select(Task).where(Task.assigned_agent_id == agent_id)
@@ -474,8 +472,8 @@ class AgentService:
                     "agent_id": agent_id,
                     "status": status,
                     "task_type": task_type,
-                    "include_collaborating": include_collaborating
-                }
+                    "include_collaborating": include_collaborating,
+                },
             )
             return []
 
@@ -520,7 +518,7 @@ class AgentService:
             logger.error(
                 f"Failed to create namespace {namespace}: {e}",
                 exc_info=True,
-                extra={"namespace": namespace, "access_policy": access_policy}
+                extra={"namespace": namespace, "access_policy": access_policy},
             )
             raise DatabaseError(f"Failed to create namespace: {e}") from e
 
@@ -528,7 +526,7 @@ class AgentService:
         """Get a namespace by name."""
         try:
             result = await self.session.execute(
-                select(AgentNamespace).where(AgentNamespace.namespace == namespace)
+                select(AgentNamespace).where(AgentNamespace.namespace == namespace),
             )
             return result.scalar_one_or_none()
         except (KeyboardInterrupt, SystemExit):
@@ -537,7 +535,7 @@ class AgentService:
             logger.error(
                 f"Failed to get namespace {namespace}: {e}",
                 exc_info=True,
-                extra={"namespace": namespace}
+                extra={"namespace": namespace},
             )
             return None
 
@@ -547,7 +545,7 @@ class AgentService:
         return result is not None
 
     async def list_namespaces(
-        self, access_policy: str = None, is_active: bool = None, limit: int = 50, offset: int = 0
+        self, access_policy: str = None, is_active: bool = None, limit: int = 50, offset: int = 0,
     ) -> list[AgentNamespace]:
         """List namespaces with optional filtering."""
         try:
@@ -573,7 +571,7 @@ class AgentService:
             logger.error(
                 f"Failed to list namespaces: {e}",
                 exc_info=True,
-                extra={"access_policy": access_policy, "is_active": is_active}
+                extra={"access_policy": access_policy, "is_active": is_active},
             )
             return []
 
@@ -620,7 +618,7 @@ class AgentService:
             logger.error(
                 f"Failed to create team {team_id}: {e}",
                 exc_info=True,
-                extra={"team_id": team_id, "namespace": namespace, "team_type": team_type}
+                extra={"team_id": team_id, "namespace": namespace, "team_type": team_type},
             )
             raise DatabaseError(f"Failed to create team: {e}") from e
 
@@ -628,7 +626,7 @@ class AgentService:
         """Get a team by ID."""
         try:
             result = await self.session.execute(
-                select(AgentTeam).where(AgentTeam.team_id == team_id)
+                select(AgentTeam).where(AgentTeam.team_id == team_id),
             )
             return result.scalar_one_or_none()
         except (KeyboardInterrupt, SystemExit):
@@ -637,7 +635,7 @@ class AgentService:
             logger.error(
                 f"Failed to get team {team_id}: {e}",
                 exc_info=True,
-                extra={"team_id": team_id}
+                extra={"team_id": team_id},
             )
             return None
 
@@ -671,7 +669,7 @@ class AgentService:
             logger.error(
                 f"Failed to add agent {agent_id} to team {team_id}: {e}",
                 exc_info=True,
-                extra={"team_id": team_id, "agent_id": agent_id}
+                extra={"team_id": team_id, "agent_id": agent_id},
             )
             return False
 
@@ -705,7 +703,7 @@ class AgentService:
             logger.error(
                 f"Failed to remove agent {agent_id} from team {team_id}: {e}",
                 exc_info=True,
-                extra={"team_id": team_id, "agent_id": agent_id}
+                extra={"team_id": team_id, "agent_id": agent_id},
             )
             return False
 
@@ -740,7 +738,7 @@ class AgentService:
     # Search and Discovery
 
     async def search_agents(
-        self, query: str, namespace: str = None, agent_type: str = None, limit: int = 20
+        self, query: str, namespace: str = None, agent_type: str = None, limit: int = 20,
     ) -> list[Agent]:
         """Search agents by name, capabilities, or other attributes."""
         try:
@@ -748,7 +746,7 @@ class AgentService:
             search_query = select(Agent).where(
                 (Agent.display_name.ilike(f"%{query}%"))
                 | (Agent.agent_id.ilike(f"%{query}%"))
-                | (Agent.agent_type.ilike(f"%{query}%"))
+                | (Agent.agent_type.ilike(f"%{query}%")),
             )
 
             if namespace:
@@ -767,7 +765,7 @@ class AgentService:
             logger.error(
                 f"Failed to search agents with query '{query}': {e}",
                 exc_info=True,
-                extra={"query": query, "namespace": namespace, "agent_type": agent_type}
+                extra={"query": query, "namespace": namespace, "agent_type": agent_type},
             )
             return []
 
@@ -832,7 +830,7 @@ class AgentService:
                 extra={
                     "task_type": _task_type,
                     "capabilities": capabilities,
-                    "namespace": namespace
-                }
+                    "namespace": namespace,
+                },
             )
             return []

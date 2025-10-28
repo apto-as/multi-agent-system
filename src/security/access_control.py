@@ -1,5 +1,4 @@
-"""
-TMWS Advanced Access Control System
+"""TMWS Advanced Access Control System
 Hestia's Zero-Trust Agent Authorization Framework
 
 This module provides comprehensive access control for multi-agent environments:
@@ -107,7 +106,7 @@ class PolicyEngine(ABC):
 
     @abstractmethod
     async def evaluate(
-        self, context: AccessContext, policies: list[AccessPolicy]
+        self, context: AccessContext, policies: list[AccessPolicy],
     ) -> AccessDecision:
         """Evaluate access request against policies."""
         pass
@@ -150,7 +149,7 @@ class RBACEngine(PolicyEngine):
         }
 
     async def evaluate(
-        self, context: AccessContext, _policies: list[AccessPolicy]
+        self, context: AccessContext, _policies: list[AccessPolicy],
     ) -> AccessDecision:
         """Evaluate using RBAC rules."""
         # Get agent role (simplified - in real implementation, would query database)
@@ -193,7 +192,7 @@ class ABACEngine(PolicyEngine):
         self.request_history: dict[str, list[datetime]] = {}
 
     async def evaluate(
-        self, context: AccessContext, policies: list[AccessPolicy]
+        self, context: AccessContext, policies: list[AccessPolicy],
     ) -> AccessDecision:
         """Evaluate using attribute-based rules."""
         for policy in sorted(policies, key=lambda p: p.priority, reverse=True):
@@ -228,7 +227,7 @@ class ABACEngine(PolicyEngine):
         return any(re.match(pattern, context.requesting_agent) for pattern in policy.agent_patterns)
 
     async def _evaluate_conditions(
-        self, conditions: list[dict[str, Any]], context: AccessContext
+        self, conditions: list[dict[str, Any]], context: AccessContext,
     ) -> bool:
         """Evaluate policy conditions."""
         if not conditions:
@@ -247,7 +246,7 @@ class ABACEngine(PolicyEngine):
         return True
 
     async def _evaluate_time_of_day(
-        self, condition: dict[str, Any], context: AccessContext
+        self, condition: dict[str, Any], context: AccessContext,
     ) -> bool:
         """Evaluate time-of-day condition."""
         start_hour = condition.get("start_hour", 0)
@@ -257,7 +256,7 @@ class ABACEngine(PolicyEngine):
         return start_hour <= current_hour < end_hour
 
     async def _evaluate_agent_namespace(
-        self, condition: dict[str, Any], context: AccessContext
+        self, condition: dict[str, Any], context: AccessContext,
     ) -> bool:
         """Evaluate agent namespace condition."""
         allowed_namespaces = condition.get("allowed_namespaces", [])
@@ -266,7 +265,7 @@ class ABACEngine(PolicyEngine):
         return agent_namespace in allowed_namespaces
 
     async def _evaluate_resource_owner(
-        self, condition: dict[str, Any], context: AccessContext
+        self, condition: dict[str, Any], context: AccessContext,
     ) -> bool:
         """Evaluate resource ownership condition."""
         require_ownership = condition.get("require_ownership", False)
@@ -280,7 +279,7 @@ class ABACEngine(PolicyEngine):
         return resource_owner == context.requesting_agent
 
     async def _evaluate_data_classification(
-        self, condition: dict[str, Any], context: AccessContext
+        self, condition: dict[str, Any], context: AccessContext,
     ) -> bool:
         """Evaluate data classification condition."""
         max_classification = condition.get("max_classification", "confidential")
@@ -301,7 +300,7 @@ class ABACEngine(PolicyEngine):
         return resource_level <= max_level
 
     async def _evaluate_request_frequency(
-        self, condition: dict[str, Any], context: AccessContext
+        self, condition: dict[str, Any], context: AccessContext,
     ) -> bool:
         """Evaluate request frequency condition."""
         max_requests = condition.get("max_requests_per_hour", 100)
@@ -330,7 +329,7 @@ class CompositePolicyEngine(PolicyEngine):
         self.engines = engines
 
     async def evaluate(
-        self, context: AccessContext, policies: list[AccessPolicy]
+        self, context: AccessContext, policies: list[AccessPolicy],
     ) -> AccessDecision:
         """Evaluate using all engines, apply strictest decision."""
         decisions = []
@@ -425,7 +424,7 @@ class AccessControlManager:
         )
 
         self.policies.extend(
-            [self_access_policy, namespace_policy, admin_policy, rate_limit_policy]
+            [self_access_policy, namespace_policy, admin_policy, rate_limit_policy],
         )
 
     async def check_access(
@@ -436,14 +435,14 @@ class AccessControlManager:
         action: ActionType,
         resource_metadata: dict[str, Any] | None = None,
     ) -> bool:
-        """
-        Check if agent has access to perform action on resource.
+        """Check if agent has access to perform action on resource.
 
         Returns:
             bool: True if access granted, False otherwise
 
         Raises:
             HTTPException: If access denied with specific error
+
         """
         context = AccessContext(
             requesting_agent=requesting_agent,
@@ -468,7 +467,7 @@ class AccessControlManager:
             elif decision == AccessDecision.REQUIRE_APPROVAL:
                 await self._request_approval(context)
                 raise HTTPException(
-                    status_code=status.HTTP_202_ACCEPTED, detail="Access request pending approval"
+                    status_code=status.HTTP_202_ACCEPTED, detail="Access request pending approval",
                 )
             else:  # DENY
                 await self._handle_access_denied(context)
@@ -507,7 +506,7 @@ class AccessControlManager:
         # Log security events for denied access
         if decision == AccessDecision.DENY:
             logger.warning(
-                f"Access denied: {context.requesting_agent} -> {context.action.value} on {context.resource_type.value}:{context.target_resource}"
+                f"Access denied: {context.requesting_agent} -> {context.action.value} on {context.resource_type.value}:{context.target_resource}",
             )
 
     async def _setup_monitoring(self, context: AccessContext):
@@ -518,7 +517,7 @@ class AccessControlManager:
     async def _request_approval(self, context: AccessContext):
         """Create approval request for manual review."""
         approval_id = hashlib.sha256(
-            f"{context.requesting_agent}:{context.target_resource}:{context.timestamp}".encode()
+            f"{context.requesting_agent}:{context.target_resource}:{context.timestamp}".encode(),
         ).hexdigest()[:16]
 
         self.approval_requests[approval_id] = {
@@ -546,7 +545,7 @@ class AccessControlManager:
 
         if len(recent_denials) >= 5:
             logger.error(
-                f"Multiple access denials for {context.requesting_agent} - possible attack"
+                f"Multiple access denials for {context.requesting_agent} - possible attack",
             )
             # TODO: Trigger security alert or temporary lockout
 

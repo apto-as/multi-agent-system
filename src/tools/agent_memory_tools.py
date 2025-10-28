@@ -1,5 +1,4 @@
-"""
-MCP tools for agent memory management in TMWS v2.0.
+"""MCP tools for agent memory management in TMWS v2.0.
 These tools allow external agents to interact with the memory system via MCP protocol.
 """
 
@@ -25,8 +24,7 @@ class AgentMemoryTools:
         context: dict[str, Any] = None,
         importance: float = 0.5,
     ) -> dict[str, Any]:
-        """
-        Create a new memory for an agent.
+        """Create a new memory for an agent.
 
         This tool is called by external agents via MCP to store memories.
         The agent_id identifies the calling agent.
@@ -62,8 +60,7 @@ class AgentMemoryTools:
         include_shared: bool = True,
         min_importance: float = 0.0,
     ) -> dict[str, Any]:
-        """
-        Search memories using semantic search.
+        """Search memories using semantic search.
 
         Returns memories that the agent has access to based on:
         - Owned memories
@@ -107,16 +104,15 @@ class AgentMemoryTools:
                         "relevance": memory.relevance_score,
                         "tags": memory.tags,
                         "created_at": memory.created_at.isoformat() if memory.created_at else None,
-                    }
+                    },
                 )
 
         return {"success": True, "count": len(accessible_results), "memories": accessible_results}
 
     async def share_memory_tool(
-        self, agent_id: str, memory_id: str, share_with_agents: list[str], permission: str = "read"
+        self, agent_id: str, memory_id: str, share_with_agents: list[str], permission: str = "read",
     ) -> dict[str, Any]:
-        """
-        Share a memory with other agents.
+        """Share a memory with other agents.
 
         Only the owner of a memory can share it.
         """
@@ -132,7 +128,7 @@ class AgentMemoryTools:
 
         # Update sharing
         await self.memory_service.share_memory(
-            memory_id=memory_id, shared_with_agents=share_with_agents, permission=permission
+            memory_id=memory_id, shared_with_agents=share_with_agents, permission=permission,
         )
 
         return {"success": True, "message": f"Memory shared with {len(share_with_agents)} agents"}
@@ -144,8 +140,7 @@ class AgentMemoryTools:
         consolidation_type: str = "summary",
         namespace: str = "default",
     ) -> dict[str, Any]:
-        """
-        Consolidate multiple memories into a single memory.
+        """Consolidate multiple memories into a single memory.
 
         Types:
         - summary: Create a summary of all memories
@@ -180,7 +175,7 @@ class AgentMemoryTools:
 
         # Perform consolidation
         consolidated = await self.memory_service.consolidate_memories(
-            agent_id=agent_id, memories=memories, consolidation_type=consolidation_type
+            agent_id=agent_id, memories=memories, consolidation_type=consolidation_type,
         )
 
         return {
@@ -197,8 +192,7 @@ class AgentMemoryTools:
         namespace: str = "default",
         min_confidence: float = 0.5,
     ) -> dict[str, Any]:
-        """
-        Get learning patterns extracted from agent's memories.
+        """Get learning patterns extracted from agent's memories.
 
         Pattern types:
         - sequence: Temporal patterns
@@ -228,7 +222,7 @@ class AgentMemoryTools:
                     "frequency": pattern.frequency,
                     "data": pattern.pattern_data,
                     "memory_count": len(pattern.memory_ids),
-                }
+                },
             )
 
         return {"success": True, "count": len(pattern_list), "patterns": pattern_list}

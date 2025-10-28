@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-TMWS MCP Server - Hybrid SQLite + Chroma Implementation
+"""TMWS MCP Server - Hybrid SQLite + Chroma Implementation
 
 MCP Server providing Trinitas agents with:
 - Ultra-fast vector search via Chroma (P95: 0.47ms)
@@ -39,8 +38,7 @@ settings = get_settings()
 
 
 class HybridMCPServer:
-    """
-    MCP Server with Hybrid Memory Architecture.
+    """MCP Server with Hybrid Memory Architecture.
 
     Architecture:
     - HybridMemoryService: SQLite + Chroma unified interface
@@ -96,8 +94,7 @@ class HybridMCPServer:
             namespace: str = None,
             metadata: dict = None,
         ) -> dict:
-            """
-            Store memory with ultra-fast Chroma sync.
+            """Store memory with ultra-fast Chroma sync.
 
             Performance: ~2ms P95 (5x faster than legacy)
 
@@ -126,8 +123,7 @@ class HybridMCPServer:
             namespace: str = None,
             tags: list[str] = None,
         ) -> dict:
-            """
-            Search memories with Chroma ultra-fast vector search.
+            """Search memories with Chroma ultra-fast vector search.
 
             Performance: ~0.5ms P95 (ChromaDB vector search + SQLite metadata)
 
@@ -182,7 +178,7 @@ class HybridMCPServer:
 
             logger.info(
                 f"HybridMCPServer initialized: {self.instance_id} "
-                f"(Chroma: {self.vector_service.HOT_CACHE_SIZE} hot cache)"
+                f"(Chroma: {self.vector_service.HOT_CACHE_SIZE} hot cache)",
             )
 
         except (KeyboardInterrupt, SystemExit):
@@ -208,8 +204,7 @@ class HybridMCPServer:
         namespace: str,
         metadata: dict,
     ) -> dict:
-        """
-        Store memory using HybridMemoryService.
+        """Store memory using HybridMemoryService.
 
         Write-through pattern: SQLite + ChromaDB simultaneously.
         """
@@ -237,7 +232,7 @@ class HybridMCPServer:
 
                 logger.info(
                     f"Memory stored: {memory.id} (latency: {latency_ms:.2f}ms, "
-                    f"importance: {importance})"
+                    f"importance: {importance})",
                 )
 
                 return {
@@ -271,8 +266,7 @@ class HybridMCPServer:
         namespace: str,
         tags: list[str],
     ) -> dict:
-        """
-        Search memories using HybridMemoryService.
+        """Search memories using HybridMemoryService.
 
         Read-first pattern: ChromaDB vector search (0.47ms) → SQLite fallback.
         """
@@ -307,7 +301,7 @@ class HybridMCPServer:
 
                 logger.info(
                     f"Memory search: {len(memories)} results (latency: {latency_ms:.2f}ms, "
-                    f"source: {search_source})"
+                    f"source: {search_source})",
                 )
 
                 return {
@@ -348,7 +342,7 @@ class HybridMCPServer:
             return {"error": str(e), "results": [], "count": 0, "error_type": "UnexpectedError"}
 
     async def _create_task(
-        self, title: str, description: str, priority: str, assigned_persona: str
+        self, title: str, description: str, priority: str, assigned_persona: str,
     ) -> dict:
         """Create task in SQLite database."""
         self.metrics["requests"] += 1
@@ -443,7 +437,7 @@ class HybridMCPServer:
                 memory_service = HybridMemoryService(session)
 
                 stats = await memory_service.get_memory_stats(
-                    agent_id=self.agent_id, namespace="default"
+                    agent_id=self.agent_id, namespace="default",
                 )
 
                 # Add MCP server metrics
@@ -519,7 +513,7 @@ class HybridMCPServer:
                 f"ChromaDB hit rate: "
                 f"{self.metrics['chroma_hits'] / (self.metrics['chroma_hits'] + self.metrics['sqlite_fallbacks']) * 100:.1f}%"
                 if (self.metrics["chroma_hits"] + self.metrics["sqlite_fallbacks"]) > 0
-                else "N/A"
+                else "N/A",
             )
 
         except (KeyboardInterrupt, SystemExit):
@@ -531,8 +525,7 @@ class HybridMCPServer:
 
 
 def first_run_setup():
-    """
-    First-run setup for uvx one-command installation.
+    """First-run setup for uvx one-command installation.
 
     Creates necessary directories, initializes database schema, and displays setup information.
     """
@@ -651,7 +644,7 @@ async def async_main():
             "   Embeddings: Multilingual-E5 (1024-dim)\n"
             "   Vector Search: Chroma (P95: 0.47ms)\n"
             f"   Agent ID: {server.agent_id}\n"
-            f"   Instance: {server.instance_id}"
+            f"   Instance: {server.instance_id}",
         )
 
         # Run MCP server (async version to work within existing event loop)

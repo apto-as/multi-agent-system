@@ -1,5 +1,4 @@
-"""
-Enhanced HTML Sanitization Module for TMWS
+"""Enhanced HTML Sanitization Module for TMWS
 Robust HTML sanitization using Bleach library
 Hestia's Ultimate Defense Against XSS
 
@@ -20,8 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 class HTMLSanitizer:
-    """
-    Production-grade HTML sanitization with Bleach.
+    """Production-grade HTML sanitization with Bleach.
     Provides multiple sanitization levels for different use cases.
     """
 
@@ -133,18 +131,18 @@ class HTMLSanitizer:
                     "border",
                     "width",
                     "height",
-                ]
+                ],
             ),
         },
     }
 
     def __init__(self, preset: str = "basic", custom_config: dict[str, Any] = None):
-        """
-        Initialize HTML sanitizer with preset or custom configuration.
+        """Initialize HTML sanitizer with preset or custom configuration.
 
         Args:
             preset: Preset name ("strict", "basic", "markdown", "rich")
             custom_config: Custom configuration to override preset
+
         """
 
         # Bleach is always available as it's a required dependency
@@ -168,8 +166,7 @@ class HTMLSanitizer:
         logger.info(f"HTML Sanitizer initialized with preset: {preset}")
 
     def sanitize(self, html_content: str, context: str = "default") -> str:
-        """
-        Sanitize HTML content based on configuration.
+        """Sanitize HTML content based on configuration.
 
         Args:
             html_content: HTML content to sanitize
@@ -177,6 +174,7 @@ class HTMLSanitizer:
 
         Returns:
             Sanitized HTML content
+
         """
 
         if not html_content:
@@ -230,17 +228,16 @@ class HTMLSanitizer:
         return False
 
     def _basic_sanitize(self, html_content: str) -> str:
-        """
-        Basic HTML sanitization without Bleach.
+        """Basic HTML sanitization without Bleach.
         Strips all HTML tags by default.
         """
 
         # Remove script and style elements completely
         html_content = re.sub(
-            r"<script[^>]*>.*?</script>", "", html_content, flags=re.DOTALL | re.IGNORECASE
+            r"<script[^>]*>.*?</script>", "", html_content, flags=re.DOTALL | re.IGNORECASE,
         )
         html_content = re.sub(
-            r"<style[^>]*>.*?</style>", "", html_content, flags=re.DOTALL | re.IGNORECASE
+            r"<style[^>]*>.*?</style>", "", html_content, flags=re.DOTALL | re.IGNORECASE,
         )
 
         # Remove dangerous event handlers
@@ -267,8 +264,7 @@ class HTMLSanitizer:
         return html_content
 
     def _sanitize_css(self, html_content: str) -> str:
-        """
-        Sanitize CSS within HTML content.
+        """Sanitize CSS within HTML content.
         Requires Bleach with CSS sanitizer.
         """
 
@@ -293,14 +289,14 @@ class HTMLSanitizer:
         return html_content
 
     def sanitize_url(self, url: str) -> str | None:
-        """
-        Sanitize and validate URLs.
+        """Sanitize and validate URLs.
 
         Args:
             url: URL to sanitize
 
         Returns:
             Sanitized URL or None if invalid
+
         """
 
         if not url:
@@ -339,41 +335,41 @@ class HTMLSanitizer:
             return None
 
     def strip_tags(self, html_content: str) -> str:
-        """
-        Strip all HTML tags, keeping only text content.
+        """Strip all HTML tags, keeping only text content.
 
         Args:
             html_content: HTML content to strip
 
         Returns:
             Plain text content
+
         """
 
         return bleach.clean(html_content, tags=[], strip=True)
 
     def escape_html(self, text: str) -> str:
-        """
-        Escape HTML characters to prevent injection.
+        """Escape HTML characters to prevent injection.
 
         Args:
             text: Text to escape
 
         Returns:
             Escaped text safe for HTML display
+
         """
 
         # Use Bleach's escaping
         return bleach.clean(text, tags=[], strip=False)
 
     def validate_html_structure(self, html_content: str) -> tuple[bool, list[str]]:
-        """
-        Validate HTML structure for common issues.
+        """Validate HTML structure for common issues.
 
         Args:
             html_content: HTML content to validate
 
         Returns:
             Tuple of (is_valid, list_of_issues)
+
         """
 
         issues = []
@@ -416,8 +412,7 @@ rich_sanitizer = HTMLSanitizer(preset="rich")
 
 
 def sanitize_html(content: str, level: str = "basic", custom_config: dict[str, Any] = None) -> str:
-    """
-    Convenience function for HTML sanitization.
+    """Convenience function for HTML sanitization.
 
     Args:
         content: HTML content to sanitize
@@ -426,6 +421,7 @@ def sanitize_html(content: str, level: str = "basic", custom_config: dict[str, A
 
     Returns:
         Sanitized HTML content
+
     """
 
     if custom_config:

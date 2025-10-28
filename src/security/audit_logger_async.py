@@ -1,5 +1,4 @@
-"""
-Security Audit Logging Module - Async Version
+"""Security Audit Logging Module - Async Version
 Hestia's Comprehensive Security Event Tracking with Full Async Support
 """
 
@@ -26,8 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 class AsyncSecurityAuditLogger:
-    """
-    Comprehensive async security audit logging system.
+    """Comprehensive async security audit logging system.
     Hestia's Rule: Every security event must be tracked and analyzed - now without blocking.
     """
 
@@ -61,7 +59,7 @@ class AsyncSecurityAuditLogger:
 
             self.engine = create_async_engine(db_url, echo=False)
             self.async_session_maker = async_sessionmaker(
-                self.engine, class_=AsyncSession, expire_on_commit=False
+                self.engine, class_=AsyncSession, expire_on_commit=False,
             )
 
             # Create tables if they don't exist
@@ -122,8 +120,7 @@ class AsyncSecurityAuditLogger:
         details: dict[str, Any] | None = None,
         blocked: bool = False,
     ) -> SecurityEvent:
-        """
-        Log a security event asynchronously.
+        """Log a security event asynchronously.
 
         Args:
             event_type: Type of security event
@@ -138,6 +135,7 @@ class AsyncSecurityAuditLogger:
 
         Returns:
             Created SecurityEvent object
+
         """
         now = datetime.utcnow()
 
@@ -179,8 +177,7 @@ class AsyncSecurityAuditLogger:
         return event
 
     async def _store_event(self, event: SecurityEvent) -> None:
-        """
-        Store event in database asynchronously.
+        """Store event in database asynchronously.
 
         CRITICAL: This function MUST never lose audit logs.
         Implements multi-tier fallback: DB → File → Stdout
@@ -366,8 +363,7 @@ class AsyncSecurityAuditLogger:
         return min(score, 100)  # Cap at 100
 
     async def _async_log_to_file(self, event: SecurityEvent) -> None:
-        """
-        Log event to file asynchronously.
+        """Log event to file asynchronously.
 
         CRITICAL: This is the fallback when database fails.
         MUST NOT fail silently.
@@ -568,8 +564,7 @@ class AsyncSecurityAuditLogger:
         error_message: str | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> None:
-        """
-        Log pattern execution for audit trail.
+        """Log pattern execution for audit trail.
 
         This is a convenience method for logging pattern execution events
         from the pattern execution service.

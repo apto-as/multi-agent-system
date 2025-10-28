@@ -1,5 +1,4 @@
-"""
-Base Service for TMWS
+"""Base Service for TMWS
 Provides common functionality for all service classes
 """
 
@@ -25,8 +24,7 @@ class BaseService:
         self.session = session
 
     async def get_by_id(self, model: type[T], record_id: UUID) -> T:
-        """
-        Get a record by ID.
+        """Get a record by ID.
 
         Args:
             model: SQLAlchemy model class
@@ -37,6 +35,7 @@ class BaseService:
 
         Raises:
             NotFoundError: If record not found
+
         """
         result = await self.session.execute(select(model).where(model.id == record_id))
         record = result.scalar_one_or_none()
@@ -45,8 +44,7 @@ class BaseService:
         return record
 
     async def create_record(self, model: type[T], **kwargs) -> T:
-        """
-        Create a new record.
+        """Create a new record.
 
         Args:
             model: SQLAlchemy model class
@@ -54,6 +52,7 @@ class BaseService:
 
         Returns:
             Created record instance
+
         """
         try:
             record = model(**kwargs)
@@ -70,13 +69,12 @@ class BaseService:
             logger.error(
                 f"Error creating {model.__name__}: {e}",
                 exc_info=True,
-                extra={"model": model.__name__, "kwargs": kwargs}
+                extra={"model": model.__name__, "kwargs": kwargs},
             )
             raise ValidationError(f"Failed to create {model.__name__}: {str(e)}")
 
     async def update_record(self, record: T, **kwargs) -> T:
-        """
-        Update an existing record.
+        """Update an existing record.
 
         Args:
             record: Record instance to update
@@ -84,6 +82,7 @@ class BaseService:
 
         Returns:
             Updated record instance
+
         """
         try:
             for key, value in kwargs.items():
@@ -101,19 +100,19 @@ class BaseService:
             logger.error(
                 f"Error updating record: {e}",
                 exc_info=True,
-                extra={"record_type": type(record).__name__, "updates": kwargs}
+                extra={"record_type": type(record).__name__, "updates": kwargs},
             )
             raise ValidationError(f"Failed to update record: {str(e)}")
 
     async def delete_record(self, record: T) -> bool:
-        """
-        Delete a record.
+        """Delete a record.
 
         Args:
             record: Record instance to delete
 
         Returns:
             True if successful
+
         """
         try:
             await self.session.delete(record)
@@ -128,13 +127,12 @@ class BaseService:
             logger.error(
                 f"Error deleting record: {e}",
                 exc_info=True,
-                extra={"record_type": type(record).__name__, "record_id": getattr(record, 'id', None)}
+                extra={"record_type": type(record).__name__, "record_id": getattr(record, 'id', None)},
             )
             raise ValidationError(f"Failed to delete record: {str(e)}")
 
     async def exists(self, model: type[T], record_id: UUID) -> bool:
-        """
-        Check if a record exists by ID.
+        """Check if a record exists by ID.
 
         Args:
             model: SQLAlchemy model class
@@ -142,13 +140,13 @@ class BaseService:
 
         Returns:
             True if record exists
+
         """
         result = await self.session.execute(select(model.id).where(model.id == record_id))
         return result.scalar_one_or_none() is not None
 
     async def count_records(self, model: type[T], **filters) -> int:
-        """
-        Count records with optional filters.
+        """Count records with optional filters.
 
         Args:
             model: SQLAlchemy model class
@@ -156,6 +154,7 @@ class BaseService:
 
         Returns:
             Number of matching records
+
         """
         query = select(model)
         for key, value in filters.items():
@@ -166,8 +165,7 @@ class BaseService:
         return len(result.scalars().all())
 
     def validate_required_fields(self, data: dict[str, Any], required_fields: list[str]):
-        """
-        Validate that required fields are present.
+        """Validate that required fields are present.
 
         Args:
             data: Data dictionary to validate
@@ -175,6 +173,7 @@ class BaseService:
 
         Raises:
             ValidationError: If any required fields are missing
+
         """
         missing_fields = [
             field for field in required_fields if field not in data or data[field] is None
@@ -183,8 +182,7 @@ class BaseService:
             raise ValidationError(f"Missing required fields: {', '.join(missing_fields)}")
 
     def validate_enum_field(self, value: Any, enum_class: type, field_name: str):
-        """
-        Validate an enum field value.
+        """Validate an enum field value.
 
         Args:
             value: Value to validate
@@ -193,6 +191,7 @@ class BaseService:
 
         Raises:
             ValidationError: If value is not valid for the enum
+
         """
         if value not in [e.value for e in enum_class]:
             valid_values = [e.value for e in enum_class]
@@ -211,7 +210,7 @@ class BaseService:
             logger.error(
                 f"Error committing transaction: {e}",
                 exc_info=True,
-                extra={"service": self.__class__.__name__}
+                extra={"service": self.__class__.__name__},
             )
             raise
 

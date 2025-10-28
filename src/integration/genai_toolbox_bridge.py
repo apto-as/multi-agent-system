@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-GenAI Toolbox Integration Bridge
+"""GenAI Toolbox Integration Bridge
 統合アーキテクチャ: TMWSとGenAI Toolbox間のMCP通信ブリッジ
 """
 
@@ -33,8 +32,7 @@ class GenAIToolInfo:
 
 
 class GenAIToolboxBridge:
-    """
-    GenAI Toolbox統合ブリッジ
+    """GenAI Toolbox統合ブリッジ
 
     統合パターン:
     1. サイドカーパターン - GenAI ToolboxをGoプロセスとして並列実行
@@ -115,16 +113,16 @@ class GenAIToolboxBridge:
         """個別ツールをMCPツールとして登録"""
 
         @self.mcp.tool(
-            name=f"genai_{tool_name.replace('-', '_')}", description=f"GenAI Toolbox: {description}"
+            name=f"genai_{tool_name.replace('-', '_')}", description=f"GenAI Toolbox: {description}",
         )
         async def genai_tool_wrapper(
-            prompt: str, config_override: dict[str, Any] | None = None, **kwargs
+            prompt: str, config_override: dict[str, Any] | None = None, **kwargs,
         ) -> dict[str, Any]:
             """GenAI Toolbox ツールラッパー"""
             return await self.execute_genai_tool(tool_name, prompt, config_override, **kwargs)
 
     async def execute_genai_tool(
-        self, tool_name: str, prompt: str, config_override: dict[str, Any] | None = None, **kwargs
+        self, tool_name: str, prompt: str, config_override: dict[str, Any] | None = None, **kwargs,
     ) -> dict[str, Any]:
         """GenAI Toolboxツールの実行"""
         if tool_name not in self.genai_tools:
@@ -152,12 +150,12 @@ class GenAIToolboxBridge:
             logger.error(
                 f"GenAI tool execution error: {e}",
                 exc_info=True,
-                extra={"tool_name": tool_name, "prompt_length": len(prompt)}
+                extra={"tool_name": tool_name, "prompt_length": len(prompt)},
             )
             return {"error": str(e)}
 
     async def _execute_go_process(
-        self, binary_path: str, prompt: str, config: dict[str, Any], **kwargs
+        self, binary_path: str, prompt: str, config: dict[str, Any], **kwargs,
     ) -> dict[str, Any]:
         """Goプロセスとしてツールを実行"""
 
@@ -245,7 +243,7 @@ class GenAIToolboxBridge:
                     logger.error(
                         f"Failed to start {tool_name}: {e}",
                         exc_info=True,
-                        extra={"tool_name": tool_name, "binary_path": tool_info.binary_path}
+                        extra={"tool_name": tool_name, "binary_path": tool_info.binary_path},
                     )
                     tool_info.status = "failed"
 
@@ -289,7 +287,7 @@ class GenAIToolboxBridge:
                 logger.warning(
                     f"Error stopping {tool_name}: {e}",
                     exc_info=False,
-                    extra={"tool_name": tool_name}
+                    extra={"tool_name": tool_name},
                 )
 
 
@@ -300,7 +298,7 @@ def register_genai_integration(mcp_server: FastMCP) -> GenAIToolboxBridge:
     bridge = GenAIToolboxBridge(mcp_server)
 
     @mcp_server.tool(
-        name="genai_health_check", description="Check status of GenAI Toolbox integration"
+        name="genai_health_check", description="Check status of GenAI Toolbox integration",
     )
     async def genai_health_check() -> dict[str, Any]:
         """GenAI Toolbox統合のヘルスチェック"""
@@ -318,7 +316,7 @@ def register_genai_integration(mcp_server: FastMCP) -> GenAIToolboxBridge:
                     "process_id": tool_info.process_id,
                 }
                 for tool_info in bridge.genai_tools.values()
-            ]
+            ],
         }
 
     return bridge

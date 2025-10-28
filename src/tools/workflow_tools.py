@@ -1,5 +1,4 @@
-"""
-Workflow Management Tools for TMWS MCP Server
+"""Workflow Management Tools for TMWS MCP Server
 Handles workflow creation, execution, and orchestration
 """
 
@@ -47,8 +46,7 @@ class WorkflowTools(BaseTool):
             metadata: dict[str, Any] = None,
             timeout_minutes: int | None = None,
         ) -> dict[str, Any]:
-            """
-            Create a new workflow with multiple steps.
+            """Create a new workflow with multiple steps.
 
             Workflows define sequences of operations that can be executed
             automatically with dependency management and error handling.
@@ -63,6 +61,7 @@ class WorkflowTools(BaseTool):
 
             Returns:
                 Dict containing workflow details and creation info
+
             """
             request = WorkflowCreateRequest(
                 name=name,
@@ -125,8 +124,7 @@ class WorkflowTools(BaseTool):
             async_execution: bool = False,
             execution_context: dict[str, Any] = None,
         ) -> dict[str, Any]:
-            """
-            Execute a workflow with optional input data.
+            """Execute a workflow with optional input data.
 
             Runs workflow steps according to the defined execution type.
             Supports both synchronous and asynchronous execution modes.
@@ -139,6 +137,7 @@ class WorkflowTools(BaseTool):
 
             Returns:
                 Dict containing execution results or queue information
+
             """
             request = WorkflowExecutionRequest(
                 workflow_id=workflow_id,
@@ -192,8 +191,7 @@ class WorkflowTools(BaseTool):
 
         @mcp.tool()
         async def get_workflow_status(workflow_id: str) -> dict[str, Any]:
-            """
-            Get workflow status and execution history.
+            """Get workflow status and execution history.
 
             Provides detailed workflow information including step definitions,
             execution history, and current status.
@@ -203,6 +201,7 @@ class WorkflowTools(BaseTool):
 
             Returns:
                 Dict containing comprehensive workflow information
+
             """
 
             async def _get_workflow_status(_session, services):
@@ -255,7 +254,7 @@ class WorkflowTools(BaseTool):
                     "statistics": {
                         "total_executions": len(executions),
                         "successful_executions": len(
-                            [e for e in executions if e.status == "completed"]
+                            [e for e in executions if e.status == "completed"],
                         ),
                         "failed_executions": len([e for e in executions if e.status == "failed"]),
                     },
@@ -268,10 +267,9 @@ class WorkflowTools(BaseTool):
 
         @mcp.tool()
         async def list_workflows(
-            status: str | None = None, workflow_type: str | None = None, limit: int = 50
+            status: str | None = None, workflow_type: str | None = None, limit: int = 50,
         ) -> dict[str, Any]:
-            """
-            List workflows with optional filtering.
+            """List workflows with optional filtering.
 
             Retrieves workflows matching specified criteria with summary information.
 
@@ -282,6 +280,7 @@ class WorkflowTools(BaseTool):
 
             Returns:
                 Dict containing filtered workflow list
+
             """
 
             async def _list_workflows(_session, services):
@@ -299,7 +298,7 @@ class WorkflowTools(BaseTool):
                 for workflow in workflows:
                     # Get execution summary
                     recent_executions = await workflow_service.get_workflow_executions(
-                        str(workflow.id), limit=3
+                        str(workflow.id), limit=3,
                     )
 
                     workflow_data = {
@@ -341,8 +340,7 @@ class WorkflowTools(BaseTool):
             metadata: dict[str, Any] | None = None,
             timeout_minutes: int | None = None,
         ) -> dict[str, Any]:
-            """
-            Update an existing workflow.
+            """Update an existing workflow.
 
             Allows modification of workflow configuration while preserving
             execution history and existing data.
@@ -358,6 +356,7 @@ class WorkflowTools(BaseTool):
 
             Returns:
                 Dict containing updated workflow information
+
             """
 
             async def _update_workflow(_session, services):
@@ -415,8 +414,7 @@ class WorkflowTools(BaseTool):
 
         @mcp.tool()
         async def cancel_workflow_execution(execution_id: str) -> dict[str, Any]:
-            """
-            Cancel a running workflow execution.
+            """Cancel a running workflow execution.
 
             Attempts to gracefully stop workflow execution and cleanup resources.
 
@@ -425,6 +423,7 @@ class WorkflowTools(BaseTool):
 
             Returns:
                 Dict containing cancellation confirmation
+
             """
 
             async def _cancel_execution(_session, services):
@@ -444,10 +443,9 @@ class WorkflowTools(BaseTool):
 
         @mcp.tool()
         async def get_workflow_execution_logs(
-            execution_id: str, limit: int = 100
+            execution_id: str, limit: int = 100,
         ) -> dict[str, Any]:
-            """
-            Get detailed execution logs for a workflow run.
+            """Get detailed execution logs for a workflow run.
 
             Provides step-by-step execution details, timing, and error information.
 
@@ -457,6 +455,7 @@ class WorkflowTools(BaseTool):
 
             Returns:
                 Dict containing detailed execution logs
+
             """
 
             async def _get_execution_logs(_session, services):
@@ -496,14 +495,14 @@ class WorkflowTools(BaseTool):
 
         @mcp.tool()
         async def get_workflow_analytics() -> dict[str, Any]:
-            """
-            Get workflow analytics and performance metrics.
+            """Get workflow analytics and performance metrics.
 
             Provides insights into workflow execution patterns, success rates,
             and performance characteristics.
 
             Returns:
                 Dict containing comprehensive workflow analytics
+
             """
 
             async def _get_workflow_analytics(_session, services):
@@ -541,10 +540,10 @@ class WorkflowTools(BaseTool):
                     "performance": {
                         "avg_execution_time_seconds": round(avg_execution_time, 2),
                         "fastest_execution_seconds": execution_stats.get(
-                            "min_execution_time_seconds", 0
+                            "min_execution_time_seconds", 0,
                         ),
                         "slowest_execution_seconds": execution_stats.get(
-                            "max_execution_time_seconds", 0
+                            "max_execution_time_seconds", 0,
                         ),
                     },
                     "workflow_types": workflow_types,

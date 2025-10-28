@@ -1,5 +1,4 @@
-"""
-Intelligent memory scope classification system.
+"""Intelligent memory scope classification system.
 
 Automatically determines whether a memory should be:
 - GLOBAL (cloud): Universal knowledge
@@ -50,11 +49,11 @@ class SensitiveDataDetector:
 
     @classmethod
     def detect(cls, content: str) -> tuple[bool, list[str]]:
-        """
-        Detect sensitive information in content.
+        """Detect sensitive information in content.
 
         Returns:
             Tuple of (has_sensitive_data, list_of_detected_types)
+
         """
         detected_types = []
 
@@ -110,11 +109,11 @@ class KnowledgeTypeClassifier:
 
     @classmethod
     def classify(cls, content: str) -> str:
-        """
-        Classify knowledge type.
+        """Classify knowledge type.
 
         Returns:
             'universal', 'team', or 'specific'
+
         """
         # Check for universal knowledge
         for pattern in cls.UNIVERSAL_INDICATORS:
@@ -143,8 +142,7 @@ class ScopeClassifier:
         metadata: dict[str, Any] | None = None,
         user_hint: MemoryScope | None = None,
     ) -> tuple[MemoryScope, dict[str, Any]]:
-        """
-        Classify memory scope based on content and metadata.
+        """Classify memory scope based on content and metadata.
 
         Args:
             content: Memory content to classify
@@ -153,6 +151,7 @@ class ScopeClassifier:
 
         Returns:
             Tuple of (classified_scope, classification_details)
+
         """
         classification_details = {
             "auto_classified": True,
@@ -211,31 +210,31 @@ class ScopeClassifier:
         return MemoryScope.PROJECT, classification_details
 
     def validate_scope_safety(self, scope: MemoryScope, content: str) -> bool:
-        """
-        Validate that the proposed scope is safe for the content.
+        """Validate that the proposed scope is safe for the content.
 
         Returns:
             True if safe, False if scope should be downgraded
+
         """
         has_sensitive, sensitive_types = self.sensitive_detector.detect(content)
 
         # Never allow sensitive data in cloud
         if has_sensitive and scope.is_cloud():
             logger.error(
-                f"SECURITY VIOLATION: Attempted to store sensitive data ({sensitive_types}) in cloud scope {scope}"
+                f"SECURITY VIOLATION: Attempted to store sensitive data ({sensitive_types}) in cloud scope {scope}",
             )
             return False
 
         return True
 
     def suggest_scope_override(
-        self, current_scope: MemoryScope, content: str
+        self, current_scope: MemoryScope, content: str,
     ) -> MemoryScope | None:
-        """
-        Suggest a safer scope if current one is inappropriate.
+        """Suggest a safer scope if current one is inappropriate.
 
         Returns:
             Suggested scope, or None if current scope is appropriate
+
         """
         has_sensitive, _ = self.sensitive_detector.detect(content)
 

@@ -1,5 +1,4 @@
-"""
-Pattern Execution Authentication and Authorization
+"""Pattern Execution Authentication and Authorization
 Addresses Hestia's CRITICAL finding: No authentication on pattern execution
 
 Security Model:
@@ -41,8 +40,7 @@ class PatternPermission:
 
 
 class PatternAuthManager:
-    """
-    Manages authentication and authorization for pattern execution
+    """Manages authentication and authorization for pattern execution
 
     Security Features:
     - JWT token validation
@@ -90,8 +88,7 @@ class PatternAuthManager:
         )
 
     async def authenticate_request(self, token: str, pattern_name: str) -> dict[str, str]:
-        """
-        Authenticate and authorize pattern execution request
+        """Authenticate and authorize pattern execution request
 
         Args:
             token: JWT token from request
@@ -103,6 +100,7 @@ class PatternAuthManager:
         Raises:
             AuthenticationException: Invalid token
             AuthorizationException: Insufficient permissions
+
         """
         # 1. Validate JWT token
         try:
@@ -139,7 +137,7 @@ class PatternAuthManager:
         return {"agent_id": agent_id, "agent_role": agent_role}
 
     def _check_rate_limit(
-        self, agent_id: str, pattern_name: str, permission: PatternPermission
+        self, agent_id: str, pattern_name: str, permission: PatternPermission,
     ) -> bool:
         """Check if agent is within rate limits"""
         key = f"{agent_id}:{pattern_name}"
@@ -165,7 +163,7 @@ class PatternAuthManager:
         """Log pattern access for audit trail"""
         logger.info(
             f"PATTERN_ACCESS: agent={agent_id} pattern={pattern_name} "
-            f"result={result} timestamp={datetime.utcnow().isoformat()}"
+            f"result={result} timestamp={datetime.utcnow().isoformat()}",
         )
 
     def register_pattern_permission(self, permission: PatternPermission):
@@ -178,7 +176,7 @@ class PatternAuthManager:
         if pattern_name in self.permissions:
             self.permissions[pattern_name].allowed_agents = allowed_agents
             logger.info(
-                f"Updated permissions for {pattern_name}: {len(allowed_agents)} agents allowed"
+                f"Updated permissions for {pattern_name}: {len(allowed_agents)} agents allowed",
             )
 
 

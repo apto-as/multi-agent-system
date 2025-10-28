@@ -1,5 +1,4 @@
-"""
-Role-Based Authorization System for TMWS.
+"""Role-Based Authorization System for TMWS.
 Implements fine-grained access control with high performance.
 """
 
@@ -228,7 +227,7 @@ class RolePermissionMatrix:
 
     @classmethod
     def has_permission(
-        cls, user_roles: list[UserRole], resource: Resource, permission: Permission
+        cls, user_roles: list[UserRole], resource: Resource, permission: Permission,
     ) -> bool:
         """Check if any user role has permission on resource."""
         for role in user_roles:
@@ -354,7 +353,7 @@ class APIKeyScopeMapper:
 
     @classmethod
     def has_scope_permission(
-        cls, scopes: list[APIKeyScope], resource: Resource, permission: Permission
+        cls, scopes: list[APIKeyScope], resource: Resource, permission: Permission,
     ) -> bool:
         """Check if API key scopes allow permission on resource."""
         for scope in scopes:
@@ -369,19 +368,18 @@ class AuthorizationService:
     """High-performance authorization service with database-verified security."""
 
     def __init__(self, session: AsyncSession):
-        """
-        Initialize authorization service.
+        """Initialize authorization service.
 
         Args:
             session: Async database session for namespace verification
+
         """
         self.session = session
         self.role_matrix = RolePermissionMatrix()
         self.scope_mapper = APIKeyScopeMapper()
 
     async def check_permission(self, context: AuthorizationContext) -> bool:
-        """
-        Check if user has permission for resource.
+        """Check if user has permission for resource.
         Performance target: <50ms (includes database verification for memories).
 
         Security: Database-verified namespace isolation for MEMORIES resource.
@@ -392,7 +390,7 @@ class AuthorizationService:
 
         # Check role-based permissions
         if self.role_matrix.has_permission(
-            context.user.roles, context.resource, context.permission
+            context.user.roles, context.resource, context.permission,
         ):
             # Additional context checks (async for database verification)
             return await self._check_additional_constraints(context)
@@ -400,7 +398,7 @@ class AuthorizationService:
         # Check API key scope permissions if applicable
         if context.api_key_scopes:
             return self.scope_mapper.has_scope_permission(
-                context.api_key_scopes, context.resource, context.permission
+                context.api_key_scopes, context.resource, context.permission,
             )
 
         return False
@@ -470,8 +468,7 @@ class AuthorizationService:
         return True
 
     async def _check_memory_access(self, context: AuthorizationContext) -> bool:
-        """
-        Check memory access permissions with database-verified namespace isolation.
+        """Check memory access permissions with database-verified namespace isolation.
 
         SECURITY-CRITICAL: P0-2 FIX - Database-verified namespace (CVSS 9.1)
 
@@ -491,6 +488,7 @@ class AuthorizationService:
 
         Raises:
             None - Returns False on any error for security
+
         """
         try:
             # Validate inputs
@@ -544,7 +542,7 @@ class AuthorizationService:
         return list(set(permissions))  # Remove duplicates
 
     def validate_api_key_scope(
-        self, required_scope: APIKeyScope, available_scopes: list[APIKeyScope]
+        self, required_scope: APIKeyScope, available_scopes: list[APIKeyScope],
     ) -> bool:
         """Validate API key has required scope."""
         if APIKeyScope.FULL in available_scopes:
@@ -567,7 +565,7 @@ def require_permission(resource: Resource, permission: Permission, check_ownersh
             user = kwargs.get("user") or kwargs.get("current_user")
             if not user:
                 raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required"
+                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required",
                 )
 
             # Extract additional context
@@ -588,7 +586,7 @@ def require_permission(resource: Resource, permission: Permission, check_ownersh
             # Check permission
             if not authorization_service.check_permission(auth_context):
                 raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions"
+                    status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions",
                 )
 
             # Check ownership if required
@@ -614,7 +612,7 @@ def require_role(*required_roles: UserRole):
             user = kwargs.get("user") or kwargs.get("current_user")
             if not user:
                 raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required"
+                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required",
                 )
 
             if not any(role in user.roles for role in required_roles):
@@ -631,8 +629,7 @@ def require_role(*required_roles: UserRole):
 
 
 def require_permissions(resource: Resource, *permissions: Permission):
-    """
-    Decorator for checking permissions on a resource.
+    """Decorator for checking permissions on a resource.
     Can be used on FastAPI route handlers.
     """
 
@@ -643,7 +640,7 @@ def require_permissions(resource: Resource, *permissions: Permission):
             user = kwargs.get("current_user")
             if not user:
                 raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required"
+                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required",
                 )
 
             # Check permissions

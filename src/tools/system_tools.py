@@ -1,5 +1,4 @@
-"""
-System Management Tools for TMWS MCP Server
+"""System Management Tools for TMWS MCP Server
 Handles system status, optimization, and administrative functions
 """
 
@@ -27,10 +26,10 @@ class HealthCheckRequest(BaseModel):
     """Health check parameters."""
 
     include_detailed_metrics: bool = Field(
-        default=False, description="Include detailed system metrics"
+        default=False, description="Include detailed system metrics",
     )
     check_external_services: bool = Field(
-        default=True, description="Check external service connectivity"
+        default=True, description="Check external service connectivity",
     )
     performance_test: bool = Field(default=False, description="Run performance tests")
 
@@ -43,14 +42,14 @@ class SystemTools(BaseTool):
 
         @mcp.tool()
         async def get_system_status() -> dict[str, Any]:
-            """
-            Get TMWS system status and statistics.
+            """Get TMWS system status and statistics.
 
             Returns comprehensive system information including database status,
             memory usage, performance metrics, and feature availability.
 
             Returns:
                 Dict containing complete system status information
+
             """
 
             async def _get_system_status(session, services):
@@ -88,7 +87,7 @@ class SystemTools(BaseTool):
                     logger.warning(
                         f"Database connection test failed: {type(e).__name__}: {str(e)}",
                         exc_info=True,
-                        extra={"operation": "db_connection_test"}
+                        extra={"operation": "db_connection_test"},
                     )
                     db_connected = False
 
@@ -140,8 +139,7 @@ class SystemTools(BaseTool):
             check_external_services: bool = True,
             performance_test: bool = False,
         ) -> dict[str, Any]:
-            """
-            Perform comprehensive health check.
+            """Perform comprehensive health check.
 
             Validates system components, connectivity, and performance characteristics.
             Can include detailed metrics and performance testing.
@@ -153,6 +151,7 @@ class SystemTools(BaseTool):
 
             Returns:
                 Dict containing health check results and recommendations
+
             """
             request = HealthCheckRequest(
                 include_detailed_metrics=include_detailed_metrics,
@@ -185,7 +184,7 @@ class SystemTools(BaseTool):
                     logger.error(
                         f"Database health check failed: {type(e).__name__}",
                         exc_info=True,
-                        extra={"operation": "health_check_database", "error": str(e)}
+                        extra={"operation": "health_check_database", "error": str(e)},
                     )
                     health_results["checks"]["database"] = {
                         "status": "unhealthy",
@@ -211,7 +210,7 @@ class SystemTools(BaseTool):
                     logger.error(
                         f"Memory service health check failed: {type(e).__name__}",
                         exc_info=True,
-                        extra={"operation": "health_check_memory_service", "error": str(e)}
+                        extra={"operation": "health_check_memory_service", "error": str(e)},
                     )
                     health_results["checks"]["memory_service"] = {
                         "status": "unhealthy",
@@ -236,7 +235,7 @@ class SystemTools(BaseTool):
                     logger.warning(
                         f"Vectorization service health check failed: {type(e).__name__}",
                         exc_info=True,
-                        extra={"operation": "health_check_vectorization", "error": str(e)}
+                        extra={"operation": "health_check_vectorization", "error": str(e)},
                     )
                     health_results["checks"]["vectorization"] = {
                         "status": "unhealthy",
@@ -285,7 +284,7 @@ class SystemTools(BaseTool):
                         logger.warning(
                             f"Performance test failed: {type(e).__name__}",
                             exc_info=True,
-                            extra={"operation": "performance_test", "error": str(e)}
+                            extra={"operation": "performance_test", "error": str(e)},
                         )
                         health_results["checks"]["performance_test"] = {
                             "status": "failed",
@@ -316,8 +315,7 @@ class SystemTools(BaseTool):
             analyze_performance: bool = True,
             vacuum_database: bool = False,
         ) -> dict[str, Any]:
-            """
-            Perform system optimization operations.
+            """Perform system optimization operations.
 
             Runs various optimization procedures to improve system performance
             and clean up unnecessary data.
@@ -330,6 +328,7 @@ class SystemTools(BaseTool):
 
             Returns:
                 Dict containing optimization results and performance improvements
+
             """
             request = SystemOptimizationRequest(
                 optimize_vectors=optimize_vectors,
@@ -382,7 +381,7 @@ class SystemTools(BaseTool):
                         logger.error(
                             f"Vector optimization failed: {type(e).__name__}",
                             exc_info=True,
-                            extra={"operation": "optimize_vectors", "error": str(e)}
+                            extra={"operation": "optimize_vectors", "error": str(e)},
                         )
                         optimization_results["operations"]["vector_optimization"] = {
                             "status": "failed",
@@ -424,7 +423,7 @@ class SystemTools(BaseTool):
                         logger.warning(
                             f"Log cleanup skipped: {type(e).__name__}",
                             exc_info=True,
-                            extra={"operation": "cleanup_logs", "error": str(e)}
+                            extra={"operation": "cleanup_logs", "error": str(e)},
                         )
                         optimization_results["operations"]["log_cleanup"] = {
                             "status": "skipped",
@@ -476,7 +475,7 @@ class SystemTools(BaseTool):
                         logger.error(
                             f"Performance analysis failed: {type(e).__name__}",
                             exc_info=True,
-                            extra={"operation": "analyze_performance", "error": str(e)}
+                            extra={"operation": "analyze_performance", "error": str(e)},
                         )
                         optimization_results["operations"]["performance_analysis"] = {
                             "status": "failed",
@@ -507,7 +506,7 @@ class SystemTools(BaseTool):
                         logger.error(
                             f"Database vacuum failed: {type(e).__name__}",
                             exc_info=True,
-                            extra={"operation": "vacuum_database", "error": str(e)}
+                            extra={"operation": "vacuum_database", "error": str(e)},
                         )
                         optimization_results["operations"]["database_vacuum"] = {
                             "status": "failed",
@@ -527,10 +526,9 @@ class SystemTools(BaseTool):
 
         @mcp.tool()
         async def get_performance_metrics(
-            time_window_hours: int = 24, include_query_stats: bool = True
+            time_window_hours: int = 24, include_query_stats: bool = True,
         ) -> dict[str, Any]:
-            """
-            Get detailed system performance metrics.
+            """Get detailed system performance metrics.
 
             Analyzes system performance over specified time window with
             detailed breakdowns of component performance.
@@ -541,6 +539,7 @@ class SystemTools(BaseTool):
 
             Returns:
                 Dict containing comprehensive performance metrics
+
             """
 
             async def _get_performance_metrics(session, services):
@@ -610,7 +609,7 @@ class SystemTools(BaseTool):
                     logger.warning(
                         f"Database activity metrics failed: {type(e).__name__}",
                         exc_info=True,
-                        extra={"operation": "get_database_activity", "error": str(e)}
+                        extra={"operation": "get_database_activity", "error": str(e)},
                     )
                     metrics["database_activity"] = {"error": str(e)}
 
@@ -666,7 +665,7 @@ class SystemTools(BaseTool):
                         logger.warning(
                             f"Query performance metrics failed: {type(e).__name__}",
                             exc_info=True,
-                            extra={"operation": "get_query_performance", "error": str(e)}
+                            extra={"operation": "get_query_performance", "error": str(e)},
                         )
                         metrics["query_performance"] = {"error": str(e)}
 
@@ -704,7 +703,7 @@ class SystemTools(BaseTool):
                         logger.warning(
                             f"Service health check failed for {service_name}: {type(e).__name__}",
                             exc_info=True,
-                            extra={"operation": "service_health_check", "service": service_name, "error": str(e)}
+                            extra={"operation": "service_health_check", "service": service_name, "error": str(e)},
                         )
                         services_health[service_name] = {"status": "unhealthy", "error": str(e)}
 
@@ -718,14 +717,14 @@ class SystemTools(BaseTool):
 
         @mcp.tool()
         async def get_system_configuration() -> dict[str, Any]:
-            """
-            Get current system configuration and settings.
+            """Get current system configuration and settings.
 
             Returns system configuration, feature flags, and environment settings
             without exposing sensitive information.
 
             Returns:
                 Dict containing system configuration details
+
             """
 
             async def _get_system_config(_session, _services):
@@ -766,8 +765,7 @@ class SystemTools(BaseTool):
 
         @mcp.tool()
         async def restart_services(service_names: list[str] | None = None) -> dict[str, Any]:
-            """
-            Restart specified services or all services.
+            """Restart specified services or all services.
 
             Gracefully restarts system services with minimal downtime.
             Use with caution in production environments.
@@ -777,6 +775,7 @@ class SystemTools(BaseTool):
 
             Returns:
                 Dict containing restart results for each service
+
             """
 
             async def _restart_services(_session, _services):
@@ -815,7 +814,7 @@ class SystemTools(BaseTool):
                             logger.error(
                                 f"Service restart failed for {service_name}: {type(e).__name__}",
                                 exc_info=True,
-                                extra={"operation": "restart_service", "service": service_name, "error": str(e)}
+                                extra={"operation": "restart_service", "service": service_name, "error": str(e)},
                             )
                             restart_results["services"][service_name] = {
                                 "status": "failed",

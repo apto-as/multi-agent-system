@@ -1,5 +1,4 @@
-"""
-JWT Service for TMWS Authentication System.
+"""JWT Service for TMWS Authentication System.
 High-performance JWT token generation, validation, and refresh with comprehensive security.
 """
 
@@ -58,8 +57,7 @@ class JWTService:
         additional_claims: dict[str, Any] | None = None,
         expires_delta: timedelta | None = None,
     ) -> str:
-        """
-        Create JWT access token for user.
+        """Create JWT access token for user.
         Optimized for <200ms performance requirement.
         """
         now = datetime.now(timezone.utc)
@@ -79,7 +77,7 @@ class JWTService:
                 "exp": expire,  # Expires
                 "jti": secrets.token_urlsafe(16),  # JWT ID for revocation
                 "session_timeout": user.session_timeout_minutes,
-            }
+            },
         )
 
         # Add additional claims if provided
@@ -94,8 +92,7 @@ class JWTService:
             raise ValueError(f"Failed to create access token: {str(e)}")
 
     def create_refresh_token(self, user: User) -> tuple[str, RefreshToken]:
-        """
-        Create refresh token for user.
+        """Create refresh token for user.
         Returns (token, refresh_token_record) tuple.
         """
         token_id = secrets.token_urlsafe(32)
@@ -108,7 +105,7 @@ class JWTService:
 
         # Create database record
         refresh_token = RefreshToken(
-            token_id=token_id, token_hash=token_hash, expires_at=expires_at, user_id=user.id
+            token_id=token_id, token_hash=token_hash, expires_at=expires_at, user_id=user.id,
         )
 
         # Return token and record
@@ -116,7 +113,7 @@ class JWTService:
         return full_token, refresh_token
 
     def create_api_key_token(
-        self, api_key_id: str, user: User, scopes: list[str], expires_delta: timedelta | None = None
+        self, api_key_id: str, user: User, scopes: list[str], expires_delta: timedelta | None = None,
     ) -> str:
         """Create JWT token for API key authentication."""
         now = datetime.now(timezone.utc)
@@ -134,14 +131,13 @@ class JWTService:
                 "iat": now,
                 "exp": expire,
                 "jti": secrets.token_urlsafe(16),
-            }
+            },
         )
 
         return jwt.encode(claims, self.secret_key, algorithm=self.algorithm)
 
     def verify_token(self, token: str, client_ip: str | None = None) -> dict[str, Any] | None:
-        """
-        Verify and decode JWT token.
+        """Verify and decode JWT token.
         Optimized for <200ms performance requirement.
 
         Args:
@@ -150,6 +146,7 @@ class JWTService:
 
         Returns:
             Decoded payload if valid, None if invalid/expired
+
         """
         try:
             # Fast path: decode and verify in one operation
@@ -173,7 +170,7 @@ class JWTService:
             if "sub" not in payload or "username" not in payload:
                 logger.error(
                     "⚠️  JWT token missing required claims",
-                    extra={"client_ip": client_ip, "has_sub": "sub" in payload, "has_username": "username" in payload}
+                    extra={"client_ip": client_ip, "has_sub": "sub" in payload, "has_username": "username" in payload},
                 )
                 return None
 
@@ -188,7 +185,7 @@ class JWTService:
             if client_ip:
                 logger.info(
                     f"Expired JWT token from {client_ip} (normal expiration)",
-                    extra={"client_ip": client_ip, "error_type": "expired"}
+                    extra={"client_ip": client_ip, "error_type": "expired"},
                 )
             return None
         except InvalidTokenError as e:
@@ -200,8 +197,8 @@ class JWTService:
                     "client_ip": client_ip or "unknown",
                     "error_type": "invalid_token",
                     "error_class": type(e).__name__,
-                    "token_prefix": token[:8] + "..." if len(token) > 8 else "***"  # Masked token
-                }
+                    "token_prefix": token[:8] + "..." if len(token) > 8 else "***",  # Masked token
+                },
             )
             return None
         except Exception as e:
@@ -212,14 +209,13 @@ class JWTService:
                 extra={
                     "client_ip": client_ip or "unknown",
                     "error_type": "unexpected",
-                    "error_class": type(e).__name__
-                }
+                    "error_class": type(e).__name__,
+                },
             )
             return None
 
     def verify_refresh_token(self, token: str, client_ip: str | None = None) -> str | None:
-        """
-        Verify refresh token and extract token_id.
+        """Verify refresh token and extract token_id.
 
         Args:
             token: Refresh token in format "token_id.raw_token"
@@ -227,6 +223,7 @@ class JWTService:
 
         Returns:
             token_id if valid format, None otherwise
+
         """
         try:
             # Parse token format: token_id.raw_token
@@ -234,7 +231,7 @@ class JWTService:
             if len(parts) != 2:
                 logger.error(
                     "⚠️  Invalid refresh token format (missing delimiter)",
-                    extra={"client_ip": client_ip or "unknown", "parts_count": len(parts)}
+                    extra={"client_ip": client_ip or "unknown", "parts_count": len(parts)},
                 )
                 return None
 
@@ -247,8 +244,8 @@ class JWTService:
                     extra={
                         "client_ip": client_ip or "unknown",
                         "token_id_length": len(token_id),
-                        "token_id_prefix": token_id[:8] + "..." if len(token_id) > 8 else "***"
-                    }
+                        "token_id_prefix": token_id[:8] + "..." if len(token_id) > 8 else "***",
+                    },
                 )
                 return None
 
@@ -260,13 +257,12 @@ class JWTService:
             logger.critical(
                 f"❌ CRITICAL: Unexpected refresh token verification error: {type(e).__name__}: {str(e)}",
                 exc_info=True,
-                extra={"client_ip": client_ip or "unknown", "error_type": "unexpected"}
+                extra={"client_ip": client_ip or "unknown", "error_type": "unexpected"},
             )
             return None
 
     def verify_refresh_token_hash(self, raw_token: str, stored_hash: str, client_ip: str | None = None) -> bool:
-        """
-        Verify raw refresh token against stored hash.
+        """Verify raw refresh token against stored hash.
 
         Args:
             raw_token: Raw refresh token from client
@@ -275,6 +271,7 @@ class JWTService:
 
         Returns:
             True if token matches hash, False otherwise
+
         """
         try:
             return self.pwd_context.verify(raw_token, stored_hash)
@@ -288,15 +285,14 @@ class JWTService:
                 extra={
                     "client_ip": client_ip or "unknown",
                     "error_type": "hash_verification_failed",
-                    "stored_hash_prefix": stored_hash[:10] + "..." if len(stored_hash) > 10 else "***"
-                }
+                    "stored_hash_prefix": stored_hash[:10] + "..." if len(stored_hash) > 10 else "***",
+                },
             )
             # FAIL-SECURE: On any error, deny access
             return False
 
     def decode_token_unsafe(self, token: str) -> dict[str, Any] | None:
-        """
-        Decode token without verification (for debugging/logging only).
+        """Decode token without verification (for debugging/logging only).
 
         WARNING: NEVER use for authentication! This bypasses all security checks.
         """
@@ -308,13 +304,12 @@ class JWTService:
             logger.warning(
                 f"⚠️  Unsafe token decode failed (debugging only): {type(e).__name__}: {str(e)}",
                 exc_info=False,  # Don't spam logs for debugging function
-                extra={"token_prefix": token[:8] + "..." if len(token) > 8 else "***"}
+                extra={"token_prefix": token[:8] + "..." if len(token) > 8 else "***"},
             )
             return None
 
     def get_token_expiry(self, token: str) -> datetime | None:
-        """
-        Get token expiration time without full verification.
+        """Get token expiration time without full verification.
 
         Note: This is a convenience function for displaying token lifetime.
         Do NOT use for security decisions.
@@ -330,7 +325,7 @@ class JWTService:
             logger.warning(
                 f"⚠️  Failed to extract token expiry: {type(e).__name__}: {str(e)}",
                 exc_info=False,  # Non-critical operation
-                extra={"token_prefix": token[:8] + "..." if len(token) > 8 else "***"}
+                extra={"token_prefix": token[:8] + "..." if len(token) > 8 else "***"},
             )
             return None
 

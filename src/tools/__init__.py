@@ -1,5 +1,4 @@
-"""
-TMWS MCP Tools Package
+"""TMWS MCP Tools Package
 Trinitas Memory & Workflow Service Tools for FastMCP
 
 This package contains modularized MCP tools for:

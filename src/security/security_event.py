@@ -1,5 +1,4 @@
-"""
-共通セキュリティイベント定義
+"""共通セキュリティイベント定義
 Unified Security Event classes for consistent security logging
 """
 
@@ -13,8 +12,7 @@ from ..models.audit_log import SecurityEventSeverity, SecurityEventType
 
 @dataclass
 class SecurityEvent:
-    """
-    統一されたセキュリティイベント構造
+    """統一されたセキュリティイベント構造
     Unified security event data structure for consistent logging.
     """
 

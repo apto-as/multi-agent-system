@@ -1,5 +1,4 @@
-"""
-Configuration Loader for TMWS Unified Server
+"""Configuration Loader for TMWS Unified Server
 Loads and merges configuration from YAML files and environment variables
 """
 
@@ -17,17 +16,15 @@ logger = logging.getLogger(__name__)
 
 
 class ConfigLoader:
-    """
-    Configuration loader with environment variable substitution
+    """Configuration loader with environment variable substitution
     Supports hierarchical configuration with overrides
     """
 
     @staticmethod
     def _get_secure_value(
-        env_var: str, default_value: str | None = None, required: bool = True
+        env_var: str, default_value: str | None = None, required: bool = True,
     ) -> str:
-        """
-        Get environment variable with fail-secure behavior
+        """Get environment variable with fail-secure behavior
 
         Args:
             env_var: Environment variable name
@@ -39,6 +36,7 @@ class ConfigLoader:
 
         Raises:
             ConfigurationError: If required value missing in production
+
         """
         environment = os.environ.get("TMWS_ENVIRONMENT", "development")
         value = os.environ.get(env_var)
@@ -50,14 +48,14 @@ class ConfigLoader:
         if environment == "production" and required:
             raise ConfigurationError(
                 f"Required environment variable {env_var} not set in production. "
-                f"This is a security requirement."
+                f"This is a security requirement.",
             )
 
         # Development: warn and use default
         if default_value:
             logger.warning(
                 f"⚠️  Using default value for {env_var} in {environment} environment. "
-                f"Set environment variable for production use."
+                f"Set environment variable for production use.",
             )
             return default_value
 
@@ -70,14 +68,14 @@ class ConfigLoader:
 
     @staticmethod
     def load_config(config_path: str | None = None) -> dict[str, Any]:
-        """
-        Load configuration from YAML file with environment variable substitution
+        """Load configuration from YAML file with environment variable substitution
 
         Args:
             config_path: Path to configuration file (optional)
 
         Returns:
             Merged configuration dictionary
+
         """
         # Default configuration path
         if not config_path:
@@ -205,7 +203,7 @@ class ConfigLoader:
         # FastAPI port override
         if "TMWS_API_PORT" in os.environ:
             config.setdefault("protocols", {}).setdefault("fastapi", {})["port"] = int(
-                os.environ["TMWS_API_PORT"]
+                os.environ["TMWS_API_PORT"],
             )
 
         # Auth override
@@ -252,8 +250,7 @@ class ConfigLoader:
 
     @staticmethod
     def merge_configs(*configs: dict[str, Any]) -> dict[str, Any]:
-        """
-        Deep merge multiple configuration dictionaries
+        """Deep merge multiple configuration dictionaries
         Later configs override earlier ones
         """
         result = {}

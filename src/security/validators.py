@@ -1,5 +1,4 @@
-"""
-Input Validation and Sanitization Module
+"""Input Validation and Sanitization Module
 Hestia's Paranoid Validation System
 
 "……どんな入力も信用してはいけません……全てを疑って検証します……"
@@ -30,8 +29,7 @@ class ValidationError(BaseValidationError):
 
 
 class InputValidator:
-    """
-    Comprehensive input validation system.
+    """Comprehensive input validation system.
     Hestia's Rule: Trust nothing, validate everything.
     """
 
@@ -126,8 +124,7 @@ class InputValidator:
         allow_html: bool = False,
         required: bool = True,
     ) -> str:
-        """
-        Comprehensive string validation.
+        """Comprehensive string validation.
 
         Args:
             value: String to validate
@@ -141,6 +138,7 @@ class InputValidator:
 
         Raises:
             ValidationError: If validation fails
+
         """
         # Check if required
         if required and (not value or not value.strip()):
@@ -155,7 +153,7 @@ class InputValidator:
 
         if len(value) > max_length:
             raise ValidationError(
-                f"{field_name} exceeds maximum length of {max_length} characters", field_name, value
+                f"{field_name} exceeds maximum length of {max_length} characters", field_name, value,
             )
 
         # Check for dangerous patterns
@@ -168,8 +166,7 @@ class InputValidator:
             return self._sanitize_text(value)
 
     def validate_email(self, email: str, field_name: str = "email") -> str:
-        """
-        Validate email address.
+        """Validate email address.
 
         Args:
             email: Email to validate
@@ -180,6 +177,7 @@ class InputValidator:
 
         Raises:
             ValidationError: If email is invalid
+
         """
         if not email:
             raise ValidationError(f"{field_name} is required", field_name, email)
@@ -201,8 +199,7 @@ class InputValidator:
         return email
 
     def validate_password(self, password: str, username: str = None) -> str:
-        """
-        Validate password strength.
+        """Validate password strength.
 
         Args:
             password: Password to validate
@@ -213,6 +210,7 @@ class InputValidator:
 
         Raises:
             ValidationError: If password is weak
+
         """
         if not password:
             raise ValidationError("Password is required", "password", password)
@@ -254,8 +252,7 @@ class InputValidator:
         return password
 
     def validate_url(self, url: str, field_name: str = "url") -> str:
-        """
-        Validate URL.
+        """Validate URL.
 
         Args:
             url: URL to validate
@@ -266,6 +263,7 @@ class InputValidator:
 
         Raises:
             ValidationError: If URL is invalid
+
         """
         if not url:
             raise ValidationError(f"{field_name} is required", field_name, url)
@@ -277,7 +275,7 @@ class InputValidator:
         for protocol in dangerous_protocols:
             if url.lower().startswith(protocol):
                 raise ValidationError(
-                    f"{field_name} uses dangerous protocol: {protocol}", field_name, url
+                    f"{field_name} uses dangerous protocol: {protocol}", field_name, url,
                 )
 
         # Parse URL
@@ -293,8 +291,7 @@ class InputValidator:
         return url
 
     def validate_ip_address(self, ip: str, field_name: str = "ip_address") -> str:
-        """
-        Validate IP address.
+        """Validate IP address.
 
         Args:
             ip: IP address to validate
@@ -305,6 +302,7 @@ class InputValidator:
 
         Raises:
             ValidationError: If IP is invalid
+
         """
         if not ip:
             raise ValidationError(f"{field_name} is required", field_name, ip)
@@ -326,8 +324,7 @@ class InputValidator:
         required_fields: list[str] = None,
         max_depth: int = 10,
     ) -> dict[str, Any]:
-        """
-        Validate JSON field data.
+        """Validate JSON field data.
 
         Args:
             data: JSON data to validate
@@ -340,6 +337,7 @@ class InputValidator:
 
         Raises:
             ValidationError: If JSON is invalid
+
         """
         if not isinstance(data, dict):
             raise ValidationError(f"{field_name} must be an object", field_name, data)
@@ -347,7 +345,7 @@ class InputValidator:
         # Check depth
         if self._get_dict_depth(data) > max_depth:
             raise ValidationError(
-                f"{field_name} exceeds maximum nesting depth of {max_depth}", field_name, data
+                f"{field_name} exceeds maximum nesting depth of {max_depth}", field_name, data,
             )
 
         # Check required fields
@@ -355,7 +353,7 @@ class InputValidator:
             missing_fields = [field for field in required_fields if field not in data]
             if missing_fields:
                 raise ValidationError(
-                    f"{field_name} missing required fields: {missing_fields}", field_name, data
+                    f"{field_name} missing required fields: {missing_fields}", field_name, data,
                 )
 
         # Recursively validate string values
@@ -367,7 +365,7 @@ class InputValidator:
             if re.search(pattern, value, re.IGNORECASE):
                 logger.warning(f"Dangerous pattern detected in {field_name}: {pattern}")
                 raise ValidationError(
-                    f"{field_name} contains potentially dangerous content", field_name, value
+                    f"{field_name} contains potentially dangerous content", field_name, value,
                 )
 
     def _sanitize_text(self, text: str) -> str:
@@ -418,8 +416,7 @@ class InputValidator:
 
 
 class SQLInjectionValidator:
-    """
-    SQL Injection prevention validator.
+    """SQL Injection prevention validator.
     "……SQLインジェクションは絶対に通しません……"
     """
 
@@ -442,8 +439,7 @@ class SQLInjectionValidator:
         ]
 
     def validate_query_parameter(self, value: str, parameter_name: str = "parameter") -> str:
-        """
-        Validate query parameter for SQL injection attempts.
+        """Validate query parameter for SQL injection attempts.
 
         Args:
             value: Parameter value to validate
@@ -454,6 +450,7 @@ class SQLInjectionValidator:
 
         Raises:
             ValidationError: If SQL injection detected
+
         """
         if not value:
             return value
@@ -486,7 +483,7 @@ class SQLInjectionValidator:
         if re.search(r"\bUNION\b.*\bSELECT\b", value, re.IGNORECASE):
             logger.critical(f"UNION injection detected in {parameter_name}")
             raise ValidationError(
-                f"{parameter_name} contains UNION SQL injection", parameter_name, value
+                f"{parameter_name} contains UNION SQL injection", parameter_name, value,
             )
 
     def _check_boolean_injection(self, value: str, parameter_name: str) -> None:
@@ -501,13 +498,12 @@ class SQLInjectionValidator:
             if re.search(pattern, value, re.IGNORECASE):
                 logger.critical(f"Boolean injection detected in {parameter_name}")
                 raise ValidationError(
-                    f"{parameter_name} contains boolean SQL injection", parameter_name, value
+                    f"{parameter_name} contains boolean SQL injection", parameter_name, value,
                 )
 
 
 class VectorValidator:
-    """
-    Vector and embedding validation for ChromaDB vector protection.
+    """Vector and embedding validation for ChromaDB vector protection.
     "……ベクターインジェクションも見逃しません……"
     """
 
@@ -515,10 +511,9 @@ class VectorValidator:
         self.max_dimensions = max_dimensions
 
     def validate_vector(
-        self, vector: list[float] | np.ndarray, expected_dimensions: int = None
+        self, vector: list[float] | np.ndarray, expected_dimensions: int = None,
     ) -> list[float]:
-        """
-        Validate embedding vector.
+        """Validate embedding vector.
 
         Args:
             vector: Vector to validate
@@ -529,6 +524,7 @@ class VectorValidator:
 
         Raises:
             ValidationError: If vector is invalid
+
         """
         if vector is None:
             raise ValidationError("Vector cannot be None", "vector", vector)
@@ -567,8 +563,7 @@ class VectorValidator:
         return validated_vector
 
     def validate_text_for_embedding(self, text: str, max_length: int = 8192) -> str:
-        """
-        Validate text before embedding generation.
+        """Validate text before embedding generation.
 
         Args:
             text: Text to validate
@@ -579,13 +574,14 @@ class VectorValidator:
 
         Raises:
             ValidationError: If text is invalid
+
         """
         if not text:
             raise ValidationError("Text for embedding cannot be empty", "text", text)
 
         if len(text) > max_length:
             raise ValidationError(
-                f"Text length ({len(text)}) exceeds maximum ({max_length})", "text", text
+                f"Text length ({len(text)}) exceeds maximum ({max_length})", "text", text,
             )
 
         # Use InputValidator for basic sanitization
@@ -598,18 +594,18 @@ class VectorValidator:
             value = float(component)
         except (ValueError, TypeError):
             raise ValidationError(
-                f"Vector component at index {index} must be a number", f"vector[{index}]", component
+                f"Vector component at index {index} must be a number", f"vector[{index}]", component,
             )
 
         # Check for NaN and infinite values
         if np.isnan(value):
             raise ValidationError(
-                f"Vector component at index {index} is NaN", f"vector[{index}]", value
+                f"Vector component at index {index} is NaN", f"vector[{index}]", value,
             )
 
         if np.isinf(value):
             raise ValidationError(
-                f"Vector component at index {index} is infinite", f"vector[{index}]", value
+                f"Vector component at index {index} is infinite", f"vector[{index}]", value,
             )
 
         # Check for reasonable bounds
@@ -636,8 +632,7 @@ class VectorValidator:
 
 # Global convenience functions for common operations
 def sanitize_input(text: str, field_name: str = "input", allow_html: bool = False) -> str:
-    """
-    Global convenience function for input sanitization.
+    """Global convenience function for input sanitization.
 
     Args:
         text: Text to sanitize
@@ -646,6 +641,7 @@ def sanitize_input(text: str, field_name: str = "input", allow_html: bool = Fals
 
     Returns:
         Sanitized text
+
     """
     if not text:
         return ""
@@ -655,8 +651,7 @@ def sanitize_input(text: str, field_name: str = "input", allow_html: bool = Fals
 
 
 def validate_agent_id(agent_id: str) -> str:
-    """
-    Validate agent ID format.
+    """Validate agent ID format.
 
     Args:
         agent_id: Agent ID to validate
@@ -666,6 +661,7 @@ def validate_agent_id(agent_id: str) -> str:
 
     Raises:
         ValidationError: If agent ID is invalid
+
     """
     if not agent_id:
         raise ValidationError("Agent ID is required")
@@ -674,7 +670,7 @@ def validate_agent_id(agent_id: str) -> str:
     if not re.match(r"^[a-zA-Z][a-zA-Z0-9_-]{2,63}$", agent_id):
         raise ValidationError(
             "Agent ID must be 3-64 characters, start with a letter, "
-            "and contain only letters, numbers, hyphens, and underscores"
+            "and contain only letters, numbers, hyphens, and underscores",
         )
 
     # Check for dangerous patterns

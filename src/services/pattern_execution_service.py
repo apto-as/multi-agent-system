@@ -1,5 +1,4 @@
-"""
-Pattern Execution Service for TMWS v2.2.0
+"""Pattern Execution Service for TMWS v2.2.0
 Implements Hera's strategic plan: Hybrid execution model with 40% token reduction
 
 Performance targets:
@@ -65,8 +64,7 @@ class ExecutionMode(str, Enum):
 
 @dataclass
 class PatternDefinition:
-    """
-    Compiled pattern definition for efficient matching
+    """Compiled pattern definition for efficient matching
 
     Optimization: Pre-compile regex patterns at load time for 3x speedup
     """
@@ -124,8 +122,7 @@ class RoutingDecision:
 
 
 class PatternRegistry:
-    """
-    High-performance pattern registry with O(1) lookup and O(n) scanning
+    """High-performance pattern registry with O(1) lookup and O(n) scanning
 
     Optimization strategies:
     1. Hash-based exact match lookup: O(1)
@@ -142,8 +139,7 @@ class PatternRegistry:
         self._cache_misses = 0
 
     def register(self, pattern: PatternDefinition, pattern_data: dict[str, Any] | None = None):
-        """
-        Register a pattern definition with security validation
+        """Register a pattern definition with security validation
 
         Performance: O(1) for registration, invalidates sorted cache
 
@@ -166,8 +162,7 @@ class PatternRegistry:
         logger.info(f"Registered pattern: {pattern.name} (type={pattern.pattern_type})")
 
     def register_batch(self, patterns: list[PatternDefinition]):
-        """
-        Batch register patterns for better performance
+        """Batch register patterns for better performance
 
         Performance: O(n) registration, single cache invalidation
         """
@@ -177,10 +172,9 @@ class PatternRegistry:
         logger.info(f"Batch registered {len(patterns)} patterns")
 
     def find_matching_pattern(
-        self, query: str, pattern_type_filter: PatternType | None = None
+        self, query: str, pattern_type_filter: PatternType | None = None,
     ) -> PatternDefinition | None:
-        """
-        Find best matching pattern for query
+        """Find best matching pattern for query
 
         Performance optimizations:
         1. Cache check: O(1) for recent queries
@@ -216,7 +210,7 @@ class PatternRegistry:
         # Regex scan with priority sorting
         if self._sorted_patterns is None:
             self._sorted_patterns = sorted(
-                self.patterns.values(), key=lambda p: p.priority, reverse=True
+                self.patterns.values(), key=lambda p: p.priority, reverse=True,
             )
 
         # Scan patterns in priority order
@@ -268,8 +262,7 @@ class PatternRegistry:
 
 
 class HybridDecisionRouter:
-    """
-    Intelligent router that decides between Infrastructure, Memory, or Hybrid execution
+    """Intelligent router that decides between Infrastructure, Memory, or Hybrid execution
 
     Decision algorithm:
     1. Analyze query characteristics (keywords, complexity, context)
@@ -286,13 +279,13 @@ class HybridDecisionRouter:
 
         # Pre-compiled keyword patterns for fast matching
         self.infrastructure_keywords = re.compile(
-            r"\b(tool|function|command|execute|run|install|setup)\b", re.IGNORECASE
+            r"\b(tool|function|command|execute|run|install|setup)\b", re.IGNORECASE,
         )
         self.memory_keywords = re.compile(
-            r"\b(remember|recall|memory|history|past|previous|stored)\b", re.IGNORECASE
+            r"\b(remember|recall|memory|history|past|previous|stored)\b", re.IGNORECASE,
         )
         self.hybrid_keywords = re.compile(
-            r"\b(analyze|compare|find|search|similar|related)\b", re.IGNORECASE
+            r"\b(analyze|compare|find|search|similar|related)\b", re.IGNORECASE,
         )
 
         # Statistics
@@ -308,8 +301,7 @@ class HybridDecisionRouter:
         execution_mode: ExecutionMode = ExecutionMode.BALANCED,
         _context: dict[str, Any] | None = None,
     ) -> RoutingDecision:
-        """
-        Route query to optimal execution path
+        """Route query to optimal execution path
 
         Performance: <5ms for routing decision
         """
@@ -381,7 +373,7 @@ class HybridDecisionRouter:
         elapsed_ms = (time.perf_counter() - start_time) * 1000
         logger.info(
             f"Routed to {decision.pattern_type.value} "
-            f"(confidence={decision.confidence:.2f}, time={elapsed_ms:.2f}ms)"
+            f"(confidence={decision.confidence:.2f}, time={elapsed_ms:.2f}ms)",
         )
 
         return decision
@@ -394,8 +386,7 @@ class HybridDecisionRouter:
         has_hybrid_keywords: bool,
         has_relevant_memories: bool,
     ) -> RoutingDecision:
-        """
-        Balanced routing algorithm with cost-benefit analysis
+        """Balanced routing algorithm with cost-benefit analysis
 
         Priority:
         1. Pure infrastructure requests -> INFRASTRUCTURE (fastest)
@@ -451,8 +442,7 @@ class HybridDecisionRouter:
             )
 
     async def _get_memory_stats(self) -> dict[str, Any]:
-        """
-        Get memory statistics for routing decisions
+        """Get memory statistics for routing decisions
 
         Performance: <10ms with cache, <50ms without
         """
@@ -497,8 +487,7 @@ class HybridDecisionRouter:
 
 
 class PatternExecutionEngine:
-    """
-    Core pattern execution engine with hybrid routing and performance optimization
+    """Core pattern execution engine with hybrid routing and performance optimization
 
     Architecture:
     1. PatternRegistry: Fast pattern matching (<10ms)
@@ -608,8 +597,7 @@ class PatternExecutionEngine:
         context: dict[str, Any] | None = None,
         use_cache: bool = True,
     ) -> ExecutionResult:
-        """
-        Execute pattern with authentication, hybrid routing and caching
+        """Execute pattern with authentication, hybrid routing and caching
 
         Security: Requires valid JWT token for all pattern executions (Hestia's requirement)
 
@@ -634,6 +622,7 @@ class PatternExecutionEngine:
         Raises:
             AuthenticationError: Invalid or missing auth token
             AuthorizationError: Insufficient permissions
+
         """
         start_time = time.perf_counter()
 
@@ -645,7 +634,7 @@ class PatternExecutionEngine:
         # SECURITY: Authenticate and authorize request
         try:
             auth_context = await pattern_auth_manager.authenticate_request(
-                token=auth_token, pattern_name=pattern_name
+                token=auth_token, pattern_name=pattern_name,
             )
             agent_id = auth_context["agent_id"]
             logger.info(f"Authenticated execution: agent={agent_id} pattern={pattern_name}")
@@ -681,7 +670,7 @@ class PatternExecutionEngine:
                 # No specific pattern, route intelligently
                 routing_decision = await self.router.route(query, execution_mode, context)
                 pattern = self.registry.find_matching_pattern(
-                    query, pattern_type_filter=routing_decision.pattern_type
+                    query, pattern_type_filter=routing_decision.pattern_type,
                 )
 
             if not pattern:
@@ -689,7 +678,7 @@ class PatternExecutionEngine:
 
             # Step 2: Execute pattern with agent context
             execution_result = await self._execute_pattern(
-                pattern, query, context, agent_id=agent_id
+                pattern, query, context, agent_id=agent_id,
             )
 
             # Step 3: Cache successful results
@@ -714,7 +703,7 @@ class PatternExecutionEngine:
 
             logger.info(
                 f"Executed pattern '{pattern.name}' in {elapsed_ms:.2f}ms "
-                f"(tokens={execution_result.tokens_used})"
+                f"(tokens={execution_result.tokens_used})",
             )
 
             return execution_result
@@ -753,8 +742,7 @@ class PatternExecutionEngine:
         context: dict[str, Any] | None,
         agent_id: str | None = None,
     ) -> ExecutionResult:
-        """
-        Execute specific pattern based on type
+        """Execute specific pattern based on type
 
         Performance varies by type:
         - Infrastructure: <50ms (fast MCP tools)
@@ -793,10 +781,9 @@ class PatternExecutionEngine:
         )
 
     async def _execute_infrastructure(
-        self, pattern: PatternDefinition, query: str, _context: dict[str, Any] | None
+        self, pattern: PatternDefinition, query: str, _context: dict[str, Any] | None,
     ) -> dict[str, Any]:
-        """
-        Execute infrastructure pattern (MCP tools, fast operations)
+        """Execute infrastructure pattern (MCP tools, fast operations)
 
         Target: <50ms
         """
@@ -811,10 +798,9 @@ class PatternExecutionEngine:
         }
 
     async def _execute_memory(
-        self, pattern: PatternDefinition, query: str, _context: dict[str, Any] | None
+        self, pattern: PatternDefinition, query: str, _context: dict[str, Any] | None,
     ) -> dict[str, Any]:
-        """
-        Execute memory pattern (database queries)
+        """Execute memory pattern (database queries)
 
         Target: <100ms with optimized queries
         """
@@ -841,10 +827,9 @@ class PatternExecutionEngine:
         }
 
     async def _execute_hybrid(
-        self, pattern: PatternDefinition, query: str, context: dict[str, Any] | None
+        self, pattern: PatternDefinition, query: str, context: dict[str, Any] | None,
     ) -> dict[str, Any]:
-        """
-        Execute hybrid pattern (infrastructure + memory)
+        """Execute hybrid pattern (infrastructure + memory)
 
         Target: <200ms with parallel execution
         """
@@ -853,7 +838,7 @@ class PatternExecutionEngine:
         memory_task = self._execute_memory(pattern, query, context)
 
         infra_result, memory_result = await asyncio.gather(
-            infra_task, memory_task, return_exceptions=True
+            infra_task, memory_task, return_exceptions=True,
         )
 
         return {
@@ -909,8 +894,7 @@ class PatternExecutionEngine:
 async def create_pattern_execution_engine(
     cache_manager: CacheManager | None = None,
 ) -> PatternExecutionEngine:
-    """
-    Factory function to create configured pattern execution engine
+    """Factory function to create configured pattern execution engine
 
     Usage:
         engine = await create_pattern_execution_engine()
@@ -921,7 +905,7 @@ async def create_pattern_execution_engine(
     # Initialize cache manager if not provided
     if cache_manager is None:
         cache_manager = CacheManager(
-            redis_url=settings.redis_url, local_ttl=60, redis_ttl=300, max_local_size=1000
+            redis_url=settings.redis_url, local_ttl=60, redis_ttl=300, max_local_size=1000,
         )
         await cache_manager.initialize()
 

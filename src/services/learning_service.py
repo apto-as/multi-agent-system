@@ -1,5 +1,4 @@
-"""
-Learning service for TMWS v2.0 - Universal Multi-Agent Platform.
+"""Learning service for TMWS v2.0 - Universal Multi-Agent Platform.
 Implements comprehensive learning pattern management with optimization.
 """
 
@@ -19,8 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 class LearningService:
-    """
-    Enhanced learning service with agent-centric pattern management.
+    """Enhanced learning service with agent-centric pattern management.
 
     Features:
     - Agent-based pattern isolation and sharing
@@ -80,8 +78,7 @@ class LearningService:
         learning_weight: float = 1.0,
         complexity_score: float | None = None,
     ) -> LearningPattern:
-        """
-        Create a new learning pattern with comprehensive validation.
+        """Create a new learning pattern with comprehensive validation.
 
         Args:
             pattern_name: Unique pattern name
@@ -100,6 +97,7 @@ class LearningService:
         Raises:
             ValidationError: If validation fails
             PermissionError: If access denied
+
         """
         # Validate inputs
         if agent_id:
@@ -133,8 +131,8 @@ class LearningService:
                         LearningPattern.pattern_name == pattern_name,
                         LearningPattern.namespace == namespace,
                         LearningPattern.agent_id == agent_id,
-                    )
-                )
+                    ),
+                ),
             )
 
             if existing.scalar_one_or_none():
@@ -161,10 +159,9 @@ class LearningService:
             return pattern
 
     async def get_pattern(
-        self, pattern_id: UUID, requesting_agent_id: str | None = None
+        self, pattern_id: UUID, requesting_agent_id: str | None = None,
     ) -> LearningPattern | None:
-        """
-        Get learning pattern by ID with access control.
+        """Get learning pattern by ID with access control.
 
         Args:
             pattern_id: Pattern UUID
@@ -175,10 +172,11 @@ class LearningService:
 
         Raises:
             PermissionError: If access denied
+
         """
         async with get_db_session(readonly=True) as session:
             result = await session.execute(
-                select(LearningPattern).where(LearningPattern.id == pattern_id)
+                select(LearningPattern).where(LearningPattern.id == pattern_id),
             )
             pattern = result.scalar_one_or_none()
 
@@ -199,8 +197,7 @@ class LearningService:
         limit: int = 100,
         offset: int = 0,
     ) -> list[LearningPattern]:
-        """
-        Get learning patterns owned by an agent.
+        """Get learning patterns owned by an agent.
 
         Args:
             agent_id: Agent ID
@@ -212,6 +209,7 @@ class LearningService:
 
         Returns:
             List of accessible learning patterns
+
         """
         cache_key = self._cache_key(
             "get_patterns_by_agent",
@@ -258,8 +256,7 @@ class LearningService:
         limit: int = 50,
         offset: int = 0,
     ) -> list[LearningPattern]:
-        """
-        Search learning patterns with advanced filtering.
+        """Search learning patterns with advanced filtering.
 
         Args:
             query_text: Text search in pattern name and data
@@ -275,6 +272,7 @@ class LearningService:
 
         Returns:
             List of matching learning patterns
+
         """
         cache_key = self._cache_key(
             "search_patterns",
@@ -324,7 +322,7 @@ class LearningService:
                     or_(
                         LearningPattern.access_level == "public",
                         LearningPattern.access_level == "system",
-                    )
+                    ),
                 )
 
             # Text search
@@ -334,7 +332,7 @@ class LearningService:
                     func.jsonb_path_exists(
                         LearningPattern.pattern_data,
                         text(
-                            f'\'$.*?(@.type() == "string" && @ like_regex "{query_text}" flag "i")\''
+                            f'\'$.*?(@.type() == "string" && @ like_regex "{query_text}" flag "i")\'',
                         ),
                     ),
                 )
@@ -364,8 +362,8 @@ class LearningService:
                     desc(
                         LearningPattern.usage_count
                         * LearningPattern.success_rate
-                        * LearningPattern.confidence_score
-                    )
+                        * LearningPattern.confidence_score,
+                    ),
                 )
                 .limit(limit)
                 .offset(offset)
@@ -385,8 +383,7 @@ class LearningService:
         success: bool | None = None,
         context_data: dict[str, Any] | None = None,
     ) -> LearningPattern:
-        """
-        Record pattern usage and update analytics.
+        """Record pattern usage and update analytics.
 
         Args:
             pattern_id: Pattern UUID
@@ -401,11 +398,12 @@ class LearningService:
         Raises:
             NotFoundError: If pattern not found
             PermissionError: If access denied
+
         """
         async with get_db_session() as session:
             # Get pattern with write lock
             result = await session.execute(
-                select(LearningPattern).where(LearningPattern.id == pattern_id).with_for_update()
+                select(LearningPattern).where(LearningPattern.id == pattern_id).with_for_update(),
             )
             pattern = result.scalar_one_or_none()
 
@@ -448,8 +446,7 @@ class LearningService:
         access_level: str | None = None,
         shared_with_agents: list[str] | None = None,
     ) -> LearningPattern:
-        """
-        Update learning pattern with validation.
+        """Update learning pattern with validation.
 
         Args:
             pattern_id: Pattern UUID
@@ -467,10 +464,11 @@ class LearningService:
             NotFoundError: If pattern not found
             PermissionError: If access denied
             ValidationError: If validation fails
+
         """
         async with get_db_session() as session:
             result = await session.execute(
-                select(LearningPattern).where(LearningPattern.id == pattern_id).with_for_update()
+                select(LearningPattern).where(LearningPattern.id == pattern_id).with_for_update(),
             )
             pattern = result.scalar_one_or_none()
 
@@ -510,8 +508,7 @@ class LearningService:
             return pattern
 
     async def delete_pattern(self, pattern_id: UUID, deleting_agent_id: str) -> bool:
-        """
-        Delete learning pattern with access control.
+        """Delete learning pattern with access control.
 
         Args:
             pattern_id: Pattern UUID
@@ -523,10 +520,11 @@ class LearningService:
         Raises:
             NotFoundError: If pattern not found
             PermissionError: If access denied
+
         """
         async with get_db_session() as session:
             result = await session.execute(
-                select(LearningPattern).where(LearningPattern.id == pattern_id)
+                select(LearningPattern).where(LearningPattern.id == pattern_id),
             )
             pattern = result.scalar_one_or_none()
 
@@ -543,10 +541,9 @@ class LearningService:
             return True
 
     async def get_pattern_analytics(
-        self, agent_id: str | None = None, namespace: str | None = None, days: int = 30
+        self, agent_id: str | None = None, namespace: str | None = None, days: int = 30,
     ) -> dict[str, Any]:
-        """
-        Get comprehensive pattern analytics.
+        """Get comprehensive pattern analytics.
 
         Args:
             agent_id: Optional agent filter
@@ -555,9 +552,10 @@ class LearningService:
 
         Returns:
             Dictionary with analytics data
+
         """
         cache_key = self._cache_key(
-            "get_pattern_analytics", agent_id=agent_id, namespace=namespace, days=days
+            "get_pattern_analytics", agent_id=agent_id, namespace=namespace, days=days,
         )
 
         cached = self._get_cached(cache_key)
@@ -577,19 +575,19 @@ class LearningService:
 
             # Total patterns
             total_patterns = await session.scalar(
-                select(func.count()).select_from(base_query.subquery())
+                select(func.count()).select_from(base_query.subquery()),
             )
 
             # Category distribution
             category_dist = await session.execute(
                 select(LearningPattern.category, func.count().label("count")).group_by(
-                    LearningPattern.category
-                )
+                    LearningPattern.category,
+                ),
             )
 
             # Top patterns by usage
             top_patterns = await session.execute(
-                base_query.order_by(desc(LearningPattern.usage_count)).limit(10)
+                base_query.order_by(desc(LearningPattern.usage_count)).limit(10),
             )
 
             # Usage over time (recent usage)
@@ -600,7 +598,7 @@ class LearningService:
                 )
                 .where(PatternUsageHistory.used_at >= since_date)
                 .group_by(func.date_trunc("day", PatternUsageHistory.used_at))
-                .order_by("day")
+                .order_by("day"),
             )
 
             # Success rate statistics
@@ -610,7 +608,7 @@ class LearningService:
                     func.stddev(LearningPattern.success_rate).label("stddev_success_rate"),
                     func.min(LearningPattern.success_rate).label("min_success_rate"),
                     func.max(LearningPattern.success_rate).label("max_success_rate"),
-                ).select_from(base_query.subquery())
+                ).select_from(base_query.subquery()),
             )
 
             analytics = {
@@ -647,8 +645,7 @@ class LearningService:
         context_data: dict[str, Any] | None = None,
         limit: int = 10,
     ) -> list[tuple[LearningPattern, float]]:
-        """
-        Recommend patterns for an agent based on usage history and context.
+        """Recommend patterns for an agent based on usage history and context.
 
         Args:
             agent_id: Agent ID requesting recommendations
@@ -658,6 +655,7 @@ class LearningService:
 
         Returns:
             List of tuples (pattern, relevance_score)
+
         """
         async with get_db_session(readonly=True) as session:
             # Get agent's usage history
@@ -668,7 +666,7 @@ class LearningService:
                     func.avg(func.coalesce(PatternUsageHistory.success, 0.5)).label("avg_success"),
                 )
                 .where(PatternUsageHistory.agent_id == agent_id)
-                .group_by(PatternUsageHistory.pattern_id)
+                .group_by(PatternUsageHistory.pattern_id),
             )
 
             used_patterns = {
@@ -689,11 +687,11 @@ class LearningService:
                         and_(
                             LearningPattern.access_level == "shared",
                             func.jsonb_exists_any(
-                                LearningPattern.shared_with_agents, text(f"ARRAY['{agent_id}']")
+                                LearningPattern.shared_with_agents, text(f"ARRAY['{agent_id}']"),
                             ),
                         ),
                     ),
-                )
+                ),
             )
 
             if category:
@@ -735,10 +733,9 @@ class LearningService:
             return recommendations[:limit]
 
     async def batch_create_patterns(
-        self, patterns_data: list[dict[str, Any]], agent_id: str | None = None
+        self, patterns_data: list[dict[str, Any]], agent_id: str | None = None,
     ) -> list[LearningPattern]:
-        """
-        Create multiple patterns in a batch for optimal performance.
+        """Create multiple patterns in a batch for optimal performance.
 
         Args:
             patterns_data: List of pattern creation data
@@ -746,6 +743,7 @@ class LearningService:
 
         Returns:
             List of created LearningPattern instances
+
         """
         created_patterns = []
 
@@ -772,7 +770,7 @@ class LearningService:
 
                 except Exception as e:
                     logger.error(
-                        f"Failed to create pattern {pattern_data.get('pattern_name', 'unknown')}: {e}"
+                        f"Failed to create pattern {pattern_data.get('pattern_name', 'unknown')}: {e}",
                     )
                     continue
 

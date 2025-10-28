@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Graceful Shutdown Handler for TMWS
+"""Graceful Shutdown Handler for TMWS
 Ensures proper cleanup of resources during container shutdown
 """
 
@@ -14,8 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class GracefulShutdownHandler:
-    """
-    Handles graceful shutdown of the TMWS application.
+    """Handles graceful shutdown of the TMWS application.
     Ensures all resources are properly cleaned up.
     """
 
@@ -68,7 +66,7 @@ class GracefulShutdownHandler:
 
         successful_cleanups = sum(cleanup_results)
         logger.info(
-            f"Cleanup completed: {successful_cleanups}/{len(self.cleanup_tasks)} tasks successful"
+            f"Cleanup completed: {successful_cleanups}/{len(self.cleanup_tasks)} tasks successful",
         )
 
 
@@ -78,8 +76,7 @@ shutdown_handler = GracefulShutdownHandler()
 
 @asynccontextmanager
 async def lifespan_handler(_app):
-    """
-    FastAPI lifespan context manager for graceful startup and shutdown.
+    """FastAPI lifespan context manager for graceful startup and shutdown.
     """
     # Startup
     logger.info("TMWS starting up...")

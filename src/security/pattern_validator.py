@@ -1,5 +1,4 @@
-"""
-Pattern Data Validation and Sanitization
+"""Pattern Data Validation and Sanitization
 Addresses Hestia's CRITICAL findings:
 - Pattern injection (arbitrary code execution)
 - SQL injection (malicious queries)
@@ -29,8 +28,7 @@ class ValidationResult:
 
 
 class PatternDataValidator:
-    """
-    Validates pattern data to prevent injection attacks
+    """Validates pattern data to prevent injection attacks
 
     Security Measures:
     1. Whitelist allowed pattern fields
@@ -95,18 +93,18 @@ class PatternDataValidator:
 
     def __init__(self):
         self.dangerous_python_regex = re.compile(
-            "|".join(self.DANGEROUS_PYTHON_PATTERNS), re.IGNORECASE
+            "|".join(self.DANGEROUS_PYTHON_PATTERNS), re.IGNORECASE,
         )
 
     def validate_pattern_definition(self, pattern_data: dict[str, Any]) -> ValidationResult:
-        """
-        Comprehensive validation of pattern definition
+        """Comprehensive validation of pattern definition
 
         Args:
             pattern_data: Pattern configuration dictionary
 
         Returns:
             ValidationResult with validation status and any errors
+
         """
         errors = []
         warnings = []
@@ -116,7 +114,7 @@ class PatternDataValidator:
         if unknown_fields:
             errors.append(
                 f"Unknown fields detected: {unknown_fields}. "
-                f"Only allowed: {self.ALLOWED_PATTERN_FIELDS}"
+                f"Only allowed: {self.ALLOWED_PATTERN_FIELDS}",
             )
 
         # 2. Validate required fields
@@ -129,7 +127,7 @@ class PatternDataValidator:
         if "name" in pattern_data and not re.match(r"^[a-zA-Z0-9_]+$", pattern_data["name"]):
             errors.append(
                 f"Invalid pattern name '{pattern_data['name']}'. "
-                f"Only alphanumeric and underscore allowed."
+                f"Only alphanumeric and underscore allowed.",
             )
 
         # 4. Validate trigger pattern for ReDoS vulnerabilities
@@ -137,7 +135,7 @@ class PatternDataValidator:
             redos_result = self._check_redos_vulnerability(pattern_data["trigger_pattern"])
             if not redos_result["safe"]:
                 warnings.append(
-                    f"Potential ReDoS vulnerability in trigger pattern: {redos_result['reason']}"
+                    f"Potential ReDoS vulnerability in trigger pattern: {redos_result['reason']}",
                 )
 
         # 5. Validate metadata
@@ -151,7 +149,7 @@ class PatternDataValidator:
         if self.dangerous_python_regex.search(pattern_str):
             errors.append(
                 "Dangerous Python code detected in pattern definition. "
-                "Patterns cannot contain exec, eval, __import__, etc."
+                "Patterns cannot contain exec, eval, __import__, etc.",
             )
 
         return ValidationResult(is_valid=len(errors) == 0, errors=errors, warnings=warnings)
@@ -165,7 +163,7 @@ class PatternDataValidator:
         unknown_keys = set(metadata.keys()) - self.ALLOWED_METADATA_KEYS
         if unknown_keys:
             warnings.append(
-                f"Unknown metadata keys: {unknown_keys}. Allowed: {self.ALLOWED_METADATA_KEYS}"
+                f"Unknown metadata keys: {unknown_keys}. Allowed: {self.ALLOWED_METADATA_KEYS}",
             )
 
         # Check metadata values for dangerous content
@@ -176,8 +174,7 @@ class PatternDataValidator:
         return {"errors": errors, "warnings": warnings}
 
     def _check_redos_vulnerability(self, regex_pattern: str) -> dict[str, Any]:
-        """
-        Check regex pattern for ReDoS (Regular Expression Denial of Service) vulnerabilities
+        """Check regex pattern for ReDoS (Regular Expression Denial of Service) vulnerabilities
 
         Common ReDoS patterns:
         - (a+)+
@@ -200,8 +197,7 @@ class PatternDataValidator:
         return {"safe": True, "reason": None}
 
     def sanitize_sql_query(self, query: str) -> ValidationResult:
-        """
-        Validate and sanitize SQL query to prevent SQL injection
+        """Validate and sanitize SQL query to prevent SQL injection
 
         Only allows SELECT queries with parameterized placeholders
         """
@@ -224,7 +220,7 @@ class PatternDataValidator:
             # Should use $1, $2 (PostgreSQL) or ? (SQLite) placeholders
             errors.append(
                 "SQL query appears to use string literals. "
-                "Use parameterized queries with $1, $2, etc."
+                "Use parameterized queries with $1, $2, etc.",
             )
 
         # 4. Check for comment attacks (-- or /* */)
@@ -234,8 +230,7 @@ class PatternDataValidator:
         return ValidationResult(is_valid=len(errors) == 0, errors=errors, warnings=warnings)
 
     def validate_template_string(self, template: str) -> ValidationResult:
-        """
-        Validate template string to prevent template injection
+        """Validate template string to prevent template injection
 
         Templates should only use safe variable substitution:
         - ${variable_name}
@@ -252,7 +247,7 @@ class PatternDataValidator:
         # Check for dangerous code patterns
         if self.dangerous_python_regex.search(template):
             errors.append(
-                "Dangerous code detected in template. Templates cannot execute arbitrary code."
+                "Dangerous code detected in template. Templates cannot execute arbitrary code.",
             )
 
         # Check template syntax
@@ -261,7 +256,7 @@ class PatternDataValidator:
         if invalid_templates:
             errors.append(
                 f"Invalid template syntax: {invalid_templates}. "
-                f"Only alphanumeric and underscore allowed in variable names."
+                f"Only alphanumeric and underscore allowed in variable names.",
             )
 
         return ValidationResult(is_valid=len(errors) == 0, errors=errors, warnings=warnings)

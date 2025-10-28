@@ -1,5 +1,4 @@
-"""
-Namespace detection and validation utilities for TMWS.
+"""Namespace detection and validation utilities for TMWS.
 
 Security: Implements automatic project namespace detection to prevent
 cross-project memory leakage (addresses CVSS 9.8 vulnerability C-1).
@@ -19,8 +18,7 @@ class NamespaceError(Exception):
 
 
 def sanitize_namespace(raw_namespace: str) -> str:
-    """
-    Sanitize namespace to ensure it's safe for storage.
+    """Sanitize namespace to ensure it's safe for storage.
 
     Rules:
     - Only alphanumeric, hyphens, underscores, dots, slashes
@@ -36,6 +34,7 @@ def sanitize_namespace(raw_namespace: str) -> str:
 
     Raises:
         NamespaceError: If namespace cannot be sanitized
+
     """
     if not raw_namespace or not raw_namespace.strip():
         raise NamespaceError("Namespace cannot be empty")
@@ -63,8 +62,7 @@ def sanitize_namespace(raw_namespace: str) -> str:
 
 
 def validate_namespace(namespace: str) -> None:
-    """
-    Validate namespace for security requirements.
+    """Validate namespace for security requirements.
 
     Security checks:
     - Must not be "default" (prevents cross-project leakage)
@@ -76,6 +74,7 @@ def validate_namespace(namespace: str) -> None:
 
     Raises:
         NamespaceError: If validation fails
+
     """
     if not namespace or not namespace.strip():
         raise NamespaceError("Namespace cannot be empty")
@@ -83,7 +82,7 @@ def validate_namespace(namespace: str) -> None:
     if namespace.lower() == "default":
         raise NamespaceError(
             "Namespace 'default' is not allowed for security reasons. "
-            "Use explicit project-specific namespace instead."
+            "Use explicit project-specific namespace instead.",
         )
 
     # Check if sanitized (should match sanitize output)
@@ -92,21 +91,21 @@ def validate_namespace(namespace: str) -> None:
         if sanitized != namespace:
             raise NamespaceError(
                 f"Namespace '{namespace}' is not properly sanitized. "
-                f"Use '{sanitized}' instead."
+                f"Use '{sanitized}' instead.",
             )
     except NamespaceError as e:
         raise NamespaceError(f"Invalid namespace: {e}")
 
 
 async def detect_git_root(start_path: Path | None = None) -> Path | None:
-    """
-    Detect git repository root directory.
+    """Detect git repository root directory.
 
     Args:
         start_path: Starting directory (defaults to cwd)
 
     Returns:
         Path to git root, or None if not in git repo
+
     """
     if start_path is None:
         start_path = Path.cwd()
@@ -124,14 +123,14 @@ async def detect_git_root(start_path: Path | None = None) -> Path | None:
 
 
 async def get_git_remote_url(git_root: Path) -> str | None:
-    """
-    Get git remote URL from repository.
+    """Get git remote URL from repository.
 
     Args:
         git_root: Path to git repository root
 
     Returns:
         Remote URL, or None if not found
+
     """
     git_config = git_root / ".git" / "config"
 
@@ -153,8 +152,7 @@ async def get_git_remote_url(git_root: Path) -> str | None:
 
 
 def namespace_from_git_url(git_url: str) -> str:
-    """
-    Convert git remote URL to namespace.
+    """Convert git remote URL to namespace.
 
     Examples:
         git@github.com:apto-as/tmws.git -> github.com/apto-as/tmws
@@ -165,6 +163,7 @@ def namespace_from_git_url(git_url: str) -> str:
 
     Returns:
         Namespace derived from URL
+
     """
     # Remove .git suffix
     url = git_url.rstrip("/").removesuffix(".git")
@@ -181,8 +180,7 @@ def namespace_from_git_url(git_url: str) -> str:
 
 
 async def find_marker_file(filename: str = ".trinitas-project.yaml", start_path: Path | None = None) -> Path | None:
-    """
-    Find project marker file by walking up directory tree.
+    """Find project marker file by walking up directory tree.
 
     Args:
         filename: Marker filename to search for
@@ -190,6 +188,7 @@ async def find_marker_file(filename: str = ".trinitas-project.yaml", start_path:
 
     Returns:
         Path to marker file, or None if not found
+
     """
     if start_path is None:
         start_path = Path.cwd()
@@ -206,8 +205,7 @@ async def find_marker_file(filename: str = ".trinitas-project.yaml", start_path:
 
 
 async def detect_project_namespace() -> str:
-    """
-    Auto-detect project namespace from environment.
+    """Auto-detect project namespace from environment.
 
     Detection priority (fastest → slowest):
     1. Environment variable TRINITAS_PROJECT_NAMESPACE (0.001ms)
@@ -220,6 +218,7 @@ async def detect_project_namespace() -> str:
 
     Raises:
         NamespaceError: If detection fails completely
+
     """
     # Priority 1: Environment variable
     if env_namespace := os.getenv("TRINITAS_PROJECT_NAMESPACE"):
@@ -263,7 +262,7 @@ async def detect_project_namespace() -> str:
     logger.warning(
         f"No project namespace detected. Using cwd hash: {namespace}. "
         f"Set TRINITAS_PROJECT_NAMESPACE environment variable or create "
-        f".trinitas-project.yaml for explicit namespace."
+        f".trinitas-project.yaml for explicit namespace.",
     )
 
     return namespace

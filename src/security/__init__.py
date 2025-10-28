@@ -1,5 +1,4 @@
-"""
-TMWS Security Module
+"""TMWS Security Module
 Hestia's Paranoid Security Implementation
 
 "……最悪のケースを想定して、完璧な防御を構築します……"

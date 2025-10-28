@@ -1,5 +1,4 @@
-"""
-Agent authentication and authorization for TMWS v2.0.
+"""Agent authentication and authorization for TMWS v2.0.
 Provides secure multi-agent access control.
 """
 
@@ -20,7 +19,7 @@ class AgentAuthService:
         if not settings.TMWS_SECRET_KEY:
             raise RuntimeError(
                 "TMWS_SECRET_KEY environment variable is required. "
-                "Set it to a secure random string (minimum 32 characters)."
+                "Set it to a secure random string (minimum 32 characters).",
             )
         self.secret_key = settings.TMWS_SECRET_KEY
         self.algorithm = "HS256"
@@ -40,7 +39,7 @@ class AgentAuthService:
         return verify_password(plain_api_key, hashed_api_key)
 
     def create_access_token(
-        self, agent_id: str, namespace: str = "default", expires_delta: timedelta | None = None
+        self, agent_id: str, namespace: str = "default", expires_delta: timedelta | None = None,
     ) -> str:
         """Create a JWT access token for an agent."""
         if expires_delta:
@@ -75,7 +74,7 @@ class AgentAuthService:
             from fastapi import HTTPException, status
 
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token"
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token",
             )
         # Add session_id if not present
         if "session_id" not in payload:

@@ -1,5 +1,4 @@
-"""
-Base model classes for TMWS database models.
+"""Base model classes for TMWS database models.
 
 Architecture: SQLite + Chroma (lightweight, zero-config)
 - SQLite: Metadata, relationships, ACID transactions

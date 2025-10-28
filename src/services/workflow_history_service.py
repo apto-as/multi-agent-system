@@ -1,5 +1,4 @@
-"""
-Workflow History Service for TMWS
+"""Workflow History Service for TMWS
 Handles workflow execution history persistence and querying
 """
 
@@ -268,7 +267,7 @@ class WorkflowHistoryService:
         return list(result.scalars().all())
 
     async def get_execution_details(
-        self, execution_id: UUID, include_logs: bool = False
+        self, execution_id: UUID, include_logs: bool = False,
     ) -> dict[str, Any]:
         """Get detailed information about a workflow execution."""
 
@@ -340,7 +339,7 @@ class WorkflowHistoryService:
         return details
 
     async def get_execution_statistics(
-        self, workflow_id: UUID | None = None, days: int = 30
+        self, workflow_id: UUID | None = None, days: int = 30,
     ) -> dict[str, Any]:
         """Get execution statistics for workflows."""
 
@@ -361,7 +360,7 @@ class WorkflowHistoryService:
 
         # Status breakdown
         status_query = select(WorkflowExecution.status, func.count(WorkflowExecution.id)).where(
-            WorkflowExecution.started_at >= start_date
+            WorkflowExecution.started_at >= start_date,
         )
 
         if workflow_id:
@@ -376,7 +375,7 @@ class WorkflowHistoryService:
             and_(
                 WorkflowExecution.started_at >= start_date,
                 WorkflowExecution.execution_time_seconds.isnot(None),
-            )
+            ),
         )
 
         if workflow_id:

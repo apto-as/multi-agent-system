@@ -1,5 +1,4 @@
-"""
-Task Management Tools for TMWS MCP Server
+"""Task Management Tools for TMWS MCP Server
 Handles task creation, assignment, tracking, and execution
 """
 
@@ -58,8 +57,7 @@ class TaskTools(BaseTool):
             estimated_duration: int | None = None,
             due_date: str | None = None,
         ) -> dict[str, Any]:
-            """
-            Create a new task in the system.
+            """Create a new task in the system.
 
             Tasks can be assigned to personas and linked with dependencies.
             Supports priority levels, progress tracking, and metadata.
@@ -77,6 +75,7 @@ class TaskTools(BaseTool):
 
             Returns:
                 Dict containing task details and creation info
+
             """
             # Parse due_date if provided
             parsed_due_date = None
@@ -141,8 +140,7 @@ class TaskTools(BaseTool):
             result: dict[str, Any] | None = None,
             notes: str | None = None,
         ) -> dict[str, Any]:
-            """
-            Update task status and progress.
+            """Update task status and progress.
 
             Updates task execution state with progress tracking and result storage.
             Status transitions are validated for consistency.
@@ -156,9 +154,10 @@ class TaskTools(BaseTool):
 
             Returns:
                 Dict containing updated task information
+
             """
             request = TaskUpdateRequest(
-                task_id=task_id, status=status, progress=progress, result=result
+                task_id=task_id, status=status, progress=progress, result=result,
             )
 
             async def _update_task_status(_session, services):
@@ -203,8 +202,7 @@ class TaskTools(BaseTool):
 
         @mcp.tool()
         async def get_task_status(task_id: str) -> dict[str, Any]:
-            """
-            Get current task status and details.
+            """Get current task status and details.
 
             Retrieves complete task information including dependencies,
             progress, and execution history.
@@ -214,6 +212,7 @@ class TaskTools(BaseTool):
 
             Returns:
                 Dict containing comprehensive task information
+
             """
 
             async def _get_task_status(_session, services):
@@ -235,7 +234,7 @@ class TaskTools(BaseTool):
                                     "title": dep_task.title,
                                     "status": dep_task.status,
                                     "progress": dep_task.progress,
-                                }
+                                },
                             )
 
                 # Get persona information if assigned
@@ -280,8 +279,7 @@ class TaskTools(BaseTool):
             limit: int = 50,
             include_completed: bool = True,
         ) -> dict[str, Any]:
-            """
-            List tasks with optional filtering.
+            """List tasks with optional filtering.
 
             Retrieves tasks matching specified criteria with comprehensive details.
 
@@ -295,6 +293,7 @@ class TaskTools(BaseTool):
 
             Returns:
                 Dict containing filtered task list with summary statistics
+
             """
 
             async def _list_tasks(_session, services):
@@ -361,10 +360,9 @@ class TaskTools(BaseTool):
 
         @mcp.tool()
         async def assign_task(
-            task_id: str, persona_id: str, notes: str | None = None
+            task_id: str, persona_id: str, notes: str | None = None,
         ) -> dict[str, Any]:
-            """
-            Assign a task to a persona.
+            """Assign a task to a persona.
 
             Updates task assignment and notifies the assigned persona.
             Validates persona capabilities against task requirements.
@@ -376,6 +374,7 @@ class TaskTools(BaseTool):
 
             Returns:
                 Dict containing assignment confirmation and details
+
             """
 
             async def _assign_task(_session, services):
@@ -419,10 +418,9 @@ class TaskTools(BaseTool):
 
         @mcp.tool()
         async def complete_task(
-            task_id: str, result: dict[str, Any], completion_notes: str | None = None
+            task_id: str, result: dict[str, Any], completion_notes: str | None = None,
         ) -> dict[str, Any]:
-            """
-            Mark a task as completed with results.
+            """Mark a task as completed with results.
 
             Finalizes task execution with result data and completion metrics.
             Updates dependent tasks if applicable.
@@ -434,6 +432,7 @@ class TaskTools(BaseTool):
 
             Returns:
                 Dict containing completion confirmation and metrics
+
             """
 
             async def _complete_task(_session, services):
@@ -457,7 +456,7 @@ class TaskTools(BaseTool):
                         "completed_at": completion_time.isoformat(),
                         "actual_duration_minutes": duration_minutes,
                         "completion_notes": completion_notes,
-                    }
+                    },
                 )
 
                 # Update task to completed status
@@ -475,7 +474,7 @@ class TaskTools(BaseTool):
                 dependent_task_info = []
                 for dep_task in dependent_tasks:
                     dependent_task_info.append(
-                        {"id": str(dep_task.id), "title": dep_task.title, "status": dep_task.status}
+                        {"id": str(dep_task.id), "title": dep_task.title, "status": dep_task.status},
                     )
 
                 return {
@@ -499,14 +498,14 @@ class TaskTools(BaseTool):
 
         @mcp.tool()
         async def get_task_analytics() -> dict[str, Any]:
-            """
-            Get task analytics and performance metrics.
+            """Get task analytics and performance metrics.
 
             Provides insights into task completion rates, duration accuracy,
             persona performance, and system efficiency.
 
             Returns:
                 Dict containing comprehensive task analytics
+
             """
 
             async def _get_task_analytics(_session, services):
@@ -562,7 +561,7 @@ class TaskTools(BaseTool):
                     },
                     "performance_metrics": {
                         "avg_duration_accuracy_percent": round(
-                            (1 - avg_duration_accuracy) * 100, 2
+                            (1 - avg_duration_accuracy) * 100, 2,
                         ),
                         "tasks_analyzed": len(recent_tasks),
                     },

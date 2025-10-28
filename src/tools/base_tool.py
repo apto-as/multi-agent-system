@@ -1,5 +1,4 @@
-"""
-Base Tool Class for TMWS MCP Tools
+"""Base Tool Class for TMWS MCP Tools
 Provides common functionality and database session management
 """
 
@@ -20,8 +19,7 @@ T = TypeVar("T", bound=BaseModel)
 
 
 class BaseTool(ABC):
-    """
-    Base class for all TMWS MCP tools.
+    """Base class for all TMWS MCP tools.
 
     Provides:
     - Database session management
@@ -49,8 +47,7 @@ class BaseTool(ABC):
         }
 
     async def execute_with_session(self, func, *args, **kwargs) -> dict[str, Any]:
-        """
-        Execute a function with database session management.
+        """Execute a function with database session management.
 
         Args:
             func: Async function to execute
@@ -59,6 +56,7 @@ class BaseTool(ABC):
 
         Returns:
             Dict containing execution result or error
+
         """
         try:
             async with get_db_session() as session:
@@ -68,7 +66,7 @@ class BaseTool(ABC):
             return self.format_error(str(e))
 
     def format_success(
-        self, data: Any, message: str = "Operation completed successfully"
+        self, data: Any, message: str = "Operation completed successfully",
     ) -> dict[str, Any]:
         """Format successful response."""
         return {"success": True, "message": message, "data": data}
@@ -78,8 +76,7 @@ class BaseTool(ABC):
         return {"success": False, "error": error, "error_type": error_type}
 
     def validate_input(self, data: dict[str, Any], model_class: type[T]) -> T:
-        """
-        Validate input data against Pydantic model.
+        """Validate input data against Pydantic model.
 
         Args:
             data: Input data to validate
@@ -90,6 +87,7 @@ class BaseTool(ABC):
 
         Raises:
             ValueError: If validation fails
+
         """
         try:
             return model_class(**data)

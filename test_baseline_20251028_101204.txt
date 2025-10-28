@@ -1,0 +1,630 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.12.10, pytest-8.4.2, pluggy-1.6.0
+benchmark: 5.1.0 (defaults: timer=time.perf_counter disable_gc=False min_rounds=5 min_time=0.000005 max_time=1.0 calibration_precision=10 warmup=False warmup_iterations=100000)
+rootdir: /Users/apto-as/workspace/github.com/apto-as/tmws
+configfile: pytest.ini
+plugins: asyncio-0.23.8, anyio-4.9.0, logfire-3.17.0, html-4.1.1, env-1.1.5, mock-3.15.0, timeout-2.4.0, metadata-3.1.1, cov-4.1.0, benchmark-5.1.0
+asyncio: mode=Mode.AUTO
+collected 433 items
+
+tests/unit/test_agent_memory_tools.py ..................F...             [  5%]
+tests/unit/test_auth_service.py .....E.E..EE.......FEEE...               [ 11%]
+tests/unit/test_base_tool.py F.........F.........                        [ 15%]
+tests/unit/test_batch_service.py ...............F..FFF...FF.....         [ 22%]
+tests/unit/test_core_exceptions.py ..................................... [ 31%]
+                                                                         [ 31%]
+tests/unit/test_coverage_boost.py .F.............F..                     [ 35%]
+tests/unit/test_graceful_shutdown.py ......................              [ 40%]
+tests/unit/test_health.py ss                                             [ 41%]
+tests/unit/test_html_sanitizer.py ......F.................               [ 46%]
+tests/unit/test_hybrid_memory_service.py FFFFFFFFFF                      [ 48%]
+tests/unit/test_jwt_service.py .F.FFFF.F............................F    [ 57%]
+tests/unit/test_learning_service.py ..FF.FFFFF.FF.FFFFFFFFFFFF.FFFFFF.F. [ 66%]
+F.                                                                       [ 66%]
+tests/unit/test_ollama_embedding_service.py .............                [ 69%]
+tests/unit/test_pattern_execution_service.py ...........FFFFFFFFFFFFFF.F [ 75%]
+FF                                                                       [ 76%]
+tests/unit/test_production_security_validation.py ....F...F..F.          [ 79%]
+tests/unit/test_service_manager.py ........................F...........F [ 87%]
+..FF.......F......FFFF..........                                         [ 95%]
+tests/unit/test_simple_mocks.py ...................../Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/ast.py:52: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+  return compile(source, filename, mode, flags,
+RuntimeWarning: Enable tracemalloc to get the object allocation traceback
+                    [100%]
+
+==================================== ERRORS ====================================
+_ ERROR at setup of TestAuthServiceAuthentication.test_authenticate_user_success _
+E   AttributeError: 'JWTService' object has no attribute 'hash_password'
+_ ERROR at setup of TestAuthServiceAuthentication.test_authenticate_user_wrong_password _
+E   AttributeError: 'JWTService' object has no attribute 'hash_password'
+_ ERROR at setup of TestAuthServiceAuthentication.test_authenticate_performance _
+E   AttributeError: 'JWTService' object has no attribute 'hash_password'
+___ ERROR at setup of TestAuthServiceTokenRefresh.test_refresh_token_success ___
+E   AttributeError: 'JWTService' object has no attribute 'hash_password'
+_ ERROR at setup of TestAuthServicePasswordManagement.test_change_password_success _
+E   AttributeError: 'JWTService' object has no attribute 'hash_password'
+_ ERROR at setup of TestAuthServicePasswordManagement.test_change_password_wrong_current _
+E   AttributeError: 'JWTService' object has no attribute 'hash_password'
+_ ERROR at setup of TestAuthServicePasswordManagement.test_change_password_weak_new _
+E   AttributeError: 'JWTService' object has no attribute 'hash_password'
+=================================== FAILURES ===================================
+/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/site-packages/fastmcp/utilities/components.py:57: pydantic_core._pydantic_core.ValidationError: 3 validation errors for Tool
+/Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_auth_service.py:549: AssertionError: Average API key validation 185.28457093634643ms exceeds 100ms requirement
+/Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_base_tool.py:40: AttributeError: 'TestBaseTool' object has no attribute '_vectorization_service'
+/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/unittest/mock.py:1437: AttributeError: <module 'src.tools.base_tool' from '/Users/apto-as/workspace/github.com/apto-as/tmws/src/tools/base_tool.py'> does not have the attribute 'MemoryService'
+/Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_batch_service.py:402: AssertionError: assert <BatchJobStatus.COMPLETED: 'completed'> in [<BatchJobStatus.FAILED: 'failed'>, <BatchJobStatus.RUNNING: 'running'>]
+/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/unittest/mock.py:1437: AttributeError: <module 'src.services.batch_service' from '/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/batch_service.py'> does not have the attribute 'get_async_session'
+/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/unittest/mock.py:1437: AttributeError: <module 'src.services.batch_service' from '/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/batch_service.py'> does not have the attribute 'get_async_session'
+/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/unittest/mock.py:1437: AttributeError: <module 'src.services.batch_service' from '/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/batch_service.py'> does not have the attribute 'get_async_session'
+/Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_batch_service.py:655: assert (False or 0 > 0)
+/Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_batch_service.py:686: AssertionError: assert <BatchJobStatus.COMPLETED: 'completed'> in [<BatchJobStatus.FAILED: 'failed'>, <BatchJobStatus.RUNNING: 'running'>]
+/Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_coverage_boost.py:47: TypeError: NotFoundError.__init__() missing 1 required positional argument: 'resource_id'
+/Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_coverage_boost.py:503: assert 1126.4 == 35.2
+/Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/../../src/security/audit_logger.py:16: ImportError: attempted relative import beyond top-level package
+/Users/apto-as/workspace/github.com/apto-as/tmws/src/core/exceptions.py:330: src.core.exceptions.ChromaOperationError: Chroma initialization FAILED - system cannot function without vectors
+/Users/apto-as/workspace/github.com/apto-as/tmws/src/core/exceptions.py:330: src.core.exceptions.ChromaOperationError: Chroma initialization FAILED - system cannot function without vectors
+/Users/apto-as/workspace/github.com/apto-as/tmws/src/core/exceptions.py:330: src.core.exceptions.MemorySearchError: Memory search failed with unexpected error
+/Users/apto-as/workspace/github.com/apto-as/tmws/src/core/exceptions.py:330: src.core.exceptions.MemorySearchError: Memory search failed with unexpected error
+/Users/apto-as/workspace/github.com/apto-as/tmws/src/core/exceptions.py:330: src.core.exceptions.ChromaOperationError: Chroma initialization FAILED - system cannot function without vectors
+/Users/apto-as/workspace/github.com/apto-as/tmws/src/core/exceptions.py:330: src.core.exceptions.ChromaOperationError: Chroma initialization FAILED - system cannot function without vectors
+/Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_hybrid_memory_service.py:263: AssertionError: Expected 'delete_memory' to be called once. Called 0 times.
+/Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_hybrid_memory_service.py:283: assert 0 == 100
+/Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_hybrid_memory_service.py:310: AssertionError: Expected 'delete_memories_batch' to have been called once. Called 0 times.
+/Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_hybrid_memory_service.py:330: Failed: DID NOT RAISE <class 'RuntimeError'>
+/Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_jwt_service.py:56: Failed: DID NOT RAISE <class 'ValueError'>
+/Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_jwt_service.py:74: AttributeError: 'JWTService' object has no attribute 'hash_password'
+/Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_jwt_service.py:86: AttributeError: 'JWTService' object has no attribute 'hash_password'
+/Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_jwt_service.py:94: AttributeError: 'JWTService' object has no attribute 'hash_password'
+/Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_jwt_service.py:101: AttributeError: 'JWTService' object has no attribute 'hash_password'
+/Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_jwt_service.py:130: ValueError: too many values to unpack (expected 2)
+/Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_jwt_service.py:606: assert None is not None
+/Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_learning_service.py:126: AssertionError: assert 'expired_key' not in {'expired_key': ('data', datetime.datetime(2025, 10, 28, 10, 12, 20, 839169))}
+/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/unittest/mock.py:1437: AttributeError: <module 'src.services.learning_service' from '/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/learning_service.py'> does not have the attribute 'get_async_session'
+/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/unittest/mock.py:1437: AttributeError: <module 'src.services.learning_service' from '/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/learning_service.py'> does not have the attribute 'get_async_session'
+/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/unittest/mock.py:1437: AttributeError: <module 'src.services.learning_service' from '/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/learning_service.py'> does not have the attribute 'get_async_session'
+/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/unittest/mock.py:1437: AttributeError: <module 'src.services.learning_service' from '/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/learning_service.py'> does not have the attribute 'get_async_session'
+/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/unittest/mock.py:1437: AttributeError: <module 'src.services.learning_service' from '/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/learning_service.py'> does not have the attribute 'get_async_session'
+/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/unittest/mock.py:1437: AttributeError: <module 'src.services.learning_service' from '/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/learning_service.py'> does not have the attribute 'get_async_session'
+/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/unittest/mock.py:1437: AttributeError: <module 'src.services.learning_service' from '/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/learning_service.py'> does not have the attribute 'get_async_session'
+/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/unittest/mock.py:1437: AttributeError: <module 'src.services.learning_service' from '/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/learning_service.py'> does not have the attribute 'get_async_session'
+/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/unittest/mock.py:1437: AttributeError: <module 'src.services.learning_service' from '/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/learning_service.py'> does not have the attribute 'get_async_session'
+/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/unittest/mock.py:1437: AttributeError: <module 'src.services.learning_service' from '/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/learning_service.py'> does not have the attribute 'get_async_session'
+/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/unittest/mock.py:1437: AttributeError: <module 'src.services.learning_service' from '/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/learning_service.py'> does not have the attribute 'get_async_session'
+/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/unittest/mock.py:1437: AttributeError: <module 'src.services.learning_service' from '/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/learning_service.py'> does not have the attribute 'get_async_session'
+/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/unittest/mock.py:1437: AttributeError: <module 'src.services.learning_service' from '/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/learning_service.py'> does not have the attribute 'get_async_session'
+/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/unittest/mock.py:1437: AttributeError: <module 'src.services.learning_service' from '/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/learning_service.py'> does not have the attribute 'get_async_session'
+/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/unittest/mock.py:1437: AttributeError: <module 'src.services.learning_service' from '/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/learning_service.py'> does not have the attribute 'get_async_session'
+/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/unittest/mock.py:1437: AttributeError: <module 'src.services.learning_service' from '/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/learning_service.py'> does not have the attribute 'get_async_session'
+/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/unittest/mock.py:1437: AttributeError: <module 'src.services.learning_service' from '/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/learning_service.py'> does not have the attribute 'get_async_session'
+/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/unittest/mock.py:1437: AttributeError: <module 'src.services.learning_service' from '/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/learning_service.py'> does not have the attribute 'get_async_session'
+/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/unittest/mock.py:1437: AttributeError: <module 'src.services.learning_service' from '/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/learning_service.py'> does not have the attribute 'get_async_session'
+/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/unittest/mock.py:1437: AttributeError: <module 'src.services.learning_service' from '/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/learning_service.py'> does not have the attribute 'get_async_session'
+/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/unittest/mock.py:1437: AttributeError: <module 'src.services.learning_service' from '/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/learning_service.py'> does not have the attribute 'get_async_session'
+/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/unittest/mock.py:1437: AttributeError: <module 'src.services.learning_service' from '/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/learning_service.py'> does not have the attribute 'get_async_session'
+/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/unittest/mock.py:1437: AttributeError: <module 'src.services.learning_service' from '/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/learning_service.py'> does not have the attribute 'get_async_session'
+/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/unittest/mock.py:1437: AttributeError: <module 'src.services.learning_service' from '/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/learning_service.py'> does not have the attribute 'get_async_session'
+/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/unittest/mock.py:1437: AttributeError: <module 'src.services.learning_service' from '/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/learning_service.py'> does not have the attribute 'get_async_session'
+/Users/apto-as/workspace/github.com/apto-as/tmws/src/core/exceptions.py:330: src.core.exceptions.DatabaseOperationError: Database session error during operation
+/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/unittest/mock.py:1437: AttributeError: <module 'src.services.learning_service' from '/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/learning_service.py'> does not have the attribute 'get_async_session'
+/Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_learning_service.py:884: AttributeError: 'LearningService' object has no attribute '_calculate_cache_hit_rate'
+/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/pattern_execution_service.py:334: TypeError: '>' not supported between instances of 'coroutine' and 'int'
+/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/pattern_execution_service.py:356: TypeError: HybridDecisionRouter._balanced_routing() got an unexpected keyword argument 'query'
+/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/pattern_execution_service.py:334: TypeError: '>' not supported between instances of 'coroutine' and 'int'
+/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/pattern_execution_service.py:334: TypeError: '>' not supported between instances of 'coroutine' and 'int'
+/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/pattern_execution_service.py:334: TypeError: '>' not supported between instances of 'coroutine' and 'int'
+/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/pattern_execution_service.py:334: TypeError: '>' not supported between instances of 'coroutine' and 'int'
+/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/pattern_execution_service.py:334: TypeError: '>' not supported between instances of 'coroutine' and 'int'
+/Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_pattern_execution_service.py:394: TypeError: PatternExecutionEngine.execute() missing 1 required positional argument: 'auth_token'
+/Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_pattern_execution_service.py:409: TypeError: PatternExecutionEngine.execute() missing 1 required positional argument: 'auth_token'
+/Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_pattern_execution_service.py:430: TypeError: PatternExecutionEngine.execute() missing 1 required positional argument: 'auth_token'
+/Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_pattern_execution_service.py:450: TypeError: PatternExecutionEngine.execute() missing 1 required positional argument: 'auth_token'
+/Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_pattern_execution_service.py:468: TypeError: PatternExecutionEngine.execute() missing 1 required positional argument: 'auth_token'
+/Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_pattern_execution_service.py:482: TypeError: PatternExecutionEngine.execute() missing 1 required positional argument: 'auth_token'
+/Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_pattern_execution_service.py:504: TypeError: PatternExecutionEngine.execute() missing 1 required positional argument: 'auth_token'
+/Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_pattern_execution_service.py:547: TypeError: PatternExecutionEngine.execute() missing 1 required positional argument: 'auth_token'
+/Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_pattern_execution_service.py:567: TypeError: PatternExecutionEngine.execute() missing 1 required positional argument: 'auth_token'
+/Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_pattern_execution_service.py:606: TypeError: PatternExecutionEngine.execute() missing 1 required positional argument: 'auth_token'
+/Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_production_security_validation.py:92: Failed: DID NOT RAISE <class 'ValueError'>
+/Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_production_security_validation.py:161: Failed: DID NOT RAISE <class 'ValueError'>
+/Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_production_security_validation.py:194: AssertionError: Regex pattern did not match.
+/Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_service_manager.py:272: AssertionError: Expected 'start' to have been called once. Called 0 times.
+/Users/apto-as/workspace/github.com/apto-as/tmws/src/core/service_manager.py:201: src.core.exceptions.ServiceError: Shutdown failed: object AsyncMock can't be used in 'await' expression
+/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/unittest/mock.py:1437: AttributeError: <module 'src.core.service_manager' from '/Users/apto-as/workspace/github.com/apto-as/tmws/src/core/service_manager.py'> does not have the attribute 'get_async_session'
+/Users/apto-as/workspace/github.com/apto-as/tmws/src/core/service_manager.py:239: TypeError: object Mock can't be used in 'await' expression
+/Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_service_manager.py:553: AssertionError: assert 'unhealthy' == 'healthy'
+/Users/apto-as/workspace/github.com/apto-as/tmws/src/core/service_manager.py:503: TypeError: object MagicMock can't be used in 'await' expression
+/Users/apto-as/workspace/github.com/apto-as/tmws/src/core/service_manager.py:508: TypeError: object MagicMock can't be used in 'await' expression
+/Users/apto-as/workspace/github.com/apto-as/tmws/src/core/service_manager.py:513: TypeError: object Mock can't be used in 'await' expression
+/Users/apto-as/workspace/github.com/apto-as/tmws/src/core/service_manager.py:518: TypeError: object MagicMock can't be used in 'await' expression
+=============================== warnings summary ===============================
+../../../../miniforge3/envs/omoikane-cli-dev/lib/python3.12/site-packages/passlib/utils/__init__.py:854
+  /Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/site-packages/passlib/utils/__init__.py:854: DeprecationWarning: 'crypt' is deprecated and slated for removal in Python 3.13
+    from crypt import crypt as _crypt
+
+tests/unit/test_base_tool.py:14
+  /Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_base_tool.py:14: PytestCollectionWarning: cannot collect test class 'TestModel' because it has a __init__ constructor (from: tests/unit/test_base_tool.py)
+    class TestModel(BaseModel):
+
+tests/unit/test_base_tool.py:21
+  /Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_base_tool.py:21: PytestCollectionWarning: cannot collect test class 'TestBaseTool' because it has a __init__ constructor (from: tests/unit/test_base_tool.py)
+    class TestBaseTool(BaseTool):
+
+tests/unit/test_agent_memory_tools.py::TestAgentMemoryTools::test_create_memory_tool_success
+  /Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/site-packages/pytest_asyncio/plugin.py:761: DeprecationWarning: The event_loop fixture provided by pytest-asyncio has been redefined in
+  /Users/apto-as/workspace/github.com/apto-as/tmws/tests/conftest.py:47
+  Replacing the event_loop fixture with a custom implementation is deprecated
+  and will lead to errors in the future.
+  If you want to request an asyncio event loop with a scope other than function
+  scope, use the "scope" argument to the asyncio mark when marking the tests.
+  If you want to return different types of event loops, use the event_loop_policy
+  fixture.
+  
+    warnings.warn(
+
+tests/unit/test_auth_service.py::TestAuthServiceUserCreation::test_create_user_success
+tests/unit/test_auth_service.py::TestAuthServiceUserCreation::test_create_user_duplicate_username
+tests/unit/test_auth_service.py::TestAuthServiceUserCreation::test_create_user_with_roles
+tests/unit/test_auth_service.py::TestAuthServiceConcurrency::test_concurrent_user_creation
+tests/unit/test_auth_service.py::TestAuthServiceConcurrency::test_concurrent_user_creation
+  /Users/apto-as/workspace/github.com/apto-as/tmws/src/services/auth_service.py:87: DeprecationWarning: hash_password_with_salt() is deprecated and insecure. Use hash_password() instead, which uses bcrypt.
+    password_hash, password_salt = hash_password_with_salt(password)
+
+tests/unit/test_auth_service.py::TestAuthServiceUserCreation::test_create_user_success
+tests/unit/test_auth_service.py::TestAuthServiceUserCreation::test_create_user_with_roles
+  /Users/apto-as/workspace/github.com/apto-as/tmws/src/services/auth_service.py:115: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    session.add(user)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/unit/test_auth_service.py::TestAuthServiceUserCreation::test_create_user_with_roles
+tests/unit/test_auth_service.py::TestAuthServiceAuthentication::test_authenticate_user_not_found
+tests/unit/test_auth_service.py::TestAuthServiceAuthentication::test_authenticate_locked_account
+tests/unit/test_auth_service.py::TestAuthServiceAuthentication::test_authenticate_suspended_account
+  /Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/site-packages/_pytest/stash.py:108: RuntimeWarning: coroutine 'get_audit_logger' was never awaited
+    del self._storage[key]
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/unit/test_auth_service.py::TestAuthServiceAPIKeys::test_create_api_key_success
+tests/unit/test_auth_service.py::TestAuthServiceAPIKeys::test_create_api_key_with_expiration
+  /Users/apto-as/workspace/github.com/apto-as/tmws/src/services/auth_service.py:314: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    session.add(api_key)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/unit/test_auth_service.py::TestAuthServicePasswordManagement::test_reset_password_success
+  /Users/apto-as/workspace/github.com/apto-as/tmws/src/services/auth_service.py:444: DeprecationWarning: hash_password_with_salt() is deprecated and insecure. Use hash_password() instead, which uses bcrypt.
+    password_hash, password_salt = hash_password_with_salt(new_password)
+
+tests/unit/test_auth_service.py::TestAuthServiceConcurrency::test_concurrent_user_creation
+  /Users/apto-as/workspace/github.com/apto-as/tmws/src/services/auth_service.py:112: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    if existing.scalar_one_or_none():
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/unit/test_coverage_boost.py::TestUtilityFunctions::test_datetime_utilities
+  /Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_coverage_boost.py:177: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.utcnow()
+
+tests/unit/test_coverage_boost.py::TestUtilityFunctions::test_datetime_utilities
+  /Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_coverage_boost.py:188: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    recent_time = datetime.utcnow() - timedelta(minutes=2)
+
+tests/unit/test_coverage_boost.py::TestUtilityFunctions::test_datetime_utilities
+  /Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_coverage_boost.py:189: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    old_time = datetime.utcnow() - timedelta(hours=1)
+
+tests/unit/test_coverage_boost.py::TestUtilityFunctions::test_datetime_utilities
+tests/unit/test_coverage_boost.py::TestUtilityFunctions::test_datetime_utilities
+  /Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_coverage_boost.py:174: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return datetime.utcnow() - dt < timedelta(minutes=minutes)
+
+tests/unit/test_coverage_boost.py::TestUtilityFunctions::test_json_utilities
+  /Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_coverage_boost.py:218: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    data = {"datetime": datetime.utcnow(), "uuid": uuid.uuid4()}
+
+tests/unit/test_coverage_boost.py::TestModelUtilities::test_to_dict_functionality
+  /Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_coverage_boost.py:286: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    id=uuid.uuid4(), name="Test Model", created_at=datetime.utcnow(), active=True
+
+tests/unit/test_coverage_boost.py::TestModelUtilities::test_from_dict_functionality
+  /Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_coverage_boost.py:315: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "created_at": datetime.utcnow(),
+
+tests/unit/test_coverage_boost.py::TestSecurityUtilities::test_rate_limiting_logic
+  /Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_coverage_boost.py:476: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    current_hour = datetime.utcnow().strftime("%Y-%m-%d-%H")
+
+tests/unit/test_hybrid_memory_service.py::test_cleanup_old_memories
+  /Users/apto-as/workspace/github.com/apto-as/tmws/src/services/memory_service.py:623: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff_date = datetime.utcnow() - timedelta(days=days)
+
+tests/unit/test_pattern_execution_service.py::TestHybridDecisionRouter::test_infrastructure_routing
+tests/unit/test_pattern_execution_service.py::TestHybridDecisionRouter::test_hybrid_routing
+tests/unit/test_pattern_execution_service.py::TestHybridDecisionRouter::test_fast_mode
+tests/unit/test_pattern_execution_service.py::TestHybridDecisionRouter::test_comprehensive_mode
+tests/unit/test_pattern_execution_service.py::TestHybridDecisionRouter::test_routing_cache
+tests/unit/test_pattern_execution_service.py::TestHybridDecisionRouter::test_stats
+  /Users/apto-as/workspace/github.com/apto-as/tmws/src/services/pattern_execution_service.py:470: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    stats = {"total_memories": total_memories, "timestamp": datetime.utcnow().isoformat()}
+
+tests/unit/test_production_security_validation.py::TestProductionSecurityValidation::test_production_requires_auth_enabled
+  <frozen _collections_abc>:435: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/unit/test_service_manager.py::TestServiceManager::test_shutdown_all_with_health_check_task
+  /Users/apto-as/workspace/github.com/apto-as/tmws/src/core/service_manager.py:160: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    self._health_check_task.cancel()
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/unit/test_service_manager.py::TestServiceManager::test_setup_signal_handlers
+  /Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/unittest/mock.py:2217: RuntimeWarning: coroutine 'ServiceManager._start_health_monitoring.<locals>.health_monitor' was never awaited
+    def __init__(self, name, parent):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/unit/test_simple_mocks.py::TestTaskRouterLogic::test_task_update_logic
+  /Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_simple_mocks.py:102: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "updated_at": datetime.utcnow(),
+
+tests/unit/test_simple_mocks.py::TestTaskRouterLogic::test_task_update_logic
+  /Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_simple_mocks.py:110: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    task["updated_at"] = datetime.utcnow()
+
+tests/unit/test_simple_mocks.py::TestTaskRouterLogic::test_task_completion_logic
+  /Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_simple_mocks.py:133: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    task["completed_at"] = datetime.utcnow()
+
+tests/unit/test_simple_mocks.py::TestTaskRouterLogic::test_error_response_formatting
+  /Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_simple_mocks.py:148: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "timestamp": datetime.utcnow().isoformat(),
+
+tests/unit/test_simple_mocks.py::TestWorkflowRouterLogic::test_workflow_execution_logic
+  /Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_simple_mocks.py:197: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    workflow["started_at"] = datetime.utcnow()
+
+tests/unit/test_simple_mocks.py::TestWorkflowRouterLogic::test_workflow_execution_logic
+  /Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_simple_mocks.py:202: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    workflow["completed_at"] = datetime.utcnow()
+
+tests/unit/test_simple_mocks.py::TestWorkflowRouterLogic::test_workflow_cancellation_logic
+  /Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_simple_mocks.py:222: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "started_at": datetime.utcnow(),
+
+tests/unit/test_simple_mocks.py::TestWorkflowRouterLogic::test_workflow_cancellation_logic
+  /Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_simple_mocks.py:229: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    workflow["completed_at"] = datetime.utcnow()
+
+tests/unit/test_simple_mocks.py::TestHealthCheckLogic::test_component_health_status
+tests/unit/test_simple_mocks.py::TestHealthCheckLogic::test_component_health_status
+  /Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_simple_mocks.py:362: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "timestamp": datetime.utcnow().isoformat(),
+
+tests/unit/test_simple_mocks.py::TestHealthCheckLogic::test_component_health_status
+  /Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_simple_mocks.py:369: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "timestamp": datetime.utcnow().isoformat(),
+
+tests/unit/test_simple_mocks.py::TestBusinessLogicValidation::test_data_consistency_validation
+  /Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_simple_mocks.py:490: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "created_at": datetime.utcnow(),
+
+tests/unit/test_simple_mocks.py::TestBusinessLogicValidation::test_data_consistency_validation
+  /Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_simple_mocks.py:491: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "updated_at": datetime.utcnow(),
+
+tests/unit/test_simple_mocks.py::TestBusinessLogicValidation::test_data_consistency_validation
+  /Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_simple_mocks.py:498: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "created_at": datetime.utcnow(),
+
+tests/unit/test_simple_mocks.py::TestBusinessLogicValidation::test_data_consistency_validation
+  /Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_simple_mocks.py:499: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "updated_at": datetime.utcnow() - timedelta(hours=1),  # Before created
+
+tests/unit/test_simple_mocks.py: 10 warnings
+  /Users/apto-as/workspace/github.com/apto-as/tmws/tests/unit/test_simple_mocks.py:591: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "timestamp": datetime.utcnow().isoformat(),
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /Users/apto-as/workspace/github.com/apto-as/tmws/junit.xml -
+
+--------- coverage: platform darwin, python 3.12.10-final-0 ----------
+Name                                          Stmts   Miss  Cover   Missing
+---------------------------------------------------------------------------
+src/__init__.py                                   3      0   100%
+src/core/__init__.py                              0      0   100%
+src/core/cache.py                               174    118    32%   63-76, 94-96, 100-106, 128, 132-142, 146-172, 181-188, 195, 203-211, 215-228, 232-239, 247-250, 264, 276-300, 309-311, 316-338, 342-344, 348-361
+src/core/config.py                              285    106    63%   227-229, 233, 241-252, 260, 275-302, 318, 330, 338, 341, 352, 392, 421, 436, 440-456, 485, 487, 491-505, 515-556, 561-570, 580, 683-728
+src/core/config_loader.py                       121    121     0%   6-313
+src/core/database.py                            148     80    46%   40-41, 125-126, 130-142, 154-155, 164-178, 183-208, 219-220, 229-233, 238-241, 247-248, 255-281, 286-310
+src/core/exceptions.py                           96      2    98%   199, 246
+src/core/graceful_shutdown.py                    65     20    69%   33-36, 85-111
+src/core/memory_scope.py                         27     27     0%   5-53
+src/core/process_manager.py                     352    279    21%   83-89, 113-121, 128-130, 134-169, 173-196, 200-228, 232-254, 258-278, 288-308, 312-318, 322-369, 373-408, 412-443, 447-484, 488-523, 527-550, 554, 559-565, 569-574, 578-579, 585-590, 594-617, 622-627, 633-643, 648
+src/core/service_manager.py                     295     54    82%   137-139, 172-173, 192-194, 212-226, 253-254, 342-343, 351-353, 384-387, 394-404, 438, 446, 459-475, 484-485
+src/integration/__init__.py                       2      2     0%   9-11
+src/integration/genai_toolbox_bridge.py         130    130     0%   7-324
+src/integration/mcp_compatibility_bridge.py     194    194     0%   13-382
+src/mcp_server.py                               258    258     0%   14-654
+src/models/__init__.py                           12      0   100%
+src/models/agent.py                              81     15    81%   145-147, 151, 157-175, 179, 203
+src/models/api_audit_log.py                     108     60    44%   76-80, 85-87, 94-101, 107-110, 114-116, 120-123, 127-129, 133-134, 139-141, 146, 151, 156, 161-175, 179-189, 210-217, 222, 233, 244, 257
+src/models/audit_log.py                          60      0   100%
+src/models/base.py                               29     10    66%   73-80, 84-86
+src/models/learning_pattern.py                   98     48    51%   209-223, 230-249, 253-259, 263-266, 270-271, 275-283, 287-301, 305-342
+src/models/memory.py                             81     18    78%   151-154, 158, 181-201, 205
+src/models/persona.py                            54     12    78%   90-92, 96-107, 111, 135
+src/models/task.py                              222    118    47%   279-281, 289-293, 298-303, 308-312, 316-327, 333-350, 361-369, 380-395, 399-408, 412-416, 420-424, 428-431, 435-439, 443-447, 451-456, 460-461, 465-466, 470-471, 478-501, 607-628, 647-648
+src/models/user.py                              140     38    73%   182, 187-195, 203, 207-215, 219-224, 228-230, 234-259, 342, 348, 352-355, 365-387, 431-434, 438
+src/models/workflow.py                          120     48    60%   121, 126, 131, 136, 141, 146, 151-153, 158-160, 164-170, 174, 178, 182-184, 188-191, 195-196, 200, 204, 208, 212-223, 227-229, 233-234, 238-239, 243
+src/models/workflow_history.py                   79      0   100%
+src/security/__init__.py                          6      0   100%
+src/security/access_control.py                  234    234     0%   13-600
+src/security/agent_auth.py                       75     75     0%   6-168
+src/security/audit_logger.py                     68     37    46%   46-50, 57, 78, 108-109, 139-157, 166-193
+src/security/audit_logger_async.py              225    189    16%   36-42, 51-54, 58-90, 94-111, 142-179, 188-276, 285-286, 290-319, 323-366, 375-417, 422-432, 436-448, 458-493, 510-559, 577-595, 606-610, 620-623
+src/security/authorization.py                   171    171     0%   6-647
+src/security/data_encryption.py                 217    217     0%   13-549
+src/security/html_sanitizer.py                  118     88    25%   157-158, 162, 182-203, 208-230, 239-267, 275-293, 306-339, 352, 366, 379-408, 431-444
+src/security/jwt_service.py                     151     34    77%   30, 93-94, 174-178, 184, 189, 207-218, 257-265, 281-295, 305-313, 326-335, 401, 421, 426
+src/security/pattern_auth.py                     71     41    42%   35-40, 108-139, 145-162, 166, 173-174, 178-180
+src/security/pattern_validator.py                81     58    28%   111-157, 161-176, 189-200, 208-234, 249-267
+src/security/rate_limiter.py                    307    251    18%   55-133, 143-159, 168-174, 194-214, 226-296, 301-312, 316-321, 325-357, 361-405, 409-435, 439-480, 484-521, 531-604, 608-613, 623-641, 645-651, 689-694, 711-731, 735-742, 746-755, 759-766, 771-782, 788-801, 811, 818-820, 824-836, 840-852
+src/security/security_event.py                   30      6    80%   39-43, 47
+src/security/security_middleware.py             150    150     0%   6-401
+src/security/validators.py                      218    157    28%   26-29, 147, 150, 157, 166, 184-201, 217-254, 270-293, 309-320, 344-362, 368-369, 386, 390-393, 400-417, 440, 458-476, 480-482, 486-488, 494-503, 515, 533-567, 583-593, 597-619, 624-634, 670-684
+src/services/__init__.py                          8      0   100%
+src/services/agent_service.py                   388    388     0%   6-838
+src/services/auth_service.py                    225     86    62%   135-136, 177-221, 250-269, 348, 352, 356, 360, 364, 375-389, 407-435, 440, 466-474, 478-485, 489-490, 494-496, 500-504, 508-515, 530-531
+src/services/base_service.py                     94     73    22%   25, 41-45, 58-75, 88-106, 118-133, 146-147, 160-166, 179-183, 197-199, 203-216, 220, 224
+src/services/batch_service.py                   356    105    71%   205-206, 218-221, 267-273, 295, 300, 312, 314-319, 325-330, 361-377, 409-412, 423, 460, 596-650, 668-738, 745-805
+src/services/learning_service.py                240    166    31%   106, 140-161, 179-191, 230-246, 297-378, 405-439, 471-510, 527-543, 567-641, 662-735, 750-787
+src/services/memory_service.py                  253    106    58%   70, 75-76, 79, 82, 142-143, 148-161, 165-166, 171-174, 185-199, 226, 238-239, 242-243, 248-269, 281, 284, 288-290, 325-367, 371, 374, 398-411, 425-446, 509, 517-518, 523-534, 538-539, 544-547, 588, 591, 595-597, 638, 644, 647, 651-653, 667-668
+src/services/ollama_embedding_service.py         93     16    83%   162, 182, 209, 243, 294, 342-353, 384-385, 407-410
+src/services/pattern_execution_service.py       284    119    58%   154-162, 235-237, 323-325, 339, 348, 365-387, 406-445, 462, 476-478, 482-484, 539-540, 638-740, 764-786, 805, 822-832, 852-859, 872-885, 889-895, 919-933
+src/services/persona_service.py                 108     85    21%   25, 37-55, 59-62, 66-67, 71-93, 97-106, 112-124, 130-141, 145-153, 157-176, 189-199, 203-213
+src/services/scope_classifier.py                 80     80     0%   11-246
+src/services/task_service.py                    212    182    14%   27, 41-79, 83-86, 90-129, 133-148, 152-160, 172-202, 208-217, 221-231, 235-237, 241-248, 253-282, 298-304, 308-318, 322-339, 343-371, 375-420
+src/services/vector_search_service.py           142    116    18%   70-91, 105-126, 166-191, 226-251, 289-334, 355-370, 386-401, 417-424, 439-445, 457-483, 499-519, 542-545
+src/services/workflow_history_service.py        145    145     0%   6-428
+src/services/workflow_service.py                234    204    13%   25, 37-64, 68-69, 73-100, 104-116, 122-139, 143-156, 160-170, 176-218, 224-243, 249-271, 277-295, 301-354, 362-377, 382-393, 399-409, 417, 421-429, 434-449
+src/tools/__init__.py                             9      0   100%
+src/tools/agent_memory_tools.py                  54      0   100%
+src/tools/base_tool.py                           35      7    80%   43, 63-68
+src/tools/learning_tools.py                     169    150    11%   43-615
+src/tools/memory_tools.py                       103     76    26%   53-377
+src/tools/persona_tools.py                      121    100    17%   45-403
+src/tools/system_tools.py                       297    279     6%   44-835
+src/tools/task_tools.py                         185    158    15%   49-584
+src/tools/workflow_tools.py                     152    133    12%   41-555
+src/utils/security.py                            37     15    59%   29, 45-52, 103-108, 121, 131
+---------------------------------------------------------------------------
+TOTAL                                          9380   6255    33%
+Coverage HTML written to dir htmlcov
+Coverage XML written to file coverage.xml
+
+Required test coverage of 26% reached. Total coverage: 33.32%
+============================= slowest 10 durations =============================
+3.90s call     tests/unit/test_auth_service.py::TestAuthServiceAPIKeys::test_validate_api_key_performance
+2.04s call     tests/unit/test_auth_service.py::TestAuthServiceConcurrency::test_concurrent_api_key_validation
+1.92s call     tests/unit/test_jwt_service.py::TestPasswordHashing::test_password_hashing_performance
+0.57s call     tests/unit/test_jwt_service.py::TestRefreshTokens::test_verify_refresh_token_hash
+0.50s call     tests/unit/test_batch_service.py::TestBatchProcessorConcurrency::test_concurrent_job_processing
+0.50s call     tests/unit/test_batch_service.py::TestBatchProcessor::test_job_execution_success
+0.50s call     tests/unit/test_batch_service.py::TestBatchProcessor::test_job_execution_failure
+0.37s call     tests/unit/test_auth_service.py::TestAuthServiceAPIKeys::test_validate_api_key_success
+0.30s call     tests/unit/test_batch_service.py::TestBatchProcessorErrorHandling::test_processor_function_exception
+0.30s call     tests/unit/test_batch_service.py::TestBatchProcessor::test_exception_in_processor
+- Generated html report: file:///Users/apto-as/workspace/github.com/apto-as/tmws/test_report.html -
+=========================== short test summary info ============================
+FAILED tests/unit/test_agent_memory_tools.py::TestAgentMemoryTools::test_register_tools
+FAILED tests/unit/test_auth_service.py::TestAuthServiceAPIKeys::test_validate_api_key_performance
+FAILED tests/unit/test_base_tool.py::TestBaseToolInitialization::test_base_tool_initialization
+FAILED tests/unit/test_base_tool.py::TestBaseToolServiceInitialization::test_get_services_mock
+FAILED tests/unit/test_batch_service.py::TestBatchProcessor::test_exception_in_processor
+FAILED tests/unit/test_batch_service.py::TestBatchService::test_batch_create_memories
+FAILED tests/unit/test_batch_service.py::TestBatchService::test_batch_update_agent_performance
+FAILED tests/unit/test_batch_service.py::TestBatchService::test_batch_cleanup_expired_memories
+FAILED tests/unit/test_batch_service.py::TestBatchProcessorConcurrency::test_batch_processor_resource_limits
+FAILED tests/unit/test_batch_service.py::TestBatchProcessorErrorHandling::test_processor_function_exception
+FAILED tests/unit/test_coverage_boost.py::TestCoreExceptions::test_not_found_error_import
+FAILED tests/unit/test_coverage_boost.py::TestSecurityUtilities::test_rate_limiting_logic
+FAILED tests/unit/test_html_sanitizer.py::TestHTMLSanitizerBasicSanitization::test_sanitize_with_basic_mode_no_bleach
+FAILED tests/unit/test_hybrid_memory_service.py::test_create_memory_success
+FAILED tests/unit/test_hybrid_memory_service.py::test_create_memory_chroma_failure_raises
+FAILED tests/unit/test_hybrid_memory_service.py::test_search_memories_chroma_first
+FAILED tests/unit/test_hybrid_memory_service.py::test_search_memories_chroma_failure_raises
+FAILED tests/unit/test_hybrid_memory_service.py::test_batch_create_memories
+FAILED tests/unit/test_hybrid_memory_service.py::test_update_memory_with_content_change
+FAILED tests/unit/test_hybrid_memory_service.py::test_delete_memory_both_stores
+FAILED tests/unit/test_hybrid_memory_service.py::test_get_memory_stats - asse...
+FAILED tests/unit/test_hybrid_memory_service.py::test_cleanup_old_memories - ...
+FAILED tests/unit/test_hybrid_memory_service.py::test_chroma_unavailable_raises_error
+FAILED tests/unit/test_jwt_service.py::TestJWTServiceInitialization::test_jwt_service_secret_key_validation
+FAILED tests/unit/test_jwt_service.py::TestPasswordHashing::test_password_hashing_produces_different_results
+FAILED tests/unit/test_jwt_service.py::TestPasswordHashing::test_password_verification_success
+FAILED tests/unit/test_jwt_service.py::TestPasswordHashing::test_password_verification_failure
+FAILED tests/unit/test_jwt_service.py::TestPasswordHashing::test_password_verification_wrong_salt
+FAILED tests/unit/test_jwt_service.py::TestPasswordHashing::test_convenience_functions
+FAILED tests/unit/test_jwt_service.py::TestPasswordResetTokens::test_password_reset_token_validation
+FAILED tests/unit/test_learning_service.py::TestLearningServiceCache::test_cache_cleanup
+FAILED tests/unit/test_learning_service.py::TestCreatePattern::test_create_pattern_success
+FAILED tests/unit/test_learning_service.py::TestCreatePattern::test_create_pattern_duplicate
+FAILED tests/unit/test_learning_service.py::TestGetPattern::test_get_pattern_success
+FAILED tests/unit/test_learning_service.py::TestGetPattern::test_get_pattern_not_found
+FAILED tests/unit/test_learning_service.py::TestGetPattern::test_get_pattern_access_denied
+FAILED tests/unit/test_learning_service.py::TestGetPatternsByAgent::test_get_patterns_by_agent_success
+FAILED tests/unit/test_learning_service.py::TestSearchPatterns::test_search_patterns_with_filters
+FAILED tests/unit/test_learning_service.py::TestSearchPatterns::test_search_patterns_no_agent
+FAILED tests/unit/test_learning_service.py::TestUsePattern::test_use_pattern_success
+FAILED tests/unit/test_learning_service.py::TestUsePattern::test_use_pattern_not_found
+FAILED tests/unit/test_learning_service.py::TestUsePattern::test_use_pattern_access_denied
+FAILED tests/unit/test_learning_service.py::TestUsePattern::test_use_pattern_by_owner
+FAILED tests/unit/test_learning_service.py::TestUpdatePattern::test_update_pattern_success
+FAILED tests/unit/test_learning_service.py::TestUpdatePattern::test_update_pattern_not_found
+FAILED tests/unit/test_learning_service.py::TestUpdatePattern::test_update_pattern_not_owner
+FAILED tests/unit/test_learning_service.py::TestUpdatePattern::test_update_pattern_validation_errors
+FAILED tests/unit/test_learning_service.py::TestDeletePattern::test_delete_pattern_success
+FAILED tests/unit/test_learning_service.py::TestDeletePattern::test_delete_pattern_not_found
+FAILED tests/unit/test_learning_service.py::TestDeletePattern::test_delete_pattern_not_owner
+FAILED tests/unit/test_learning_service.py::TestPatternAnalytics::test_get_pattern_analytics_success
+FAILED tests/unit/test_learning_service.py::TestRecommendPatterns::test_recommend_patterns_success
+FAILED tests/unit/test_learning_service.py::TestRecommendPatterns::test_recommend_patterns_empty_results
+FAILED tests/unit/test_learning_service.py::TestBatchCreatePatterns::test_batch_create_patterns_success
+FAILED tests/unit/test_learning_service.py::TestBatchCreatePatterns::test_batch_create_patterns_with_errors
+FAILED tests/unit/test_learning_service.py::TestBatchCreatePatterns::test_batch_create_patterns_empty_list
+FAILED tests/unit/test_learning_service.py::TestLearningServiceEdgeCases::test_empty_agent_id_validation
+FAILED tests/unit/test_learning_service.py::TestPatternPermissions::test_pattern_access_levels
+FAILED tests/unit/test_learning_service.py::TestPerformanceOptimizations::test_cache_hit_rate_calculation
+FAILED tests/unit/test_pattern_execution_service.py::TestHybridDecisionRouter::test_infrastructure_routing
+FAILED tests/unit/test_pattern_execution_service.py::TestHybridDecisionRouter::test_memory_routing
+FAILED tests/unit/test_pattern_execution_service.py::TestHybridDecisionRouter::test_hybrid_routing
+FAILED tests/unit/test_pattern_execution_service.py::TestHybridDecisionRouter::test_fast_mode
+FAILED tests/unit/test_pattern_execution_service.py::TestHybridDecisionRouter::test_comprehensive_mode
+FAILED tests/unit/test_pattern_execution_service.py::TestHybridDecisionRouter::test_routing_cache
+FAILED tests/unit/test_pattern_execution_service.py::TestHybridDecisionRouter::test_stats
+FAILED tests/unit/test_pattern_execution_service.py::TestPatternExecutionEngine::test_basic_execution
+FAILED tests/unit/test_pattern_execution_service.py::TestPatternExecutionEngine::test_execution_modes
+FAILED tests/unit/test_pattern_execution_service.py::TestPatternExecutionEngine::test_caching
+FAILED tests/unit/test_pattern_execution_service.py::TestPatternExecutionEngine::test_cache_bypass
+FAILED tests/unit/test_pattern_execution_service.py::TestPatternExecutionEngine::test_error_handling
+FAILED tests/unit/test_pattern_execution_service.py::TestPatternExecutionEngine::test_stats_tracking/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/site-packages/_pytest/unraisableexception.py:67: PytestUnraisableExceptionWarning: Exception ignored in: <coroutine object BatchProcessor._process_jobs at 0x1481df450>
+
+Traceback (most recent call last):
+  File "/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/asyncio/queues.py", line 158, in get
+    await getter
+GeneratorExit
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/batch_service.py", line 292, in _process_jobs
+    job = await asyncio.wait_for(self.job_queue.get(), timeout=1.0)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/asyncio/tasks.py", line 520, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/asyncio/queues.py", line 160, in get
+    getter.cancel()  # Just in case getter is not done yet.
+    ^^^^^^^^^^^^^^^
+  File "/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/asyncio/base_events.py", line 799, in call_soon
+    self._check_closed()
+  File "/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/asyncio/base_events.py", line 545, in _check_closed
+    raise RuntimeError('Event loop is closed')
+RuntimeError: Event loop is closed
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/batch_service.py", line 319, in _process_jobs
+    await asyncio.sleep(1.0)
+  File "/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/asyncio/tasks.py", line 659, in sleep
+    loop = events.get_running_loop()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: no running event loop
+
+Enable tracemalloc to get traceback where the object was allocated.
+See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+  warnings.warn(pytest.PytestUnraisableExceptionWarning(msg))
+/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/site-packages/_pytest/unraisableexception.py:67: PytestUnraisableExceptionWarning: Exception ignored in: <coroutine object BatchProcessor._process_jobs at 0x1481df890>
+
+Traceback (most recent call last):
+  File "/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/asyncio/queues.py", line 158, in get
+    await getter
+GeneratorExit
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/batch_service.py", line 292, in _process_jobs
+    job = await asyncio.wait_for(self.job_queue.get(), timeout=1.0)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/asyncio/tasks.py", line 520, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/asyncio/queues.py", line 160, in get
+    getter.cancel()  # Just in case getter is not done yet.
+    ^^^^^^^^^^^^^^^
+  File "/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/asyncio/base_events.py", line 799, in call_soon
+    self._check_closed()
+  File "/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/asyncio/base_events.py", line 545, in _check_closed
+    raise RuntimeError('Event loop is closed')
+RuntimeError: Event loop is closed
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/batch_service.py", line 319, in _process_jobs
+    await asyncio.sleep(1.0)
+  File "/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/asyncio/tasks.py", line 659, in sleep
+    loop = events.get_running_loop()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: no running event loop
+
+Enable tracemalloc to get traceback where the object was allocated.
+See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+  warnings.warn(pytest.PytestUnraisableExceptionWarning(msg))
+/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/site-packages/_pytest/unraisableexception.py:67: PytestUnraisableExceptionWarning: Exception ignored in: <coroutine object BatchProcessor._process_jobs at 0x1481df670>
+
+Traceback (most recent call last):
+  File "/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/asyncio/queues.py", line 158, in get
+    await getter
+GeneratorExit
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/batch_service.py", line 292, in _process_jobs
+    job = await asyncio.wait_for(self.job_queue.get(), timeout=1.0)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/asyncio/tasks.py", line 520, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/asyncio/queues.py", line 160, in get
+    getter.cancel()  # Just in case getter is not done yet.
+    ^^^^^^^^^^^^^^^
+  File "/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/asyncio/base_events.py", line 799, in call_soon
+    self._check_closed()
+  File "/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/asyncio/base_events.py", line 545, in _check_closed
+    raise RuntimeError('Event loop is closed')
+RuntimeError: Event loop is closed
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/apto-as/workspace/github.com/apto-as/tmws/src/services/batch_service.py", line 319, in _process_jobs
+    await asyncio.sleep(1.0)
+  File "/Users/apto-as/miniforge3/envs/omoikane-cli-dev/lib/python3.12/asyncio/tasks.py", line 659, in sleep
+    loop = events.get_running_loop()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: no running event loop
+
+Enable tracemalloc to get traceback where the object was allocated.
+See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+  warnings.warn(pytest.PytestUnraisableExceptionWarning(msg))
+
+FAILED tests/unit/test_pattern_execution_service.py::TestPatternExecutionEngine::test_context_passing
+FAILED tests/unit/test_pattern_execution_service.py::TestPerformance::test_infrastructure_execution_performance
+FAILED tests/unit/test_pattern_execution_service.py::TestPerformance::test_cache_hit_performance
+FAILED tests/unit/test_pattern_execution_service.py::TestIntegration::test_artemis_workflow
+FAILED tests/unit/test_production_security_validation.py::TestProductionSecurityValidation::test_production_requires_strong_secret_key
+FAILED tests/unit/test_production_security_validation.py::TestSecretKeyValidation::test_common_weak_keys_rejected
+FAILED tests/unit/test_production_security_validation.py::TestCORSValidation::test_production_requires_explicit_cors
+FAILED tests/unit/test_service_manager.py::TestServiceManager::test_initialize_service_with_start_method
+FAILED tests/unit/test_service_manager.py::TestServiceManager::test_shutdown_all_with_health_check_task
+FAILED tests/unit/test_service_manager.py::TestServiceManager::test_get_service_session_dependent
+FAILED tests/unit/test_service_manager.py::TestServiceManager::test_get_service_context
+FAILED tests/unit/test_service_manager.py::TestServiceManager::test_health_check_service_basic
+FAILED tests/unit/test_service_manager.py::TestGlobalFunctions::test_initialize_services
+FAILED tests/unit/test_service_manager.py::TestGlobalFunctions::test_shutdown_services
+FAILED tests/unit/test_service_manager.py::TestGlobalFunctions::test_get_service
+FAILED tests/unit/test_service_manager.py::TestGlobalFunctions::test_health_check
+ERROR tests/unit/test_auth_service.py::TestAuthServiceAuthentication::test_authenticate_user_success
+ERROR tests/unit/test_auth_service.py::TestAuthServiceAuthentication::test_authenticate_user_wrong_password
+ERROR tests/unit/test_auth_service.py::TestAuthServiceAuthentication::test_authenticate_performance
+ERROR tests/unit/test_auth_service.py::TestAuthServiceTokenRefresh::test_refresh_token_success
+ERROR tests/unit/test_auth_service.py::TestAuthServicePasswordManagement::test_change_password_success
+ERROR tests/unit/test_auth_service.py::TestAuthServicePasswordManagement::test_change_password_wrong_current
+ERROR tests/unit/test_auth_service.py::TestAuthServicePasswordManagement::test_change_password_weak_new
+====== 88 failed, 336 passed, 2 skipped, 63 warnings, 7 errors in 17.50s =======

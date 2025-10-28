@@ -1,5 +1,4 @@
-"""
-Rate Limiting and DDoS Protection Module
+"""Rate Limiting and DDoS Protection Module
 Hestia's Paranoid Traffic Control System
 
 "……大量のリクエストは必ず攻撃です……全て制限します……"
@@ -45,8 +44,7 @@ class ClientStats:
 
 
 class RateLimiter:
-    """
-    Advanced rate limiting system with multiple strategies.
+    """Advanced rate limiting system with multiple strategies.
     Hestia's Rule: 99.7% of attacks use excessive request patterns.
     """
 
@@ -79,10 +77,10 @@ class RateLimiter:
                 "per_ip": RateLimit(30, 60, burst=5),  # 30 requests per minute per IP
                 "per_user": RateLimit(60, 60, burst=10),  # 60 requests per minute per user
                 "login": RateLimit(
-                    3, 60, block_duration=1800
+                    3, 60, block_duration=1800,
                 ),  # 3 login attempts per minute, 30min block
                 "register": RateLimit(
-                    1, 60, block_duration=600
+                    1, 60, block_duration=600,
                 ),  # 1 registration per minute, 10min block
                 "search": RateLimit(20, 60),  # 20 searches per minute
                 "embedding": RateLimit(5, 60),  # 5 embedding requests per minute
@@ -133,12 +131,12 @@ class RateLimiter:
         self.ban_threshold = 10  # Violations before permanent ban
 
     def _record_redis_failure(self, operation: str, error: Exception) -> None:
-        """
-        Record Redis failure for operational visibility (H-2 fix).
+        """Record Redis failure for operational visibility (H-2 fix).
 
         Args:
             operation: Operation that failed (e.g., "global_rate_limit", "user_rate_limit")
             error: The exception that occurred
+
         """
         self.redis_health["failure_count"] += 1
         self.redis_health["consecutive_failures"] += 1
@@ -152,7 +150,7 @@ class RateLimiter:
             self.redis_health["degraded_mode_active"] = True
             logger.critical(
                 "⚠️  DEGRADED MODE ACTIVATED: Redis connection failing. "
-                f"Using fail-secure fallback limits. Operation: {operation}"
+                f"Using fail-secure fallback limits. Operation: {operation}",
             )
 
         # Log every failure for operational visibility
@@ -160,7 +158,7 @@ class RateLimiter:
             f"Redis operation failed: {operation} - {error}. "
             f"Total failures: {self.redis_health['failure_count']}, "
             f"Consecutive: {self.redis_health['consecutive_failures']}. "
-            f"Degraded mode: {self.redis_health['degraded_mode_active']}"
+            f"Degraded mode: {self.redis_health['degraded_mode_active']}",
         )
 
     def _record_redis_success(self) -> None:
@@ -174,10 +172,9 @@ class RateLimiter:
                 logger.info("✅ DEGRADED MODE EXITED: Redis connection restored")
 
     async def check_rate_limit(
-        self, request: Request, endpoint_type: str = "default", user_id: str | None = None
+        self, request: Request, endpoint_type: str = "default", user_id: str | None = None,
     ) -> bool:
-        """
-        Check if request is within rate limits.
+        """Check if request is within rate limits.
         Implements fail-secure principle: Any error = deny access.
 
         Args:
@@ -190,6 +187,7 @@ class RateLimiter:
 
         Raises:
             HTTPException: If rate limit exceeded or any error occurs
+
         """
         try:
             return await self._check_rate_limit_internal(request, endpoint_type, user_id)
@@ -218,10 +216,9 @@ class RateLimiter:
             )
 
     async def _check_rate_limit_internal(
-        self, request: Request, endpoint_type: str = "default", user_id: str | None = None
+        self, request: Request, endpoint_type: str = "default", user_id: str | None = None,
     ) -> bool:
-        """
-        Internal rate limit check implementation.
+        """Internal rate limit check implementation.
         """
         client_ip = self._get_client_ip(request)
         now = datetime.utcnow()
@@ -234,7 +231,7 @@ class RateLimiter:
         if client_ip in self.permanent_bans:
             logger.critical(f"Permanently banned IP attempted access: {client_ip}")
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="Access permanently denied"
+                status_code=status.HTTP_403_FORBIDDEN, detail="Access permanently denied",
             )
 
         # Get or create client stats
@@ -246,7 +243,7 @@ class RateLimiter:
         if client_stats.blocked_until and now < client_stats.blocked_until:
             remaining_time = (client_stats.blocked_until - now).seconds
             logger.warning(
-                f"Blocked client {client_ip} attempted request. {remaining_time}s remaining"
+                f"Blocked client {client_ip} attempted request. {remaining_time}s remaining",
             )
 
             # Security audit log
@@ -315,7 +312,7 @@ class RateLimiter:
         """Get or create client statistics."""
         if ip_address not in self.local_storage:
             self.local_storage[ip_address] = ClientStats(
-                ip_address=ip_address, user_agent=request.headers.get("User-Agent", "Unknown")
+                ip_address=ip_address, user_agent=request.headers.get("User-Agent", "Unknown"),
             )
 
         return self.local_storage[ip_address]
@@ -350,7 +347,7 @@ class RateLimiter:
                 )
 
                 raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN, detail="Access forbidden"
+                    status_code=status.HTTP_403_FORBIDDEN, detail="Access forbidden",
                 )
 
         # Check for bot-like behavior
@@ -399,7 +396,7 @@ class RateLimiter:
                 )
 
                 raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN, detail="Access forbidden"
+                    status_code=status.HTTP_403_FORBIDDEN, detail="Access forbidden",
                 )
 
         return False
@@ -455,7 +452,7 @@ class RateLimiter:
 
             logger.warning(
                 f"IP rate limit exceeded for {client_stats.ip_address}: "
-                f"{len(recent_requests)} requests in {limit.period}s"
+                f"{len(recent_requests)} requests in {limit.period}s",
             )
 
             await self._log_security_event(
@@ -525,7 +522,7 @@ class RateLimiter:
             )
 
     async def _check_endpoint_limit(
-        self, client_stats: ClientStats, endpoint_type: str, request: Request
+        self, client_stats: ClientStats, endpoint_type: str, request: Request,
     ) -> bool:
         """Check endpoint-specific rate limits."""
         if endpoint_type == "default":
@@ -546,7 +543,7 @@ class RateLimiter:
 
                 if current_count > limit.requests:
                     logger.warning(
-                        f"Endpoint rate limit exceeded: {endpoint_type} from {client_stats.ip_address}"
+                        f"Endpoint rate limit exceeded: {endpoint_type} from {client_stats.ip_address}",
                     )
 
                     await self._log_security_event(
@@ -563,7 +560,7 @@ class RateLimiter:
                     # For critical endpoints like login, block for longer
                     if endpoint_type in ["login", "register"]:
                         client_stats.blocked_until = datetime.utcnow() + timedelta(
-                            seconds=limit.block_duration
+                            seconds=limit.block_duration,
                         )
                         client_stats.violations += 5  # Heavy penalty for auth abuse
 
@@ -634,7 +631,7 @@ class RateLimiter:
                     "url": str(request.url),
                     "user_agent": request.headers.get("User-Agent", ""),
                     "referer": request.headers.get("Referer", ""),
-                }
+                },
             )
 
         # TODO: Integrate with SecurityAuditLogger
@@ -661,7 +658,7 @@ class RateLimiter:
                     "total_requests": stats.total_requests,
                 }
                 for stats in sorted(
-                    self.local_storage.values(), key=lambda s: s.violations, reverse=True
+                    self.local_storage.values(), key=lambda s: s.violations, reverse=True,
                 )[:10]
             ],
             # H-2 fix: Redis health visibility for operations
@@ -680,8 +677,7 @@ class RateLimiter:
 
 
 class DDoSProtection:
-    """
-    Advanced DDoS protection system.
+    """Advanced DDoS protection system.
     "……分散攻撃は最も危険です……必ず阻止します……"
     """
 
@@ -699,14 +695,14 @@ class DDoSProtection:
         }
 
     async def analyze_traffic(self, request: Request) -> bool:
-        """
-        Analyze traffic for DDoS patterns.
+        """Analyze traffic for DDoS patterns.
 
         Args:
             request: Incoming request
 
         Returns:
             True if traffic is normal, False if attack detected
+
         """
         datetime.utcnow()
         client_ip = self.rate_limiter._get_client_ip(request)
@@ -782,7 +778,7 @@ class DDoSProtection:
         return "slowloris_attack", False
 
     async def _handle_ddos_detection(
-        self, attack_type: str, client_ip: str, request: Request
+        self, attack_type: str, client_ip: str, request: Request,
     ) -> None:
         """Handle detected DDoS attack."""
         logger.critical(f"DDoS attack detected: {attack_type} from {client_ip}")
@@ -799,7 +795,7 @@ class DDoSProtection:
 
         # Log security event
         await self.rate_limiter._log_security_event(
-            f"ddos_{attack_type}", client_ip, request, {"auto_blocked": self.auto_block_enabled}
+            f"ddos_{attack_type}", client_ip, request, {"auto_blocked": self.auto_block_enabled},
         )
 
     async def _network_level_block(self, ip_address: str, attack_type: str) -> None:
@@ -830,7 +826,7 @@ class TrafficAnalyzer:
                 "method": request.method,
                 "path": request.url.path,
                 "user_agent": request.headers.get("User-Agent", ""),
-            }
+            },
         )
 
         self.ip_history.append({"timestamp": now, "ip": client_ip})
