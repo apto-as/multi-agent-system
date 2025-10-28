@@ -22,7 +22,7 @@ from typing import Any
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from core.config_loader import ConfigLoader
+from core.config import Settings, settings
 from security.access_control import (
     AccessDecision,
     AccessPolicy,
@@ -40,10 +40,21 @@ logger = logging.getLogger(__name__)
 
 
 class SecuritySetup:
-    """Security system initialization and setup."""
+    """Security system initialization and setup.
 
-    def __init__(self, config_path: str = None):
-        self.config = ConfigLoader.load_config(config_path)
+    Note: Configuration is now loaded from environment variables via Pydantic Settings.
+    No YAML config file is required. Set TMWS_* environment variables instead.
+    """
+
+    def __init__(self, _config_path: str = None):
+        # Config path parameter is deprecated but kept for backward compatibility
+        if _config_path:
+            logger.warning(
+                "Config file path is deprecated. Using environment variables instead. "
+                "Set TMWS_SECRET_KEY and other TMWS_* variables."
+            )
+
+        self.settings = settings
         self.setup_results: dict[str, Any] = {}
 
     async def run_setup(self) -> dict[str, Any]:
@@ -81,22 +92,27 @@ class SecuritySetup:
         return self.setup_results
 
     async def _generate_security_keys(self):
-        """Generate cryptographic keys for the system."""
+        """Generate cryptographic keys for the system.
+
+        Note: Keys are generated and stored in results. You must set them as
+        environment variables (TMWS_SECRET_KEY) for them to persist.
+        """
         logger.info("🔑 Generating security keys...")
 
-        # Generate secret key for JWT
-        secret_key = secrets.token_urlsafe(64)
+        # Generate secret key for JWT (if not already set)
+        if not self.settings.secret_key or len(self.settings.secret_key) < 32:
+            secret_key = secrets.token_urlsafe(64)
+            logger.info("Generated new secret key (set TMWS_SECRET_KEY to persist)")
+        else:
+            secret_key = self.settings.secret_key
+            logger.info("Using existing secret key from environment")
 
-        # Generate encryption master key
+        # Generate encryption master key (stored in results for .env generation)
         encryption_key = secrets.token_urlsafe(64)
 
-        # Store in environment or config
+        # Store in results for later use
         self.setup_results["secret_key"] = secret_key
         self.setup_results["encryption_key"] = encryption_key
-
-        # Update configuration
-        self.config.setdefault("security", {})["secret_key"] = secret_key
-        self.config.setdefault("security", {})["encryption_master_key"] = encryption_key
 
         logger.info("✅ Security keys generated")
 
@@ -104,16 +120,16 @@ class SecuritySetup:
         """Initialize security service instances."""
         logger.info("🛡️ Initializing security services...")
 
-        # Initialize agent authenticator
-        self.authenticator = create_agent_authenticator(self.config["security"]["secret_key"])
+        # Initialize agent authenticator (use generated or existing key)
+        secret_key = self.setup_results["secret_key"]
+        self.authenticator = create_agent_authenticator(secret_key)
 
         # Initialize access control
         self.access_control = create_access_control_manager()
 
-        # Initialize encryption service
-        self.encryption = create_encryption_service(
-            self.config["security"]["encryption_master_key"]
-        )
+        # Initialize encryption service (use generated key)
+        encryption_key = self.setup_results["encryption_key"]
+        self.encryption = create_encryption_service(encryption_key)
 
         self.setup_results["services_initialized"] = True
         logger.info("✅ Security services initialized")
@@ -306,9 +322,9 @@ class SecuritySetup:
 
         validation_results = {}
 
-        # Check key strength
-        secret_key = self.config["security"]["secret_key"]
-        encryption_key = self.config["security"]["encryption_master_key"]
+        # Check key strength (from generated keys)
+        secret_key = self.setup_results["secret_key"]
+        encryption_key = self.setup_results["encryption_key"]
 
         validation_results["secret_key_length"] = len(secret_key)
         validation_results["encryption_key_length"] = len(encryption_key)
@@ -319,11 +335,11 @@ class SecuritySetup:
         if len(encryption_key) < 64:
             raise ValueError("Encryption key too weak (minimum 64 characters)")
 
-        # Check security settings
-        auth_enabled = self.config["security"]["auth_enabled"]
+        # Check security settings (from Pydantic Settings)
+        auth_enabled = self.settings.auth_enabled
         validation_results["auth_enabled"] = auth_enabled
 
-        if not auth_enabled and os.environ.get("TMWS_ENVIRONMENT") == "production":
+        if not auth_enabled and self.settings.environment == "production":
             logger.warning("⚠️ Authentication disabled in production environment!")
 
         # Test encryption
@@ -353,14 +369,15 @@ class SecuritySetup:
 # Generated by Hestia Security Setup on {datetime.utcnow().isoformat()}
 
 # Security Keys (KEEP THESE SECRET!)
-TMWS_SECRET_KEY={self.config["security"]["secret_key"]}
-TMWS_ENCRYPTION_KEY={self.config["security"]["encryption_master_key"]}
+TMWS_SECRET_KEY={self.setup_results["secret_key"]}
+TMWS_ENCRYPTION_KEY={self.setup_results["encryption_key"]}
 
 # Authentication Settings
 TMWS_AUTH_ENABLED=true
 
 # Rate Limiting
-TMWS_RATE_LIMIT={self.config["security"].get("rate_limit_period", 60)}
+TMWS_RATE_LIMIT_REQUESTS={self.settings.rate_limit_requests}
+TMWS_RATE_LIMIT_PERIOD={self.settings.rate_limit_period}
 
 # Environment
 TMWS_ENVIRONMENT=production
