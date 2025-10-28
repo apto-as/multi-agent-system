@@ -7,10 +7,14 @@ from dataclasses import dataclass
 from enum import Enum
 from functools import wraps
 from typing import Any
+from uuid import UUID
 
 from fastapi import HTTPException, status
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models.agent import AccessLevel
+from ..models.agent import AccessLevel, Agent
+from ..models.memory import Memory
 from ..models.user import APIKeyScope, User, UserRole
 
 
@@ -362,16 +366,25 @@ class APIKeyScopeMapper:
 
 
 class AuthorizationService:
-    """High-performance authorization service."""
+    """High-performance authorization service with database-verified security."""
 
-    def __init__(self):
+    def __init__(self, session: AsyncSession):
+        """
+        Initialize authorization service.
+
+        Args:
+            session: Async database session for namespace verification
+        """
+        self.session = session
         self.role_matrix = RolePermissionMatrix()
         self.scope_mapper = APIKeyScopeMapper()
 
-    def check_permission(self, context: AuthorizationContext) -> bool:
+    async def check_permission(self, context: AuthorizationContext) -> bool:
         """
         Check if user has permission for resource.
-        Performance target: <50ms.
+        Performance target: <50ms (includes database verification for memories).
+
+        Security: Database-verified namespace isolation for MEMORIES resource.
         """
         # Super admin bypass
         if UserRole.SUPER_ADMIN in context.user.roles:
@@ -381,8 +394,8 @@ class AuthorizationService:
         if self.role_matrix.has_permission(
             context.user.roles, context.resource, context.permission
         ):
-            # Additional context checks
-            return self._check_additional_constraints(context)
+            # Additional context checks (async for database verification)
+            return await self._check_additional_constraints(context)
 
         # Check API key scope permissions if applicable
         if context.api_key_scopes:
@@ -392,8 +405,8 @@ class AuthorizationService:
 
         return False
 
-    def check_resource_ownership(self, context: AuthorizationContext) -> bool:
-        """Check if user owns the resource."""
+    async def check_resource_ownership(self, context: AuthorizationContext) -> bool:
+        """Check if user owns the resource (async for database verification)."""
         if not context.resource_id:
             return False
 
@@ -404,8 +417,8 @@ class AuthorizationService:
             # Would need to query database for ownership
             return True  # Simplified for now
         elif context.resource == Resource.MEMORIES:
-            # Check memory ownership through agent_namespace
-            return self._check_memory_access(context)
+            # Check memory ownership through database-verified namespace
+            return await self._check_memory_access(context)
 
         return False
 
@@ -436,8 +449,8 @@ class AuthorizationService:
         # Private access (owner only)
         return False
 
-    def _check_additional_constraints(self, context: AuthorizationContext) -> bool:
-        """Check additional authorization constraints."""
+    async def _check_additional_constraints(self, context: AuthorizationContext) -> bool:
+        """Check additional authorization constraints (async for database verification)."""
         # Namespace isolation for non-admin users
         if (
             context.namespace
@@ -452,44 +465,73 @@ class AuthorizationService:
             Resource.USERS,
             Resource.API_KEYS,
         ]:
-            return self.check_resource_ownership(context)
+            return await self.check_resource_ownership(context)
 
         return True
 
-    def _check_memory_access(self, context: AuthorizationContext) -> bool:
+    async def _check_memory_access(self, context: AuthorizationContext) -> bool:
         """
-        Check memory access permissions with namespace isolation.
+        Check memory access permissions with database-verified namespace isolation.
 
-        SECURITY-CRITICAL: This method implements proper namespace verification
-        to prevent cross-tenant access attacks.
+        SECURITY-CRITICAL: P0-2 FIX - Database-verified namespace (CVSS 9.1)
 
-        TODO (P1): Enhance this method to:
-        1. Fetch the memory from database by resource_id
-        2. Fetch the requesting agent's verified namespace from database
-        3. Call memory.is_accessible_by(agent_id, verified_namespace)
+        This method implements secure namespace verification by:
+        1. Fetching the memory from database by resource_id
+        2. Fetching the requesting agent's VERIFIED namespace from database
+        3. Calling memory.is_accessible_by(agent_id, verified_namespace)
 
-        Current Implementation:
-        - Uses user's agent_namespace from verified JWT token
-        - This is safe because JWT is cryptographically signed
-        - Prevents basic namespace spoofing attacks
+        The namespace is verified from the database, NOT from JWT claims,
+        preventing authentication bypass attacks.
 
         Args:
             context: Authorization context with user and resource_id
 
         Returns:
             bool: True if access is allowed, False otherwise
+
+        Raises:
+            None - Returns False on any error for security
         """
-        # User's agent namespace comes from verified JWT token
-        # This is safe because the JWT was signed by our secret key
-        user_namespace = context.user.agent_namespace
+        try:
+            # Validate inputs
+            if not context.resource_id or not context.user.agent_id:
+                return False
 
-        # Verify namespace is set (prevent None/empty attacks)
-        if not user_namespace:
+            # Parse UUID (resource_id should be memory UUID)
+            try:
+                memory_id = UUID(context.resource_id) if isinstance(context.resource_id, str) else context.resource_id
+            except (ValueError, AttributeError):
+                return False
+
+            # STEP 1: Fetch memory from database
+            stmt = select(Memory).where(Memory.id == str(memory_id))
+            result = await self.session.execute(stmt)
+            memory = result.scalar_one_or_none()
+
+            if not memory:
+                # Memory doesn't exist - deny access
+                return False
+
+            # STEP 2: Fetch requesting agent's VERIFIED namespace from database
+            agent_id = context.user.agent_id
+            stmt = select(Agent).where(Agent.agent_id == agent_id)
+            result = await self.session.execute(stmt)
+            agent = result.scalar_one_or_none()
+
+            if not agent:
+                # Agent doesn't exist - deny access
+                return False
+
+            # Get VERIFIED namespace from database (not from JWT!)
+            verified_namespace = agent.namespace
+
+            # STEP 3: Use Memory's built-in access control with verified namespace
+            return memory.is_accessible_by(agent_id, verified_namespace)
+
+        except Exception:
+            # On any error, deny access for security
+            # Do not expose error details to potential attackers
             return False
-
-        # Allow access to own namespace and trinitas (system namespace)
-        # TODO (P1): Replace this with actual memory.is_accessible_by() call
-        return user_namespace in ["default", "trinitas"]
 
     def get_user_permissions(self, user: User, resource: Resource) -> list[Permission]:
         """Get all permissions user has on resource."""
