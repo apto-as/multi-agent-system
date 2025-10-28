@@ -93,7 +93,7 @@ class HybridMemoryService:
         self,
         content: str,
         agent_id: str,
-        namespace: str = "default",
+        namespace: str,
         importance: float = 0.5,
         tags: list[str] | None = None,
         access_level: AccessLevel = AccessLevel.PRIVATE,
@@ -302,7 +302,7 @@ class HybridMemoryService:
         self,
         query: str,
         agent_id: str | None = None,
-        namespace: str = "default",
+        namespace: str | None = None,
         tags: list[str] | None = None,
         min_importance: float = 0.0,
         limit: int = 10,
@@ -464,10 +464,17 @@ class HybridMemoryService:
 
             # Create Memory objects (metadata only - embeddings go to Chroma)
             for data, embedding in zip(memories_data, embedding_vectors, strict=False):
+                # Namespace is required - no default fallback for security
+                if "namespace" not in data:
+                    raise ValueError(
+                        "namespace is required in memory data. "
+                        "Explicit 'default' namespace is rejected to prevent cross-project leakage."
+                    )
+
                 memory = Memory(
                     content=data["content"],
                     agent_id=data["agent_id"],
-                    namespace=data.get("namespace", "default"),
+                    namespace=data["namespace"],
                     embedding_model=self.embedding_model_name,
                     embedding_dimension=self.embedding_dimension,
                     importance_score=data.get("importance", 0.5),
@@ -554,7 +561,7 @@ class HybridMemoryService:
     async def count_memories(
         self,
         agent_id: str | None = None,
-        namespace: str = "default",
+        namespace: str | None = None,
     ) -> int:
         """Count memories (SQLite source of truth)."""
         query = select(func.count(Memory.id)).where(Memory.namespace == namespace)
@@ -574,7 +581,7 @@ class HybridMemoryService:
     async def get_memory_stats(
         self,
         agent_id: str | None = None,
-        namespace: str = "default",
+        namespace: str | None = None,
     ) -> dict[str, Any]:
         """Get memory statistics combining SQLite and Chroma."""
         # SQLite stats (authoritative)

@@ -93,14 +93,26 @@ class HybridMCPServer:
             content: str,
             importance: float = 0.5,
             tags: list[str] = None,
-            namespace: str = "default",
+            namespace: str = None,
             metadata: dict = None,
         ) -> dict:
             """
             Store memory with ultra-fast Chroma sync.
 
             Performance: ~2ms P95 (5x faster than legacy)
+
+            Security: Namespace is auto-detected from project context if not provided.
+            Explicit 'default' namespace is rejected to prevent cross-project leakage.
             """
+            # Auto-detect namespace if not provided
+            if namespace is None:
+                from src.utils.namespace import detect_project_namespace
+                namespace = await detect_project_namespace()
+
+            # Validate namespace (rejects 'default')
+            from src.utils.namespace import validate_namespace
+            validate_namespace(namespace)
+
             return await self.store_memory_hybrid(content, importance, tags, namespace, metadata)
 
         @self.mcp.tool(
@@ -111,14 +123,26 @@ class HybridMCPServer:
             query: str,
             limit: int = 10,
             min_similarity: float = 0.7,
-            namespace: str = "default",
+            namespace: str = None,
             tags: list[str] = None,
         ) -> dict:
             """
             Search memories with Chroma ultra-fast vector search.
 
             Performance: ~0.5ms P95 (ChromaDB vector search + SQLite metadata)
+
+            Security: Namespace is auto-detected from project context if not provided.
+            Explicit 'default' namespace is rejected to prevent cross-project leakage.
             """
+            # Auto-detect namespace if not provided
+            if namespace is None:
+                from src.utils.namespace import detect_project_namespace
+                namespace = await detect_project_namespace()
+
+            # Validate namespace (rejects 'default')
+            from src.utils.namespace import validate_namespace
+            validate_namespace(namespace)
+
             return await self.search_memories_hybrid(query, limit, min_similarity, namespace, tags)
 
         @self.mcp.tool(name="create_task", description="Create a coordinated task")

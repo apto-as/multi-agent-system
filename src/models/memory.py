@@ -37,9 +37,8 @@ class Memory(TMWSBase, MetadataMixin):
     namespace: Mapped[str] = mapped_column(
         Text,
         nullable=False,
-        default="default",
         index=True,
-        comment="Namespace for memory isolation",
+        comment="Project-specific namespace (required, no default)",
     )
 
     # Vector embeddings stored in Chroma (not in SQLite)
