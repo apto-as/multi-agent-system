@@ -38,7 +38,8 @@ class TestNamespaceSanitization:
         assert sanitize_namespace("MyProject") == "myproject"
         assert sanitize_namespace("my-project") == "my-project"
         assert sanitize_namespace("my_project") == "my_project"
-        assert sanitize_namespace("my.project") == "my.project"
+        # V-1 fix: . is sanitized to - for security (path traversal prevention)
+        assert sanitize_namespace("my.project") == "my-project"
 
     def test_sanitize_special_chars(self):
         """Test sanitization of special characters."""
@@ -111,19 +112,22 @@ class TestGitDetection:
         """Test namespace extraction from SSH git URL."""
         url = "git@github.com:apto-as/tmws.git"
         namespace = namespace_from_git_url(url)
-        assert namespace == "github.com/apto-as/tmws"
+        # V-1 fix: . and / are sanitized to - for security
+        assert namespace == "github-com-apto-as-tmws"
 
     def test_namespace_from_git_url_https(self):
         """Test namespace extraction from HTTPS git URL."""
         url = "https://github.com/apto-as/tmws"
         namespace = namespace_from_git_url(url)
-        assert namespace == "github.com/apto-as/tmws"
+        # V-1 fix: . and / are sanitized to - for security
+        assert namespace == "github-com-apto-as-tmws"
 
     def test_namespace_from_git_url_with_git_suffix(self):
         """Test namespace extraction with .git suffix removal."""
         url = "https://github.com/apto-as/tmws.git"
         namespace = namespace_from_git_url(url)
-        assert namespace == "github.com/apto-as/tmws"
+        # V-1 fix: . and / are sanitized to - for security
+        assert namespace == "github-com-apto-as-tmws"
 
 
 class TestProjectNamespaceDetection:

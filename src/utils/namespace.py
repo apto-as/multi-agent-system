@@ -43,7 +43,8 @@ def sanitize_namespace(raw_namespace: str) -> str:
     namespace = raw_namespace.strip().lower()
 
     # Replace invalid characters with hyphens
-    namespace = re.sub(r'[^a-z0-9\-_./]', '-', namespace)
+    # Security: Block . and / to prevent path traversal (V-1 fix)
+    namespace = re.sub(r'[^a-z0-9\-_]', '-', namespace)
 
     # Remove consecutive hyphens
     namespace = re.sub(r'-+', '-', namespace)
@@ -83,6 +84,13 @@ def validate_namespace(namespace: str) -> None:
         raise NamespaceError(
             "Namespace 'default' is not allowed for security reasons. "
             "Use explicit project-specific namespace instead.",
+        )
+
+    # Security: Reject path traversal sequences (V-1 fix)
+    if ".." in namespace or namespace.startswith("/"):
+        raise NamespaceError(
+            f"Namespace '{namespace}' contains invalid path sequences. "
+            "Path traversal patterns (.., /) are not allowed for security reasons.",
         )
 
     # Check if sanitized (should match sanitize output)
