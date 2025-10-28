@@ -13,8 +13,10 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from ..api.security import SecurityHeaders
 from ..core.config import get_settings
-from .audit_logger_async import AsyncSecurityAuditLogger
 from .rate_limiter import RateLimiter
+
+# Phase 4.2: Use new Facade instead of monolithic logger
+from .security_audit_facade import SecurityAuditFacade
 
 logger = logging.getLogger(__name__)
 
@@ -28,12 +30,12 @@ class UnifiedSecurityMiddleware(BaseHTTPMiddleware):
         self,
         app: FastAPI,
         rate_limiter: RateLimiter | None = None,
-        audit_logger: AsyncSecurityAuditLogger | None = None,
+        audit_logger: SecurityAuditFacade | None = None,
     ):
         super().__init__(app)
         self.settings = get_settings()
         self.rate_limiter = rate_limiter or RateLimiter()
-        self.audit_logger = audit_logger or AsyncSecurityAuditLogger()
+        self.audit_logger = audit_logger or SecurityAuditFacade()
 
         # Bypass paths that don't need security checks
         self.bypass_paths = {
@@ -380,7 +382,7 @@ class EnhancedCORSMiddleware:
 def setup_security_middleware(
     app: FastAPI,
     rate_limiter: RateLimiter | None = None,
-    audit_logger: AsyncSecurityAuditLogger | None = None,
+    audit_logger: SecurityAuditFacade | None = None,
 ) -> None:
     """Set up all security middleware in the correct order.
     Order matters for security effectiveness.

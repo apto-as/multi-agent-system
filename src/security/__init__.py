@@ -5,9 +5,11 @@ Hestia's Paranoid Security Implementation
 """
 
 from .audit_logger import SecurityAuditLogger, SecurityEvent
-from .audit_logger_async import AsyncSecurityAuditLogger
 from .html_sanitizer import HTMLSanitizer
 from .rate_limiter import DDoSProtection, RateLimiter
+
+# Phase 4.2: Facade Pattern - AsyncSecurityAuditLogger replaced by SecurityAuditFacade
+from .security_audit_facade import SecurityAuditFacade as AsyncSecurityAuditLogger
 from .validators import InputValidator, SQLInjectionValidator, VectorValidator
 
 __all__ = [

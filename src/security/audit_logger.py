@@ -13,27 +13,31 @@ from typing import Any
 from fastapi import Request
 
 from ..models.audit_log import SecurityEventSeverity, SecurityEventType
-from .audit_logger_async import AsyncSecurityAuditLogger
-from .audit_logger_async import get_audit_logger as get_async_audit_logger
+
+# Phase 4.2: Use new Facade instead of monolithic logger
+from .security_audit_facade import SecurityAuditFacade
+
+# Phase 4.2: Get facade instance
+from .security_audit_facade import get_audit_logger as get_async_audit_logger
 from .security_event import SecurityEvent
 
 logger = logging.getLogger(__name__)
 
 
 class SecurityAuditLogger:
-    """Synchronous wrapper around AsyncSecurityAuditLogger.
+    """Synchronous wrapper around SecurityAuditFacade (DEPRECATED).
 
     This class provides a synchronous interface to the async audit logger
     by running async methods in a new event loop. This is primarily for
     backward compatibility with existing synchronous code.
 
     Note: This wrapper has performance overhead due to event loop creation.
-    For new code, use AsyncSecurityAuditLogger directly.
+    For new code, use SecurityAuditFacade (async) directly.
     """
 
     def __init__(self):
         """Initialize sync wrapper."""
-        self._async_logger: AsyncSecurityAuditLogger | None = None
+        self._async_logger: SecurityAuditFacade | None = None
         self._loop: asyncio.AbstractEventLoop | None = None
 
     def _get_or_create_loop(self) -> asyncio.AbstractEventLoop:
@@ -47,7 +51,7 @@ class SecurityAuditLogger:
             asyncio.set_event_loop(loop)
             return loop
 
-    def _get_async_logger(self) -> AsyncSecurityAuditLogger:
+    def _get_async_logger(self) -> SecurityAuditFacade:
         """Get or create async logger instance."""
         if self._async_logger is None:
             loop = self._get_or_create_loop()
