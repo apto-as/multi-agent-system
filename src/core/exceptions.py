@@ -1,5 +1,4 @@
-"""
-Custom exceptions for TMWS.
+"""Custom exceptions for TMWS.
 
 Design Principles:
 1. All exceptions must be logged (auto-logging in TMWSException)
@@ -15,8 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class TMWSException(Exception):
-    """
-    Base exception for TMWS.
+    """Base exception for TMWS.
 
     All custom exceptions inherit from this class.
     Automatically logs the error when raised.
@@ -131,7 +129,7 @@ class NotFoundError(TMWSException):
     def __init__(self, resource_type: str, resource_id: str):
         message = f"{resource_type} with id '{resource_id}' not found"
         super().__init__(
-            message, {"resource_type": resource_type, "resource_id": resource_id}
+            message, {"resource_type": resource_type, "resource_id": resource_id},
         )
 
 
@@ -197,7 +195,7 @@ class MemoryNotFoundError(MemoryException):
 
     def __init__(self, memory_id: str):
         super().__init__(
-            f"Memory not found: {memory_id}", details={"memory_id": memory_id}
+            f"Memory not found: {memory_id}", details={"memory_id": memory_id},
         )
 
 
@@ -244,7 +242,7 @@ class AgentNotFoundError(AgentError):
 
     def __init__(self, agent_id: str):
         super().__init__(
-            f"Agent not found: {agent_id}", details={"agent_id": agent_id}
+            f"Agent not found: {agent_id}", details={"agent_id": agent_id},
         )
 
 
@@ -301,8 +299,7 @@ def log_and_raise(
     details: dict[str, Any] | None = None,
     log_level: int = logging.ERROR,
 ) -> None:
-    """
-    Helper function to log and raise custom exceptions.
+    """Helper function to log and raise custom exceptions.
 
     Args:
         exception_class: The exception class to raise
@@ -324,6 +321,7 @@ def log_and_raise(
                 original_exception=e,
                 details={"operation": "commit"}
             )
+
     """
     exc = exception_class(message, details=details, log_level=log_level)
     if original_exception:

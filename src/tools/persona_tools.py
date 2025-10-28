@@ -1,5 +1,4 @@
-"""
-Persona Management Tools for TMWS MCP Server
+"""Persona Management Tools for TMWS MCP Server
 Handles Trinitas persona creation, management, and interaction
 """
 
@@ -19,7 +18,7 @@ class PersonaCreateRequest(BaseModel):
     description: str = Field(..., description="Persona description")
     capabilities: list[str] = Field(..., description="List of persona capabilities")
     personality_traits: dict[str, Any] = Field(
-        default_factory=dict, description="Personality traits"
+        default_factory=dict, description="Personality traits",
     )
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
@@ -50,8 +49,7 @@ class PersonaTools(BaseTool):
             personality_traits: dict[str, Any] = None,
             metadata: dict[str, Any] = None,
         ) -> dict[str, Any]:
-            """
-            Create a new Trinitas persona.
+            """Create a new Trinitas persona.
 
             Personas represent specialized AI agents with specific capabilities and traits.
             Each persona has unique characteristics that define their behavior and expertise.
@@ -65,6 +63,7 @@ class PersonaTools(BaseTool):
 
             Returns:
                 Dict containing persona details and creation info
+
             """
             request = PersonaCreateRequest(
                 name=name,
@@ -102,8 +101,7 @@ class PersonaTools(BaseTool):
 
         @mcp.tool()
         async def get_persona(persona_id: str) -> dict[str, Any]:
-            """
-            Get persona details by ID.
+            """Get persona details by ID.
 
             Retrieves complete persona information including capabilities,
             personality traits, and associated metadata.
@@ -113,6 +111,7 @@ class PersonaTools(BaseTool):
 
             Returns:
                 Dict containing complete persona information
+
             """
 
             async def _get_persona(_session, services):
@@ -151,10 +150,9 @@ class PersonaTools(BaseTool):
 
         @mcp.tool()
         async def list_personas(
-            active_only: bool = True, include_stats: bool = False, limit: int = 50
+            active_only: bool = True, include_stats: bool = False, limit: int = 50,
         ) -> dict[str, Any]:
-            """
-            List all available personas.
+            """List all available personas.
 
             Retrieves personas with optional filtering and statistics.
 
@@ -165,6 +163,7 @@ class PersonaTools(BaseTool):
 
             Returns:
                 Dict containing list of personas with optional statistics
+
             """
 
             async def _list_personas(_session, services):
@@ -216,8 +215,7 @@ class PersonaTools(BaseTool):
             metadata: dict[str, Any] | None = None,
             is_active: bool | None = None,
         ) -> dict[str, Any]:
-            """
-            Update an existing persona.
+            """Update an existing persona.
 
             Allows partial updates to persona information while preserving
             existing data for unspecified fields.
@@ -233,6 +231,7 @@ class PersonaTools(BaseTool):
 
             Returns:
                 Dict containing updated persona information
+
             """
             request = PersonaUpdateRequest(
                 persona_id=persona_id,
@@ -279,8 +278,7 @@ class PersonaTools(BaseTool):
 
         @mcp.tool()
         async def delete_persona(persona_id: str) -> dict[str, Any]:
-            """
-            Delete a persona by ID.
+            """Delete a persona by ID.
 
             Permanently removes persona and optionally handles associated memories
             and tasks based on configured cascade behavior.
@@ -290,6 +288,7 @@ class PersonaTools(BaseTool):
 
             Returns:
                 Dict confirming deletion with cleanup summary
+
             """
 
             async def _delete_persona(_session, services):
@@ -317,14 +316,14 @@ class PersonaTools(BaseTool):
 
         @mcp.tool()
         async def get_persona_capabilities() -> dict[str, Any]:
-            """
-            Get all available persona capabilities.
+            """Get all available persona capabilities.
 
             Returns a comprehensive list of all capabilities defined across
             all personas, with usage statistics.
 
             Returns:
                 Dict containing capability catalog with usage metrics
+
             """
 
             async def _get_capabilities(_session, services):
@@ -345,7 +344,7 @@ class PersonaTools(BaseTool):
 
                 # Sort by usage frequency
                 sorted_capabilities = sorted(
-                    capability_usage.items(), key=lambda x: x[1]["count"], reverse=True
+                    capability_usage.items(), key=lambda x: x[1]["count"], reverse=True,
                 )
 
                 return {
@@ -366,8 +365,7 @@ class PersonaTools(BaseTool):
 
         @mcp.tool()
         async def find_personas_by_capability(capability: str) -> dict[str, Any]:
-            """
-            Find personas that have a specific capability.
+            """Find personas that have a specific capability.
 
             Searches for personas with the specified capability, returning
             detailed information about matching personas.
@@ -377,6 +375,7 @@ class PersonaTools(BaseTool):
 
             Returns:
                 Dict containing matching personas and their details
+
             """
 
             async def _find_by_capability(_session, services):

@@ -1,5 +1,4 @@
-"""
-Hybrid Memory Service - SQLite + Chroma Integration
+"""Hybrid Memory Service - SQLite + Chroma Integration
 
 This service provides unified memory management with:
 - SQLite as source of truth (lightweight, zero-config)
@@ -35,8 +34,7 @@ logger = logging.getLogger(__name__)
 
 
 class HybridMemoryService:
-    """
-    Hybrid Memory Service combining SQLite and Chroma.
+    """Hybrid Memory Service combining SQLite and Chroma.
 
     Architecture:
     - SQLite: Source of truth, full metadata, ACID transactions, zero-config
@@ -101,8 +99,7 @@ class HybridMemoryService:
         metadata: dict[str, Any] | None = None,
         parent_memory_id: UUID | None = None,
     ) -> Memory:
-        """
-        Create memory with dual storage (SQLite + Chroma).
+        """Create memory with dual storage (SQLite + Chroma).
 
         Write-through pattern:
         1. Generate Multilingual-E5 Large embedding (1024-dim via Ollama)
@@ -156,7 +153,7 @@ class HybridMemoryService:
                 )
 
             logger.info(
-                f"Memory created: {memory.id} (agent: {agent_id}, importance: {importance})"
+                f"Memory created: {memory.id} (agent: {agent_id}, importance: {importance})",
             )
             return memory
 
@@ -216,8 +213,7 @@ class HybridMemoryService:
         tags: list[str] | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> Memory | None:
-        """
-        Update memory with re-sync to Chroma.
+        """Update memory with re-sync to Chroma.
 
         If content changes, regenerate embedding and update both stores.
         """
@@ -269,8 +265,7 @@ class HybridMemoryService:
         return memory
 
     async def delete_memory(self, memory_id: UUID) -> bool:
-        """
-        Delete memory from both SQLite and Chroma.
+        """Delete memory from both SQLite and Chroma.
 
         Best-effort deletion from Chroma, but ensure SQLite deletion succeeds.
         """
@@ -308,8 +303,7 @@ class HybridMemoryService:
         limit: int = 10,
         min_similarity: float = 0.7,
     ) -> list[Memory]:
-        """
-        Semantic search with Chroma (ultra-fast) + SQLite (authoritative metadata).
+        """Semantic search with Chroma (ultra-fast) + SQLite (authoritative metadata).
 
         Read-first pattern:
         1. Generate query embedding (Multilingual-E5 Large, 1024-dim via Ollama)
@@ -436,7 +430,7 @@ class HybridMemoryService:
                     Memory.agent_id == agent_id,
                     Memory.access_level == AccessLevel.PUBLIC,
                     # Memory.shared_with_agents.contains([agent_id]),  # TODO: Fix for SQLite
-                )
+                ),
             )
 
         if min_importance > 0:
@@ -449,8 +443,7 @@ class HybridMemoryService:
         self,
         memories_data: list[dict[str, Any]],
     ) -> list[Memory]:
-        """
-        Batch create memories with optimized Chroma sync.
+        """Batch create memories with optimized Chroma sync.
 
         Performance: > 100 memories/second
         """
@@ -468,7 +461,7 @@ class HybridMemoryService:
                 if "namespace" not in data:
                     raise ValueError(
                         "namespace is required in memory data. "
-                        "Explicit 'default' namespace is rejected to prevent cross-project leakage."
+                        "Explicit 'default' namespace is rejected to prevent cross-project leakage.",
                     )
 
                 memory = Memory(
@@ -572,7 +565,7 @@ class HybridMemoryService:
                     Memory.agent_id == agent_id,
                     Memory.access_level == AccessLevel.PUBLIC,
                     Memory.shared_with_agents.contains([agent_id]),
-                )
+                ),
             )
 
         result = await self.session.execute(query)
@@ -617,8 +610,7 @@ class HybridMemoryService:
         days: int = 90,
         min_importance: float = 0.3,
     ) -> int:
-        """
-        Cleanup old, low-importance memories from both stores.
+        """Cleanup old, low-importance memories from both stores.
 
         Removes memories that are:
         - Older than `days` days
@@ -635,7 +627,7 @@ class HybridMemoryService:
                 Memory.created_at < cutoff_date,
                 Memory.importance_score < min_importance,
                 Memory.access_count == 0,
-            )
+            ),
         )
 
         result = await self.session.execute(query)

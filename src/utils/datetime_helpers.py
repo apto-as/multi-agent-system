@@ -1,5 +1,4 @@
-"""
-Datetime Utilities for TMWS
+"""Datetime Utilities for TMWS
 Centralized datetime handling to avoid duplication
 """
 
@@ -7,24 +6,24 @@ from datetime import datetime, timezone
 
 
 def utc_now() -> datetime:
-    """
-    Get current UTC datetime.
+    """Get current UTC datetime.
 
     Returns:
         Current datetime in UTC timezone
+
     """
     return datetime.now(timezone.utc)
 
 
 def to_iso_string(dt: datetime | None) -> str | None:
-    """
-    Convert datetime to ISO format string.
+    """Convert datetime to ISO format string.
 
     Args:
         dt: Datetime to convert
 
     Returns:
         ISO format string or None if input is None
+
     """
     if dt is None:
         return None
@@ -32,14 +31,14 @@ def to_iso_string(dt: datetime | None) -> str | None:
 
 
 def from_iso_string(iso_string: str | None) -> datetime | None:
-    """
-    Parse ISO format string to datetime.
+    """Parse ISO format string to datetime.
 
     Args:
         iso_string: ISO format datetime string
 
     Returns:
         Parsed datetime or None if input is None
+
     """
     if not iso_string:
         return None
@@ -50,14 +49,14 @@ def from_iso_string(iso_string: str | None) -> datetime | None:
 
 
 def ensure_utc(dt: datetime) -> datetime:
-    """
-    Ensure datetime has UTC timezone.
+    """Ensure datetime has UTC timezone.
 
     Args:
         dt: Datetime to normalize
 
     Returns:
         Datetime with UTC timezone
+
     """
     if dt.tzinfo is None:
         # Assume naive datetime is UTC
@@ -69,34 +68,33 @@ def ensure_utc(dt: datetime) -> datetime:
 
 
 def timestamp_to_datetime(timestamp: int | float) -> datetime:
-    """
-    Convert Unix timestamp to UTC datetime.
+    """Convert Unix timestamp to UTC datetime.
 
     Args:
         timestamp: Unix timestamp
 
     Returns:
         UTC datetime
+
     """
     return datetime.fromtimestamp(timestamp, timezone.utc)
 
 
 def datetime_to_timestamp(dt: datetime) -> float:
-    """
-    Convert datetime to Unix timestamp.
+    """Convert datetime to Unix timestamp.
 
     Args:
         dt: Datetime to convert
 
     Returns:
         Unix timestamp as float
+
     """
     return dt.timestamp()
 
 
 def format_datetime(dt: datetime | None, format_str: str = "%Y-%m-%d %H:%M:%S UTC") -> str | None:
-    """
-    Format datetime to string.
+    """Format datetime to string.
 
     Args:
         dt: Datetime to format
@@ -104,6 +102,7 @@ def format_datetime(dt: datetime | None, format_str: str = "%Y-%m-%d %H:%M:%S UT
 
     Returns:
         Formatted string or None if input is None
+
     """
     if dt is None:
         return None
@@ -114,8 +113,7 @@ def format_datetime(dt: datetime | None, format_str: str = "%Y-%m-%d %H:%M:%S UT
 
 
 def is_recent(dt: datetime, minutes: int = 5) -> bool:
-    """
-    Check if datetime is within recent minutes from now.
+    """Check if datetime is within recent minutes from now.
 
     Args:
         dt: Datetime to check
@@ -123,6 +121,7 @@ def is_recent(dt: datetime, minutes: int = 5) -> bool:
 
     Returns:
         True if datetime is recent
+
     """
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
@@ -132,14 +131,14 @@ def is_recent(dt: datetime, minutes: int = 5) -> bool:
 
 
 def days_ago(days: int) -> datetime:
-    """
-    Get datetime N days ago from now.
+    """Get datetime N days ago from now.
 
     Args:
         days: Number of days
 
     Returns:
         UTC datetime N days ago
+
     """
     from datetime import timedelta
 
@@ -147,14 +146,14 @@ def days_ago(days: int) -> datetime:
 
 
 def hours_ago(hours: int) -> datetime:
-    """
-    Get datetime N hours ago from now.
+    """Get datetime N hours ago from now.
 
     Args:
         hours: Number of hours
 
     Returns:
         UTC datetime N hours ago
+
     """
     from datetime import timedelta
 

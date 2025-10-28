@@ -1,5 +1,4 @@
-"""
-Authentication Service for TMWS.
+"""Authentication Service for TMWS.
 Production-grade user authentication with comprehensive security features.
 """
 
@@ -71,8 +70,7 @@ class AuthService:
         agent_namespace: str = "default",
         created_by: str | None = None,
     ) -> User:
-        """
-        Create new user account with secure password hashing.
+        """Create new user account with secure password hashing.
         """
         # Input validation
         if len(username) < 2 or len(username) > 64:
@@ -80,7 +78,7 @@ class AuthService:
 
         if len(password) < self.password_min_length:
             raise ValueError(
-                f"Password must be at least {self.password_min_length} characters long"
+                f"Password must be at least {self.password_min_length} characters long",
             )
 
         # Hash password securely
@@ -107,7 +105,7 @@ class AuthService:
         async with get_db_session() as session:
             # Check for existing username/email
             existing = await session.execute(
-                select(User).where(or_(User.username == username, User.email == email))
+                select(User).where(or_(User.username == username, User.email == email)),
             )
             if existing.scalar_one_or_none():
                 raise ValueError("Username or email already exists")
@@ -139,23 +137,22 @@ class AuthService:
             logger.warning(
                 f"Audit logging failed: {e}",
                 exc_info=True,
-                extra={"username": user.username, "user_id": str(user.id)}
+                extra={"username": user.username, "user_id": str(user.id)},
             )
 
         return user
 
     async def authenticate_user(
-        self, username: str, password: str, ip_address: str | None = None
+        self, username: str, password: str, ip_address: str | None = None,
     ) -> tuple[User, str, str]:
-        """
-        Authenticate user and return user object with tokens.
+        """Authenticate user and return user object with tokens.
         Returns (user, access_token, refresh_token).
         Performance target: <200ms.
         """
         async with get_db_session() as session:
             # Fetch user with single query
             result = await session.execute(
-                select(User).where(or_(User.username == username, User.email == username))
+                select(User).where(or_(User.username == username, User.email == username)),
             )
             user = result.scalar_one_or_none()
 
@@ -215,14 +212,13 @@ class AuthService:
                 logger.warning(
                     f"Audit logging failed: {e}",
                     exc_info=True,
-                    extra={"username": user.username, "event": "login_success"}
+                    extra={"username": user.username, "event": "login_success"},
                 )
 
             return user, access_token, refresh_token
 
     async def refresh_access_token(self, refresh_token: str) -> tuple[str, str]:
-        """
-        Refresh access token using refresh token.
+        """Refresh access token using refresh token.
         Returns (new_access_token, new_refresh_token).
         """
         # Verify refresh token format
@@ -239,7 +235,7 @@ class AuthService:
             result = await session.execute(
                 select(RefreshToken)
                 .where(RefreshToken.token_id == token_id)
-                .options(selectinload(RefreshToken.user))
+                .options(selectinload(RefreshToken.user)),
             )
             refresh_record = result.scalar_one_or_none()
 
@@ -278,8 +274,7 @@ class AuthService:
         allowed_ips: list[str] | None = None,
         rate_limit_per_hour: int | None = None,
     ) -> tuple[str, APIKey]:
-        """
-        Create API key for user.
+        """Create API key for user.
         Returns (raw_key, api_key_record).
         """
         # Generate secure API key
@@ -321,10 +316,9 @@ class AuthService:
         return final_key, api_key
 
     async def validate_api_key(
-        self, api_key: str, required_scope: APIKeyScope | None = None, ip_address: str | None = None
+        self, api_key: str, required_scope: APIKeyScope | None = None, ip_address: str | None = None,
     ) -> tuple[User, APIKey]:
-        """
-        Validate API key and return user and key objects.
+        """Validate API key and return user and key objects.
         Performance target: <100ms.
         """
         # Parse key format: key_id.raw_key
@@ -336,7 +330,7 @@ class AuthService:
         async with get_db_session() as session:
             # Fetch API key with user in single query
             result = await session.execute(
-                select(APIKey).where(APIKey.key_id == key_id).options(selectinload(APIKey.user))
+                select(APIKey).where(APIKey.key_id == key_id).options(selectinload(APIKey.user)),
             )
             key_record = result.scalar_one_or_none()
 
@@ -378,7 +372,7 @@ class AuthService:
                 await session.execute(
                     update(RefreshToken)
                     .where(RefreshToken.token_id == token_id)
-                    .values(is_revoked=True)
+                    .values(is_revoked=True),
                 )
                 await session.commit()
 
@@ -393,7 +387,7 @@ class AuthService:
         async with get_db_session() as session:
             # Revoke all refresh tokens
             await session.execute(
-                update(RefreshToken).where(RefreshToken.user_id == user_id).values(is_revoked=True)
+                update(RefreshToken).where(RefreshToken.user_id == user_id).values(is_revoked=True),
             )
             await session.commit()
 
@@ -401,12 +395,12 @@ class AuthService:
         token_blacklist.blacklist_user_tokens(str(user_id))
 
     async def change_password(
-        self, user_id: UUID, current_password: str, new_password: str
+        self, user_id: UUID, current_password: str, new_password: str,
     ) -> None:
         """Change user password with validation."""
         if len(new_password) < self.password_min_length:
             raise ValueError(
-                f"Password must be at least {self.password_min_length} characters long"
+                f"Password must be at least {self.password_min_length} characters long",
             )
 
         async with get_db_session() as session:
@@ -416,7 +410,7 @@ class AuthService:
 
             # Verify current password
             if not verify_password_with_salt(
-                current_password, user.password_hash, user.password_salt
+                current_password, user.password_hash, user.password_salt,
             ):
                 raise InvalidCredentialsError("Current password is incorrect")
 
@@ -438,7 +432,7 @@ class AuthService:
         """Reset user password (admin operation)."""
         if len(new_password) < self.password_min_length:
             raise ValueError(
-                f"Password must be at least {self.password_min_length} characters long"
+                f"Password must be at least {self.password_min_length} characters long",
             )
 
         password_hash, password_salt = hash_password_with_salt(new_password)
@@ -454,7 +448,7 @@ class AuthService:
                     force_password_change=True,
                     failed_login_attempts=0,
                     status=UserStatus.ACTIVE,
-                )
+                ),
             )
             await session.commit()
 
@@ -468,8 +462,8 @@ class AuthService:
                 update(User)
                 .where(User.id == user_id)
                 .values(
-                    status=UserStatus.ACTIVE, failed_login_attempts=0, last_failed_login_at=None
-                )
+                    status=UserStatus.ACTIVE, failed_login_attempts=0, last_failed_login_at=None,
+                ),
             )
             await session.commit()
 
@@ -477,7 +471,7 @@ class AuthService:
         """Disable user account."""
         async with get_db_session() as session:
             await session.execute(
-                update(User).where(User.id == user_id).values(status=UserStatus.SUSPENDED)
+                update(User).where(User.id == user_id).values(status=UserStatus.SUSPENDED),
             )
             await session.commit()
 
@@ -499,7 +493,7 @@ class AuthService:
         """List all API keys for user."""
         async with get_db_session() as session:
             result = await session.execute(
-                select(APIKey).where(APIKey.user_id == user_id).order_by(APIKey.created_at.desc())
+                select(APIKey).where(APIKey.user_id == user_id).order_by(APIKey.created_at.desc()),
             )
             return result.scalars().all()
 
@@ -509,7 +503,7 @@ class AuthService:
             result = await session.execute(
                 update(APIKey)
                 .where(and_(APIKey.key_id == key_id, APIKey.user_id == user_id))
-                .values(is_active=False)
+                .values(is_active=False),
             )
             await session.commit()
             return result.rowcount > 0
@@ -533,7 +527,7 @@ class AuthService:
             logger.warning(
                 f"Audit logging failed: {e}",
                 exc_info=True,
-                extra={"username": username, "event": "login_failed", "reason": reason}
+                extra={"username": username, "event": "login_failed", "reason": reason},
             )
 
 

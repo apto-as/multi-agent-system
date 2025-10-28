@@ -1,5 +1,4 @@
-"""
-Batch processing service for TMWS v2.0 - Universal Multi-Agent Platform.
+"""Batch processing service for TMWS v2.0 - Universal Multi-Agent Platform.
 Optimized for high-throughput batch operations with intelligent queuing.
 """
 
@@ -156,8 +155,7 @@ class BatchJob:
 
 
 class BatchProcessor:
-    """
-    High-performance batch processor with intelligent scheduling and resource management.
+    """High-performance batch processor with intelligent scheduling and resource management.
 
     Features:
     - Priority-based job scheduling
@@ -229,14 +227,14 @@ class BatchProcessor:
         logger.info("Batch processor stopped")
 
     async def submit_job(self, job: BatchJob) -> str:
-        """
-        Submit a batch job for processing.
+        """Submit a batch job for processing.
 
         Args:
             job: BatchJob instance to process
 
         Returns:
             Job ID for tracking
+
         """
         if job.job_id in self.jobs:
             raise ValidationError(f"Job with ID {job.job_id} already exists")
@@ -245,7 +243,7 @@ class BatchProcessor:
         await self.job_queue.put(job)
 
         logger.info(
-            f"Submitted batch job {job.job_id}: {job.operation_type} with {job.total_items} items"
+            f"Submitted batch job {job.job_id}: {job.operation_type} with {job.total_items} items",
         )
         return job.job_id
 
@@ -314,7 +312,7 @@ class BatchProcessor:
                 logger.critical(
                     f"Unexpected error in job processing loop: {type(e).__name__}",
                     exc_info=True,
-                    extra={"operation": "process_jobs_loop", "error": str(e)}
+                    extra={"operation": "process_jobs_loop", "error": str(e)},
                 )
                 await asyncio.sleep(1.0)
 
@@ -330,7 +328,7 @@ class BatchProcessor:
             logger.error(
                 f"Job {job_id} failed: {type(e).__name__}",
                 exc_info=True,
-                extra={"operation": "monitor_job", "job_id": job_id, "error": str(e)}
+                extra={"operation": "monitor_job", "job_id": job_id, "error": str(e)},
             )
         finally:
             if job_id in self.running_jobs:
@@ -355,12 +353,12 @@ class BatchProcessor:
             if job.processed_count == job.total_items:
                 job.status = BatchJobStatus.COMPLETED
                 logger.info(
-                    f"Completed batch job {job.job_id}: {job.success_count}/{job.total_items} successful"
+                    f"Completed batch job {job.job_id}: {job.success_count}/{job.total_items} successful",
                 )
             else:
                 job.status = BatchJobStatus.FAILED
                 logger.error(
-                    f"Failed batch job {job.job_id}: {job.success_count}/{job.total_items} successful"
+                    f"Failed batch job {job.job_id}: {job.success_count}/{job.total_items} successful",
                 )
 
         except asyncio.CancelledError:
@@ -381,8 +379,8 @@ class BatchProcessor:
                     "operation": "execute_job",
                     "job_id": job.job_id,
                     "operation_type": job.operation_type,
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
 
         finally:
@@ -412,7 +410,7 @@ class BatchProcessor:
                 logger.error(
                     f"Batch processing error: {type(e).__name__}",
                     exc_info=True,
-                    extra={"operation": "process_batch_task", "job_id": job.job_id, "error": str(e)}
+                    extra={"operation": "process_batch_task", "job_id": job.job_id, "error": str(e)},
                 )
 
             # Update progress
@@ -425,11 +423,11 @@ class BatchProcessor:
                     logger.warning(
                         f"Progress callback error: {type(e).__name__}",
                         exc_info=True,
-                        extra={"operation": "progress_callback", "job_id": job.job_id, "error": str(e)}
+                        extra={"operation": "progress_callback", "job_id": job.job_id, "error": str(e)},
                     )
 
     async def _process_batch(
-        self, job: BatchJob, batch_id: str, items: list[dict[str, Any]], start_index: int
+        self, job: BatchJob, batch_id: str, items: list[dict[str, Any]], start_index: int,
     ) -> None:
         """Process a single batch with controlled concurrency."""
         async with self.batch_semaphore:
@@ -444,7 +442,7 @@ class BatchProcessor:
                 else:
                     # Run sync function in thread pool
                     results = await asyncio.get_event_loop().run_in_executor(
-                        None, job.processor_func, items, job.metadata
+                        None, job.processor_func, items, job.metadata,
                     )
 
                 # Count successes and failures
@@ -471,8 +469,8 @@ class BatchProcessor:
                         "job_id": job.job_id,
                         "batch_id": batch_id,
                         "items_count": len(items),
-                        "error": str(e)
-                    }
+                        "error": str(e),
+                    },
                 )
 
             # Update job counters atomically
@@ -482,7 +480,7 @@ class BatchProcessor:
 
             batch_time = (datetime.now() - batch_start_time).total_seconds()
             logger.debug(
-                f"Processed batch {batch_id}: {batch_success_count}/{len(items)} successful in {batch_time:.2f}s"
+                f"Processed batch {batch_id}: {batch_success_count}/{len(items)} successful in {batch_time:.2f}s",
             )
 
     async def _calculate_optimal_batch_size(self, job: BatchJob) -> int:
@@ -566,8 +564,7 @@ class BatchProcessor:
 
 
 class BatchService:
-    """
-    High-level batch processing service with pre-built operations for TMWS entities.
+    """High-level batch processing service with pre-built operations for TMWS entities.
     """
 
     def __init__(self):
@@ -591,7 +588,7 @@ class BatchService:
         """Batch create memories with optimized processing."""
 
         async def memory_processor(
-            items: list[dict[str, Any]], _metadata: dict[str, Any]
+            items: list[dict[str, Any]], _metadata: dict[str, Any],
         ) -> list[dict[str, Any]]:
             results = []
 
@@ -611,7 +608,7 @@ class BatchService:
 
                         session.add(memory)
                         results.append(
-                            {"success": True, "memory_id": None}
+                            {"success": True, "memory_id": None},
                         )  # Will be set after flush
 
                     except (KeyboardInterrupt, SystemExit):
@@ -620,7 +617,7 @@ class BatchService:
                         logger.error(
                             f"Memory creation failed: {type(e).__name__}",
                             exc_info=True,
-                            extra={"operation": "create_memory", "error": str(e)}
+                            extra={"operation": "create_memory", "error": str(e)},
                         )
                         results.append({"success": False, "error": str(e)})
 
@@ -640,7 +637,7 @@ class BatchService:
                     logger.error(
                         f"Batch memory commit failed: {type(e).__name__}",
                         exc_info=True,
-                        extra={"operation": "flush_memories", "error": str(e)}
+                        extra={"operation": "flush_memories", "error": str(e)},
                     )
                     for result in results:
                         if result["success"]:
@@ -661,12 +658,12 @@ class BatchService:
         return await self.processor.submit_job(job)
 
     async def batch_update_agent_performance(
-        self, performance_updates: list[dict[str, Any]], batch_size: int = 50
+        self, performance_updates: list[dict[str, Any]], batch_size: int = 50,
     ) -> str:
         """Batch update agent performance metrics."""
 
         async def performance_processor(
-            items: list[dict[str, Any]], _metadata: dict[str, Any]
+            items: list[dict[str, Any]], _metadata: dict[str, Any],
         ) -> list[dict[str, Any]]:
             results = []
 
@@ -691,7 +688,7 @@ class BatchService:
                                 + performance_data.get("tokens", 0),
                                 total_cost=Agent.total_cost + performance_data.get("cost", 0.0),
                                 last_request_at=func.now(),
-                            )
+                            ),
                         )
 
                         # Update average response time with exponential moving average
@@ -719,10 +716,10 @@ class BatchService:
                         logger.error(
                             f"Agent performance update failed: {type(e).__name__}",
                             exc_info=True,
-                            extra={"operation": "update_agent_performance", "agent_id": item.get("agent_id"), "error": str(e)}
+                            extra={"operation": "update_agent_performance", "agent_id": item.get("agent_id"), "error": str(e)},
                         )
                         results.append(
-                            {"success": False, "error": str(e), "agent_id": item.get("agent_id")}
+                            {"success": False, "error": str(e), "agent_id": item.get("agent_id")},
                         )
 
             return results
@@ -738,12 +735,12 @@ class BatchService:
         return await self.processor.submit_job(job)
 
     async def batch_cleanup_expired_memories(
-        self, days_threshold: int = 30, batch_size: int = 200
+        self, days_threshold: int = 30, batch_size: int = 200,
     ) -> str:
         """Batch cleanup expired memories based on retention policy."""
 
         async def cleanup_processor(
-            items: list[dict[str, Any]], metadata: dict[str, Any]
+            items: list[dict[str, Any]], metadata: dict[str, Any],
         ) -> list[dict[str, Any]]:
             results = []
 
@@ -757,9 +754,9 @@ class BatchService:
                         and_(
                             Memory.retention_policy == "temporary",
                             Memory.expires_at < threshold_date,
-                        )
+                        ),
                     )
-                    .limit(len(items))
+                    .limit(len(items)),
                 )
 
                 memory_ids = [row.id for row in expired_memories]
@@ -767,7 +764,7 @@ class BatchService:
                 try:
                     # Delete expired memories
                     deleted_count = await session.execute(
-                        delete(Memory).where(Memory.id.in_(memory_ids))
+                        delete(Memory).where(Memory.id.in_(memory_ids)),
                     )
 
                     results.append(
@@ -775,7 +772,7 @@ class BatchService:
                             "success": True,
                             "deleted_count": deleted_count.rowcount,
                             "memory_ids": [str(mid) for mid in memory_ids],
-                        }
+                        },
                     )
 
                 except (KeyboardInterrupt, SystemExit):
@@ -784,7 +781,7 @@ class BatchService:
                     logger.error(
                         f"Memory cleanup failed: {type(e).__name__}",
                         exc_info=True,
-                        extra={"operation": "cleanup_expired_memories", "error": str(e)}
+                        extra={"operation": "cleanup_expired_memories", "error": str(e)},
                     )
                     results.append({"success": False, "error": str(e)})
 

@@ -1,5 +1,4 @@
-"""
-Database configuration and session management for TMWS.
+"""Database configuration and session management for TMWS.
 """
 
 import logging
@@ -45,7 +44,7 @@ def _setup_connection_events(engine) -> None:
         """Monitor connection checkout and detect slow queries."""
         connection_record.info["checkout_time"] = sa.func.now()
         logger.debug(
-            f"Connection checked out from pool (pool size: {engine.pool.size() if hasattr(engine.pool, 'size') else 'N/A'})"
+            f"Connection checked out from pool (pool size: {engine.pool.size() if hasattr(engine.pool, 'size') else 'N/A'})",
         )
 
     @event.listens_for(engine.sync_engine, "checkin")
@@ -54,7 +53,7 @@ def _setup_connection_events(engine) -> None:
         if "checkout_time" in connection_record.info:
             # Track connection usage time for performance monitoring
             logger.debug(
-                f"Connection checked in to pool (pool size: {engine.pool.size() if hasattr(engine.pool, 'size') else 'N/A'})"
+                f"Connection checked in to pool (pool size: {engine.pool.size() if hasattr(engine.pool, 'size') else 'N/A'})",
             )
             del connection_record.info["checkout_time"]
 
@@ -108,8 +107,7 @@ def get_session_maker():
 
 @asynccontextmanager
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
-    """
-    Get database session with automatic cleanup.
+    """Get database session with automatic cleanup.
 
     Usage:
         async with get_db_session() as session:
@@ -143,8 +141,7 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def get_db_session_dependency() -> AsyncGenerator[AsyncSession, None]:
-    """
-    FastAPI dependency for database session.
+    """FastAPI dependency for database session.
 
     Usage in FastAPI routes:
         @app.get("/items")

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-MCP Compatibility Bridge v2.2.0
+"""MCP Compatibility Bridge v2.2.0
 Harmonious backward compatibility layer for existing MCP tools with WebSocket transport.
 
 Athena's Design Philosophy:
@@ -117,8 +116,7 @@ class ToolRegistry:
 
 
 class MCPCompatibilityBridge:
-    """
-    Harmonious bridge between legacy MCP stdio and new WebSocket transport.
+    """Harmonious bridge between legacy MCP stdio and new WebSocket transport.
     Ensures all existing tools work beautifully with the new architecture.
     """
 
@@ -157,7 +155,7 @@ class MCPCompatibilityBridge:
                     logger.error(
                         f"Tool {tool_name} execution error: {e}",
                         exc_info=True,
-                        extra={"tool_name": tool_name, "connection_mode": "websocket" if self.connection_established else "stdio"}
+                        extra={"tool_name": tool_name, "connection_mode": "websocket" if self.connection_established else "stdio"},
                     )
                     return {"error": f"Tool execution failed: {str(e)}"}
 
@@ -174,7 +172,7 @@ class MCPCompatibilityBridge:
                 "X-Agent-ID": os.getenv("TMWS_AGENT_ID", "legacy-bridge-agent"),
                 "X-Agent-Namespace": os.getenv("TMWS_AGENT_NAMESPACE", "legacy"),
                 "X-Agent-Capabilities": json.dumps(
-                    {"bridge_mode": True, "legacy_compatibility": True, "stdio_fallback": True}
+                    {"bridge_mode": True, "legacy_compatibility": True, "stdio_fallback": True},
                 ),
             }
 
@@ -201,7 +199,7 @@ class MCPCompatibilityBridge:
             logger.warning(
                 f"WebSocket connection failed: {e}. Falling back to stdio mode.",
                 exc_info=True,
-                extra={"host": host, "port": port}
+                extra={"host": host, "port": port},
             )
             self.connection_established = False
             return False
@@ -254,13 +252,12 @@ class MCPCompatibilityBridge:
             logger.error(
                 f"Stdio MCP server error: {e}",
                 exc_info=True,
-                extra={"mode": "stdio"}
+                extra={"mode": "stdio"},
             )
             raise
 
     async def run_hybrid_mode(self, ws_host: str = "127.0.0.1", ws_port: int = 8001):
-        """
-        Run in hybrid mode: try WebSocket first, fallback to stdio.
+        """Run in hybrid mode: try WebSocket first, fallback to stdio.
         This provides the most harmonious user experience.
         """
         logger.info("🌟 Starting hybrid compatibility mode")
@@ -310,7 +307,7 @@ class MCPCompatibilityBridge:
                 logger.error(
                     f"Compatibility test failed for {tool_name}: {e}",
                     exc_info=True,
-                    extra={"tool_name": tool_name}
+                    extra={"tool_name": tool_name},
                 )
                 results["stdio_mode"][tool_name] = f"error: {str(e)}"
 
@@ -329,7 +326,7 @@ class MCPCompatibilityBridge:
                     logger.error(
                         f"WebSocket test failed for {tool_name}: {e}",
                         exc_info=True,
-                        extra={"tool_name": tool_name, "session_id": self.session_id}
+                        extra={"tool_name": tool_name, "session_id": self.session_id},
                     )
                     results["websocket_mode"][tool_name] = f"ws_error: {str(e)}"
         else:
@@ -377,7 +374,7 @@ async def main():
         logger.error(
             f"Bridge error: {e}",
             exc_info=True,
-            extra={"mode": mode, "ws_host": ws_host, "ws_port": ws_port}
+            extra={"mode": mode, "ws_host": ws_host, "ws_port": ws_port},
         )
         sys.exit(1)
 

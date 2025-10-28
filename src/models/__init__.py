@@ -1,5 +1,4 @@
-"""
-Database models for TMWS v2.2.0.
+"""Database models for TMWS v2.2.0.
 """
 
 # Base classes

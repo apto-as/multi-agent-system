@@ -1,5 +1,4 @@
-"""
-TMWS Services Package
+"""TMWS Services Package
 Business logic layer for TMWS operations
 """
 

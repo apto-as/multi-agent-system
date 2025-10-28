@@ -1,5 +1,4 @@
-"""
-Cache management for TMWS v2.2.0
+"""Cache management for TMWS v2.2.0
 Provides multi-layer caching with TTL and invalidation support
 """
 
@@ -17,8 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 class CacheManager:
-    """
-    Multi-layer cache manager with local memory and Redis support
+    """Multi-layer cache manager with local memory and Redis support
     """
 
     def __init__(
@@ -28,14 +26,14 @@ class CacheManager:
         redis_ttl: int = 300,
         max_local_size: int = 1000,
     ):
-        """
-        Initialize cache manager
+        """Initialize cache manager
 
         Args:
             redis_url: Redis connection URL (optional)
             local_ttl: TTL for local cache in seconds
             redis_ttl: TTL for Redis cache in seconds
             max_local_size: Maximum size of local cache
+
         """
         self.redis_client = None
         self.redis_url = redis_url
@@ -71,13 +69,12 @@ class CacheManager:
                 logger.warning(
                     f"Redis unavailable, using local cache only: {e}",
                     exc_info=True,
-                    extra={"redis_url": self.redis_url}
+                    extra={"redis_url": self.redis_url},
                 )
                 self.redis_client = None
 
     async def get(self, key: str, namespace: str = "default") -> Any | None:
-        """
-        Get value from cache
+        """Get value from cache
 
         Args:
             key: Cache key
@@ -85,6 +82,7 @@ class CacheManager:
 
         Returns:
             Cached value or None if not found
+
         """
         full_key = self._make_key(namespace, key)
 
@@ -109,14 +107,14 @@ class CacheManager:
         return None
 
     async def set(self, key: str, value: Any, namespace: str = "default", ttl: int = None):
-        """
-        Set value in cache
+        """Set value in cache
 
         Args:
             key: Cache key
             value: Value to cache
             namespace: Cache namespace
             ttl: Optional TTL override
+
         """
         full_key = self._make_key(namespace, key)
 
@@ -223,7 +221,7 @@ class CacheManager:
             logger.error(
                 f"Redis get error: {e}",
                 exc_info=True,
-                extra={"cache_key": key}
+                extra={"cache_key": key},
             )
         return None
 
@@ -239,7 +237,7 @@ class CacheManager:
             logger.error(
                 f"Redis set error: {e}",
                 exc_info=True,
-                extra={"cache_key": key, "ttl": ttl}
+                extra={"cache_key": key, "ttl": ttl},
             )
 
     def get_stats(self) -> dict[str, Any]:
@@ -256,21 +254,20 @@ class CacheManager:
 
 
 class CacheDecorator:
-    """
-    Decorator for caching function results
+    """Decorator for caching function results
     """
 
     def __init__(self, cache_manager: CacheManager):
         self.cache_manager = cache_manager
 
     def cached(self, namespace: str = "function", ttl: int = None, key_prefix: str = None):
-        """
-        Decorator for caching function results
+        """Decorator for caching function results
 
         Args:
             namespace: Cache namespace
             ttl: TTL override
             key_prefix: Optional key prefix
+
         """
 
         def decorator(func):
@@ -301,8 +298,7 @@ class CacheDecorator:
 
 
 class InvalidationManager:
-    """
-    Manages cache invalidation across instances
+    """Manages cache invalidation across instances
     """
 
     def __init__(self, cache_manager: CacheManager, db_pool):
@@ -356,6 +352,6 @@ class InvalidationManager:
                 logger.error(
                     f"Invalidation processing error: {e}",
                     exc_info=True,
-                    extra={"queue_size": self.invalidation_queue.qsize()}
+                    extra={"queue_size": self.invalidation_queue.qsize()},
                 )
             await asyncio.sleep(0.1)

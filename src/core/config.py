@@ -1,5 +1,4 @@
-"""
-Configuration management for TMWS.
+"""Configuration management for TMWS.
 404 Security Standards: Zero compromise, zero defaults for sensitive data.
 """
 
@@ -24,8 +23,7 @@ TMWS_SECRET_FILE = TMWS_HOME / ".secret_key"
 
 
 class Settings(BaseSettings):
-    """
-    Application settings with Artemis 404 security standards.
+    """Application settings with Artemis 404 security standards.
 
     Security Principles:
     1. No hardcoded credentials - ALL sensitive data from environment
@@ -78,13 +76,13 @@ class Settings(BaseSettings):
     ws_host: str = Field(default="127.0.0.1", description="WebSocket server host")
     ws_port: int = Field(default=8001, ge=1024, le=65535, description="WebSocket server port")
     ws_max_connections: int = Field(
-        default=100, ge=1, le=1000, description="Max concurrent WebSocket connections"
+        default=100, ge=1, le=1000, description="Max concurrent WebSocket connections",
     )
     ws_ping_interval: int = Field(
-        default=20, ge=5, le=300, description="WebSocket ping interval in seconds"
+        default=20, ge=5, le=300, description="WebSocket ping interval in seconds",
     )
     ws_ping_timeout: int = Field(
-        default=10, ge=1, le=60, description="WebSocket ping timeout in seconds"
+        default=10, ge=1, le=60, description="WebSocket ping timeout in seconds",
     )
     ws_max_message_size: int = Field(
         default=1048576,
@@ -96,7 +94,7 @@ class Settings(BaseSettings):
     # ==== STDIO MCP CONFIGURATION ====
     stdio_enabled: bool = Field(default=True, description="Enable stdio MCP bridge")
     stdio_fallback: bool = Field(
-        default=True, description="Enable stdio fallback when WebSocket unavailable"
+        default=True, description="Enable stdio fallback when WebSocket unavailable",
     )
 
     # ==== JWT & AUTHENTICATION ====
@@ -128,7 +126,7 @@ class Settings(BaseSettings):
     # Content Security Policy
     csp_enabled: bool = Field(default=True)
     csp_policy: str = Field(
-        default="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+        default="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'",
     )
 
     # ==== RATE LIMITING & SECURITY ====
@@ -164,7 +162,7 @@ class Settings(BaseSettings):
 
     # Ollama server configuration
     ollama_base_url: str = Field(
-        default="http://localhost:11434", description="Ollama server URL for embedding generation"
+        default="http://localhost:11434", description="Ollama server URL for embedding generation",
     )
 
     # Ollama embedding model (zylonai/multilingual-e5-large for cross-lingual support)
@@ -175,7 +173,7 @@ class Settings(BaseSettings):
 
     # Ollama request timeout
     ollama_timeout: float = Field(
-        default=30.0, ge=5.0, le=300.0, description="Ollama API request timeout in seconds"
+        default=30.0, ge=5.0, le=300.0, description="Ollama API request timeout in seconds",
     )
 
     # ==== LOGGING & MONITORING ====
@@ -195,8 +193,7 @@ class Settings(BaseSettings):
     @model_validator(mode="before")
     @classmethod
     def validate_required_env_vars(cls, values):
-        """
-        Smart defaults for uvx one-command installation.
+        """Smart defaults for uvx one-command installation.
 
         Priority:
         1. Explicit environment variables (TMWS_*)
@@ -366,14 +363,14 @@ class Settings(BaseSettings):
             if not v:
                 # Auto-enable authentication in production, log critical warning
                 logger.critical(
-                    "SECURITY: Authentication was disabled in production - AUTO-ENABLED for safety"
+                    "SECURITY: Authentication was disabled in production - AUTO-ENABLED for safety",
                 )
                 return True  # Force enable
             return v
 
         if environment == "staging" and not v:
             logger.warning(
-                "Authentication disabled in staging - consider enabling for realistic testing"
+                "Authentication disabled in staging - consider enabling for realistic testing",
             )
 
         return v
@@ -405,7 +402,7 @@ class Settings(BaseSettings):
 
         if errors:
             raise ValueError(
-                "CRITICAL PRODUCTION SECURITY VIOLATIONS:\n" + "\n".join(f"  - {e}" for e in errors)
+                "CRITICAL PRODUCTION SECURITY VIOLATIONS:\n" + "\n".join(f"  - {e}" for e in errors),
             )
 
         return self
@@ -447,7 +444,7 @@ class Settings(BaseSettings):
                     "X-XSS-Protection": "1; mode=block",
                     "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
                     "Referrer-Policy": "strict-origin-when-cross-origin",
-                }
+                },
             )
 
             if self.csp_enabled:
@@ -470,12 +467,12 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    """
-    Get cached settings instance with 404-level validation.
+    """Get cached settings instance with 404-level validation.
 
     Raises:
         ValueError: If critical configuration is missing or invalid
         EnvironmentError: If environment-specific validation fails
+
     """
     try:
         settings = Settings()
@@ -506,11 +503,11 @@ def get_settings() -> Settings:
 
 
 def _validate_production_settings(settings: Settings) -> None:
-    """
-    404 Production Validation: Zero tolerance for security issues.
+    """404 Production Validation: Zero tolerance for security issues.
 
     Raises:
         ValueError: If any production security issue is detected
+
     """
     issues = []
 
@@ -571,11 +568,11 @@ def _validate_staging_settings(settings: Settings) -> None:
 
 
 def create_secure_env_template() -> str:
-    """
-    Create a template .env file with 404 security standards.
+    """Create a template .env file with 404 security standards.
 
     Returns:
         str: Complete .env template with security comments
+
     """
     return """# TMWS Configuration - 404 Security Standards
 # ============================================
@@ -674,11 +671,11 @@ TMWS_OLLAMA_TIMEOUT=30.0
 
 
 def validate_environment_security() -> dict:
-    """
-    Validate current environment security configuration.
+    """Validate current environment security configuration.
 
     Returns:
         dict: Security validation results
+
     """
     try:
         settings = get_settings()

@@ -1,5 +1,4 @@
-"""
-Service manager for TMWS v2.0 - Universal Multi-Agent Platform.
+"""Service manager for TMWS v2.0 - Universal Multi-Agent Platform.
 Centralized service lifecycle management with dependency injection and health monitoring.
 """
 
@@ -73,8 +72,7 @@ class ServiceRegistry:
 
 
 class ServiceManager:
-    """
-    Centralized service manager for TMWS v2.0.
+    """Centralized service manager for TMWS v2.0.
 
     Features:
     - Dependency-aware service initialization
@@ -141,7 +139,7 @@ class ServiceManager:
             logger.error(
                 f"Service initialization failed: {e}",
                 exc_info=True,
-                extra={"services_initialized": len([s for s in self.registry.get_service_names() if self.registry.is_initialized(s)])}
+                extra={"services_initialized": len([s for s in self.registry.get_service_names() if self.registry.is_initialized(s)])},
             )
             await self.shutdown_all()
             raise ServiceError(f"Service initialization failed: {e}") from e
@@ -175,7 +173,7 @@ class ServiceManager:
                     logger.error(
                         f"Shutdown handler error: {e}",
                         exc_info=True,
-                        extra={"handler": handler.__name__ if hasattr(handler, '__name__') else str(handler)}
+                        extra={"handler": handler.__name__ if hasattr(handler, '__name__') else str(handler)},
                     )
 
             # Shutdown services in reverse dependency order
@@ -196,7 +194,7 @@ class ServiceManager:
             logger.error(
                 f"Error during shutdown: {e}",
                 exc_info=True,
-                extra={"services_remaining": len([s for s in self.registry.get_service_names() if self.registry.is_initialized(s)])}
+                extra={"services_remaining": len([s for s in self.registry.get_service_names() if self.registry.is_initialized(s)])},
             )
             raise ServiceError(f"Shutdown failed: {e}") from e
 
@@ -247,7 +245,7 @@ class ServiceManager:
                 health_result = await self._health_check_service(service_name)
                 health_results[service_name] = health_result
                 self.registry.update_health_status(
-                    service_name, health_result["status"], health_result.get("error")
+                    service_name, health_result["status"], health_result.get("error"),
                 )
             except (KeyboardInterrupt, SystemExit):
                 logger.warning(f"User interrupt during health check of {service_name}")
@@ -256,7 +254,7 @@ class ServiceManager:
                 logger.error(
                     f"Health check failed for service '{service_name}': {e}",
                     exc_info=True,
-                    extra={"service_name": service_name}
+                    extra={"service_name": service_name},
                 )
                 health_result = {
                     "status": "unhealthy",
@@ -307,7 +305,7 @@ class ServiceManager:
             for dependency in self.registry.get_dependencies(service_name):
                 if dependency not in self.registry.get_service_names():
                     raise ServiceError(
-                        f"Missing dependency '{dependency}' for service '{service_name}'"
+                        f"Missing dependency '{dependency}' for service '{service_name}'",
                     )
                 dfs(dependency)
 
@@ -357,8 +355,8 @@ class ServiceManager:
                 exc_info=True,
                 extra={
                     "service_name": service_name,
-                    "dependencies": self.registry.get_dependencies(service_name)
-                }
+                    "dependencies": self.registry.get_dependencies(service_name),
+                },
             )
             self.registry.update_health_status(service_name, "unhealthy", str(e))
             raise ServiceError(f"Service '{service_name}' initialization failed: {e}") from e
@@ -399,7 +397,7 @@ class ServiceManager:
             logger.error(
                 f"Error shutting down service '{service_name}': {e}",
                 exc_info=True,
-                extra={"service_name": service_name}
+                extra={"service_name": service_name},
             )
             self.registry.update_health_status(service_name, "error", str(e))
 
@@ -448,7 +446,7 @@ class ServiceManager:
             logger.error(
                 f"Health check exception for '{service_name}': {e}",
                 exc_info=True,
-                extra={"service_name": service_name}
+                extra={"service_name": service_name},
             )
             return {"status": "unhealthy", "error": str(e), "last_check": datetime.now()}
 
@@ -470,7 +468,7 @@ class ServiceManager:
                     logger.error(
                         f"Health monitoring error: {e}",
                         exc_info=True,
-                        extra={"health_check_interval": self._health_check_interval}
+                        extra={"health_check_interval": self._health_check_interval},
                     )
                     await asyncio.sleep(self._health_check_interval)
 

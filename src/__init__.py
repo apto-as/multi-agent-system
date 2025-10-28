@@ -1,5 +1,4 @@
-"""
-TMWS - Trinitas Memory & Workflow Service
+"""TMWS - Trinitas Memory & Workflow Service
 MCP-only architecture (v2.2.6+)
 """
 

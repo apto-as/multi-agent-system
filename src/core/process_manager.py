@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-TMWS Process Manager - Tactical Coordination Layer
+"""TMWS Process Manager - Tactical Coordination Layer
 Bellona の戦術的調整システム
 
 Manages:
@@ -164,7 +163,7 @@ class FastMCPManager(BaseProcessManager):
             logger.critical(
                 f"[TACTICAL] FastMCP startup failed with unexpected error: {type(e).__name__}",
                 exc_info=True,
-                extra={"operation": "fastmcp_start", "error": str(e)}
+                extra={"operation": "fastmcp_start", "error": str(e)},
             )
             return False
 
@@ -191,7 +190,7 @@ class FastMCPManager(BaseProcessManager):
             logger.critical(
                 f"[TACTICAL] MCP server unexpected error: {type(e).__name__}",
                 exc_info=True,
-                extra={"operation": "run_mcp_server", "error": str(e)}
+                extra={"operation": "run_mcp_server", "error": str(e)},
             )
             self.state = ServiceState.FAILED
 
@@ -223,7 +222,7 @@ class FastMCPManager(BaseProcessManager):
             logger.critical(
                 f"[TACTICAL] FastMCP shutdown unexpected error: {type(e).__name__}",
                 exc_info=True,
-                extra={"operation": "fastmcp_stop", "error": str(e)}
+                extra={"operation": "fastmcp_stop", "error": str(e)},
             )
             return False
 
@@ -249,7 +248,7 @@ class FastMCPManager(BaseProcessManager):
             logger.error(
                 f"FastMCP health check unexpected error: {type(e).__name__}",
                 exc_info=True,
-                extra={"operation": "health_check", "error": str(e)}
+                extra={"operation": "health_check", "error": str(e)},
             )
             return False
 
@@ -273,14 +272,13 @@ class FastMCPManager(BaseProcessManager):
             logger.warning(
                 f"FastMCP metrics unexpected error: {type(e).__name__}",
                 exc_info=True,
-                extra={"operation": "get_metrics", "error": str(e)}
+                extra={"operation": "get_metrics", "error": str(e)},
             )
             return self.metrics
 
 
 class TacticalProcessManager:
-    """
-    Main tactical coordination system for TMWS
+    """Main tactical coordination system for TMWS
     Manages all services with military precision
     """
 
@@ -330,7 +328,7 @@ class TacticalProcessManager:
             for service_name in startup_order:
                 service = self.services[service_name]
                 logger.info(
-                    f"[TACTICAL] Starting {service_name} (Priority: {service.config.priority.name})"
+                    f"[TACTICAL] Starting {service_name} (Priority: {service.config.priority.name})",
                 )
 
                 success = await service.start()
@@ -363,7 +361,7 @@ class TacticalProcessManager:
             logger.critical(
                 f"[TACTICAL] Service startup unexpected error: {type(e).__name__}",
                 exc_info=True,
-                extra={"operation": "start_all_services", "error": str(e)}
+                extra={"operation": "start_all_services", "error": str(e)},
             )
             await self.shutdown_all_services()
             return False
@@ -402,7 +400,7 @@ class TacticalProcessManager:
                 logger.error(
                     f"[TACTICAL] Unexpected error stopping {service_name}: {type(e).__name__}",
                     exc_info=True,
-                    extra={"operation": "shutdown_service", "service_name": service_name, "error": str(e)}
+                    extra={"operation": "shutdown_service", "service_name": service_name, "error": str(e)},
                 )
 
         logger.info("[TACTICAL] All services terminated. Tactical coordination complete.")
@@ -479,7 +477,7 @@ class TacticalProcessManager:
                 logger.error(
                     f"[TACTICAL] Monitoring unexpected error: {type(e).__name__}",
                     exc_info=True,
-                    extra={"operation": "monitor_services", "error": str(e)}
+                    extra={"operation": "monitor_services", "error": str(e)},
                 )
                 await asyncio.sleep(30)
 
@@ -518,7 +516,7 @@ class TacticalProcessManager:
                 logger.error(
                     f"[TACTICAL] Resource monitoring unexpected error: {type(e).__name__}",
                     exc_info=True,
-                    extra={"operation": "monitor_resources", "error": str(e)}
+                    extra={"operation": "monitor_resources", "error": str(e)},
                 )
                 await asyncio.sleep(60)
 
@@ -577,7 +575,7 @@ class TacticalProcessManager:
         """Send inter-process communication message"""
         if to_service in self._ipc_channels:
             await self._ipc_channels[to_service].put(
-                {"from": from_service, "timestamp": datetime.utcnow().isoformat(), "data": message}
+                {"from": from_service, "timestamp": datetime.utcnow().isoformat(), "data": message},
             )
 
     async def receive_ipc_message(self, service_name: str) -> dict[str, Any] | None:

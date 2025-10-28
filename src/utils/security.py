@@ -1,5 +1,4 @@
-"""
-Unified Security Utilities for TMWS
+"""Unified Security Utilities for TMWS
 Centralized security functions to avoid duplication
 """
 
@@ -16,14 +15,14 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def hash_password(password: str) -> str:
-    """
-    Hash a password using bcrypt.
+    """Hash a password using bcrypt.
 
     Args:
         password: Plain text password to hash
 
     Returns:
         Hashed password string
+
     """
     if not password:
         raise ValueError("Password cannot be empty")
@@ -32,8 +31,7 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """
-    Verify a password against a hashed password.
+    """Verify a password against a hashed password.
 
     Args:
         plain_password: Plain text password to verify
@@ -41,6 +39,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
     Returns:
         True if password matches, False otherwise
+
     """
     if not plain_password or not hashed_password:
         return False
@@ -53,8 +52,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 def hash_password_with_salt(password: str) -> tuple[str, str]:
-    """
-    Hash a password with a separate salt (for legacy compatibility).
+    """Hash a password with a separate salt (for legacy compatibility).
 
     WARNING: This function uses SHA256 which is NOT secure for password hashing.
     It is vulnerable to GPU-accelerated brute force attacks.
@@ -68,6 +66,7 @@ def hash_password_with_salt(password: str) -> tuple[str, str]:
 
     Returns:
         Tuple of (hashed_password, salt)
+
     """
     import warnings
 
@@ -79,7 +78,7 @@ def hash_password_with_salt(password: str) -> tuple[str, str]:
     )
     logger.warning(
         "SECURITY: hash_password_with_salt() uses weak SHA256 hashing. "
-        "Migrate to hash_password() which uses bcrypt."
+        "Migrate to hash_password() which uses bcrypt.",
     )
 
     salt = secrets.token_hex(32)
@@ -89,8 +88,7 @@ def hash_password_with_salt(password: str) -> tuple[str, str]:
 
 
 def verify_password_with_salt(password: str, hashed: str, salt: str) -> bool:
-    """
-    Verify a password with a separate salt (for legacy compatibility).
+    """Verify a password with a separate salt (for legacy compatibility).
 
     Args:
         password: Plain text password to verify
@@ -99,6 +97,7 @@ def verify_password_with_salt(password: str, hashed: str, salt: str) -> bool:
 
     Returns:
         True if password matches, False otherwise
+
     """
     if not all([password, hashed, salt]):
         return False
@@ -109,24 +108,24 @@ def verify_password_with_salt(password: str, hashed: str, salt: str) -> bool:
 
 
 def generate_secure_token(length: int = 32) -> str:
-    """
-    Generate a cryptographically secure random token.
+    """Generate a cryptographically secure random token.
 
     Args:
         length: Length of the token in bytes (default 32)
 
     Returns:
         Hex string of the token
+
     """
     return secrets.token_hex(length)
 
 
 def generate_api_key() -> str:
-    """
-    Generate a secure API key.
+    """Generate a secure API key.
 
     Returns:
         API key string
+
     """
     return f"tmws_{secrets.token_urlsafe(32)}"
 

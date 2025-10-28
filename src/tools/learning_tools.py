@@ -1,5 +1,4 @@
-"""
-Learning and Pattern Recognition Tools for TMWS MCP Server
+"""Learning and Pattern Recognition Tools for TMWS MCP Server
 Handles pattern learning, application, and knowledge evolution
 """
 
@@ -30,7 +29,7 @@ class PatternApplicationRequest(BaseModel):
     context: str = Field(..., description="Application context")
     max_patterns: int = Field(default=5, ge=1, le=20, description="Maximum patterns to return")
     min_similarity: float = Field(
-        default=0.7, ge=0.0, le=1.0, description="Minimum similarity threshold"
+        default=0.7, ge=0.0, le=1.0, description="Minimum similarity threshold",
     )
 
 
@@ -49,8 +48,7 @@ class LearningTools(BaseTool):
             metadata: dict[str, Any] = None,
             confidence: float = 0.8,
         ) -> dict[str, Any]:
-            """
-            Learn and store a new pattern for future application.
+            """Learn and store a new pattern for future application.
 
             Patterns represent reusable solutions, optimizations, or knowledge
             that can be applied to similar situations in the future.
@@ -65,6 +63,7 @@ class LearningTools(BaseTool):
 
             Returns:
                 Dict containing pattern storage confirmation and details
+
             """
             request = PatternLearnRequest(
                 pattern_name=pattern_name,
@@ -128,10 +127,9 @@ class LearningTools(BaseTool):
 
         @mcp.tool()
         async def apply_pattern(
-            pattern_query: str, context: str, max_patterns: int = 5, min_similarity: float = 0.7
+            pattern_query: str, context: str, max_patterns: int = 5, min_similarity: float = 0.7,
         ) -> dict[str, Any]:
-            """
-            Find and apply relevant patterns to a given context.
+            """Find and apply relevant patterns to a given context.
 
             Searches for patterns matching the query and context, returning
             applicable patterns with application guidance.
@@ -144,6 +142,7 @@ class LearningTools(BaseTool):
 
             Returns:
                 Dict containing applicable patterns and application guidance
+
             """
             request = PatternApplicationRequest(
                 pattern_query=pattern_query,
@@ -208,12 +207,12 @@ class LearningTools(BaseTool):
                                 if k
                                 not in ["pattern_name", "category", "pattern_content", "examples"]
                             },
-                        }
+                        },
                     )
 
                 # Sort by combination of similarity and confidence
                 applicable_patterns.sort(
-                    key=lambda p: (p["similarity"] * 0.6 + p["confidence"] * 0.4), reverse=True
+                    key=lambda p: (p["similarity"] * 0.6 + p["confidence"] * 0.4), reverse=True,
                 )
 
                 return {
@@ -233,19 +232,19 @@ class LearningTools(BaseTool):
 
             result = await self.execute_with_session(_apply_pattern)
             return self.format_success(
-                result, f"Found {result.get('pattern_count', 0)} applicable patterns"
+                result, f"Found {result.get('pattern_count', 0)} applicable patterns",
             )
 
         @mcp.tool()
         async def get_pattern_analytics() -> dict[str, Any]:
-            """
-            Get analytics on learned patterns and their usage.
+            """Get analytics on learned patterns and their usage.
 
             Provides insights into pattern learning effectiveness, usage patterns,
             and knowledge base evolution.
 
             Returns:
                 Dict containing comprehensive pattern analytics
+
             """
 
             async def _get_pattern_analytics(_session, services):
@@ -319,7 +318,7 @@ class LearningTools(BaseTool):
                 ]
 
                 most_used = sorted(
-                    patterns_with_usage, key=lambda x: x["application_count"], reverse=True
+                    patterns_with_usage, key=lambda x: x["application_count"], reverse=True,
                 )[:5]
                 least_used = sorted(patterns_with_usage, key=lambda x: x["application_count"])[:5]
 
@@ -343,7 +342,7 @@ class LearningTools(BaseTool):
                         "most_applied": most_used,
                         "least_applied": least_used,
                         "unused_patterns": len(
-                            [p for p in patterns_with_usage if p["application_count"] == 0]
+                            [p for p in patterns_with_usage if p["application_count"] == 0],
                         ),
                     },
                     "learning_timeline": dict(sorted(learning_timeline.items())),
@@ -354,10 +353,10 @@ class LearningTools(BaseTool):
                                 for p in patterns_with_usage
                                 if p["application_count"] > avg_applications
                                 and p["success_rate"] > 0.8
-                            ]
+                            ],
                         ),
                         "patterns_to_review": len(
-                            [p for p in patterns_with_usage if p["success_rate"] < 0.6]
+                            [p for p in patterns_with_usage if p["success_rate"] < 0.6],
                         ),
                         "knowledge_gaps": [
                             cat for cat, count in category_distribution.items() if count < 3
@@ -376,8 +375,7 @@ class LearningTools(BaseTool):
             success_feedback: bool,
             notes: str | None = None,
         ) -> dict[str, Any]:
-            """
-            Evolve an existing pattern based on usage feedback.
+            """Evolve an existing pattern based on usage feedback.
 
             Updates patterns based on application results, improving accuracy
             and effectiveness over time.
@@ -390,6 +388,7 @@ class LearningTools(BaseTool):
 
             Returns:
                 Dict containing pattern evolution results
+
             """
 
             async def _evolve_pattern(_session, services):
@@ -430,11 +429,11 @@ class LearningTools(BaseTool):
                 if current_applications > 5:  # Only adjust confidence after sufficient data
                     if new_success_rate > 0.9:
                         evolved_metadata["confidence"] = min(
-                            1.0, evolved_metadata.get("confidence", 0.8) + 0.1
+                            1.0, evolved_metadata.get("confidence", 0.8) + 0.1,
                         )
                     elif new_success_rate < 0.6:
                         evolved_metadata["confidence"] = max(
-                            0.1, evolved_metadata.get("confidence", 0.8) - 0.1
+                            0.1, evolved_metadata.get("confidence", 0.8) - 0.1,
                         )
 
                 # Update the pattern memory
@@ -465,14 +464,14 @@ class LearningTools(BaseTool):
 
         @mcp.tool()
         async def suggest_learning_opportunities() -> dict[str, Any]:
-            """
-            Suggest new learning opportunities based on system usage patterns.
+            """Suggest new learning opportunities based on system usage patterns.
 
             Analyzes current knowledge gaps and usage patterns to recommend
             new patterns or knowledge areas to explore.
 
             Returns:
                 Dict containing learning opportunity recommendations
+
             """
 
             async def _suggest_opportunities(_session, services):
@@ -481,7 +480,7 @@ class LearningTools(BaseTool):
                 # Analyze current knowledge base
                 all_memories = await memory_service.get_recent_memories(limit=1000)
                 pattern_memories = await memory_service.search_memories(
-                    query="", memory_type="pattern", limit=1000
+                    query="", memory_type="pattern", limit=1000,
                 )
 
                 # Analyze memory types and topics
@@ -507,7 +506,7 @@ class LearningTools(BaseTool):
 
                 # Suggest patterns for high-frequency, low-pattern topics
                 high_activity_areas = sorted(
-                    memory_types.items(), key=lambda x: x[1], reverse=True
+                    memory_types.items(), key=lambda x: x[1], reverse=True,
                 )[:10]
                 for memory_type, count in high_activity_areas:
                     pattern_count = pattern_categories.get(memory_type, 0)
@@ -519,7 +518,7 @@ class LearningTools(BaseTool):
                                 "priority": "high",
                                 "reason": f"High activity ({count} memories) but low pattern coverage ({pattern_count} patterns)",
                                 "suggested_action": f"Learn patterns for {memory_type} operations",
-                            }
+                            },
                         )
 
                 # Suggest knowledge consolidation for scattered topics
@@ -533,7 +532,7 @@ class LearningTools(BaseTool):
                                 "priority": "medium",
                                 "reason": f"Frequent topic ({count} occurrences) could benefit from knowledge consolidation",
                                 "suggested_action": f"Create comprehensive patterns or documentation for {tag}",
-                            }
+                            },
                         )
 
                 # Suggest pattern improvement for low-success patterns
@@ -549,7 +548,7 @@ class LearningTools(BaseTool):
                                 "pattern_name": metadata.get("pattern_name", "Unknown"),
                                 "success_rate": success_rate,
                                 "applications": application_count,
-                            }
+                            },
                         )
 
                 if low_success_patterns:
@@ -561,7 +560,7 @@ class LearningTools(BaseTool):
                             "reason": f"{len(low_success_patterns)} patterns have low success rates",
                             "suggested_action": "Review and improve low-performing patterns",
                             "details": low_success_patterns,
-                        }
+                        },
                     )
 
                 # Suggest new learning areas based on trends
@@ -585,7 +584,7 @@ class LearningTools(BaseTool):
                             "priority": "medium",
                             "reason": f"Emerging topic in recent activity ({count} recent mentions)",
                             "suggested_action": f"Explore and learn patterns for {topic}",
-                        }
+                        },
                     )
 
                 # Sort suggestions by priority
@@ -613,5 +612,5 @@ class LearningTools(BaseTool):
 
             result = await self.execute_with_session(_suggest_opportunities)
             return self.format_success(
-                result, f"Generated {result.get('opportunity_count', 0)} learning opportunities"
+                result, f"Generated {result.get('opportunity_count', 0)} learning opportunities",
             )

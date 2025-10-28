@@ -1,5 +1,4 @@
-"""
-Vector Search Service using ChromaDB for TMWS v2.2.6
+"""Vector Search Service using ChromaDB for TMWS v2.2.6
 Provides high-speed semantic search with 5-20ms P95 latency.
 
 IMPORTANT: All methods are async to prevent blocking the event loop.
@@ -22,8 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 class VectorSearchService:
-    """
-    Vector search service using ChromaDB for hot cache.
+    """Vector search service using ChromaDB for hot cache.
 
     Features:
     - Embedded mode (no separate server required)
@@ -60,12 +58,12 @@ class VectorSearchService:
     HOT_CACHE_SIZE = 10000  # Maximum memories in hot cache
 
     def __init__(self, persist_directory: str | Path | None = None):
-        """
-        Initialize vector search service.
+        """Initialize vector search service.
 
         Args:
             persist_directory: Directory for ChromaDB persistence
                               (defaults to ./data/chromadb)
+
         """
         self.settings = get_settings()
 
@@ -91,8 +89,7 @@ class VectorSearchService:
         logger.info(f"🚀 VectorSearchService initialized (persist: {persist_directory})")
 
     async def initialize(self) -> None:
-        """
-        Initialize or get collection with HNSW index (async).
+        """Initialize or get collection with HNSW index (async).
 
         HNSW Parameters:
         - space: cosine (for normalized embeddings)
@@ -140,8 +137,7 @@ class VectorSearchService:
         metadata: dict[str, Any],
         content: str | None = None,
     ) -> None:
-        """
-        Add single memory to vector store (async).
+        """Add single memory to vector store (async).
 
         Args:
             memory_id: Unique memory identifier (UUID string)
@@ -162,6 +158,7 @@ class VectorSearchService:
             ... )
 
         Note: ChromaDB operation runs in thread pool to avoid blocking event loop.
+
         """
         if self._collection is None:
             raise RuntimeError("Collection not initialized. Call initialize() first.")
@@ -202,8 +199,7 @@ class VectorSearchService:
         metadatas: list[dict[str, Any]],
         contents: list[str] | None = None,
     ) -> None:
-        """
-        Add multiple memories in batch (async, more efficient).
+        """Add multiple memories in batch (async, more efficient).
 
         Args:
             memory_ids: List of memory IDs
@@ -222,6 +218,7 @@ class VectorSearchService:
             ... )
 
         Note: ChromaDB operation runs in thread pool to avoid blocking event loop.
+
         """
         if self._collection is None:
             raise RuntimeError("Collection not initialized. Call initialize() first.")
@@ -262,8 +259,7 @@ class VectorSearchService:
         filters: dict[str, Any] | None = None,
         min_similarity: float = 0.0,
     ) -> list[dict[str, Any]]:
-        """
-        Search for similar memories (async).
+        """Search for similar memories (async).
 
         Args:
             query_embedding: 1024-dim query embedding
@@ -285,6 +281,7 @@ class VectorSearchService:
             ...     print(f"{result['id']}: {result['similarity']:.4f}")
 
         Note: ChromaDB operation runs in thread pool to avoid blocking event loop.
+
         """
         if self._collection is None:
             raise RuntimeError("Collection not initialized. Call initialize() first.")
@@ -320,7 +317,7 @@ class VectorSearchService:
                                 "content": results["documents"][0][idx]
                                 if results.get("documents")
                                 else None,
-                            }
+                            },
                         )
 
             logger.debug(f"🔍 Found {len(processed)} results (top_k={top_k})")
@@ -344,13 +341,13 @@ class VectorSearchService:
             )
 
     async def delete_memory(self, memory_id: str | UUID) -> None:
-        """
-        Delete memory from vector store (async).
+        """Delete memory from vector store (async).
 
         Args:
             memory_id: Memory ID to delete
 
         Note: ChromaDB operation runs in thread pool to avoid blocking event loop.
+
         """
         if self._collection is None:
             raise RuntimeError("Collection not initialized. Call initialize() first.")
@@ -375,13 +372,13 @@ class VectorSearchService:
             )
 
     async def delete_memories_batch(self, memory_ids: list[str | UUID]) -> None:
-        """
-        Delete multiple memories in batch (async).
+        """Delete multiple memories in batch (async).
 
         Args:
             memory_ids: List of memory IDs to delete
 
         Note: ChromaDB operation runs in thread pool to avoid blocking event loop.
+
         """
         if self._collection is None:
             raise RuntimeError("Collection not initialized. Call initialize() first.")
@@ -406,13 +403,13 @@ class VectorSearchService:
             )
 
     async def get_collection_stats(self) -> dict[str, Any]:
-        """
-        Get collection statistics (async).
+        """Get collection statistics (async).
 
         Returns:
             Dictionary with stats (count, capacity_usage, etc.)
 
         Note: ChromaDB operation runs in thread pool to avoid blocking event loop.
+
         """
         if self._collection is None:
             raise RuntimeError("Collection not initialized. Call initialize() first.")
@@ -431,8 +428,7 @@ class VectorSearchService:
         }
 
     async def clear_collection(self) -> None:
-        """
-        Clear all memories from collection (async, dangerous!).
+        """Clear all memories from collection (async, dangerous!).
 
         Note: ChromaDB operations run in thread pool to avoid blocking event loop.
         """
@@ -445,14 +441,14 @@ class VectorSearchService:
         await self.initialize()  # Recreate empty collection
 
     def _sanitize_metadata(self, metadata: dict[str, Any]) -> dict[str, Any]:
-        """
-        Sanitize metadata for ChromaDB (string/int/float only).
+        """Sanitize metadata for ChromaDB (string/int/float only).
 
         Args:
             metadata: Raw metadata dict
 
         Returns:
             Sanitized metadata dict
+
         """
         sanitized = {}
 
@@ -483,8 +479,7 @@ class VectorSearchService:
         return sanitized
 
     def _build_where_clause(self, filters: dict[str, Any]) -> dict[str, Any] | None:
-        """
-        Build ChromaDB where clause from filters.
+        """Build ChromaDB where clause from filters.
 
         Args:
             filters: Filter dict (e.g., {"agent_id": "athena", "namespace": "default"})
@@ -495,6 +490,7 @@ class VectorSearchService:
         Note:
             ChromaDB requires multiple conditions to be wrapped in $and operator.
             Example: {"$and": [{"namespace": "default"}, {"agent_id": "athena"}]}
+
         """
         if not filters:
             return None
@@ -524,8 +520,7 @@ _vector_search_service_instance = None
 
 
 def get_vector_search_service() -> VectorSearchService:
-    """
-    Get singleton instance of VectorSearchService (sync factory).
+    """Get singleton instance of VectorSearchService (sync factory).
 
     Returns:
         Singleton instance (not yet initialized)
@@ -536,6 +531,7 @@ def get_vector_search_service() -> VectorSearchService:
         >>> await service.initialize()  # Must initialize after getting instance
 
     Note: You MUST call await service.initialize() after getting the instance.
+
     """
     global _vector_search_service_instance
 

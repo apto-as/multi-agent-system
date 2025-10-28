@@ -1,5 +1,4 @@
-"""
-Memory Management Tools for TMWS MCP Server
+"""Memory Management Tools for TMWS MCP Server
 Provides vector-based memory storage and semantic search
 """
 
@@ -59,8 +58,7 @@ class MemoryTools(BaseTool):
             metadata: dict[str, Any] = None,
             importance: float = 0.5,
         ) -> dict[str, Any]:
-            """
-            Create a new memory with vector embedding.
+            """Create a new memory with vector embedding.
 
             This tool stores knowledge in the Trinitas memory system with semantic search capabilities.
             Memory content is automatically vectorized for similarity search.
@@ -75,6 +73,7 @@ class MemoryTools(BaseTool):
 
             Returns:
                 Dict containing memory ID, content, and creation details
+
             """
             request = MemoryCreateRequest(
                 content=content,
@@ -126,8 +125,7 @@ class MemoryTools(BaseTool):
             semantic_search: bool = True,
             min_similarity: float = 0.7,
         ) -> dict[str, Any]:
-            """
-            Recall memories based on query and filters.
+            """Recall memories based on query and filters.
 
             Supports both semantic (vector similarity) and keyword search.
             Semantic search uses vector embeddings for contextual similarity.
@@ -142,6 +140,7 @@ class MemoryTools(BaseTool):
 
             Returns:
                 Dict containing search results and metadata
+
             """
             request = MemorySearchRequest(
                 query=query,
@@ -207,8 +206,7 @@ class MemoryTools(BaseTool):
             metadata: dict[str, Any] | None = None,
             importance: float | None = None,
         ) -> dict[str, Any]:
-            """
-            Update an existing memory.
+            """Update an existing memory.
 
             Updates memory content and regenerates vector embedding if content changes.
             Allows partial updates of tags, metadata, and importance.
@@ -222,6 +220,7 @@ class MemoryTools(BaseTool):
 
             Returns:
                 Dict containing updated memory information
+
             """
             request = MemoryUpdateRequest(
                 memory_id=memory_id,
@@ -267,8 +266,7 @@ class MemoryTools(BaseTool):
 
         @mcp.tool()
         async def delete_memory(memory_id: str) -> dict[str, Any]:
-            """
-            Delete a memory by ID.
+            """Delete a memory by ID.
 
             Permanently removes memory and its vector embedding from the database.
             This operation cannot be undone.
@@ -278,6 +276,7 @@ class MemoryTools(BaseTool):
 
             Returns:
                 Dict confirming deletion
+
             """
 
             async def _delete_memory(_session, services):
@@ -291,13 +290,13 @@ class MemoryTools(BaseTool):
 
         @mcp.tool()
         async def get_memory_stats() -> dict[str, Any]:
-            """
-            Get memory statistics and analytics.
+            """Get memory statistics and analytics.
 
             Provides insights into memory usage patterns, types, and distribution.
 
             Returns:
                 Dict containing comprehensive memory statistics
+
             """
 
             async def _get_memory_stats(_session, services):
@@ -333,8 +332,7 @@ class MemoryTools(BaseTool):
         # Vector optimization tools
         @mcp.tool()
         async def optimize_memory_vectors() -> dict[str, Any]:
-            """
-            Optimize memory vector indices for better search performance.
+            """Optimize memory vector indices for better search performance.
 
             Rebuilds ChromaDB indices and analyzes query patterns for optimal performance.
             Should be run periodically or when search performance degrades.
@@ -343,6 +341,7 @@ class MemoryTools(BaseTool):
 
             Returns:
                 Dict containing optimization results and performance metrics
+
             """
 
             async def _optimize_vectors(session, _services):

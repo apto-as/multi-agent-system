@@ -1,5 +1,4 @@
-"""
-Memory scope definitions for hybrid cloud-local architecture.
+"""Memory scope definitions for hybrid cloud-local architecture.
 """
 
 from enum import Enum

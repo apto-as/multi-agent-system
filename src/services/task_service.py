@@ -1,5 +1,4 @@
-"""
-Task Service for TMWS
+"""Task Service for TMWS
 Handles task management and execution tracking
 """
 
@@ -41,13 +40,13 @@ class TaskService(BaseService):
         valid_priorities = ["low", "medium", "high", "critical"]
         if priority not in valid_priorities:
             raise ValidationError(
-                f"Invalid priority: {priority}. Must be one of {valid_priorities}"
+                f"Invalid priority: {priority}. Must be one of {valid_priorities}",
             )
 
         # Validate persona if assigned
         if assigned_persona_id:
             persona_result = await self.session.execute(
-                select(Persona).where(Persona.id == assigned_persona_id)
+                select(Persona).where(Persona.id == assigned_persona_id),
             )
             if not persona_result.scalar_one_or_none():
                 raise NotFoundError(f"Persona {assigned_persona_id} not found")
@@ -81,7 +80,7 @@ class TaskService(BaseService):
     async def get_task(self, task_id: UUID) -> Task | None:
         """Get a task by ID."""
         result = await self.session.execute(
-            select(Task).where(Task.id == task_id).options(selectinload(Task.assigned_persona))
+            select(Task).where(Task.id == task_id).options(selectinload(Task.assigned_persona)),
         )
         return result.scalar_one_or_none()
 
@@ -113,7 +112,7 @@ class TaskService(BaseService):
                 if key == "dependencies" and value:
                     if await self._would_create_circular_dependency(task_id, value):
                         raise ValidationError(
-                            "Cannot update task: would create circular dependency"
+                            "Cannot update task: would create circular dependency",
                         )
                 # Special handling for status changes
                 elif key == "status":
@@ -202,7 +201,7 @@ class TaskService(BaseService):
         return tasks
 
     async def get_pending_tasks(
-        self, assigned_persona_id: UUID = None, limit: int = 10
+        self, assigned_persona_id: UUID = None, limit: int = 10,
     ) -> list[Task]:
         """Get pending tasks, optionally filtered by persona."""
         conditions = [Task.status == "pending"]
@@ -239,7 +238,7 @@ class TaskService(BaseService):
     async def count_active_tasks(self) -> int:
         """Count tasks that are pending or in progress."""
         stmt = select(func.count(Task.id)).where(
-            or_(Task.status == "pending", Task.status == "in_progress")
+            or_(Task.status == "pending", Task.status == "in_progress"),
         )
 
         result = await self.session.execute(stmt)
@@ -251,7 +250,7 @@ class TaskService(BaseService):
         """Get task statistics."""
         # Count by status
         status_counts_stmt = select(Task.status, func.count(Task.id).label("count")).group_by(
-            Task.status
+            Task.status,
         )
 
         status_counts_result = await self.session.execute(status_counts_stmt)
@@ -259,7 +258,7 @@ class TaskService(BaseService):
 
         # Count by priority
         priority_counts_stmt = select(Task.priority, func.count(Task.id).label("count")).group_by(
-            Task.priority
+            Task.priority,
         )
 
         priority_counts_result = await self.session.execute(priority_counts_stmt)
@@ -267,13 +266,13 @@ class TaskService(BaseService):
 
         # Average completion time for completed tasks
         completion_time_stmt = select(
-            func.avg(func.extract("epoch", Task.completed_at - Task.started_at))
+            func.avg(func.extract("epoch", Task.completed_at - Task.started_at)),
         ).where(
             and_(
                 Task.status == "completed",
                 Task.started_at.isnot(None),
                 Task.completed_at.isnot(None),
-            )
+            ),
         )
 
         completion_time_result = await self.session.execute(completion_time_stmt)
@@ -291,7 +290,7 @@ class TaskService(BaseService):
         }
 
     async def _would_create_circular_dependency(
-        self, task_id: UUID, new_dependencies: list[str]
+        self, task_id: UUID, new_dependencies: list[str],
     ) -> bool:
         """Check if adding dependencies would create a circular dependency."""
         # Build dependency graph

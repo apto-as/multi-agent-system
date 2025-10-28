@@ -1,5 +1,4 @@
-"""
-Unified Validation Utilities for TMWS
+"""Unified Validation Utilities for TMWS
 Centralized validation functions to avoid duplication
 
 NOTE: sanitize_input and validate_agent_id have been moved to security.validators
@@ -16,8 +15,7 @@ NAMESPACE_PATTERN = re.compile(r"^[a-zA-Z0-9_-]{1,32}$")
 
 
 def validate_namespace(namespace: str, allow_empty: bool = False) -> tuple[bool, list[str]]:
-    """
-    Validate namespace format.
+    """Validate namespace format.
 
     Args:
         namespace: Namespace to validate
@@ -25,6 +23,7 @@ def validate_namespace(namespace: str, allow_empty: bool = False) -> tuple[bool,
 
     Returns:
         Tuple of (is_valid, list_of_issues)
+
     """
     issues = []
 
@@ -53,14 +52,14 @@ def validate_namespace(namespace: str, allow_empty: bool = False) -> tuple[bool,
 
 
 def validate_email(email: str) -> tuple[bool, list[str]]:
-    """
-    Validate email address format.
+    """Validate email address format.
 
     Args:
         email: Email address to validate
 
     Returns:
         Tuple of (is_valid, list_of_issues)
+
     """
     issues = []
 
@@ -80,8 +79,7 @@ def validate_email(email: str) -> tuple[bool, list[str]]:
 
 
 def validate_url(url: str, allowed_schemes: list[str] = None) -> tuple[bool, list[str]]:
-    """
-    Validate URL format and scheme.
+    """Validate URL format and scheme.
 
     Args:
         url: URL to validate
@@ -89,6 +87,7 @@ def validate_url(url: str, allowed_schemes: list[str] = None) -> tuple[bool, lis
 
     Returns:
         Tuple of (is_valid, list_of_issues)
+
     """
     issues = []
 
@@ -122,10 +121,9 @@ def validate_url(url: str, allowed_schemes: list[str] = None) -> tuple[bool, lis
 
 
 def validate_json_object(
-    obj: Any, max_depth: int = 10, current_depth: int = 0
+    obj: Any, max_depth: int = 10, current_depth: int = 0,
 ) -> tuple[bool, list[str]]:
-    """
-    Validate JSON object structure and prevent deeply nested objects.
+    """Validate JSON object structure and prevent deeply nested objects.
 
     Args:
         obj: Object to validate
@@ -134,6 +132,7 @@ def validate_json_object(
 
     Returns:
         Tuple of (is_valid, list_of_issues)
+
     """
     issues = []
 
@@ -173,14 +172,14 @@ def validate_json_object(
 
 
 def validate_importance_score(score: float) -> tuple[bool, list[str]]:
-    """
-    Validate importance score.
+    """Validate importance score.
 
     Args:
         score: Importance score to validate
 
     Returns:
         Tuple of (is_valid, list_of_issues)
+
     """
     issues = []
 
@@ -195,14 +194,14 @@ def validate_importance_score(score: float) -> tuple[bool, list[str]]:
 
 
 def validate_priority(priority: str) -> tuple[bool, list[str]]:
-    """
-    Validate priority value.
+    """Validate priority value.
 
     Args:
         priority: Priority to validate
 
     Returns:
         Tuple of (is_valid, list_of_issues)
+
     """
     issues = []
     valid_priorities = ["low", "medium", "high", "urgent", "critical"]
