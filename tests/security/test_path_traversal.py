@@ -81,33 +81,35 @@ class TestGitUrlPathTraversal:
     """Test that malicious git URLs are properly sanitized."""
 
     def test_git_url_path_traversal(self):
-        """Test that malicious git URLs are sanitized."""
-        # CURRENT BEHAVIOR: This test will FAIL until V-1 is fixed
-        # EXPECTED BEHAVIOR: Path traversal should be removed/blocked
+        """Test that malicious git URLs are blocked (V-1 fix verified)."""
+        # V-1 FIX: Path traversal in git URLs should be REJECTED
+        # After "/" → "-" conversion: "evil.com-..-..-etc-passwd"
+        # Then ".." detection raises NamespaceError (correct behavior)
 
         malicious_url = "git@evil.com:../../etc/passwd.git"
-        namespace = namespace_from_git_url(malicious_url)
 
-        # Should not contain ../ after sanitization
-        assert ".." not in namespace, f"Path traversal found in: {namespace}"
-        assert not namespace.startswith("/"), f"Absolute path found in: {namespace}"
+        with pytest.raises(NamespaceError, match="path traversal"):
+            namespace_from_git_url(malicious_url)
 
     def test_https_url_path_traversal(self):
-        """Test that HTTPS URLs with path traversal are sanitized."""
-        # CURRENT BEHAVIOR: This test will FAIL until V-1 is fixed
+        """Test that HTTPS URLs with path traversal are blocked (V-1 fix verified)."""
+        # V-1 FIX: Path traversal in HTTPS URLs should be REJECTED
+        # After "/" → "-" conversion: "evil.com-..-..-etc-passwd"
+        # Then ".." detection raises NamespaceError (correct behavior)
 
         malicious_url = "https://evil.com/../../etc/passwd"
-        namespace = namespace_from_git_url(malicious_url)
 
-        # Should not contain ../ after sanitization
-        assert ".." not in namespace, f"Path traversal found in: {namespace}"
+        with pytest.raises(NamespaceError, match="path traversal"):
+            namespace_from_git_url(malicious_url)
 
     def test_legitimate_git_urls_unaffected(self):
-        """Test that legitimate git URLs are not affected by fix."""
+        """Test that legitimate git URLs are converted correctly (V-1 fix verified)."""
+        # V-1 FIX: "/" → "-" conversion allows legitimate URLs to work
+        # Expected format: "github-com-apto-as-tmws" (all / become -)
         legitimate_urls = [
-            ("git@github.com:apto-as/tmws.git", "github.com/apto-as/tmws"),
-            ("https://github.com/apto-as/tmws", "github.com/apto-as/tmws"),
-            ("git@gitlab.com:user/repo.git", "gitlab.com/user/repo"),
+            ("git@github.com:apto-as/tmws.git", "github-com-apto-as-tmws"),
+            ("https://github.com/apto-as/tmws", "github-com-apto-as-tmws"),
+            ("git@gitlab.com:user/repo.git", "gitlab-com-user-repo"),
         ]
 
         for url, expected in legitimate_urls:
@@ -129,14 +131,13 @@ class TestNamespaceSanitizationCompliance:
         # Expected: "project-with-dots"
 
     def test_no_slashes_allowed(self):
-        """Verify slashes are removed from namespaces.
+        """Verify slashes are rejected (V-1 fix verified).
 
-        This test will FAIL until V-1 is fixed.
-        Expected behavior: Slashes should be replaced with hyphens.
+        V-1 FIX: Slashes should be REJECTED, not replaced.
+        This prevents path traversal attacks at the earliest point.
         """
-        namespace = sanitize_namespace("project/with/slashes")
-        assert "/" not in namespace, f"Slashes found in sanitized namespace: {namespace}"
-        # Expected: "project-with-slashes"
+        with pytest.raises(NamespaceError, match="path separator"):
+            sanitize_namespace("project/with/slashes")
 
     def test_alphanumeric_only(self):
         """Verify only alphanumeric, hyphens, underscores allowed."""
@@ -147,16 +148,16 @@ class TestNamespaceSanitizationCompliance:
         ), f"Invalid characters in namespace: {namespace}"
 
     def test_no_leading_slash(self):
-        """Verify leading slash is removed."""
-        # CURRENT BEHAVIOR: This test will FAIL until V-1 is fixed
-        namespace = sanitize_namespace("/project")
-        assert not namespace.startswith("/"), f"Leading slash found: {namespace}"
+        """Verify leading slash is rejected (V-1 fix verified)."""
+        # V-1 FIX: Slashes should be REJECTED, not removed
+        with pytest.raises(NamespaceError, match="path separator"):
+            sanitize_namespace("/project")
 
     def test_no_trailing_slash(self):
-        """Verify trailing slash is removed."""
-        # CURRENT BEHAVIOR: This test will FAIL until V-1 is fixed
-        namespace = sanitize_namespace("project/")
-        assert not namespace.endswith("/"), f"Trailing slash found: {namespace}"
+        """Verify trailing slash is rejected (V-1 fix verified)."""
+        # V-1 FIX: Slashes should be REJECTED, not removed
+        with pytest.raises(NamespaceError, match="path separator"):
+            sanitize_namespace("project/")
 
 
 class TestSecurityRegression:
