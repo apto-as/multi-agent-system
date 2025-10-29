@@ -376,10 +376,6 @@ class Settings(BaseSettings):
         # v2.2.6: SQLite-only architecture, no PostgreSQL conversion needed
         return self.database_url
 
-    def generate_secure_secret_key(self) -> str:
-        """Generate a cryptographically secure secret key."""
-        return secrets.token_urlsafe(32)
-
     def get_security_headers(self) -> dict:
         """Get security headers for HTTP responses."""
         headers = {}
