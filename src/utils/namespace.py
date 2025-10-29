@@ -39,6 +39,20 @@ def sanitize_namespace(raw_namespace: str) -> str:
     if not raw_namespace or not raw_namespace.strip():
         raise NamespaceError("Namespace cannot be empty")
 
+    # Security: Check for path traversal sequences BEFORE sanitization (V-1 fix)
+    # This prevents bypass attacks like "../../../secrets" → "secrets"
+    if ".." in raw_namespace:
+        raise NamespaceError(
+            f"Namespace '{raw_namespace}' contains path traversal pattern (..). "
+            "This is not allowed for security reasons."
+        )
+
+    if "/" in raw_namespace:
+        raise NamespaceError(
+            f"Namespace '{raw_namespace}' contains path separator (/). "
+            "This is not allowed for security reasons."
+        )
+
     # Remove whitespace and convert to lowercase
     namespace = raw_namespace.strip().lower()
 
@@ -183,6 +197,10 @@ def namespace_from_git_url(git_url: str) -> str:
     # Handle HTTPS format: https://github.com/user/repo
     elif url.startswith("https://") or url.startswith("http://"):
         url = url.split("://", 1)[1]
+
+    # Pre-process: Replace / with - BEFORE sanitize (V-1 fix)
+    # This allows git URLs to work while still blocking path traversal
+    url = url.replace("/", "-")
 
     return sanitize_namespace(url)
 
