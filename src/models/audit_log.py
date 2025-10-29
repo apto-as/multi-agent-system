@@ -11,49 +11,9 @@ class SecurityEventType(Enum):
     # Authentication Events
     LOGIN_SUCCESS = "login_success"
     LOGIN_FAILED = "login_failed"
-    LOGIN_BLOCKED = "login_blocked"
-    LOGOUT = "logout"
-    PASSWORD_CHANGE = "password_change"
-    ACCOUNT_LOCKED = "account_locked"
-
-    # Authorization Events
-    UNAUTHORIZED_ACCESS = "unauthorized_access"
-    PERMISSION_DENIED = "permission_denied"
-    PRIVILEGE_ESCALATION = "privilege_escalation"
-
-    # Input Validation Events
-    INPUT_VALIDATION_FAILED = "input_validation_failed"
-    SQL_INJECTION_ATTEMPT = "sql_injection_attempt"
-    XSS_ATTEMPT = "xss_attempt"
-    PATH_TRAVERSAL_ATTEMPT = "path_traversal_attempt"
-    COMMAND_INJECTION_ATTEMPT = "command_injection_attempt"
-
-    # Rate Limiting Events
-    RATE_LIMIT_EXCEEDED = "rate_limit_exceeded"
-    DDOS_DETECTED = "ddos_detected"
-    SUSPICIOUS_TRAFFIC = "suspicious_traffic"
-    IP_BLOCKED = "ip_blocked"
-
-    # Data Security Events
-    SENSITIVE_DATA_ACCESS = "sensitive_data_access"
-    DATA_EXPORT = "data_export"
-    BULK_OPERATION = "bulk_operation"
 
     # System Security Events
-    CONFIGURATION_CHANGE = "configuration_change"
     ADMIN_ACTION = "admin_action"
-    SYSTEM_COMPROMISE = "system_compromise"
-    MALWARE_DETECTED = "malware_detected"
-
-    # API Security Events
-    API_ABUSE = "api_abuse"
-    UNUSUAL_API_PATTERN = "unusual_api_pattern"
-    BOT_DETECTED = "bot_detected"
-
-    # Vector Security Events
-    VECTOR_INJECTION_ATTEMPT = "vector_injection_attempt"
-    EMBEDDING_ABUSE = "embedding_abuse"
-    UNUSUAL_VECTOR_PATTERN = "unusual_vector_pattern"
 
 
 class SecurityEventSeverity(Enum):

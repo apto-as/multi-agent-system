@@ -168,14 +168,6 @@ class Workflow(TMWSBase, MetadataMixin):
         self.error_message = None
         self.failed_step_index = None
 
-    def pause(self) -> None:
-        """Pause workflow execution."""
-        self.status = WorkflowStatus.PAUSED
-
-    def resume(self) -> None:
-        """Resume workflow execution."""
-        self.status = WorkflowStatus.RUNNING
-
     def complete(self) -> None:
         """Mark workflow as completed."""
         self.status = WorkflowStatus.COMPLETED
@@ -193,18 +185,6 @@ class Workflow(TMWSBase, MetadataMixin):
         """Cancel workflow execution."""
         self.status = WorkflowStatus.CANCELLED
         self.completed_at = datetime.utcnow()
-
-    def activate(self) -> None:
-        """Activate workflow for execution."""
-        self.status = WorkflowStatus.ACTIVE
-
-    def deactivate(self) -> None:
-        """Deactivate workflow."""
-        self.status = WorkflowStatus.INACTIVE
-
-    def advance_step(self) -> None:
-        """Advance to next step."""
-        self.current_step_index = min(self.current_step_index + 1, self.total_steps)
 
     def reset(self) -> None:
         """Reset workflow execution state."""

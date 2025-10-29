@@ -111,10 +111,6 @@ class PermissionError(TMWSException):
     pass
 
 
-class SecurityError(TMWSException):
-    """Security-related errors."""
-
-    pass
 
 
 class ServiceError(TMWSException):
@@ -134,10 +130,6 @@ class NotFoundError(TMWSException):
 
 
 # Detailed Database Errors
-class DatabaseConnectionError(DatabaseException):
-    """Raised when database connection fails."""
-
-    pass
 
 
 class DatabaseOperationError(DatabaseException):
@@ -146,10 +138,6 @@ class DatabaseOperationError(DatabaseException):
     pass
 
 
-class DatabaseInitializationError(DatabaseException):
-    """Raised when database initialization fails (tables, migrations)."""
-
-    pass
 
 
 # Service Initialization and Execution Errors
@@ -159,10 +147,6 @@ class ServiceInitializationError(ServiceError):
     pass
 
 
-class ServiceExecutionError(ServiceError):
-    """Raised when service operation fails during execution."""
-
-    pass
 
 
 # Memory Service Specific Errors
@@ -178,25 +162,10 @@ class MemorySearchError(MemoryException):
     pass
 
 
-class MemoryUpdateError(MemoryException):
-    """Raised when memory update fails."""
-
-    pass
 
 
-class MemoryDeletionError(MemoryException):
-    """Raised when memory deletion fails."""
-
-    pass
 
 
-class MemoryNotFoundError(MemoryException):
-    """Raised when requested memory does not exist."""
-
-    def __init__(self, memory_id: str):
-        super().__init__(
-            f"Memory not found: {memory_id}", details={"memory_id": memory_id},
-        )
 
 
 # Vector Search Specific Errors
@@ -224,26 +193,10 @@ class EmbeddingGenerationError(VectorSearchError):
     pass
 
 
-# Agent Service Errors
-class AgentError(ServiceError):
-    """Base class for agent service errors."""
-
-    pass
 
 
-class AgentRegistrationError(AgentError):
-    """Raised when agent registration fails."""
-
-    pass
 
 
-class AgentNotFoundError(AgentError):
-    """Raised when requested agent does not exist."""
-
-    def __init__(self, agent_id: str):
-        super().__init__(
-            f"Agent not found: {agent_id}", details={"agent_id": agent_id},
-        )
 
 
 # Integration Errors
@@ -253,16 +206,8 @@ class IntegrationError(TMWSException):
     pass
 
 
-class GenAIToolboxError(IntegrationError):
-    """Raised when GenAI Toolbox integration fails."""
-
-    pass
 
 
-class OllamaError(IntegrationError):
-    """Raised when Ollama service fails."""
-
-    pass
 
 
 # MCP Server Errors
@@ -278,17 +223,8 @@ class MCPInitializationError(MCPServerError):
     pass
 
 
-class MCPToolExecutionError(MCPServerError):
-    """Raised when MCP tool execution fails."""
-
-    pass
 
 
-# Environment Variable Errors
-class EnvironmentVariableError(ConfigurationError):
-    """Raised when required environment variable is missing or invalid."""
-
-    pass
 
 
 # Utility function for logging and re-raising
