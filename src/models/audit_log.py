@@ -12,17 +12,8 @@ class SecurityEventType(Enum):
     LOGIN_SUCCESS = "login_success"
     LOGIN_FAILED = "login_failed"
 
-    # Input Validation Events
-    SQL_INJECTION_ATTEMPT = "sql_injection_attempt"
-    XSS_ATTEMPT = "xss_attempt"
-    PATH_TRAVERSAL_ATTEMPT = "path_traversal_attempt"
-    COMMAND_INJECTION_ATTEMPT = "command_injection_attempt"
-
     # System Security Events
     ADMIN_ACTION = "admin_action"
-
-    # Vector Security Events
-    VECTOR_INJECTION_ATTEMPT = "vector_injection_attempt"
 
 
 class SecurityEventSeverity(Enum):
