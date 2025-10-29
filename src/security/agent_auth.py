@@ -30,14 +30,6 @@ class AgentAuthService:
         """Generate a secure API key for an agent."""
         return generate_api_key()
 
-    def hash_api_key(self, api_key: str) -> str:
-        """Hash an API key for storage."""
-        return hash_password(api_key)
-
-    def verify_api_key(self, plain_api_key: str, hashed_api_key: str) -> bool:
-        """Verify an API key against its hash."""
-        return verify_password(plain_api_key, hashed_api_key)
-
     def create_access_token(
         self, agent_id: str, namespace: str = "default", expires_delta: timedelta | None = None,
     ) -> str:
