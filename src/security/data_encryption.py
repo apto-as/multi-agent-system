@@ -25,6 +25,9 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 
+from src.models.agent import AccessLevel
+from src.security.encryption_policies import CrossAgentAccessPolicy
+
 logger = logging.getLogger(__name__)
 
 
@@ -92,13 +95,11 @@ class EncryptionKeyManager:
 
         # Use Scrypt for memory-hard key derivation
         kdf = Scrypt(
-            algorithm=hashes.SHA256(),
-            length=32,
             salt=salt,
+            length=32,
             n=2**14,  # CPU/memory cost parameter
             r=8,  # Block size parameter
             p=1,  # Parallelization parameter
-            backend=default_backend(),
         )
 
         derived_key = kdf.derive(self.master_key.encode())
@@ -157,8 +158,20 @@ class FieldEncryption:
         field_name: str,
         agent_id: str,
         classification: DataClassification = DataClassification.CONFIDENTIAL,
+        namespace: str = "default",
+        access_level: AccessLevel = AccessLevel.PRIVATE,
+        shared_with_agents: list[str] | None = None,
     ) -> dict[str, Any]:
-        """Encrypt individual field with metadata.
+        """Encrypt individual field with metadata and access control.
+
+        Args:
+            data: Data to encrypt
+            field_name: Name of the field being encrypted
+            agent_id: ID of the agent encrypting the data
+            classification: Data sensitivity classification
+            namespace: Agent's namespace (for team access control)
+            access_level: Access level (PRIVATE, TEAM, SHARED, PUBLIC, SYSTEM)
+            shared_with_agents: List of agent IDs for SHARED access level
 
         Returns:
             dict: Contains encrypted data and metadata for decryption
@@ -188,15 +201,18 @@ class FieldEncryption:
         # Encrypt data
         encrypted_data = fernet.encrypt(data_bytes)
 
-        # Create metadata
+        # Create metadata with access control info
         metadata = {
             "encrypted_at": datetime.utcnow().isoformat(),
             "agent_id": agent_id,
+            "namespace": namespace,
             "field_name": field_name,
             "data_type": data_type,
             "classification": classification.value,
-            "encryption_version": "1.0",
+            "encryption_version": "2.0",  # Bumped for access control support
             "key_context": context,
+            "access_level": access_level.value if isinstance(access_level, AccessLevel) else access_level,
+            "shared_with_agents": shared_with_agents or [],
         }
 
         # Store metadata for decryption
@@ -212,29 +228,66 @@ class FieldEncryption:
         }
 
     async def decrypt_field(
-        self, encrypted_field: dict[str, Any], requesting_agent: str,
+        self,
+        encrypted_field: dict[str, Any],
+        requesting_agent: str,
+        requesting_namespace: str,
     ) -> str | bytes | dict | list:
-        """Decrypt field data with access control.
+        """Decrypt field data with cross-agent access control.
 
         Args:
             encrypted_field: Result from encrypt_field()
             requesting_agent: Agent requesting decryption
+            requesting_namespace: Requesting agent's verified namespace (MUST be from DB, never from JWT)
 
         Returns:
             Decrypted data in original format
+
+        Raises:
+            PermissionError: If access is denied based on access policies
+
+        Security:
+            - requesting_namespace MUST be verified from database
+            - Never accept namespace from JWT claims directly
+            - Uses CrossAgentAccessPolicy for unified access control
 
         """
         encrypted_field["field_id"]
         metadata = encrypted_field["metadata"]
         encrypted_data = base64.urlsafe_b64decode(encrypted_field["encrypted_data"])
 
-        # Access control check
-        if metadata["agent_id"] != requesting_agent:
-            # TODO: Implement cross-agent access policies
+        # Validate metadata structure
+        is_valid, error_msg = CrossAgentAccessPolicy.validate_metadata(metadata)
+        if not is_valid:
+            logger.error(f"Invalid encryption metadata: {error_msg}")
+            raise PermissionError(f"Invalid encryption metadata: {error_msg}")
+
+        # Cross-agent access control check using unified policy
+        # Backward compatibility: v1.0 metadata doesn't have access_level
+        owner_namespace = metadata.get("namespace", "default")
+        access_level = metadata.get("access_level", AccessLevel.PRIVATE.value)
+        shared_with_agents = metadata.get("shared_with_agents", [])
+
+        is_allowed, reason = CrossAgentAccessPolicy.check_access(
+            owner_agent_id=metadata["agent_id"],
+            owner_namespace=owner_namespace,
+            requesting_agent_id=requesting_agent,
+            requesting_namespace=requesting_namespace,
+            access_level=access_level,
+            shared_with_agents=shared_with_agents,
+        )
+
+        if not is_allowed:
             logger.warning(
-                f"Agent {requesting_agent} attempted to decrypt data owned by {metadata['agent_id']}",
+                f"Access denied for agent {requesting_agent} (namespace: {requesting_namespace}): {reason}",
+                extra={
+                    "owner_agent": metadata["agent_id"],
+                    "owner_namespace": owner_namespace,
+                    "access_level": access_level,
+                    "field_name": metadata.get("field_name", "unknown"),
+                },
             )
-            raise PermissionError("Access denied: Cannot decrypt data from different agent")
+            raise PermissionError(f"Access denied: {reason}")
 
         # Derive decryption key
         encryption_key = self.key_manager.derive_key(metadata["key_context"], metadata["agent_id"])
@@ -310,9 +363,19 @@ class MemoryEncryption:
         return encrypted_memory
 
     async def decrypt_memory(
-        self, encrypted_memory: dict[str, Any], requesting_agent: str,
+        self,
+        encrypted_memory: dict[str, Any],
+        requesting_agent: str,
+        requesting_namespace: str,
     ) -> dict[str, Any]:
-        """Decrypt memory data for authorized agent."""
+        """Decrypt memory data for authorized agent with cross-agent access control.
+
+        Args:
+            encrypted_memory: Encrypted memory data
+            requesting_agent: Agent requesting decryption
+            requesting_namespace: Requesting agent's verified namespace (MUST be from DB)
+
+        """
         if not encrypted_memory.get("is_encrypted", False):
             return encrypted_memory  # Already decrypted or never encrypted
 
@@ -321,7 +384,9 @@ class MemoryEncryption:
         # Decrypt main content
         if "encrypted_content" in encrypted_memory:
             content = await self.field_encryption.decrypt_field(
-                encrypted_memory["encrypted_content"], requesting_agent,
+                encrypted_memory["encrypted_content"],
+                requesting_agent,
+                requesting_namespace,
             )
             decrypted_memory["content"] = content
             decrypted_memory.pop("encrypted_content", None)
@@ -333,7 +398,9 @@ class MemoryEncryption:
 
             for key, encrypted_field in encrypted_memory["encrypted_metadata"].items():
                 decrypted_value = await self.field_encryption.decrypt_field(
-                    encrypted_field, requesting_agent,
+                    encrypted_field,
+                    requesting_agent,
+                    requesting_namespace,
                 )
                 decrypted_memory["metadata"][key] = decrypted_value
 
@@ -342,7 +409,9 @@ class MemoryEncryption:
         # Decrypt embeddings
         if "encrypted_embeddings" in encrypted_memory:
             embeddings = await self.field_encryption.decrypt_field(
-                encrypted_memory["encrypted_embeddings"], requesting_agent,
+                encrypted_memory["encrypted_embeddings"],
+                requesting_agent,
+                requesting_namespace,
             )
             decrypted_memory["embeddings"] = embeddings
             decrypted_memory.pop("encrypted_embeddings", None)
@@ -498,11 +567,25 @@ class EncryptionService:
             return encrypted_fields
 
     async def decrypt_agent_data(
-        self, encrypted_data: dict[str, Any], data_type: str, requesting_agent: str,
+        self,
+        encrypted_data: dict[str, Any],
+        data_type: str,
+        requesting_agent: str,
+        requesting_namespace: str,
     ) -> dict[str, Any]:
-        """Decrypt agent data with access control."""
+        """Decrypt agent data with cross-agent access control.
+
+        Args:
+            encrypted_data: Encrypted data
+            data_type: Type of data (memory, task, workflow, etc.)
+            requesting_agent: Agent requesting decryption
+            requesting_namespace: Requesting agent's verified namespace (MUST be from DB)
+
+        """
         if data_type == "memory":
-            return await self.memory_encryption.decrypt_memory(encrypted_data, requesting_agent)
+            return await self.memory_encryption.decrypt_memory(
+                encrypted_data, requesting_agent, requesting_namespace,
+            )
         else:
             # Generic field-level decryption
             decrypted_data = {}
@@ -510,7 +593,9 @@ class EncryptionService:
                 if field_name.startswith("encrypted_"):
                     original_field_name = field_name[10:]  # Remove "encrypted_" prefix
                     decrypted_value = await self.field_encryption.decrypt_field(
-                        field_value, requesting_agent,
+                        field_value,
+                        requesting_agent,
+                        requesting_namespace,
                     )
                     decrypted_data[original_field_name] = decrypted_value
                 else:

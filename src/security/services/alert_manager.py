@@ -10,6 +10,8 @@ from datetime import datetime
 from typing import Any
 
 from src.core.config import Settings
+from src.security.services.email_notifier import EmailNotifier
+from src.security.services.webhook_notifier import WebhookNotifier
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +43,10 @@ class AlertManager:
         # TODO: Move to Redis/database for distributed systems
         self.recent_alerts: dict[str, datetime] = {}
         self.alert_cooldown = 60  # seconds
+
+        # Initialize notifiers
+        self.email_notifier = EmailNotifier(settings)
+        self.webhook_notifier = WebhookNotifier(settings)
 
     async def check_and_notify(
         self,
@@ -189,11 +195,41 @@ class AlertManager:
         # Record alert to prevent spam
         self.recent_alerts[alert_key] = datetime.utcnow()
 
-        # TODO: Send email alert
-        # await self._send_email_alert(alert_message)
+        # Send email alert
+        await self.email_notifier.send_alert(
+            subject=alert_reason,
+            alert_message=alert_message,
+            alert_data={
+                "alert_reason": alert_reason,
+                "event_type": event_type,
+                "risk_score": risk_score,
+                "client_ip": client_ip,
+                "user_id": user_id,
+                "agent_id": agent_id,
+                "endpoint": endpoint,
+                "blocked": blocked,
+                "brute_force_info": brute_force_info,
+                "timestamp": timestamp,
+            },
+        )
 
-        # TODO: Send webhook alert
-        # await self._send_webhook_alert(alert_data)
+        # Send webhook alert
+        await self.webhook_notifier.send_alert(
+            subject=alert_reason,
+            alert_message=alert_message,
+            alert_data={
+                "alert_reason": alert_reason,
+                "event_type": event_type,
+                "risk_score": risk_score,
+                "client_ip": client_ip,
+                "user_id": user_id,
+                "agent_id": agent_id,
+                "endpoint": endpoint,
+                "blocked": blocked,
+                "brute_force_info": brute_force_info,
+                "timestamp": timestamp,
+            },
+        )
 
     def _is_in_cooldown(self, alert_key: str) -> bool:
         """

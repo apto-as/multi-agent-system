@@ -15,6 +15,7 @@ import redis
 from fastapi import HTTPException, Request, status
 
 from ..core.config import get_settings
+from ..security.security_audit_facade import get_audit_logger
 
 logger = logging.getLogger(__name__)
 
@@ -609,6 +610,26 @@ class RateLimiter:
         while client_stats.requests and client_stats.requests[0] < cutoff_time:
             client_stats.requests.popleft()
 
+    def _determine_severity(self, event_type: str) -> str:
+        """
+        Determine severity level based on event type.
+
+        Args:
+            event_type: Type of security event
+
+        Returns:
+            Severity level: CRITICAL, HIGH, MEDIUM, or LOW
+        """
+        critical_events = ["permanent_ban", "ddos_attack", "attack_bot_detected"]
+        high_events = ["rate_limit_exceeded", "suspicious_pattern", "temporary_ban"]
+
+        if event_type in critical_events:
+            return "CRITICAL"
+        elif event_type in high_events:
+            return "HIGH"
+        else:
+            return "MEDIUM"
+
     async def _log_security_event(
         self,
         event_type: str,
@@ -634,8 +655,27 @@ class RateLimiter:
                 },
             )
 
-        # TODO: Integrate with SecurityAuditLogger
+        # Log to standard logger
         logger.info(f"Security event: {event_type}", extra=event_data)
+
+        # Integrate with SecurityAuditFacade
+        try:
+            audit_logger = await get_audit_logger()
+            await audit_logger.log_event(
+                event_type=event_type,
+                event_data={
+                    "severity": self._determine_severity(event_type),
+                    "message": f"Rate limiter event: {event_type}",
+                    "endpoint": str(request.url) if request else None,
+                    "method": request.method if request else None,
+                    "user_agent": request.headers.get("User-Agent") if request else None,
+                    "blocked": True,  # Rate limit events are always blocked
+                    "details": extra_data or {},
+                },
+                ip_address=client_ip,
+            )
+        except Exception as e:
+            logger.error(f"Failed to log security event to audit logger: {e}", exc_info=True)
 
     def get_statistics(self) -> dict[str, Any]:
         """Get rate limiting statistics."""

@@ -20,6 +20,8 @@ from typing import Any
 
 from fastapi import HTTPException, status
 
+from .security_audit_facade import get_audit_logger
+
 logger = logging.getLogger(__name__)
 
 
@@ -547,7 +549,31 @@ class AccessControlManager:
             logger.error(
                 f"Multiple access denials for {context.requesting_agent} - possible attack",
             )
-            # TODO: Trigger security alert or temporary lockout
+
+            # Trigger security alert via SecurityAuditFacade
+            try:
+                audit_logger = await get_audit_logger()
+                await audit_logger.log_event(
+                    event_type="repeated_access_denial",
+                    event_data={
+                        "severity": "HIGH",
+                        "message": f"Agent {context.requesting_agent} had {len(recent_denials)} access denials in 10 minutes",
+                        "blocked": True,
+                        "denial_count": len(recent_denials),
+                        "resource_type": context.resource_type.value,
+                        "resource_id": context.resource_id,
+                        "action": context.action.value,
+                        "details": {
+                            "recent_denials_count": len(recent_denials),
+                            "time_window_minutes": 10,
+                            "alert_reason": "Possible brute force or unauthorized access attempt",
+                        },
+                    },
+                    agent_id=context.requesting_agent,
+                )
+                logger.info(f"Security alert logged for agent {context.requesting_agent}")
+            except Exception as e:
+                logger.error(f"Failed to log security alert: {e}", exc_info=True)
 
     def add_policy(self, policy: AccessPolicy):
         """Add new access control policy."""
