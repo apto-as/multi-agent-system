@@ -134,6 +134,43 @@ class Settings(BaseSettings):
     # Security logging
     audit_log_enabled: bool = Field(default=True)
 
+    # ==== EMAIL ALERTS CONFIGURATION (P0 Security TODO) ====
+    # SMTP configuration for security alert emails
+    smtp_host: str = Field(
+        default="",
+        description="SMTP server hostname (e.g., smtp.gmail.com) - Optional, set via TMWS_SMTP_HOST",
+    )
+    smtp_port: int = Field(
+        default=587,
+        ge=1,
+        le=65535,
+        description="SMTP server port (default: 587 for TLS)",
+    )
+    smtp_use_tls: bool = Field(
+        default=True,
+        description="Use TLS encryption for SMTP (recommended: True)",
+    )
+    smtp_username: str = Field(
+        default="",
+        description="SMTP authentication username - Optional, set via TMWS_SMTP_USERNAME",
+    )
+    smtp_password: str = Field(
+        default="",
+        description="SMTP authentication password - Optional, set via TMWS_SMTP_PASSWORD",
+    )
+    alert_email_from: str = Field(
+        default="",
+        description="Sender email address for alerts - Optional, set via TMWS_ALERT_EMAIL_FROM",
+    )
+    alert_email_to: str = Field(
+        default="",
+        description="Recipient email address for alerts - Optional, set via TMWS_ALERT_EMAIL_TO",
+    )
+    alert_webhook_url: str = Field(
+        default="",
+        description="Webhook URL for security alerts (Slack, Discord, etc.) - Optional, set via TMWS_ALERT_WEBHOOK_URL",
+    )
+
     # ==== PERFORMANCE & CACHING ====
     cache_ttl: int = Field(default=3600, ge=1, le=86400)
 
@@ -172,6 +209,26 @@ class Settings(BaseSettings):
             TMWS_DATA_DIR.mkdir(parents=True, exist_ok=True)
             values["database_url"] = f"sqlite+aiosqlite:///{TMWS_DATA_DIR}/tmws.db"
             logger.info(f"📁 Using smart default database: {values['database_url']}")
+
+        # SMTP Configuration (Email Alerts - Optional)
+        smtp_fields = {
+            "smtp_host": ["SMTP_HOST", "TMWS_SMTP_HOST"],
+            "smtp_port": ["SMTP_PORT", "TMWS_SMTP_PORT"],
+            "smtp_use_tls": ["SMTP_USE_TLS", "TMWS_SMTP_USE_TLS"],
+            "smtp_username": ["SMTP_USERNAME", "TMWS_SMTP_USERNAME"],
+            "smtp_password": ["SMTP_PASSWORD", "TMWS_SMTP_PASSWORD"],
+            "alert_email_from": ["ALERT_EMAIL_FROM", "TMWS_ALERT_EMAIL_FROM"],
+            "alert_email_to": ["ALERT_EMAIL_TO", "TMWS_ALERT_EMAIL_TO"],
+            "alert_webhook_url": ["ALERT_WEBHOOK_URL", "TMWS_ALERT_WEBHOOK_URL"],
+        }
+
+        for field, env_vars in smtp_fields.items():
+            if not values.get(field):
+                for env_var in env_vars:
+                    env_value = os.environ.get(env_var, "")
+                    if env_value:
+                        values[field] = env_value
+                        break
 
         # Secret Key
         if not values.get("secret_key"):
