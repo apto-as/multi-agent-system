@@ -55,10 +55,7 @@ class Settings(BaseSettings):
     )
 
     # ==== DATABASE CONFIGURATION ====
-    db_max_connections: int = Field(default=10, ge=1, le=100)
     db_echo_sql: bool = Field(default=False)  # Never log SQL in production
-    db_pool_pre_ping: bool = Field(default=True)
-    db_pool_recycle: int = Field(default=3600, ge=300, le=86400)
 
     # ==== LOCAL DATABASE (SQLite + Chroma) ====
     # v2.2.6: Full migration to SQLite (metadata) + Chroma (vectors)
@@ -75,33 +72,9 @@ class Settings(BaseSettings):
     ws_enabled: bool = Field(default=True, description="Enable WebSocket MCP server")
     ws_host: str = Field(default="127.0.0.1", description="WebSocket server host")
     ws_port: int = Field(default=8001, ge=1024, le=65535, description="WebSocket server port")
-    ws_max_connections: int = Field(
-        default=100, ge=1, le=1000, description="Max concurrent WebSocket connections",
-    )
-    ws_ping_interval: int = Field(
-        default=20, ge=5, le=300, description="WebSocket ping interval in seconds",
-    )
-    ws_ping_timeout: int = Field(
-        default=10, ge=1, le=60, description="WebSocket ping timeout in seconds",
-    )
-    ws_max_message_size: int = Field(
-        default=1048576,
-        ge=1024,
-        le=10485760,
-        description="Max WebSocket message size in bytes (1MB default)",
-    )
 
-    # ==== STDIO MCP CONFIGURATION ====
-    stdio_enabled: bool = Field(default=True, description="Enable stdio MCP bridge")
-    stdio_fallback: bool = Field(
-        default=True, description="Enable stdio fallback when WebSocket unavailable",
-    )
 
     # ==== JWT & AUTHENTICATION ====
-    jwt_algorithm: str = Field(default="HS256", pattern="^HS256|RS256|ES256$")
-    jwt_expire_minutes: int = Field(default=30, ge=5, le=1440)
-    jwt_refresh_expire_days: int = Field(default=7, ge=1, le=30)
-
     # Authentication mode control (404 Security Standard)
     auth_enabled: bool = Field(
         default=False,
@@ -113,9 +86,6 @@ class Settings(BaseSettings):
         default_factory=lambda: [],
         description="CORS origins - MUST be explicitly set for production",
     )
-    cors_credentials: bool = Field(default=False)
-    cors_methods: list[str] = Field(default=["GET", "POST", "PUT", "DELETE"])
-    cors_headers: list[str] = Field(default=["Content-Type", "Authorization"])
 
     # ==== SECURITY HARDENING ====
     security_headers_enabled: bool = Field(default=True)
@@ -132,11 +102,6 @@ class Settings(BaseSettings):
     # ==== RATE LIMITING & SECURITY ====
     rate_limit_enabled: bool = Field(default=True)
     rate_limit_requests: int = Field(default=100, ge=1, le=10000)
-    rate_limit_period: int = Field(default=60, ge=1, le=3600)
-
-    # Brute force protection
-    max_login_attempts: int = Field(default=5, ge=1, le=20)
-    lockout_duration_minutes: int = Field(default=15, ge=1, le=1440)
 
     # ==== REDIS CONFIGURATION ====
     redis_url: str = Field(default="redis://localhost:6379/0", description="Redis connection URL")
@@ -144,7 +109,6 @@ class Settings(BaseSettings):
     # ==== VECTORIZATION & CHROMADB (v2.2.6: 1024-dim Multilingual-E5 Large) ====
     embedding_model: str = Field(default="zylonai/multilingual-e5-large")
     vector_dimension: int = Field(default=1024, ge=1, le=4096)  # ✅ Updated to 1024-dim (v2.2.6)
-    max_embedding_batch_size: int = Field(default=32, ge=1, le=1000)
 
     # ChromaDB configuration
     chroma_persist_directory: str = Field(
@@ -152,7 +116,6 @@ class Settings(BaseSettings):
         description="ChromaDB persistence directory (smart default: ~/.tmws/chroma)",
     )
     chroma_collection: str = Field(default="tmws_memories")
-    chroma_cache_size: int = Field(default=10000, ge=100, le=100000)
 
     # ==== OLLAMA EMBEDDING CONFIGURATION (v2.3.0 - Ollama Required) ====
     # ⚠️ CRITICAL: Ollama is REQUIRED - no fallback mechanisms
@@ -165,29 +128,14 @@ class Settings(BaseSettings):
         default="http://localhost:11434", description="Ollama server URL for embedding generation",
     )
 
-    # Ollama embedding model (zylonai/multilingual-e5-large for cross-lingual support)
-    ollama_embedding_model: str = Field(
-        default="zylonai/multilingual-e5-large",
-        description="Ollama embedding model name (default: multilingual-e5-large for Japanese-English)",
-    )
-
-    # Ollama request timeout
-    ollama_timeout: float = Field(
-        default=30.0, ge=5.0, le=300.0, description="Ollama API request timeout in seconds",
-    )
-
     # ==== LOGGING & MONITORING ====
     log_level: str = Field(default="INFO", pattern="^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$")
-    log_file: str | None = None
-    log_format: str = Field(default="json", pattern="^(json|text)$")
 
     # Security logging
-    security_log_enabled: bool = Field(default=True)
     audit_log_enabled: bool = Field(default=True)
 
     # ==== PERFORMANCE & CACHING ====
     cache_ttl: int = Field(default=3600, ge=1, le=86400)
-    cache_max_size: int = Field(default=1000, ge=1, le=100000)
 
     # ==== VALIDATION RULES ====
     @model_validator(mode="before")
