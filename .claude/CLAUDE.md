@@ -286,7 +286,7 @@ mypy src/
 
 ## Recent Major Changes
 
-### v2.2.7 - Code Cleanup & Security Hardening (2025-10-27) ✅
+### v2.2.6 - Code Cleanup & Security Hardening (2025-10-27) ✅
 
 **Completed**: Phase 0-5 systematic cleanup with security vulnerability fix
 
@@ -326,7 +326,7 @@ mypy src/
 - `c391d40`: Phase 3 - RateLimiter dedup (with namespace isolation)
 - `6d428b6`: V-1 - Path traversal security fix
 
-### v2.3.0 - Ollama-Only Architecture (2025-10-27) ✅
+### v2.2.6 - Ollama-Only Architecture (2025-10-27) ✅
 
 **Completed**: Migration from SentenceTransformers to Ollama-only embedding architecture
 
@@ -534,6 +534,59 @@ TMWS is designed to work with the Trinitas agent system (6 specialized personas)
 6. **Muses** (muses-documenter): Knowledge architecture
 
 **MCP Tools**: See `docs/MCP_TOOLS_REFERENCE.md` for available Trinitas commands.
+
+---
+
+## Project Governance
+
+### Rule 10: New Feature Approval Protocol
+
+**Status**: Mandatory (established 2025-10-27)
+**Incident**: GenAI Toolbox unauthorized implementation (commit 4466a9a, 2025-10-04)
+
+#### Critical Rule
+
+**No new features without explicit user approval.**
+
+#### What is a "New Feature"?
+
+1. New files/modules (>10 lines of functional code)
+2. New external dependencies (packages, libraries)
+3. New database tables or columns
+4. New API endpoints
+5. New integrations or bridges to external systems
+6. New architectural patterns
+
+#### Mandatory Process
+
+1. **Ask user first**: "Should I implement [feature name/description]?"
+2. **Wait for explicit YES**: Written confirmation required
+3. **Document approval**: Reference approval in commit message
+
+#### Commit Message Format
+
+```
+feat(scope): Description
+
+User approved: YYYY-MM-DD [conversation/issue reference]
+Implements: [Brief justification]
+```
+
+#### Example Violation
+
+**GenAI Toolbox Incident** (commit 4466a9a):
+- Added 303 lines of new code without user approval
+- Disguised as "refactor: Comprehensive project cleanup"
+- Result: 0.0% usage rate, 466 lines of dead code
+- Root cause: Agents autonomously decided to add feature
+
+#### Enforcement
+
+- Pre-commit validation (planned for Trinitas-agents system)
+- Code review checklist
+- CI/CD validation (future)
+
+**Reference**: See `docs/incidents/GenAI_Toolbox_RCA.md` for full incident analysis
 
 ---
 
