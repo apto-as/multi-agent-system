@@ -8,6 +8,7 @@ Reference: SECURITY_AUDIT_PHASE_0-3.md
 """
 
 import pytest
+
 from src.utils.namespace import (
     NamespaceError,
     namespace_from_git_url,

@@ -18,7 +18,7 @@ class TaskCreateRequest(BaseModel):
     description: str = Field(..., description="Detailed task description")
     task_type: str = Field(default="general", description="Type of task")
     priority: str = Field(default="medium", description="Task priority (low, medium, high, urgent)")
-    assigned_persona_id: str | None = Field(None, description="Assigned persona ID")
+    assigned_agent_id: str | None = Field(None, description="Assigned agent ID")
     dependencies: list[str] = Field(default_factory=list, description="Task dependency IDs")
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
     estimated_duration: int | None = Field(None, description="Estimated duration in minutes")
@@ -34,7 +34,7 @@ class TaskUpdateRequest(BaseModel):
     status: str | None = Field(None, description="New status")
     priority: str | None = Field(None, description="New priority")
     progress: float | None = Field(None, ge=0.0, le=1.0, description="Progress percentage")
-    assigned_persona_id: str | None = Field(None, description="New assigned persona")
+    assigned_agent_id: str | None = Field(None, description="New assigned agent")
     result: dict[str, Any] | None = Field(None, description="Task result data")
     metadata: dict[str, Any] | None = Field(None, description="New metadata")
 
@@ -51,7 +51,7 @@ class TaskTools(BaseTool):
             description: str,
             task_type: str = "general",
             priority: str = "medium",
-            assigned_persona_id: str | None = None,
+            assigned_agent_id: str | None = None,
             dependencies: list[str] = None,
             metadata: dict[str, Any] = None,
             estimated_duration: int | None = None,
@@ -59,7 +59,7 @@ class TaskTools(BaseTool):
         ) -> dict[str, Any]:
             """Create a new task in the system.
 
-            Tasks can be assigned to personas and linked with dependencies.
+            Tasks can be assigned to agents and linked with dependencies.
             Supports priority levels, progress tracking, and metadata.
 
             Args:
@@ -67,7 +67,7 @@ class TaskTools(BaseTool):
                 description: Detailed task description
                 task_type: Type classification (general, technical, strategic, etc.)
                 priority: Priority level (low, medium, high, urgent)
-                assigned_persona_id: Optional persona assignment
+                assigned_agent_id: Optional agent assignment
                 dependencies: List of dependent task IDs
                 metadata: Additional structured data
                 estimated_duration: Estimated completion time in minutes
@@ -90,7 +90,7 @@ class TaskTools(BaseTool):
                 description=description,
                 task_type=task_type,
                 priority=priority,
-                assigned_persona_id=assigned_persona_id,
+                assigned_agent_id=assigned_agent_id,
                 dependencies=dependencies or [],
                 metadata=metadata or {},
                 estimated_duration=estimated_duration,
@@ -105,7 +105,7 @@ class TaskTools(BaseTool):
                     description=request.description,
                     task_type=request.task_type,
                     priority=request.priority,
-                    assigned_persona_id=request.assigned_persona_id,
+                    assigned_agent_id=request.assigned_agent_id,
                     dependencies=request.dependencies,
                     metadata=request.metadata,
                     estimated_duration=request.estimated_duration,
@@ -119,10 +119,8 @@ class TaskTools(BaseTool):
                     "task_type": task.task_type,
                     "status": task.status,
                     "priority": task.priority,
-                    "progress": task.progress,
-                    "assigned_persona_id": str(task.assigned_persona_id)
-                    if task.assigned_persona_id
-                    else None,
+                    "progress": task.progress_percentage,
+                    "assigned_agent_id": task.assigned_agent_id,
                     "dependencies": task.dependencies,
                     "estimated_duration": task.estimated_duration,
                     "due_date": task.due_date.isoformat() if task.due_date else None,
@@ -188,10 +186,8 @@ class TaskTools(BaseTool):
                     "title": task.title,
                     "status": task.status,
                     "priority": task.priority,
-                    "progress": task.progress,
-                    "assigned_persona_id": str(task.assigned_persona_id)
-                    if task.assigned_persona_id
-                    else None,
+                    "progress": task.progress_percentage,
+                    "assigned_agent_id": task.assigned_agent_id,
                     "result": task.result,
                     "updated_at": task.updated_at.isoformat(),
                     "status_change": request.status,
@@ -237,16 +233,16 @@ class TaskTools(BaseTool):
                                 },
                             )
 
-                # Get persona information if assigned
-                persona_info = None
-                if task.assigned_persona_id:
-                    persona_service = services["persona_service"]
-                    persona = await persona_service.get_persona(str(task.assigned_persona_id))
-                    if persona:
-                        persona_info = {
-                            "id": str(persona.id),
-                            "name": persona.name,
-                            "capabilities": persona.capabilities,
+                # Get agent information if assigned
+                agent_info = None
+                if task.assigned_agent_id:
+                    agent_service = services["agent_service"]
+                    agent = await agent_service.get_agent_by_id(task.assigned_agent_id)
+                    if agent:
+                        agent_info = {
+                            "agent_id": agent.agent_id,
+                            "display_name": agent.display_name,
+                            "capabilities": agent.capabilities,
                         }
 
                 return {
@@ -256,8 +252,8 @@ class TaskTools(BaseTool):
                     "task_type": task.task_type,
                     "status": task.status,
                     "priority": task.priority,
-                    "progress": task.progress,
-                    "assigned_persona": persona_info,
+                    "progress": task.progress_percentage,
+                    "assigned_agent": agent_info,
                     "dependencies": dependency_info,
                     "estimated_duration": task.estimated_duration,
                     "due_date": task.due_date.isoformat() if task.due_date else None,
@@ -274,7 +270,7 @@ class TaskTools(BaseTool):
         async def list_tasks(
             status: str | None = None,
             priority: str | None = None,
-            assigned_persona_id: str | None = None,
+            assigned_agent_id: str | None = None,
             task_type: str | None = None,
             limit: int = 50,
             include_completed: bool = True,
@@ -286,7 +282,7 @@ class TaskTools(BaseTool):
             Args:
                 status: Filter by status
                 priority: Filter by priority level
-                assigned_persona_id: Filter by assigned persona
+                assigned_agent_id: Filter by assigned agent
                 task_type: Filter by task type
                 limit: Maximum number of tasks to return
                 include_completed: Include completed tasks in results
@@ -304,8 +300,8 @@ class TaskTools(BaseTool):
                     filters["status"] = status
                 if priority:
                     filters["priority"] = priority
-                if assigned_persona_id:
-                    filters["assigned_persona_id"] = assigned_persona_id
+                if assigned_agent_id:
+                    filters["assigned_agent_id"] = assigned_agent_id
                 if task_type:
                     filters["task_type"] = task_type
                 if not include_completed:
@@ -328,7 +324,7 @@ class TaskTools(BaseTool):
                     "filters_applied": {
                         "status": status,
                         "priority": priority,
-                        "assigned_persona_id": assigned_persona_id,
+                        "assigned_agent_id": assigned_agent_id,
                         "task_type": task_type,
                         "include_completed": include_completed,
                     },
@@ -344,10 +340,8 @@ class TaskTools(BaseTool):
                             "task_type": t.task_type,
                             "status": t.status,
                             "priority": t.priority,
-                            "progress": t.progress,
-                            "assigned_persona_id": str(t.assigned_persona_id)
-                            if t.assigned_persona_id
-                            else None,
+                            "progress": t.progress_percentage,
+                            "assigned_agent_id": t.assigned_agent_id,
                             "due_date": t.due_date.isoformat() if t.due_date else None,
                             "created_at": t.created_at.isoformat(),
                         }
@@ -360,16 +354,16 @@ class TaskTools(BaseTool):
 
         @mcp.tool()
         async def assign_task(
-            task_id: str, persona_id: str, notes: str | None = None,
+            task_id: str, agent_id: str, notes: str | None = None,
         ) -> dict[str, Any]:
-            """Assign a task to a persona.
+            """Assign a task to an agent.
 
-            Updates task assignment and notifies the assigned persona.
-            Validates persona capabilities against task requirements.
+            Updates task assignment and notifies the assigned agent.
+            Validates agent capabilities against task requirements.
 
             Args:
                 task_id: ID of task to assign
-                persona_id: ID of persona to assign task to
+                agent_id: ID of agent to assign task to
                 notes: Optional assignment notes
 
             Returns:
@@ -379,17 +373,17 @@ class TaskTools(BaseTool):
 
             async def _assign_task(_session, services):
                 task_service = services["task_service"]
-                persona_service = services["persona_service"]
+                agent_service = services["agent_service"]
 
-                # Validate persona exists and is active
-                persona = await persona_service.get_persona(persona_id)
-                if not persona:
-                    raise ValueError(f"Persona {persona_id} not found")
-                if not persona.is_active:
-                    raise ValueError(f"Persona {persona.name} is not active")
+                # Validate agent exists and is active
+                agent = await agent_service.get_agent_by_id(agent_id)
+                if not agent:
+                    raise ValueError(f"Agent {agent_id} not found")
+                if agent.status != "active":
+                    raise ValueError(f"Agent {agent.display_name} is not active")
 
                 # Update task assignment
-                updates = {"assigned_persona_id": persona_id, "status": "assigned"}
+                updates = {"assigned_agent_id": agent_id, "status": "assigned"}
 
                 if notes:
                     task = await task_service.get_task(task_id)
@@ -402,10 +396,10 @@ class TaskTools(BaseTool):
                 return {
                     "task_id": str(updated_task.id),
                     "task_title": updated_task.title,
-                    "assigned_persona": {
-                        "id": str(persona.id),
-                        "name": persona.name,
-                        "capabilities": persona.capabilities,
+                    "assigned_agent": {
+                        "agent_id": agent.agent_id,
+                        "display_name": agent.display_name,
+                        "capabilities": agent.capabilities,
                     },
                     "assignment_date": datetime.utcnow().isoformat(),
                     "assignment_notes": notes,
@@ -414,7 +408,7 @@ class TaskTools(BaseTool):
                 }
 
             result = await self.execute_with_session(_assign_task)
-            return self.format_success(result, "Task assigned to persona successfully")
+            return self.format_success(result, "Task assigned to agent successfully")
 
         @mcp.tool()
         async def complete_task(
@@ -501,7 +495,7 @@ class TaskTools(BaseTool):
             """Get task analytics and performance metrics.
 
             Provides insights into task completion rates, duration accuracy,
-            persona performance, and system efficiency.
+            agent performance, and system efficiency.
 
             Returns:
                 Dict containing comprehensive task analytics
@@ -523,7 +517,7 @@ class TaskTools(BaseTool):
                 recent_tasks = await task_service.get_recent_completed_tasks(limit=100)
 
                 duration_accuracy = []
-                persona_performance = {}
+                agent_performance = {}
 
                 for task in recent_tasks:
                     # Duration accuracy analysis
@@ -535,18 +529,18 @@ class TaskTools(BaseTool):
                             )
                             duration_accuracy.append(accuracy)
 
-                    # Persona performance tracking
-                    if task.assigned_persona_id:
-                        persona_id = str(task.assigned_persona_id)
-                        if persona_id not in persona_performance:
-                            persona_performance[persona_id] = {
+                    # Agent performance tracking
+                    if task.assigned_agent_id:
+                        agent_id = task.assigned_agent_id
+                        if agent_id not in agent_performance:
+                            agent_performance[agent_id] = {
                                 "completed_tasks": 0,
                                 "total_duration": 0,
                             }
-                        persona_performance[persona_id]["completed_tasks"] += 1
+                        agent_performance[agent_id]["completed_tasks"] += 1
                         if task.metadata_json:
                             actual_duration = task.metadata_json.get("actual_duration_minutes", 0)
-                            persona_performance[persona_id]["total_duration"] += actual_duration
+                            agent_performance[agent_id]["total_duration"] += actual_duration
 
                 avg_duration_accuracy = (
                     sum(duration_accuracy) / len(duration_accuracy) if duration_accuracy else 0
@@ -565,8 +559,8 @@ class TaskTools(BaseTool):
                         ),
                         "tasks_analyzed": len(recent_tasks),
                     },
-                    "persona_performance": {
-                        persona_id: {
+                    "agent_performance": {
+                        agent_id: {
                             "completed_tasks": data["completed_tasks"],
                             "avg_duration_minutes": (
                                 data["total_duration"] / data["completed_tasks"]
@@ -574,7 +568,7 @@ class TaskTools(BaseTool):
                                 else 0
                             ),
                         }
-                        for persona_id, data in persona_performance.items()
+                        for agent_id, data in agent_performance.items()
                     },
                     "generated_at": datetime.utcnow().isoformat(),
                 }

@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from ..core.exceptions import NotFoundError, ValidationError
-from ..models import Persona, Task
+from ..models import Agent, Task
 from .base_service import BaseService
 
 logger = logging.getLogger(__name__)
@@ -31,9 +31,11 @@ class TaskService(BaseService):
         description: str,
         task_type: str = "general",
         priority: str = "medium",
-        assigned_persona_id: UUID | None = None,
+        assigned_agent_id: str | None = None,
         dependencies: list[str] = None,
         metadata: dict[str, Any] = None,
+        estimated_duration: int | None = None,
+        due_date: datetime | None = None,
     ) -> Task:
         """Create a new task with circular dependency checking."""
         # Validate priority
@@ -43,13 +45,13 @@ class TaskService(BaseService):
                 f"Invalid priority: {priority}. Must be one of {valid_priorities}",
             )
 
-        # Validate persona if assigned
-        if assigned_persona_id:
-            persona_result = await self.session.execute(
-                select(Persona).where(Persona.id == assigned_persona_id),
+        # Validate agent if assigned
+        if assigned_agent_id:
+            agent_result = await self.session.execute(
+                select(Agent).where(Agent.agent_id == assigned_agent_id),
             )
-            if not persona_result.scalar_one_or_none():
-                raise NotFoundError(f"Persona {assigned_persona_id} not found")
+            if not agent_result.scalar_one_or_none():
+                raise NotFoundError(f"Agent {assigned_agent_id} not found")
 
         # Check for circular dependencies before creating
         if dependencies:
@@ -64,10 +66,12 @@ class TaskService(BaseService):
             task_type=task_type,
             priority=priority,
             status="pending",
-            progress=0.0,
-            assigned_persona_id=assigned_persona_id,
+            progress_percentage=0.0,
+            assigned_agent_id=assigned_agent_id,
             dependencies=dependencies or [],
             metadata_json=metadata or {},
+            estimated_duration=estimated_duration,
+            due_date=due_date,
         )
 
         self.session.add(task)
@@ -80,7 +84,7 @@ class TaskService(BaseService):
     async def get_task(self, task_id: UUID) -> Task | None:
         """Get a task by ID."""
         result = await self.session.execute(
-            select(Task).where(Task.id == task_id).options(selectinload(Task.assigned_persona)),
+            select(Task).where(Task.id == task_id).options(selectinload(Task.assigned_agent)),
         )
         return result.scalar_one_or_none()
 
@@ -98,7 +102,7 @@ class TaskService(BaseService):
             "priority",
             "status",
             "progress",
-            "assigned_persona_id",
+            "assigned_agent_id",
             "dependencies",
             "result",
             "metadata_json",
@@ -163,12 +167,12 @@ class TaskService(BaseService):
         status: str = None,
         priority: str = None,
         task_type: str = None,
-        assigned_persona_id: UUID = None,
+        assigned_agent_id: str = None,
         limit: int = 50,
         offset: int = 0,
     ) -> list[Task]:
         """List tasks with filters."""
-        stmt = select(Task).options(selectinload(Task.assigned_persona))
+        stmt = select(Task).options(selectinload(Task.assigned_agent))
 
         conditions = []
         if status:
@@ -177,8 +181,8 @@ class TaskService(BaseService):
             conditions.append(Task.priority == priority)
         if task_type:
             conditions.append(Task.task_type == task_type)
-        if assigned_persona_id:
-            conditions.append(Task.assigned_persona_id == assigned_persona_id)
+        if assigned_agent_id:
+            conditions.append(Task.assigned_agent_id == assigned_agent_id)
 
         if conditions:
             stmt = stmt.where(and_(*conditions))
@@ -201,12 +205,12 @@ class TaskService(BaseService):
         return tasks
 
     async def get_pending_tasks(
-        self, assigned_persona_id: UUID = None, limit: int = 10,
+        self, assigned_agent_id: str = None, limit: int = 10,
     ) -> list[Task]:
-        """Get pending tasks, optionally filtered by persona."""
+        """Get pending tasks, optionally filtered by agent."""
         conditions = [Task.status == "pending"]
-        if assigned_persona_id:
-            conditions.append(Task.assigned_persona_id == assigned_persona_id)
+        if assigned_agent_id:
+            conditions.append(Task.assigned_agent_id == assigned_agent_id)
 
         stmt = select(Task).where(and_(*conditions))
         stmt = stmt.order_by(Task.created_at)

@@ -28,7 +28,6 @@ from src.core.exceptions import (
     ServiceInitializationError,
     log_and_raise,
 )
-from src.integration.genai_toolbox_bridge import register_genai_integration
 from src.services.memory_service import HybridMemoryService
 from src.services.ollama_embedding_service import get_ollama_embedding_service
 from src.services.vector_search_service import get_vector_search_service
@@ -77,9 +76,6 @@ class HybridMCPServer:
 
         # Register MCP tools
         self._register_tools()
-
-        # Register GenAI Toolbox integration
-        self.genai_bridge = register_genai_integration(self.mcp)
 
         logger.info(f"HybridMCPServer created: {self.instance_id}")
 
@@ -146,11 +142,13 @@ class HybridMCPServer:
         async def create_task(
             title: str,
             description: str = None,
-            priority: str = "MEDIUM",
-            assigned_persona: str = None,
+            priority: str = "medium",
+            assigned_agent_id: str = None,
+            estimated_duration: int = None,
+            due_date: str = None,
         ) -> dict:
             """Create coordinated task."""
-            return await self._create_task(title, description, priority, assigned_persona)
+            return await self._create_task(title, description, priority, assigned_agent_id, estimated_duration, due_date)
 
         @self.mcp.tool(name="get_agent_status", description="Get status of connected agents")
         async def get_agent_status() -> dict:
@@ -178,9 +176,6 @@ class HybridMCPServer:
             # Initialize Chroma vector service (async)
             await self.vector_service.initialize()
             logger.info("Chroma vector service initialized")
-
-            # Start GenAI Toolbox sidecar services
-            await self.genai_bridge.start_sidecar_services()
 
             logger.info(
                 f"HybridMCPServer initialized: {self.instance_id} "
@@ -297,13 +292,15 @@ class HybridMCPServer:
                 latency_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
                 self._update_avg_latency(latency_ms)
 
-                # Track ChromaDB vs SQLite
-                if latency_ms < 5.0:
+                # Track ChromaDB performance (TMWS always uses ChromaDB, no fallback)
+                # Latency threshold adjusted for realistic Ollama embedding generation
+                if latency_ms < 200.0:  # Normal: embedding (70-90ms) + search (<10ms)
                     self.metrics["chroma_hits"] += 1
                     search_source = "chromadb"
                 else:
-                    self.metrics["sqlite_fallbacks"] += 1
-                    search_source = "sqlite_fallback"
+                    # Slow path (e.g., cold start, network issues)
+                    self.metrics["sqlite_fallbacks"] += 1  # Metric name kept for compatibility
+                    search_source = "chromadb_slow"  # Clarified: still ChromaDB, but slow
 
                 logger.info(
                     f"Memory search: {len(memories)} results (latency: {latency_ms:.2f}ms, "
@@ -348,29 +345,43 @@ class HybridMCPServer:
             return {"error": str(e), "results": [], "count": 0, "error_type": "UnexpectedError"}
 
     async def _create_task(
-        self, title: str, description: str, priority: str, assigned_persona: str,
+        self, title: str, description: str, priority: str, assigned_agent_id: str, estimated_duration: int = None, due_date: str = None,
     ) -> dict:
         """Create task in SQLite database."""
         self.metrics["requests"] += 1
 
         try:
+            from datetime import datetime
+
             from src.services.task_service import TaskService
 
             async with get_session() as session:
                 task_service = TaskService(session)
 
+                # Parse due_date if provided
+                parsed_due_date = None
+                if due_date:
+                    try:
+                        parsed_due_date = datetime.fromisoformat(due_date)
+                    except ValueError:
+                        return {"error": f"Invalid due_date format: {due_date}", "error_type": "ValidationError"}
+
                 task = await task_service.create_task(
                     title=title,
                     description=description,
                     priority=priority,
-                    assigned_persona=assigned_persona,
+                    assigned_agent_id=assigned_agent_id,
+                    estimated_duration=estimated_duration,
+                    due_date=parsed_due_date,
                 )
 
                 return {
                     "task_id": str(task.id),
                     "status": "created",
-                    "assigned_to": assigned_persona or self.agent_id,
+                    "assigned_to": assigned_agent_id or self.agent_id,
                     "priority": priority,
+                    "estimated_duration": estimated_duration,
+                    "due_date": due_date,
                     "storage": "sqlite",
                 }
 
@@ -509,9 +520,6 @@ class HybridMCPServer:
     async def cleanup(self):
         """Cleanup on shutdown."""
         try:
-            # Shutdown GenAI Toolbox integration
-            await self.genai_bridge.shutdown()
-
             # Log final metrics
             logger.info(
                 f"HybridMCPServer shutdown: {self.instance_id}\n"
