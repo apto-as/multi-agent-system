@@ -9,7 +9,7 @@ import jwt
 
 from ..core.config import settings
 from ..models.agent import AccessLevel
-from ..utils.security import generate_api_key, hash_password, verify_password
+from ..utils.security import generate_api_key
 
 
 class AgentAuthService:

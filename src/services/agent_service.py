@@ -147,6 +147,7 @@ class AgentService:
         namespace: str = None,
         agent_type: str = None,
         access_level: str = None,
+        status: str = None,
         is_active: bool = None,
         limit: int = 50,
         offset: int = 0,
@@ -163,6 +164,8 @@ class AgentService:
                 conditions.append(Agent.agent_type == agent_type)
             if access_level:
                 conditions.append(Agent.access_level == access_level)
+            if status:
+                conditions.append(Agent.status == status)
             if is_active is not None:
                 conditions.append(Agent.is_active == is_active)
 
@@ -184,6 +187,7 @@ class AgentService:
                     "namespace": namespace,
                     "agent_type": agent_type,
                     "access_level": access_level,
+                    "status": status,
                     "is_active": is_active,
                 },
             )

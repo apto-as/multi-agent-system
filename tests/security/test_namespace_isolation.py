@@ -3,7 +3,6 @@ Security tests for namespace isolation in Memory model.
 Tests for P0-1 critical security fix.
 """
 
-import pytest
 from src.models.agent import AccessLevel
 from src.models.memory import Memory
 
