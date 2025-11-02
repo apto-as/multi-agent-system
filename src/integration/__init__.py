@@ -5,6 +5,4 @@ Note: FastAPI integration has been removed in v3.0.
 TMWS now operates as a pure MCP server.
 """
 
-from .genai_toolbox_bridge import GenAIToolboxBridge
-
-__all__ = ["GenAIToolboxBridge"]
+__all__ = []
