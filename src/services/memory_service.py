@@ -290,16 +290,63 @@ class HybridMemoryService:
         """
         try:
             # V-TTL-1, V-TTL-2, V-TTL-3: Validate TTL parameter (security-critical)
-            _validate_ttl_days(ttl_days)
+            try:
+                _validate_ttl_days(ttl_days)
+            except (ValueError, TypeError) as e:
+                # AUDIT LOG: TTL validation failed
+                validation_error = (
+                    "value_too_high" if "at most" in str(e)
+                    else "value_too_low" if "at least" in str(e)
+                    else "type_error" if isinstance(e, TypeError)
+                    else "invalid_value"
+                )
+                logger.warning(
+                    "ttl_validation_failed",
+                    extra={
+                        "agent_id": agent_id,
+                        "ttl_days": ttl_days,
+                        "validation_error": validation_error,
+                    },
+                )
+                raise  # Re-raise for exception handling below
 
             # Phase 1B Part 3: Validate access-level based TTL limits
-            _validate_access_level_ttl_limit(access_level, ttl_days)
+            try:
+                _validate_access_level_ttl_limit(access_level, ttl_days)
+            except ValidationError as e:
+                # AUDIT LOG: Access-level TTL limit exceeded
+                max_ttl = {
+                    AccessLevel.PRIVATE: 365,
+                    AccessLevel.TEAM: 180,
+                    AccessLevel.PUBLIC: 90,
+                    AccessLevel.SYSTEM: None,
+                }.get(access_level)
+                logger.warning(
+                    "access_level_ttl_limit_exceeded",
+                    extra={
+                        "agent_id": agent_id,
+                        "access_level": access_level.value,
+                        "ttl_days": ttl_days,
+                        "max_allowed": max_ttl,
+                    },
+                )
+                raise  # Re-raise for exception handling below
 
             # Calculate expiration timestamp if TTL specified
             expires_at = None
             if ttl_days is not None:
                 from datetime import datetime, timedelta, timezone
                 expires_at = datetime.now(timezone.utc) + timedelta(days=ttl_days)
+
+                # AUDIT LOG: TTL set successfully
+                logger.info(
+                    "memory_ttl_set",
+                    extra={
+                        "agent_id": agent_id,
+                        "ttl_days": ttl_days,
+                        "access_level": access_level.value,
+                    },
+                )
 
             # Generate embedding using Multilingual-E5
             embedding_vector = await self.embedding_service.encode_document(content)
@@ -355,7 +402,7 @@ class HybridMemoryService:
             # Never suppress user interrupts
             await self.session.rollback()
             raise
-        except (ChromaOperationError, SQLAlchemyError, ValidationError):
+        except (ChromaOperationError, SQLAlchemyError, ValidationError, ValueError, TypeError):
             # Expected errors - already handled/logged
             await self.session.rollback()
             raise
@@ -483,6 +530,28 @@ class HybridMemoryService:
                 memory.update_access()  # Increment access_count, update accessed_at, adjust relevance
                 await self.session.commit()
                 await self.session.refresh(memory)
+
+                # AUDIT LOG: Access tracked successfully
+                logger.info(
+                    "memory_access_tracked",
+                    extra={
+                        "memory_id": str(memory_id),
+                        "agent_id": memory.agent_id,
+                        "access_count": memory.access_count,
+                        "tracked": True,
+                    },
+                )
+            else:
+                # AUDIT LOG: Access rate limited
+                logger.info(
+                    "memory_access_rate_limited",
+                    extra={
+                        "memory_id": str(memory_id),
+                        "agent_id": memory.agent_id,
+                        "tracked": False,
+                        "reason": "rate_limited",
+                    },
+                )
 
         return memory
 
