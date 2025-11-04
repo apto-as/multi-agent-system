@@ -7,6 +7,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### ✨ Features (v2.3.0 Phase 1A)
+
+#### Access Tracking (Part 1)
+
+**実装内容:**
+- `get_memory()` に `track_access` パラメータを追加 (default=True)
+- アクセスごとに `access_count` を自動インクリメント
+- `accessed_at` タイムスタンプを自動更新
+- `relevance_score` を動的に調整 (0.99減衰 + 0.05ブースト)
+
+**パフォーマンス:**
+- オーバーヘッド: +0.2ms (許容範囲内)
+- オプトアウト可能: `track_access=False` で無効化
+
+**互換性:**
+- ゼロ破壊的変更 (デフォルト値により既存動作を保持)
+- 既存の4箇所の呼び出し元に影響なし
+
+**セキュリティ制限 (Phase 1A):**
+- ⚠️ **MEDIUM risk**: アクセストラッキングが認証チェック前に発生
+- Phase 1B (v2.3.1) で修正予定
+
+**テスト:**
+- 7新規テスト (`tests/unit/test_access_tracking.py`)
+- 394テスト合格 (387 baseline + 7 new)
+
+**関連コミット:** a1f2f86
+
+#### TTL Validation and Expiration Support (Part 2)
+
+**実装内容:**
+- `create_memory()` に `ttl_days` パラメータを追加 (1-3650日 or None)
+- セキュリティ検証関数 `_validate_ttl_days()` を実装
+- `expires_at` タイムスタンプの自動計算
+- 3つのセキュリティ攻撃をブロック:
+  * **V-TTL-1**: 極端な値 (>3650日) - ストレージ枯渇攻撃を防止
+  * **V-TTL-2**: ゼロ/負の値 - クリーンアップロジック回避を防止
+  * **V-TTL-3**: 型混同 (文字列、float等) - 予期しない動作を防止
+
+**パフォーマンス:**
+- オーバーヘッド: +0.05ms (無視できるレベル)
+
+**互換性:**
+- ゼロ破壊的変更 (ttl_days=None がデフォルト、永続メモリ)
+- 既存の全呼び出し元が変更なしで動作
+
+**セキュリティ制限 (Phase 1A):**
+- アクセスレベルに基づくTTL制限なし (Phase 1B で実装予定)
+- 名前空間ベースのクォータなし (Phase 1B で実装予定)
+- TTL作成のレート制限なし (Phase 1B で実装予定)
+
+**テスト:**
+- 13新規セキュリティテスト (`tests/security/test_ttl_validation.py`)
+- 407テスト合格 (394 + 13 new)
+- ゼロリグレッション
+
+**関連コミット:** 6a19f10
+
+### 📋 Documentation
+
+- Phase 1A セキュリティ制限を明示的に文書化
+- Phase 1B での強化計画を TODO コメントで追跡
+- 包括的な docstring (Args, Raises, Security, Performance)
+
 ## [2.2.7] - 2025-10-27
 
 ### 🔒 Security
