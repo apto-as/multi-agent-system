@@ -50,8 +50,9 @@ class TestJWTServiceInitialization:
 
     def test_jwt_service_secret_key_validation(self):
         """Test JWT service validates secret key length."""
-        with patch("src.security.jwt_service.get_settings") as mock_settings:
-            mock_settings.return_value.TMWS_SECRET_KEY = "short_key"
+        # settings is loaded at module level, so patch it directly
+        with patch("src.security.jwt_service.settings") as mock_settings:
+            mock_settings.secret_key = "short_key"  # Less than 32 chars
 
             with pytest.raises(ValueError, match="JWT secret key must be at least 32 characters"):
                 JWTService()
@@ -71,37 +72,41 @@ class TestPasswordHashing:
         """Test that password hashing produces different results each time."""
         password = "test_password_123"
 
-        hash1, salt1 = jwt_service.hash_password(password)
-        hash2, salt2 = jwt_service.hash_password(password)
+        # bcrypt includes random salt automatically
+        hash1 = hash_password(password)
+        hash2 = hash_password(password)
 
         # Different salts should produce different hashes
         assert hash1 != hash2
-        assert salt1 != salt2
-        assert len(salt1) == 32  # 16 bytes hex = 32 chars
-        assert len(salt2) == 32
+        # bcrypt hashes are 60 characters
+        assert len(hash1) == 60
+        assert len(hash2) == 60
 
     def test_password_verification_success(self):
         """Test successful password verification."""
         password = "secure_password_123"
-        password_hash, salt = jwt_service.hash_password(password)
+        password_hash = hash_password(password)
 
-        assert jwt_service.verify_password(password, password_hash, salt)
+        assert verify_password(password, password_hash)
 
     def test_password_verification_failure(self):
         """Test password verification with wrong password."""
         password = "secure_password_123"
         wrong_password = "wrong_password"
-        password_hash, salt = jwt_service.hash_password(password)
+        password_hash = hash_password(password)
 
-        assert not jwt_service.verify_password(wrong_password, password_hash, salt)
+        assert not verify_password(wrong_password, password_hash)
 
     def test_password_verification_wrong_salt(self):
-        """Test password verification with wrong salt."""
+        """Test password verification with wrong hash (bcrypt embeds salt)."""
         password = "secure_password_123"
-        password_hash, salt = jwt_service.hash_password(password)
-        wrong_salt = secrets.token_hex(16)
+        different_password = "different_password_456"
 
-        assert not jwt_service.verify_password(password, password_hash, wrong_salt)
+        password_hash = hash_password(password)
+        different_password_hash = hash_password(different_password)  # Hash of different password
+
+        # Verifying with hash of different password should fail
+        assert not verify_password(password, different_password_hash)
 
     @pytest.mark.performance
     def test_password_hashing_performance(self, performance_timer):
@@ -127,13 +132,12 @@ class TestPasswordHashing:
         password = "test_convenience_password"
 
         # Test convenience hash function
-        password_hash, salt = hash_password(password)
-        assert len(password_hash) > 50  # bcrypt hash length
-        assert len(salt) == 32
+        password_hash = hash_password(password)
+        assert len(password_hash) == 60  # bcrypt hash length
 
         # Test convenience verify function
-        assert verify_password(password, password_hash, salt)
-        assert not verify_password("wrong", password_hash, salt)
+        assert verify_password(password, password_hash)
+        assert not verify_password("wrong", password_hash)
 
 
 @pytest.mark.unit

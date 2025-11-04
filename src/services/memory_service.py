@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_session
 from src.core.exceptions import (
+    AuthorizationError,
     ChromaOperationError,
     EmbeddingGenerationError,
     MemoryCreationError,
@@ -29,6 +30,13 @@ from src.core.exceptions import (
 from src.models.memory import AccessLevel, Memory
 from src.services.ollama_embedding_service import get_ollama_embedding_service
 from src.services.vector_search_service import get_vector_search_service
+
+# Import AgentService after avoiding circular imports
+# AgentService is needed for namespace verification during authorization
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from src.services.agent_service import AgentService
 
 logger = logging.getLogger(__name__)
 
@@ -105,10 +113,17 @@ class HybridMemoryService:
     - Cross-agent sharing: < 15ms (achieved: 9.33ms)
     """
 
-    def __init__(self, session: AsyncSession):
+    def __init__(
+        self,
+        session: AsyncSession,
+        agent_service: "AgentService | None" = None,
+    ):
         self.session = session
         self.embedding_service = get_ollama_embedding_service()
         self.vector_service = get_vector_search_service()
+
+        # AgentService for authorization (lazy initialization if not provided)
+        self._agent_service = agent_service
 
         # Get model info for metadata tracking
         model_info = self.embedding_service.get_model_info()
@@ -118,6 +133,20 @@ class HybridMemoryService:
         # Note: Chroma initialization is deferred to first async method call
         # This is required because __init__ cannot be async
         self._initialized = False
+
+    @property
+    def agent_service(self) -> "AgentService":
+        """Get AgentService instance (lazy initialization)."""
+        if self._agent_service is None:
+            # Avoid circular import by importing here
+            from src.services.agent_service import AgentService
+            self._agent_service = AgentService(self.session)
+        return self._agent_service
+
+    @agent_service.setter
+    def agent_service(self, value: "AgentService") -> None:
+        """Set AgentService instance (for testing)."""
+        self._agent_service = value
 
     async def _ensure_initialized(self) -> None:
         """Ensure vector service is initialized (called from async methods)."""
@@ -295,35 +324,74 @@ class HybridMemoryService:
     async def get_memory(
         self,
         memory_id: UUID,
+        caller_agent_id: str | None = None,
         track_access: bool = True,
     ) -> Memory | None:
-        """Get memory by ID with optional access tracking.
+        """Get memory by ID with authorization and optional access tracking.
 
         Args:
             memory_id: UUID of the memory to retrieve
+            caller_agent_id: ID of the agent requesting access (for authorization).
+                             If None, skips authorization (backward compatibility, Phase 1A behavior).
+                             If provided with track_access=True, authorization is checked BEFORE tracking.
             track_access: If True (default), increment access_count and update accessed_at.
                           Set to False for internal operations (e.g., admin queries, batch processing)
 
         Returns:
             Memory object or None if not found
 
+        Raises:
+            AuthorizationError: If caller_agent_id is provided but agent not found or access denied
+
         Performance:
-            - +0.2ms overhead when track_access=True (acceptable for v2.3.0)
+            - +0.2ms overhead when track_access=True (Phase 1A)
+            - +0.5ms overhead when caller_agent_id provided (authorization check, Phase 1B)
             - No performance impact when track_access=False
 
-        Security:
-            TODO(v2.3.1): Add authorization check BEFORE tracking (Phase 1B)
-            - Current implementation tracks access before verifying permissions (MEDIUM risk)
-            - See: docs/v2.3.0/MASTER_IMPLEMENTATION_PLAN.md Phase 1B for mitigation
+        Security (Phase 1B):
+            - Authorization check occurs BEFORE access tracking (V-ACCESS-1 fix)
+            - Namespace verification from database (never trust user input)
+            - Prevents unauthorized agents from inflating access_count
         """
+        # Fetch memory from database
         result = await self.session.execute(select(Memory).where(Memory.id == memory_id))
         memory = result.scalar_one_or_none()
 
-        if memory is not None and track_access:
-            # TODO(v2.3.1): Add authorization check before tracking
-            # if not memory.is_accessible_by(caller_agent_id, verified_namespace):
-            #     raise AuthorizationError("Access denied")
+        # Memory not found - return None (no authorization needed)
+        if memory is None:
+            return None
 
+        # PHASE 1B SECURITY: Authorization check BEFORE tracking
+        if caller_agent_id is not None and track_access:
+            # Fetch agent to verify namespace (SECURITY-CRITICAL)
+            caller_agent = await self.agent_service.get_agent_by_id(caller_agent_id)
+            if caller_agent is None:
+                log_and_raise(
+                    AuthorizationError,
+                    f"Agent {caller_agent_id} not found",
+                    details={"memory_id": str(memory_id), "caller_agent_id": caller_agent_id},
+                )
+
+            # Verify namespace from database (NEVER trust user input)
+            verified_namespace = caller_agent.namespace
+
+            # Check authorization using Memory.is_accessible_by()
+            if not memory.is_accessible_by(caller_agent_id, verified_namespace):
+                log_and_raise(
+                    AuthorizationError,
+                    f"Access denied to memory {memory_id}",
+                    details={
+                        "memory_id": str(memory_id),
+                        "memory_owner": memory.agent_id,
+                        "memory_namespace": memory.namespace,
+                        "memory_access_level": memory.access_level.value,
+                        "caller_agent_id": caller_agent_id,
+                        "caller_namespace": verified_namespace,
+                    },
+                )
+
+        # Authorization passed (or skipped) - proceed with access tracking
+        if track_access:
             memory.update_access()  # Increment access_count, update accessed_at, adjust relevance
             await self.session.commit()
             await self.session.refresh(memory)

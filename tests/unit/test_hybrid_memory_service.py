@@ -103,6 +103,7 @@ async def test_create_memory_success(hybrid_service, mock_session, mock_vector_s
     result = await hybrid_service.create_memory(
         content="Test memory content",
         agent_id="test-agent",
+        namespace="test_namespace",
         importance=0.8,
         tags=["test"],
     )
@@ -128,6 +129,7 @@ async def test_create_memory_chroma_failure_raises(
         await hybrid_service.create_memory(
             content="Test memory",
             agent_id="test-agent",
+            namespace="test_namespace",
         )
 
     # Assert - SQLite should be rolled back (may be called by both create_memory and exception handler)
@@ -164,6 +166,7 @@ async def test_search_memories_chroma_first(hybrid_service, mock_vector_service,
     results = await hybrid_service.search_memories(
         query="search query",
         agent_id="test-agent",
+        namespace="test_namespace",
         min_similarity=0.7,
     )
 
@@ -184,6 +187,7 @@ async def test_search_memories_chroma_failure_raises(hybrid_service, mock_vector
         await hybrid_service.search_memories(
             query="search query",
             agent_id="test-agent",
+            namespace="test_namespace",
         )
 
 
@@ -192,9 +196,9 @@ async def test_batch_create_memories(hybrid_service, mock_session, mock_vector_s
     """Test batch memory creation with optimized Chroma sync."""
     # Arrange
     memories_data = [
-        {"content": "Memory 1", "agent_id": "agent-1", "importance": 0.7},
-        {"content": "Memory 2", "agent_id": "agent-2", "importance": 0.8},
-        {"content": "Memory 3", "agent_id": "agent-3", "importance": 0.9},
+        {"content": "Memory 1", "agent_id": "agent-1", "namespace": "test_namespace", "importance": 0.7},
+        {"content": "Memory 2", "agent_id": "agent-2", "namespace": "test_namespace", "importance": 0.8},
+        {"content": "Memory 3", "agent_id": "agent-3", "namespace": "test_namespace", "importance": 0.9},
     ]
 
     # Mock session.refresh to set IDs

@@ -87,6 +87,10 @@ class AuthorizationException(TMWSException):
     pass
 
 
+# Alias for consistency with Error suffix naming
+AuthorizationError = AuthorizationException
+
+
 class RateLimitException(TMWSException):
     """Rate limit exceeded errors."""
 
