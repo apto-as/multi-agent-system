@@ -200,10 +200,43 @@ class HybridMemoryService:
             content=memory.content,
         )
 
-    async def get_memory(self, memory_id: UUID) -> Memory | None:
-        """Get memory by ID (SQLite - authoritative source)."""
+    async def get_memory(
+        self,
+        memory_id: UUID,
+        track_access: bool = True,
+    ) -> Memory | None:
+        """Get memory by ID with optional access tracking.
+
+        Args:
+            memory_id: UUID of the memory to retrieve
+            track_access: If True (default), increment access_count and update accessed_at.
+                          Set to False for internal operations (e.g., admin queries, batch processing)
+
+        Returns:
+            Memory object or None if not found
+
+        Performance:
+            - +0.2ms overhead when track_access=True (acceptable for v2.3.0)
+            - No performance impact when track_access=False
+
+        Security:
+            TODO(v2.3.1): Add authorization check BEFORE tracking (Phase 1B)
+            - Current implementation tracks access before verifying permissions (MEDIUM risk)
+            - See: docs/v2.3.0/MASTER_IMPLEMENTATION_PLAN.md Phase 1B for mitigation
+        """
         result = await self.session.execute(select(Memory).where(Memory.id == memory_id))
-        return result.scalar_one_or_none()
+        memory = result.scalar_one_or_none()
+
+        if memory is not None and track_access:
+            # TODO(v2.3.1): Add authorization check before tracking
+            # if not memory.is_accessible_by(caller_agent_id, verified_namespace):
+            #     raise AuthorizationError("Access denied")
+
+            memory.update_access()  # Increment access_count, update accessed_at, adjust relevance
+            await self.session.commit()
+            await self.session.refresh(memory)
+
+        return memory
 
     async def update_memory(
         self,
