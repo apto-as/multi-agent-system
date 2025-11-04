@@ -26,6 +26,7 @@ from src.core.exceptions import (
     EmbeddingGenerationError,
     MemoryCreationError,
     MemorySearchError,
+    ValidationError,
     log_and_raise,
 )
 from src.models.memory import AccessLevel, Memory
@@ -96,6 +97,74 @@ def _validate_ttl_days(ttl_days: int | None) -> None:
         raise ValueError(
             f"ttl_days must be at most 3650 days (10 years), got {ttl_days}. "
             "For permanent storage, use ttl_days=None."
+        )
+
+
+def _validate_access_level_ttl_limit(access_level: AccessLevel, ttl_days: int | None) -> None:
+    """Validate TTL limits based on access level (Phase 1B Part 3).
+
+    Access-level based TTL limits prevent long-lived exposure of sensitive data:
+    - PRIVATE: max 365 days (1 year) - personal sensitive data
+    - TEAM: max 180 days (6 months) - team collaboration data
+    - PUBLIC: max 90 days (3 months) - publicly accessible data (most restricted)
+    - SYSTEM: None only (permanent) - system configuration and announcements
+
+    This builds on top of _validate_ttl_days() which enforces base limits (1-3650 days).
+
+    Args:
+        access_level: The access level of the memory
+        ttl_days: Optional TTL in days or None for permanent storage
+
+    Raises:
+        ValidationError: If ttl_days exceeds the maximum for the access level
+
+    Security Rationale:
+        - PUBLIC memories are most restricted (90 days) to limit exposure window
+        - TEAM memories have medium restriction (180 days) for collaboration needs
+        - PRIVATE memories have longest user-space limit (365 days)
+        - SYSTEM memories must be permanent (no TTL) for consistency
+
+    Examples:
+        >>> _validate_access_level_ttl_limit(AccessLevel.PRIVATE, 365)  # OK
+        >>> _validate_access_level_ttl_limit(AccessLevel.PRIVATE, 366)  # Raises ValidationError
+        >>> _validate_access_level_ttl_limit(AccessLevel.TEAM, 180)    # OK
+        >>> _validate_access_level_ttl_limit(AccessLevel.TEAM, 181)    # Raises ValidationError
+        >>> _validate_access_level_ttl_limit(AccessLevel.PUBLIC, 90)   # OK
+        >>> _validate_access_level_ttl_limit(AccessLevel.PUBLIC, 91)   # Raises ValidationError
+        >>> _validate_access_level_ttl_limit(AccessLevel.SYSTEM, None) # OK
+        >>> _validate_access_level_ttl_limit(AccessLevel.SYSTEM, 1)    # Raises ValidationError
+    """
+    # Define maximum TTL for each access level
+    ACCESS_LEVEL_TTL_LIMITS = {
+        AccessLevel.PRIVATE: 365,  # 1 year
+        AccessLevel.TEAM: 180,     # 6 months
+        AccessLevel.PUBLIC: 90,    # 3 months (most restricted)
+        AccessLevel.SYSTEM: None,  # Permanent only (no TTL allowed)
+    }
+
+    max_ttl = ACCESS_LEVEL_TTL_LIMITS[access_level]
+
+    # SYSTEM memories must NOT have a TTL (permanent only)
+    if access_level == AccessLevel.SYSTEM:
+        if ttl_days is not None:
+            raise ValidationError(
+                f"SYSTEM memories must be permanent (ttl_days=None). "
+                f"Got ttl_days={ttl_days}. "
+                f"SYSTEM memories are for configuration and announcements that should never expire."
+            )
+        return  # None is valid for SYSTEM
+
+    # For other access levels, None is always allowed (permanent storage)
+    if ttl_days is None:
+        return
+
+    # Check if TTL exceeds the maximum for this access level
+    if ttl_days > max_ttl:
+        raise ValidationError(
+            f"{access_level.value.upper()} memories cannot have TTL > {max_ttl} days. "
+            f"Got ttl_days={ttl_days}. "
+            f"This limit prevents long-lived exposure of {access_level.value} data. "
+            f"For permanent storage, use ttl_days=None."
         )
 
 
@@ -223,6 +292,9 @@ class HybridMemoryService:
             # V-TTL-1, V-TTL-2, V-TTL-3: Validate TTL parameter (security-critical)
             _validate_ttl_days(ttl_days)
 
+            # Phase 1B Part 3: Validate access-level based TTL limits
+            _validate_access_level_ttl_limit(access_level, ttl_days)
+
             # Calculate expiration timestamp if TTL specified
             expires_at = None
             if ttl_days is not None:
@@ -283,7 +355,7 @@ class HybridMemoryService:
             # Never suppress user interrupts
             await self.session.rollback()
             raise
-        except (ChromaOperationError, SQLAlchemyError):
+        except (ChromaOperationError, SQLAlchemyError, ValidationError):
             # Expected errors - already handled/logged
             await self.session.rollback()
             raise
