@@ -1009,6 +1009,148 @@ class HybridMemoryService:
         logger.info(f"Cleaned up {deleted_count} old memories")
         return deleted_count
 
+    async def find_expired_memories(self) -> list[Memory]:
+        """Find all memories that have expired (expires_at is in the past).
+
+        Returns:
+            List of expired Memory objects
+        """
+        from datetime import datetime, timezone
+
+        now = datetime.now(timezone.utc)
+
+        # Query for memories where expires_at is in the past
+        query = select(Memory).where(
+            and_(
+                Memory.expires_at.is_not(None),  # Has an expiration date
+                Memory.expires_at < now,  # Already expired
+            ),
+        )
+
+        result = await self.session.execute(query)
+        expired_memories = result.scalars().all()
+
+        return list(expired_memories)
+
+    async def cleanup_expired_memories(self, expired_memories: list[Memory]) -> int:
+        """Delete expired memories from both SQLite and ChromaDB.
+
+        Args:
+            expired_memories: List of Memory objects to delete
+
+        Returns:
+            Number of memories successfully deleted
+
+        Note:
+            ChromaDB deletion failures are logged but do not prevent SQLite deletion.
+        """
+        if not expired_memories:
+            return 0
+
+        deleted_count = 0
+
+        for memory in expired_memories:
+            try:
+                # Delete from ChromaDB (best-effort)
+                if self.vector_service:
+                    try:
+                        await self._ensure_initialized()
+                        await self.vector_service.delete_memory(str(memory.id))
+                    except (KeyboardInterrupt, SystemExit):
+                        # Never suppress user interrupts
+                        raise
+                    except ChromaOperationError as e:
+                        # ChromaDB errors (best-effort, log warning and continue)
+                        logger.warning(
+                            f"ChromaDB deletion failed for memory {memory.id}: {e}",
+                            extra={
+                                "memory_id": str(memory.id),
+                                "agent_id": memory.agent_id,
+                            },
+                        )
+                    except Exception as e:
+                        # Unexpected errors (best-effort, log warning and continue)
+                        logger.warning(
+                            f"Unexpected error during ChromaDB deletion for memory {memory.id}: {e}",
+                            extra={
+                                "memory_id": str(memory.id),
+                                "agent_id": memory.agent_id,
+                            },
+                        )
+
+                # Delete from SQLite
+                await self.session.delete(memory)
+                deleted_count += 1
+
+                # AUDIT LOG: Individual memory deletion
+                logger.info(
+                    "memory_expired_deleted",
+                    extra={
+                        "memory_id": str(memory.id),
+                        "agent_id": memory.agent_id,
+                        "access_level": memory.access_level.value,
+                        "expired_at": memory.expires_at.isoformat() if memory.expires_at else None,
+                    },
+                )
+
+            except (KeyboardInterrupt, SystemExit):
+                # Never suppress user interrupts
+                raise
+            except Exception as e:
+                # Unexpected error during deletion (log and continue with next memory)
+                logger.error(
+                    f"Failed to delete expired memory {memory.id}: {e}",
+                    extra={
+                        "memory_id": str(memory.id),
+                        "agent_id": memory.agent_id,
+                    },
+                )
+
+        # Commit all deletions
+        await self.session.commit()
+
+        # AUDIT LOG: Cleanup summary
+        logger.info(
+            "memories_expired_cleanup",
+            extra={
+                "deleted_count": deleted_count,
+            },
+        )
+
+        return deleted_count
+
+    async def run_expiration_cleanup(self) -> int:
+        """Complete workflow: find and cleanup all expired memories.
+
+        Returns:
+            Number of memories deleted
+        """
+        # Find expired memories
+        expired_memories = await self.find_expired_memories()
+
+        if not expired_memories:
+            # AUDIT LOG: No expired memories
+            logger.info(
+                "expiration_cleanup_completed",
+                extra={
+                    "deleted_count": 0,
+                },
+            )
+            return 0
+
+        # Cleanup expired memories
+        deleted_count = await self.cleanup_expired_memories(expired_memories)
+
+        # AUDIT LOG: Cleanup completed
+        logger.info(
+            "expiration_cleanup_completed",
+            extra={
+                "deleted_count": deleted_count,
+            },
+        )
+
+        return deleted_count
+
 
 # Dependency injection for FastAPI
 async def get_memory_service() -> HybridMemoryService:
