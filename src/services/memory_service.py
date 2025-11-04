@@ -11,6 +11,7 @@ Phase: 4a (TMWS v2.2.6)
 """
 
 import logging
+from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import UUID
 
@@ -352,6 +353,7 @@ class HybridMemoryService:
             - Authorization check occurs BEFORE access tracking (V-ACCESS-1 fix)
             - Namespace verification from database (never trust user input)
             - Prevents unauthorized agents from inflating access_count
+            - Rate limiting (5-second window) prevents DoS via access spam (V-RATE-1)
         """
         # Fetch memory from database
         result = await self.session.execute(select(Memory).where(Memory.id == memory_id))
@@ -392,9 +394,23 @@ class HybridMemoryService:
 
         # Authorization passed (or skipped) - proceed with access tracking
         if track_access:
-            memory.update_access()  # Increment access_count, update accessed_at, adjust relevance
-            await self.session.commit()
-            await self.session.refresh(memory)
+            # PHASE 1B SECURITY: Rate limiting (V-RATE-1)
+            # Check if enough time has passed since last access (5-second window)
+            should_track = True
+            if memory.accessed_at is not None:
+                time_since_last_access = datetime.now(timezone.utc) - memory.accessed_at
+                if time_since_last_access < timedelta(seconds=5):
+                    # Rate limited - skip tracking
+                    should_track = False
+                    logger.debug(
+                        f"Access tracking rate limited for memory {memory_id}: "
+                        f"{time_since_last_access.total_seconds():.1f}s since last access"
+                    )
+
+            if should_track:
+                memory.update_access()  # Increment access_count, update accessed_at, adjust relevance
+                await self.session.commit()
+                await self.session.refresh(memory)
 
         return memory
 

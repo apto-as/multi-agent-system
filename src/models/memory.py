@@ -5,7 +5,7 @@ Architecture: SQLite (metadata) + Chroma (vector storage)
 - Chroma: Stores all vector embeddings (1024-dim Multilingual-E5 Large)
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import sqlalchemy as sa
@@ -147,7 +147,7 @@ class Memory(TMWSBase, MetadataMixin):
     def update_access(self) -> None:
         """Update access metadata."""
         self.access_count += 1
-        self.accessed_at = datetime.utcnow()
+        self.accessed_at = datetime.now(timezone.utc)
         # Decay relevance over time, boost by access
         self.relevance_score = min(1.0, self.relevance_score * 0.99 + 0.05)
 
