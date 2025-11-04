@@ -338,6 +338,8 @@ class JWTService:
             "sub": str(user.id),
             "username": user.username,
             "token_type": "password_reset",
+            "iss": self.issuer,
+            "aud": self.audience,
             "iat": now,
             "exp": expire,
             "jti": secrets.token_urlsafe(16),

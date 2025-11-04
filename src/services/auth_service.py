@@ -16,7 +16,7 @@ from ..models.audit_log import SecurityEventSeverity, SecurityEventType
 from ..models.user import APIKey, APIKeyScope, RefreshToken, User, UserRole, UserStatus
 from ..security.jwt_service import jwt_service, token_blacklist
 from ..security.security_audit_facade import get_audit_logger
-from ..utils.security import hash_password_with_salt, verify_password_with_salt
+from ..utils.security import hash_password, verify_password
 
 logger = logging.getLogger(__name__)
 
@@ -81,8 +81,8 @@ class AuthService:
                 f"Password must be at least {self.password_min_length} characters long",
             )
 
-        # Hash password securely
-        password_hash, password_salt = hash_password_with_salt(password)
+        # Hash password securely with bcrypt
+        password_hash = hash_password(password)
 
         # Set default roles
         if roles is None:
@@ -93,7 +93,7 @@ class AuthService:
             email=email,
             full_name=full_name,
             password_hash=password_hash,
-            password_salt=password_salt,
+            password_salt=None,  # bcrypt embeds salt in hash
             roles=roles,
             agent_namespace=agent_namespace,
             password_changed_at=datetime.now(timezone.utc),
@@ -170,8 +170,8 @@ class AuthService:
                 await self._log_failed_login(username, ip_address, "account_disabled")
                 raise AccountDisabledError("Account is disabled")
 
-            # Verify password
-            if not verify_password_with_salt(password, user.password_hash, user.password_salt):
+            # Verify password (bcrypt)
+            if not verify_password(password, user.password_hash):
                 # Increment failed login attempts
                 user.increment_failed_login()
                 await session.commit()
@@ -408,18 +408,16 @@ class AuthService:
             if not user:
                 raise ValueError("User not found")
 
-            # Verify current password
-            if not verify_password_with_salt(
-                current_password, user.password_hash, user.password_salt,
-            ):
+            # Verify current password (bcrypt)
+            if not verify_password(current_password, user.password_hash):
                 raise InvalidCredentialsError("Current password is incorrect")
 
-            # Hash new password
-            password_hash, password_salt = hash_password_with_salt(new_password)
+            # Hash new password (bcrypt)
+            password_hash = hash_password(new_password)
 
             # Update password
             user.password_hash = password_hash
-            user.password_salt = password_salt
+            user.password_salt = None  # bcrypt embeds salt in hash
             user.password_changed_at = datetime.now(timezone.utc)
             user.force_password_change = False
 
@@ -435,7 +433,8 @@ class AuthService:
                 f"Password must be at least {self.password_min_length} characters long",
             )
 
-        password_hash, password_salt = hash_password_with_salt(new_password)
+        # Hash new password (bcrypt)
+        password_hash = hash_password(new_password)
 
         async with get_db_session() as session:
             await session.execute(
@@ -443,7 +442,7 @@ class AuthService:
                 .where(User.id == user_id)
                 .values(
                     password_hash=password_hash,
-                    password_salt=password_salt,
+                    password_salt=None,  # bcrypt embeds salt in hash
                     password_changed_at=datetime.now(timezone.utc),
                     force_password_change=True,
                     failed_login_attempts=0,

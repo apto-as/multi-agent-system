@@ -459,7 +459,7 @@ class TestBatchService:
         assert batch_service.processor._shutdown is True
 
     @pytest.mark.asyncio
-    @patch("src.services.batch_service.get_async_session")
+    @patch("src.services.batch_service.get_db_session")
     async def test_batch_create_memories(self, mock_get_session, batch_service, mock_session):
         """Test batch memory creation."""
         mock_get_session.return_value = mock_session
@@ -488,7 +488,7 @@ class TestBatchService:
         await batch_service.stop()
 
     @pytest.mark.asyncio
-    @patch("src.services.batch_service.get_async_session")
+    @patch("src.services.batch_service.get_db_session")
     async def test_batch_update_agent_performance(
         self, mock_get_session, batch_service, mock_session
     ):
@@ -536,7 +536,7 @@ class TestBatchService:
         await batch_service.stop()
 
     @pytest.mark.asyncio
-    @patch("src.services.batch_service.get_async_session")
+    @patch("src.services.batch_service.get_db_session")
     async def test_batch_cleanup_expired_memories(
         self, mock_get_session, batch_service, mock_session
     ):

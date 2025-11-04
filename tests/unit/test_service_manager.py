@@ -436,7 +436,7 @@ class TestServiceManager:
         # Mock None service (session-dependent)
         manager.registry.register("agent", None)
 
-        with patch("src.core.service_manager.get_async_session") as mock_session:
+        with patch("src.core.database.get_db_session") as mock_session:
             mock_session.return_value.__aenter__ = AsyncMock()
             mock_session.return_value.__aexit__ = AsyncMock()
 

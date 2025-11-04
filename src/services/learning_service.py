@@ -408,7 +408,7 @@ class LearningService:
             pattern = result.scalar_one_or_none()
 
             if not pattern:
-                raise NotFoundError("Learning pattern not found")
+                raise NotFoundError("LearningPattern", str(pattern_id))
 
             if not pattern.can_access(using_agent_id):
                 raise PermissionError("Access denied to this learning pattern")
@@ -473,7 +473,7 @@ class LearningService:
             pattern = result.scalar_one_or_none()
 
             if not pattern:
-                raise NotFoundError("Learning pattern not found")
+                raise NotFoundError("LearningPattern", str(pattern_id))
 
             # Only owner can update pattern
             if pattern.agent_id != updating_agent_id:
@@ -529,7 +529,7 @@ class LearningService:
             pattern = result.scalar_one_or_none()
 
             if not pattern:
-                raise NotFoundError("Learning pattern not found")
+                raise NotFoundError("LearningPattern", str(pattern_id))
 
             # Only owner can delete pattern
             if pattern.agent_id != deleting_agent_id:
