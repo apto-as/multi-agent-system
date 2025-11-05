@@ -11,7 +11,7 @@ import pytest
 import pytest_asyncio
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import NullPool
+from sqlalchemy.pool import StaticPool
 
 # Set test environment - MUST be set before importing src.core.config
 os.environ["TMWS_ENVIRONMENT"] = "test"
@@ -26,7 +26,11 @@ from src.core.config import get_settings  # noqa: E402
 from src.core.database import Base, get_db_session_dependency  # noqa: E402
 
 # Import all models to ensure Base.metadata discovers them
-from src.models.user import UserRole  # noqa: E402
+from src.models.agent import Agent  # noqa: E402
+from src.models.memory import Memory  # noqa: E402
+from src.models.task import Task  # noqa: E402
+from src.models.user import User, UserRole  # noqa: E402
+from src.models.workflow import Workflow  # noqa: E402
 
 # Get test settings
 settings = get_settings()
@@ -53,9 +57,16 @@ def event_loop():
 
 @pytest_asyncio.fixture
 async def test_engine():
-    """Create test database engine."""
+    """Create test database engine with StaticPool for :memory: database."""
     settings = get_settings()
-    engine = create_async_engine(settings.database_url_async, poolclass=NullPool, echo=False)
+    # CRITICAL: Use StaticPool for SQLite :memory: database
+    # This ensures all connections see the same in-memory database
+    engine = create_async_engine(
+        settings.database_url_async,
+        poolclass=StaticPool,  # Required for :memory: databases
+        echo=False,
+        connect_args={"check_same_thread": False},  # Required for SQLite async
+    )
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)  # Drop all tables for a clean slate
