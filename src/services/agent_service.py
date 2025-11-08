@@ -194,10 +194,21 @@ class AgentService:
             return []
 
     async def update_agent(self, agent_id: str, updates: dict[str, Any]) -> Agent:
-        """Update an existing agent."""
+        """Update an existing agent.
+
+        WARNING: This method does NOT have authorization checks for trust_score.
+        Use update_agent_trust_score() for trust score modifications (V-TRUST-1 fix).
+        """
         agent = await self.get_agent_by_id(agent_id)
         if not agent:
             raise NotFoundError(f"Agent {agent_id} not found")
+
+        # V-TRUST-1: Prevent trust_score modification via update_agent
+        if "trust_score" in updates:
+            raise ValidationError(
+                "Cannot update trust_score via update_agent(). "
+                "Use update_agent_trust_score() with SYSTEM privilege instead."
+            )
 
         try:
             # Apply updates
@@ -225,6 +236,110 @@ class AgentService:
                 extra={"agent_id": agent_id, "updates": updates},
             )
             raise DatabaseError(f"Failed to update agent: {e}") from e
+
+    async def update_agent_trust_score(
+        self,
+        agent_id: str,
+        new_score: float,
+        reason: str,
+        requesting_user: "Any",  # User object with privilege verification
+    ) -> float:
+        """Update agent trust score with SYSTEM authorization (V-TRUST-1 fix).
+
+        SECURITY-CRITICAL: Only SYSTEM users can modify trust scores directly.
+        Regular trust score updates should go through TrustService.update_trust_score()
+        which uses EWMA based on verification results.
+
+        Args:
+            agent_id: Target agent identifier
+            new_score: New trust score (0.0-1.0)
+            reason: Reason for score change (for audit log)
+            requesting_user: User with SYSTEM privilege
+
+        Returns:
+            New trust score
+
+        Raises:
+            AuthorizationError: If requesting_user lacks SYSTEM privilege
+            ValidationError: If new_score is out of range [0.0, 1.0]
+            NotFoundError: If agent doesn't exist
+            DatabaseError: If update fails
+
+        Performance target: <5ms P95
+
+        Example:
+            >>> from src.core.authorization import User
+            >>> admin_user = User(user_id="admin-1", role="system", is_admin=True)
+            >>> new_score = await service.update_agent_trust_score(
+            ...     agent_id="agent-123",
+            ...     new_score=0.75,
+            ...     reason="manual_override_after_review",
+            ...     requesting_user=admin_user
+            ... )
+        """
+        from src.core.authorization import verify_system_privilege
+
+        # V-TRUST-1: Authorization check (SYSTEM privilege required)
+        await verify_system_privilege(
+            requesting_user,
+            operation="update_trust_score",
+            details={"agent_id": agent_id, "new_score": new_score, "reason": reason},
+        )
+
+        # Validate score range
+        if not 0.0 <= new_score <= 1.0:
+            raise ValidationError(
+                f"trust_score must be in [0.0, 1.0], got {new_score}"
+            )
+
+        # Fetch agent
+        agent = await self.get_agent_by_id(agent_id)
+        if not agent:
+            raise NotFoundError(f"Agent {agent_id} not found")
+
+        try:
+            # Store old score for audit
+            old_score = agent.trust_score
+
+            # Update trust_score in metadata_json (backward compatibility)
+            # Some legacy code may read from Agent.metadata_json
+            if "metadata_json" in agent.__dict__:
+                metadata = agent.__dict__.get("metadata_json", {}) or {}
+                metadata["trust_score"] = new_score
+                agent.__dict__["metadata_json"] = metadata
+
+            # Update Agent.trust_score field (primary source)
+            agent.trust_score = new_score
+
+            await self.session.commit()
+            await self.session.refresh(agent)
+
+            # AUDIT LOG: Trust score updated by SYSTEM user
+            logger.warning(
+                "trust_score_manual_override",
+                extra={
+                    "agent_id": agent_id,
+                    "old_score": old_score,
+                    "new_score": new_score,
+                    "reason": reason,
+                    "requesting_user_id": requesting_user.user_id,
+                    "authorized": True,
+                },
+            )
+
+            return new_score
+
+        except (KeyboardInterrupt, SystemExit):
+            await self.session.rollback()
+            raise
+        except Exception as e:
+            await self.session.rollback()
+            logger.error(
+                f"Failed to update trust score for agent {agent_id}: {e}",
+                exc_info=True,
+                extra={"agent_id": agent_id, "new_score": new_score},
+            )
+            raise DatabaseError(f"Failed to update trust score: {e}") from e
 
     async def deactivate_agent(self, agent_id: str) -> Agent:
         """Deactivate an agent (soft delete)."""

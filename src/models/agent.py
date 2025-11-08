@@ -16,6 +16,7 @@ from .base import MetadataMixin, TMWSBase
 
 if TYPE_CHECKING:
     from .task import Task
+    from .verification import TrustScoreHistory, VerificationRecord
 
 
 class AccessLevel(str, Enum):
@@ -109,6 +110,16 @@ class Agent(TMWSBase, MetadataMixin):
     successful_tasks: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     average_response_time_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
 
+    # Trust and verification metrics
+    trust_score: Mapped[float] = mapped_column(
+        Float,
+        nullable=False,
+        default=0.5,
+        comment="Trust score (0.0 - 1.0) based on verification accuracy"
+    )
+    total_verifications: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    accurate_verifications: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
     # Authentication
     api_key_hash: Mapped[str | None] = mapped_column(
         Text, nullable=True, comment="Hashed API key for agent authentication",
@@ -127,6 +138,16 @@ class Agent(TMWSBase, MetadataMixin):
         foreign_keys="[Task.assigned_agent_id]",
         primaryjoin="Agent.agent_id == Task.assigned_agent_id",
     )
+    verification_records: Mapped[list["VerificationRecord"]] = relationship(
+        "VerificationRecord",
+        back_populates="agent",
+        cascade="all, delete-orphan",
+    )
+    trust_history: Mapped[list["TrustScoreHistory"]] = relationship(
+        "TrustScoreHistory",
+        back_populates="agent",
+        cascade="all, delete-orphan",
+    )
 
     # Indexes for performance
     __table_args__ = (
@@ -144,6 +165,19 @@ class Agent(TMWSBase, MetadataMixin):
         if self.total_tasks == 0:
             return 0.0
         return self.successful_tasks / self.total_tasks
+
+    @property
+    def verification_accuracy(self) -> float:
+        """Calculate verification accuracy rate."""
+        if self.total_verifications == 0:
+            return 0.5  # Neutral starting point
+        return self.accurate_verifications / self.total_verifications
+
+    @property
+    def requires_verification(self) -> bool:
+        """Check if agent requires verification for reports."""
+        # Agents with trust score below 0.7 require verification
+        return self.trust_score < 0.7
 
     def update_activity(self) -> None:
         """Update last activity timestamp."""

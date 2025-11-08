@@ -47,9 +47,18 @@ except ImportError:
     get_db_session_dependency = None  # Not needed in v3.0
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def event_loop():
-    """Create an instance of the default event loop for the test session."""
+    """Create an instance of the default event loop for each test function.
+
+    Changed from scope="session" to scope="function" to prevent
+    "RuntimeError: Event loop is closed" in full test suite runs.
+    Each test gets a fresh event loop, ensuring isolation.
+
+    Fix for: P0-1 Event Loop Fixture Issue (2025-10-27)
+    Root Cause: Session-scoped loop closed after first test, subsequent tests failed
+    Impact: Fixes 12+ event loop errors in full suite execution
+    """
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
@@ -84,6 +93,12 @@ async def test_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
 
     async with async_session() as session:
         yield session
+
+
+@pytest_asyncio.fixture
+async def db_session(test_session) -> AsyncGenerator[AsyncSession, None]:
+    """Alias for test_session for backward compatibility."""
+    yield test_session
 
 
 @pytest_asyncio.fixture

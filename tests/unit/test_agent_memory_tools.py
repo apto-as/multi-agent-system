@@ -349,31 +349,28 @@ class TestAgentMemoryTools:
         result = await agent_memory_tools._validate_agent("test_agent", "")
         assert result is False
 
-    def test_register_tools(self, agent_memory_tools):
-        """Test MCP tool registration."""
-        tools = agent_memory_tools.register_tools()
+    @pytest.mark.asyncio
+    async def test_register_tools(self, agent_memory_tools):
+        """Test MCP tool registration using decorator pattern.
 
-        assert len(tools) == 5
-        tool_names = [tool.name for tool in tools]
+        Note: With FastMCP decorator pattern, tools are registered
+        via @mcp.tool() decorators, not returned as a list.
+        This test verifies the registration method can be called
+        without errors.
+        """
+        from unittest.mock import MagicMock
 
-        assert "memory_create" in tool_names
-        assert "memory_search" in tool_names
-        assert "memory_share" in tool_names
-        assert "memory_consolidate" in tool_names
-        assert "memory_patterns" in tool_names
+        # Create a mock FastMCP instance
+        mock_mcp = MagicMock()
+        mock_tool_decorator = MagicMock()
+        mock_tool_decorator.return_value = lambda f: f  # Pass-through decorator
+        mock_mcp.tool.return_value = mock_tool_decorator.return_value
 
-        # Test tool schema structure
-        for tool in tools:
-            assert hasattr(tool, "name")
-            assert hasattr(tool, "description")
-            assert hasattr(tool, "input_schema")
-            assert hasattr(tool, "func")
+        # Call register_tools with mock MCP instance
+        await agent_memory_tools.register_tools(mock_mcp)
 
-            # Validate schema structure
-            schema = tool.input_schema
-            assert schema["type"] == "object"
-            assert "properties" in schema
-            assert "required" in schema
+        # Verify mcp.tool() was called 5 times (one per tool)
+        assert mock_mcp.tool.call_count == 5
 
 
 class TestAgentMemoryToolsIntegration:

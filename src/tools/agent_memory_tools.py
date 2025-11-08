@@ -4,7 +4,7 @@ These tools allow external agents to interact with the memory system via MCP pro
 
 from typing import Any
 
-from fastmcp.tools import Tool
+from fastmcp import FastMCP
 
 
 class AgentMemoryTools:
@@ -233,96 +233,145 @@ class AgentMemoryTools:
         # For now, simple validation
         return bool(agent_id and namespace)
 
-    def register_tools(self) -> list[Tool]:
-        """Register all MCP tools."""
-        return [
-            Tool(
-                name="memory_create",
-                description="Create a new memory",
-                input_schema={
-                    "type": "object",
-                    "properties": {
-                        "agent_id": {"type": "string", "description": "Agent identifier"},
-                        "content": {"type": "string", "description": "Memory content"},
-                        "namespace": {"type": "string", "default": "default"},
-                        "access_level": {
-                            "type": "string",
-                            "enum": ["private", "team", "shared", "public"],
-                        },
-                        "tags": {"type": "array", "items": {"type": "string"}},
-                        "context": {"type": "object"},
-                        "importance": {"type": "number", "minimum": 0, "maximum": 1},
-                    },
-                    "required": ["agent_id", "content"],
-                },
-                func=self.create_memory_tool,
-            ),
-            Tool(
-                name="memory_search",
-                description="Search memories using semantic search",
-                input_schema={
-                    "type": "object",
-                    "properties": {
-                        "agent_id": {"type": "string", "description": "Agent identifier"},
-                        "query": {"type": "string", "description": "Search query"},
-                        "namespace": {"type": "string", "default": "default"},
-                        "limit": {"type": "integer", "default": 10},
-                        "include_shared": {"type": "boolean", "default": True},
-                        "min_importance": {"type": "number", "minimum": 0, "maximum": 1},
-                    },
-                    "required": ["agent_id", "query"],
-                },
-                func=self.search_memories_tool,
-            ),
-            Tool(
-                name="memory_share",
-                description="Share a memory with other agents",
-                input_schema={
-                    "type": "object",
-                    "properties": {
-                        "agent_id": {"type": "string", "description": "Owner agent identifier"},
-                        "memory_id": {"type": "string", "description": "Memory ID to share"},
-                        "share_with_agents": {"type": "array", "items": {"type": "string"}},
-                        "permission": {"type": "string", "enum": ["read", "write", "delete"]},
-                    },
-                    "required": ["agent_id", "memory_id", "share_with_agents"],
-                },
-                func=self.share_memory_tool,
-            ),
-            Tool(
-                name="memory_consolidate",
-                description="Consolidate multiple memories",
-                input_schema={
-                    "type": "object",
-                    "properties": {
-                        "agent_id": {"type": "string", "description": "Agent identifier"},
-                        "memory_ids": {"type": "array", "items": {"type": "string"}},
-                        "consolidation_type": {
-                            "type": "string",
-                            "enum": ["summary", "merge", "compress"],
-                        },
-                        "namespace": {"type": "string", "default": "default"},
-                    },
-                    "required": ["agent_id", "memory_ids"],
-                },
-                func=self.consolidate_memories_tool,
-            ),
-            Tool(
-                name="memory_patterns",
-                description="Get learning patterns from memories",
-                input_schema={
-                    "type": "object",
-                    "properties": {
-                        "agent_id": {"type": "string", "description": "Agent identifier"},
-                        "pattern_type": {
-                            "type": "string",
-                            "enum": ["sequence", "correlation", "cluster"],
-                        },
-                        "namespace": {"type": "string", "default": "default"},
-                        "min_confidence": {"type": "number", "minimum": 0, "maximum": 1},
-                    },
-                    "required": ["agent_id"],
-                },
-                func=self.get_memory_patterns_tool,
-            ),
-        ]
+    async def register_tools(self, mcp: FastMCP) -> None:
+        """Register all MCP tools using FastMCP decorator pattern."""
+
+        @mcp.tool()
+        async def memory_create(
+            agent_id: str,
+            content: str,
+            namespace: str = "default",
+            access_level: str = "private",
+            tags: list[str] = None,
+            context: dict[str, Any] = None,
+            importance: float = 0.5,
+        ) -> dict[str, Any]:
+            """Create a new memory for an agent.
+
+            Args:
+                agent_id: Agent identifier
+                content: Memory content
+                namespace: Memory namespace (default: "default")
+                access_level: Access level (private, team, shared, public)
+                tags: List of tags for categorization
+                context: Additional context metadata
+                importance: Importance score (0.0 to 1.0)
+
+            Returns:
+                Dict with success status, memory_id, and metadata
+            """
+            return await self.create_memory_tool(
+                agent_id=agent_id,
+                content=content,
+                namespace=namespace,
+                access_level=access_level,
+                tags=tags,
+                context=context,
+                importance=importance,
+            )
+
+        @mcp.tool()
+        async def memory_search(
+            agent_id: str,
+            query: str,
+            namespace: str = "default",
+            limit: int = 10,
+            include_shared: bool = True,
+            min_importance: float = None,
+        ) -> dict[str, Any]:
+            """Search memories using semantic search.
+
+            Args:
+                agent_id: Agent identifier
+                query: Search query
+                namespace: Memory namespace (default: "default")
+                limit: Maximum number of results (default: 10)
+                include_shared: Include shared memories (default: True)
+                min_importance: Minimum importance threshold
+
+            Returns:
+                Dict with memories list and search metadata
+            """
+            return await self.search_memories_tool(
+                agent_id=agent_id,
+                query=query,
+                namespace=namespace,
+                limit=limit,
+                include_shared=include_shared,
+                min_importance=min_importance,
+            )
+
+        @mcp.tool()
+        async def memory_share(
+            agent_id: str,
+            memory_id: str,
+            share_with_agents: list[str],
+            permission: str = "read",
+        ) -> dict[str, Any]:
+            """Share a memory with other agents.
+
+            Args:
+                agent_id: Owner agent identifier
+                memory_id: Memory ID to share
+                share_with_agents: List of agent IDs to share with
+                permission: Permission level (read, write, delete)
+
+            Returns:
+                Dict with success status and sharing details
+            """
+            return await self.share_memory_tool(
+                agent_id=agent_id,
+                memory_id=memory_id,
+                share_with_agents=share_with_agents,
+                permission=permission,
+            )
+
+        @mcp.tool()
+        async def memory_consolidate(
+            agent_id: str,
+            memory_ids: list[str],
+            consolidation_type: str = "summary",
+            namespace: str = "default",
+        ) -> dict[str, Any]:
+            """Consolidate multiple memories into one.
+
+            Args:
+                agent_id: Agent identifier
+                memory_ids: List of memory IDs to consolidate
+                consolidation_type: Type of consolidation (summary, merge, compress)
+                namespace: Memory namespace (default: "default")
+
+            Returns:
+                Dict with consolidated memory details
+            """
+            return await self.consolidate_memories_tool(
+                agent_id=agent_id,
+                memory_ids=memory_ids,
+                consolidation_type=consolidation_type,
+                namespace=namespace,
+            )
+
+        @mcp.tool()
+        async def memory_patterns(
+            agent_id: str,
+            pattern_type: str = "sequence",
+            namespace: str = "default",
+            min_confidence: float = None,
+        ) -> dict[str, Any]:
+            """Get learning patterns from agent memories.
+
+            Args:
+                agent_id: Agent identifier
+                pattern_type: Pattern type (sequence, correlation, cluster)
+                namespace: Memory namespace (default: "default")
+                min_confidence: Minimum confidence threshold
+
+            Returns:
+                Dict with detected patterns and metadata
+            """
+            return await self.get_memory_patterns_tool(
+                agent_id=agent_id,
+                pattern_type=pattern_type,
+                namespace=namespace,
+                min_confidence=min_confidence,
+            )

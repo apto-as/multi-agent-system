@@ -97,6 +97,10 @@ class RateLimitException(TMWSException):
     pass
 
 
+# Alias for consistency with Error suffix naming
+RateLimitError = RateLimitException
+
+
 class VectorizationException(TMWSException):
     """Vector embedding errors."""
 
@@ -223,6 +227,30 @@ class MCPServerError(TMWSException):
 
 class MCPInitializationError(MCPServerError):
     """Raised when MCP server initialization fails."""
+
+    pass
+
+
+# Agent Management Errors
+class AgentNotFoundError(NotFoundError):
+    """Raised when agent is not found."""
+
+    def __init__(self, agent_id: str):
+        super().__init__("Agent", agent_id)
+
+
+class VerificationError(ServiceError):
+    """Raised when claim verification fails."""
+
+    pass
+
+
+class ImmutableRecordError(TMWSException):
+    """Raised when attempting to modify or delete an immutable record.
+
+    Used to protect verification evidence and audit trails from tampering.
+    This is a security-critical exception for maintaining evidence integrity.
+    """
 
     pass
 

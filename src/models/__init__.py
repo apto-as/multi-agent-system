@@ -14,6 +14,7 @@ from .memory import Memory, MemoryConsolidation, MemoryPattern, MemorySharing
 from .persona import Persona, PersonaRole, PersonaType
 from .task import Task, TaskPriority, TaskStatus
 from .user import User
+from .verification import TrustScoreHistory, VerificationRecord
 from .workflow import Workflow, WorkflowStatus, WorkflowType
 from .workflow_history import (
     WorkflowExecution,
@@ -56,4 +57,7 @@ __all__ = [
     "SecurityAuditLog",
     "SecurityEventType",
     "SecurityEventSeverity",
+    # Trust and verification
+    "VerificationRecord",
+    "TrustScoreHistory",
 ]
