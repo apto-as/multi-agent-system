@@ -28,9 +28,11 @@ from src.core.exceptions import (
     ServiceInitializationError,
     log_and_raise,
 )
+from src.services.expiration_scheduler import ExpirationScheduler
 from src.services.memory_service import HybridMemoryService
 from src.services.ollama_embedding_service import get_ollama_embedding_service
 from src.services.vector_search_service import get_vector_search_service
+from src.tools.expiration_tools import ExpirationTools
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -62,6 +64,9 @@ class HybridMCPServer:
         self.embedding_service = get_ollama_embedding_service()
         self.vector_service = get_vector_search_service()
 
+        # Expiration scheduler (initialized in initialize())
+        self.scheduler = None
+
         # Performance metrics
         self.metrics = {
             "requests": 0,
@@ -88,10 +93,10 @@ class HybridMCPServer:
         )
         async def store_memory(
             content: str,
-            importance: float = 0.5,
+            importance_score: float = 0.5,
             tags: list[str] = None,
             namespace: str = None,
-            metadata: dict = None,
+            context: dict = None,
         ) -> dict:
             """Store memory with ultra-fast Chroma sync.
 
@@ -108,7 +113,7 @@ class HybridMCPServer:
             from src.utils.namespace import validate_namespace
             validate_namespace(namespace)
 
-            return await self.store_memory_hybrid(content, importance, tags, namespace, metadata)
+            return await self.store_memory_hybrid(content, importance_score, tags, namespace, context)
 
         @self.mcp.tool(
             name="search_memories",
@@ -165,6 +170,10 @@ class HybridMCPServer:
             """Clear Chroma collection (use with caution)."""
             return await self.clear_chroma_cache()
 
+        # Register expiration tools (v2.3.0 security-integrated tools)
+        # Note: ExpirationTools.register_tools() will be called during initialize()
+        # after scheduler is created, since it needs scheduler instance
+
     async def initialize(self):
         """Initialize MCP server with database session and services."""
         try:
@@ -176,6 +185,21 @@ class HybridMCPServer:
             # Initialize Chroma vector service (async)
             await self.vector_service.initialize()
             logger.info("Chroma vector service initialized")
+
+            # Register expiration tools (v2.3.0 security-integrated tools)
+            # Note: Scheduler is NOT started automatically. Use start_scheduler MCP tool to start it.
+            # This avoids session lifecycle issues during initialization.
+            expiration_tools = ExpirationTools(
+                memory_service=None,  # Tools create their own session
+                scheduler=None,  # Scheduler will be created by start_scheduler tool
+            )
+            await expiration_tools.register_tools(self.mcp, get_session)
+            logger.info("Expiration tools registered (10 secure MCP tools, scheduler not auto-started)")
+
+            # Register verification tools (v2.3.0+ agent trust system)
+            from src.tools.verification_tools import register_verification_tools
+            await register_verification_tools(self.mcp)
+            logger.info("Verification tools registered (5 MCP tools for agent trust & verification)")
 
             logger.info(
                 f"HybridMCPServer initialized: {self.instance_id} "
@@ -200,10 +224,10 @@ class HybridMCPServer:
     async def store_memory_hybrid(
         self,
         content: str,
-        importance: float,
+        importance_score: float,
         tags: list[str],
         namespace: str,
-        metadata: dict,
+        context: dict,
     ) -> dict:
         """Store memory using HybridMemoryService.
 
@@ -222,9 +246,9 @@ class HybridMCPServer:
                     content=content,
                     agent_id=self.agent_id,
                     namespace=namespace,
-                    importance=importance,
+                    importance_score=importance_score,
                     tags=tags or [],
-                    metadata=metadata or {},
+                    context=context or {},
                 )
 
                 # Calculate latency
@@ -233,13 +257,13 @@ class HybridMCPServer:
 
                 logger.info(
                     f"Memory stored: {memory.id} (latency: {latency_ms:.2f}ms, "
-                    f"importance: {importance})",
+                    f"importance_score: {importance_score})",
                 )
 
                 return {
                     "memory_id": str(memory.id),
                     "status": "stored",
-                    "importance": importance,
+                    "importance_score": importance_score,
                     "latency_ms": round(latency_ms, 2),
                     "stored_in": ["sqlite", "chroma"],
                     "embedding_model": settings.embedding_model,
@@ -307,19 +331,10 @@ class HybridMCPServer:
                     f"source: {search_source})",
                 )
 
+                # search_memories() now returns list[dict] with all fields
                 return {
                     "query": query,
-                    "results": [
-                        {
-                            "id": str(m.id),
-                            "content": m.content,
-                            "similarity": getattr(m, "similarity", 0.0),
-                            "importance": m.importance_score,
-                            "tags": m.tags,
-                            "created_at": m.created_at.isoformat(),
-                        }
-                        for m in memories
-                    ],
+                    "results": memories,  # Already in dict format with similarity scores
                     "count": len(memories),
                     "latency_ms": round(latency_ms, 2),
                     "search_source": search_source,

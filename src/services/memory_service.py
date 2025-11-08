@@ -248,11 +248,11 @@ class HybridMemoryService:
         content: str,
         agent_id: str,
         namespace: str,
-        importance: float = 0.5,
+        importance_score: float = 0.5,
         tags: list[str] | None = None,
         access_level: AccessLevel = AccessLevel.PRIVATE,
         shared_with_agents: list[str] | None = None,
-        metadata: dict[str, Any] | None = None,
+        context: dict[str, Any] | None = None,
         parent_memory_id: UUID | None = None,
         ttl_days: int | None = None,
     ) -> Memory:
@@ -268,11 +268,11 @@ class HybridMemoryService:
             content: Memory content to store
             agent_id: Owner agent identifier
             namespace: Project-specific namespace (required)
-            importance: Importance score (0.0-1.0, default=0.5)
+            importance_score: Importance score (0.0-1.0, default=0.5)
             tags: Optional tags for categorization
             access_level: Access control level (default=PRIVATE)
             shared_with_agents: List of agent IDs with explicit access
-            metadata: Additional structured metadata
+            context: Additional structured metadata (renamed from 'metadata' for consistency)
             parent_memory_id: Optional parent memory for hierarchies
             ttl_days: Optional Time-To-Live in days (1-3650) or None for permanent
 
@@ -359,11 +359,11 @@ class HybridMemoryService:
                 namespace=namespace,
                 embedding_model=self.embedding_model_name,
                 embedding_dimension=self.embedding_dimension,
-                importance_score=importance,
+                importance_score=importance_score,
                 tags=tags or [],
                 access_level=access_level,
                 shared_with_agents=shared_with_agents or [],
-                context=metadata or {},
+                context=context or {},
                 parent_memory_id=parent_memory_id,
                 expires_at=expires_at,  # Set expiration timestamp
             )
@@ -394,7 +394,7 @@ class HybridMemoryService:
                 )
 
             logger.info(
-                f"Memory created: {memory.id} (agent: {agent_id}, importance: {importance})",
+                f"Memory created: {memory.id} (agent: {agent_id}, importance_score: {importance_score})",
             )
             return memory
 
@@ -559,17 +559,20 @@ class HybridMemoryService:
         self,
         memory_id: UUID,
         content: str | None = None,
-        importance: float | None = None,
+        importance_score: float | None = None,
         tags: list[str] | None = None,
-        metadata: dict[str, Any] | None = None,
-    ) -> Memory | None:
+        context: dict[str, Any] | None = None,
+    ) -> bool:
         """Update memory with re-sync to Chroma.
 
         If content changes, regenerate embedding and update both stores.
+
+        Returns:
+            bool: True if memory was updated successfully, False if memory not found
         """
         memory = await self.get_memory(memory_id)
         if not memory:
-            return None
+            return False
 
         # Update fields
         if content is not None and content != memory.content:
@@ -601,18 +604,18 @@ class HybridMemoryService:
                     details={"memory_id": str(memory_id)},
                 )
 
-        if importance is not None:
-            memory.importance_score = importance
+        if importance_score is not None:
+            memory.importance_score = importance_score
         if tags is not None:
             memory.tags = tags
-        if metadata is not None:
-            memory.context = metadata
+        if context is not None:
+            memory.context = context
 
         await self.session.commit()
         await self.session.refresh(memory)
 
         logger.info(f"Memory updated: {memory_id}")
-        return memory
+        return True
 
     async def delete_memory(self, memory_id: UUID) -> bool:
         """Delete memory from both SQLite and Chroma.
@@ -652,7 +655,7 @@ class HybridMemoryService:
         min_importance: float = 0.0,
         limit: int = 10,
         min_similarity: float = 0.7,
-    ) -> list[Memory]:
+    ) -> list[dict[str, Any]]:
         """Semantic search with Chroma (ultra-fast) + SQLite (authoritative metadata).
 
         Read-first pattern:
@@ -703,12 +706,29 @@ class HybridMemoryService:
                 min_importance=min_importance,
             )
 
-            # Preserve similarity scores from Chroma
+            # Preserve similarity scores from Chroma and convert to dicts
             similarity_map = {r["id"]: r["similarity"] for r in chroma_results}
-            for memory in memories:
-                memory.similarity = similarity_map.get(str(memory.id), 0.0)
 
-            return memories[:limit]
+            # Convert Memory objects to dicts with similarity scores
+            results = []
+            for memory in memories[:limit]:
+                memory_dict = {
+                    "id": str(memory.id),
+                    "content": memory.content,
+                    "agent_id": memory.agent_id,
+                    "namespace": memory.namespace,
+                    "importance_score": memory.importance_score,
+                    "tags": memory.tags,
+                    "access_level": memory.access_level.value,
+                    "shared_with_agents": memory.shared_with_agents,
+                    "context": memory.context,
+                    "created_at": memory.created_at.isoformat() if hasattr(memory.created_at, "isoformat") else str(memory.created_at),
+                    "updated_at": memory.updated_at.isoformat() if hasattr(memory.updated_at, "isoformat") else str(memory.updated_at),
+                    "similarity": similarity_map.get(str(memory.id), 0.0),
+                }
+                results.append(memory_dict)
+
+            return results
 
         except (KeyboardInterrupt, SystemExit):
             # Never suppress user interrupts
@@ -820,11 +840,11 @@ class HybridMemoryService:
                     namespace=data["namespace"],
                     embedding_model=self.embedding_model_name,
                     embedding_dimension=self.embedding_dimension,
-                    importance_score=data.get("importance", 0.5),
+                    importance_score=data.get("importance_score", 0.5),
                     tags=data.get("tags", []),
                     access_level=data.get("access_level", AccessLevel.PRIVATE),
                     shared_with_agents=data.get("shared_with_agents", []),
-                    context=data.get("metadata", {}),
+                    context=data.get("context", {}),
                 )
                 memories.append(memory)
                 embeddings.append(embedding.tolist())

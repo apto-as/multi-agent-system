@@ -133,7 +133,7 @@ class TaskService(BaseService):
 
     async def _handle_status_change(self, task: Task, new_status: str):
         """Handle special logic for status changes."""
-        valid_statuses = ["pending", "in_progress", "completed", "failed", "cancelled"]
+        valid_statuses = ["pending", "running", "completed", "failed", "cancelled", "paused"]
         if new_status not in valid_statuses:
             raise ValidationError(f"Invalid status: {new_status}")
 
@@ -141,7 +141,7 @@ class TaskService(BaseService):
         task.status = new_status
 
         # Set timestamps based on status
-        if new_status == "in_progress" and not task.started_at:
+        if new_status == "running" and not task.started_at:
             task.started_at = datetime.utcnow()
         elif new_status in ["completed", "failed", "cancelled"] and not task.completed_at:
             task.completed_at = datetime.utcnow()
@@ -240,9 +240,9 @@ class TaskService(BaseService):
         return all(dep.status == "completed" for dep in dependencies)
 
     async def count_active_tasks(self) -> int:
-        """Count tasks that are pending or in progress."""
+        """Count tasks that are pending or running."""
         stmt = select(func.count(Task.id)).where(
-            or_(Task.status == "pending", Task.status == "in_progress"),
+            or_(Task.status == "pending", Task.status == "running"),
         )
 
         result = await self.session.execute(stmt)
@@ -285,7 +285,7 @@ class TaskService(BaseService):
         return {
             "tasks_by_status": status_counts,
             "tasks_by_priority": priority_counts,
-            "active_tasks": status_counts.get("pending", 0) + status_counts.get("in_progress", 0),
+            "active_tasks": status_counts.get("pending", 0) + status_counts.get("running", 0),
             "completed_tasks": status_counts.get("completed", 0),
             "failed_tasks": status_counts.get("failed", 0),
             "avg_completion_time_seconds": float(avg_completion_seconds)

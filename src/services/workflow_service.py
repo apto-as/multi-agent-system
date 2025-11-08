@@ -317,9 +317,9 @@ class WorkflowService(BaseService):
                 },
             )
 
-            # Mark task as in progress
+            # Mark task as running
             await task_service.update_task(
-                task.id, {"status": "in_progress", "started_at": datetime.utcnow()},
+                task.id, {"status": "running", "started_at": datetime.utcnow()},
             )
 
             # Simulate task execution (in real implementation, this would be async)
