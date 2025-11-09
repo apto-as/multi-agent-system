@@ -1,5 +1,5 @@
 """
-Integration tests for Memory service with PostgreSQL backend.
+Integration tests for Memory service with SQLite backend.
 Tests the complete memory service functionality including vector operations.
 """
 
@@ -16,11 +16,11 @@ from src.services.memory_service import HybridMemoryService
 @pytest.mark.database
 @pytest.mark.integration
 class TestMemoryServiceIntegration:
-    """Test memory service with real PostgreSQL backend."""
+    """Test memory service with real SQLite backend."""
 
     @pytest.fixture
-    async def memory_service(self, postgresql_session, requires_postgresql):
-        """Create memory service with PostgreSQL session."""
+    async def memory_service(self, test_session):
+        """Create memory service with SQLite session."""
         from unittest.mock import MagicMock
 
         # Mock embedding service for testing (v2.2.6: UnifiedEmbeddingService)
@@ -42,10 +42,10 @@ class TestMemoryServiceIntegration:
             "src.services.memory_service.get_unified_embedding_service",
             return_value=mock_embedding_service,
         ):
-            service = HybridMemoryService(postgresql_session)  # v2.2.6: HybridMemoryService
+            service = HybridMemoryService(test_session)  # v2.2.6: HybridMemoryService
             yield service
 
-    async def test_create_memory_with_auto_embedding(self, memory_service, postgresql_session):
+    async def test_create_memory_with_auto_embedding(self, memory_service, test_session):
         """Test creating memory with automatic embedding generation."""
         memory_data = {
             "content": "Test memory content for automatic embedding",
@@ -63,11 +63,11 @@ class TestMemoryServiceIntegration:
         assert len(created_memory["embedding"]) == 1024  # v2.2.6: 1024-dim embedding
 
         # Verify in database
-        db_memory = await postgresql_session.get(Memory, created_memory["id"])
+        db_memory = await test_session.get(Memory, created_memory["id"])
         assert db_memory is not None
         assert db_memory.embedding is not None
 
-    async def test_semantic_search(self, memory_service, postgresql_session):
+    async def test_semantic_search(self, memory_service, test_session):
         """Test semantic search functionality."""
         # Create multiple memories
         memories_data = [
@@ -113,7 +113,7 @@ class TestMemoryServiceIntegration:
         assert any("artificial intelligence" in content for content in ai_contents)
         assert any("neural networks" in content for content in ai_contents)
 
-    async def test_memory_access_control(self, memory_service, postgresql_session):
+    async def test_memory_access_control(self, memory_service, test_session):
         """Test memory access control in search results."""
         # Create memories with different access levels
         memories_data = [
@@ -196,7 +196,7 @@ class TestMemoryServiceIntegration:
         # Top result should be either critical or important, not routine
         assert "Routine" not in top_result["content"]
 
-    async def test_memory_consolidation(self, memory_service, postgresql_session):
+    async def test_memory_consolidation(self, memory_service, test_session):
         """Test memory consolidation functionality."""
         # Create related memories
         related_memories = []
@@ -292,7 +292,7 @@ class TestMemoryServiceIntegration:
             )
             assert len(results) > 0
 
-    async def test_memory_deletion_and_cleanup(self, memory_service, postgresql_session):
+    async def test_memory_deletion_and_cleanup(self, memory_service, test_session):
         """Test memory deletion and database cleanup."""
         # Create memory
         memory_data = {
@@ -319,7 +319,7 @@ class TestMemoryServiceIntegration:
         assert deleted_memory is None
 
         # Verify database cleanup
-        db_memory = await postgresql_session.get(Memory, memory_id)
+        db_memory = await test_session.get(Memory, memory_id)
         assert db_memory is None
 
     async def test_concurrent_memory_operations(self, memory_service):

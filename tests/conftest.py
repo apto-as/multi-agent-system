@@ -27,9 +27,11 @@ from src.core.database import Base, get_db_session_dependency  # noqa: E402
 
 # Import all models to ensure Base.metadata discovers them
 from src.models.agent import Agent  # noqa: E402
+from src.models.learning_pattern import LearningPattern, PatternUsageHistory  # noqa: E402
 from src.models.memory import Memory  # noqa: E402
 from src.models.task import Task  # noqa: E402
 from src.models.user import User, UserRole  # noqa: E402
+from src.models.verification import TrustScoreHistory, VerificationRecord  # noqa: E402
 from src.models.workflow import Workflow  # noqa: E402
 
 # Get test settings
@@ -67,6 +69,8 @@ def event_loop():
 @pytest_asyncio.fixture
 async def test_engine():
     """Create test database engine with StaticPool for :memory: database."""
+    import src.core.database as db_module
+
     settings = get_settings()
     # CRITICAL: Use StaticPool for SQLite :memory: database
     # This ensures all connections see the same in-memory database
@@ -77,12 +81,19 @@ async def test_engine():
         connect_args={"check_same_thread": False},  # Required for SQLite async
     )
 
+    # Monkeypatch the global _engine so get_engine() returns our test engine
+    db_module._engine = engine
+    db_module._session_maker = None  # Clear session maker cache
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)  # Drop all tables for a clean slate
         await conn.run_sync(Base.metadata.create_all)
 
     yield engine
 
+    # Cleanup: reset global state
+    db_module._engine = None
+    db_module._session_maker = None
     await engine.dispose()
 
 

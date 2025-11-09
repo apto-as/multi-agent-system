@@ -543,7 +543,7 @@ stats = await get_system_stats()
 #   "chroma_cache_size": 10000,
 #   "redis_active_agents": 6,
 #   "redis_pending_tasks": 23,
-#   "postgresql_connection_pool": 10,
+#   "sqlite_connection_pool": 10,
 #   "memory_search_latency_p95_ms": 0.47,
 #   "agent_operation_latency_p95_ms": 0.8
 # }
