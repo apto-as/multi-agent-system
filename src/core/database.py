@@ -107,17 +107,19 @@ def get_session_maker():
 
 @asynccontextmanager
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
-    """Get database session with automatic cleanup.
+    """Get database session with automatic cleanup and commit.
 
     Usage:
         async with get_db_session() as session:
             # Use session here
-            pass
+            pass  # Auto-commits on successful exit
     """
     session_maker = get_session_maker()
     async with session_maker() as session:
         try:
             yield session
+            # Auto-commit on successful completion
+            await session.commit()
         except (KeyboardInterrupt, SystemExit):
             # Never suppress user interrupts
             await session.rollback()

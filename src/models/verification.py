@@ -6,16 +6,15 @@ from uuid import UUID, uuid4
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, JSON, String, Text, event
 from sqlalchemy.orm import Mapped, mapped_column, relationship, Session
 
-from src.core.database import Base
+from src.models.base import TMWSBase
 from src.core.exceptions import ImmutableRecordError
 
 
-class VerificationRecord(Base):
+class VerificationRecord(TMWSBase):
     """Record of a claim verification"""
 
     __tablename__ = "verification_records"
 
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     agent_id: Mapped[str] = mapped_column(
         String(64),
         ForeignKey("agents.agent_id", name="fk_verification_agent"),
@@ -27,13 +26,13 @@ class VerificationRecord(Base):
     verification_command: Mapped[str] = mapped_column(Text, nullable=False)
     verification_result: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     accurate: Mapped[bool] = mapped_column(Boolean, nullable=False, index=True)
-    evidence_memory_id: Mapped[UUID | None] = mapped_column(
+    evidence_memory_id: Mapped[str | None] = mapped_column(
+        String(36),
         ForeignKey("memories.id", name="fk_verification_evidence"),
         nullable=True
     )
     verified_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
     verified_by_agent_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
     # Relationships
     agent: Mapped["Agent"] = relationship("Agent", back_populates="verification_records")  # type: ignore
@@ -46,12 +45,11 @@ class VerificationRecord(Base):
         )
 
 
-class TrustScoreHistory(Base):
+class TrustScoreHistory(TMWSBase):
     """Historical record of trust score changes"""
 
     __tablename__ = "trust_score_history"
 
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     agent_id: Mapped[str] = mapped_column(
         String(64),
         ForeignKey("agents.agent_id", name="fk_trust_history_agent"),
@@ -60,7 +58,8 @@ class TrustScoreHistory(Base):
     )
     old_score: Mapped[float] = mapped_column(Float, nullable=False)
     new_score: Mapped[float] = mapped_column(Float, nullable=False)
-    verification_record_id: Mapped[UUID | None] = mapped_column(
+    verification_record_id: Mapped[str | None] = mapped_column(
+        String(36),
         ForeignKey("verification_records.id", name="fk_trust_history_verification"),
         nullable=True
     )

@@ -738,7 +738,7 @@ class SystemTools(BaseTool):
                         "boot_time": datetime.fromtimestamp(psutil.boot_time()).isoformat(),
                     },
                     "database_info": {
-                        "driver": "asyncpg",
+                        "driver": "aiosqlite",
                         "pool_size": "configured",  # This would come from actual settings
                         "connection_timeout": "30s",  # This would come from actual settings
                     },

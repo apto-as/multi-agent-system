@@ -232,11 +232,10 @@ class MCPInitializationError(MCPServerError):
 
 
 # Agent Management Errors
-class AgentNotFoundError(NotFoundError):
+class AgentNotFoundError(TMWSException):
     """Raised when agent is not found."""
 
-    def __init__(self, agent_id: str):
-        super().__init__("Agent", agent_id)
+    pass
 
 
 class VerificationError(ServiceError):

@@ -15,7 +15,6 @@ import time
 
 import pytest
 from sqlalchemy import and_, cast, or_, select
-from sqlalchemy.dialects.postgresql import ARRAY, JSONB, TEXT
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.memory import AccessLevel, Memory

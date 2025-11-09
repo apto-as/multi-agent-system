@@ -227,7 +227,7 @@ class TestVerificationService:
 
         # Create verification record
         verification_record = VerificationRecord(
-            id=uuid4(),
+
             agent_id="test-agent",
             claim_type=ClaimType.TEST_RESULT.value,
             claim_content={"return_code": 0},
@@ -245,6 +245,7 @@ class TestVerificationService:
         # Create evidence
         memory = await service._create_evidence_memory(
             agent_id="test-agent",
+            namespace="test",
             verification_record=verification_record,
             verification_duration_ms=150.5
         )
@@ -252,15 +253,15 @@ class TestVerificationService:
         assert memory.content is not None
         assert "✅" in memory.content  # Accurate indicator
         assert "pytest tests/" in memory.content
-        assert memory.metadata["verification_id"] == str(verification_record.id)
-        assert memory.metadata["accurate"] is True
+        assert memory.context["verification_id"] == str(verification_record.id)
+        assert memory.context["accurate"] is True
 
     async def test_format_evidence_accurate(self, db_session):
         """Test evidence formatting for accurate verification"""
         service = VerificationService(db_session)
 
         verification_record = VerificationRecord(
-            id=uuid4(),
+
             agent_id="test-agent",
             claim_type=ClaimType.TEST_RESULT.value,
             claim_content={"return_code": 0, "output_contains": "PASSED"},
@@ -287,7 +288,7 @@ class TestVerificationService:
         service = VerificationService(db_session)
 
         verification_record = VerificationRecord(
-            id=uuid4(),
+
             agent_id="test-agent",
             claim_type=ClaimType.TEST_RESULT.value,
             claim_content={"return_code": 0},
@@ -550,8 +551,9 @@ def mock_memory_service():
                 content=kwargs.get("content", ""),
                 agent_id=kwargs.get("agent_id", ""),
                 namespace=kwargs.get("namespace", "test"),
-                importance=kwargs.get("importance_score", 0.5),
-                metadata_json=json.dumps(kwargs.get("context", {}))
+                importance_score=kwargs.get("importance_score", 0.5),
+                context=kwargs.get("context", {}),
+                tags=kwargs.get("tags", [])
             )
 
     return MockMemoryService()

@@ -7,7 +7,8 @@ from datetime import datetime, timedelta
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import and_, desc, func, or_, select, text
+from sqlalchemy import and_, cast, desc, func, or_, select, text
+import sqlalchemy as sa
 
 from ..core.database import get_db_session
 from ..core.exceptions import NotFoundError, PermissionError, ValidationError
@@ -174,7 +175,7 @@ class LearningService:
             PermissionError: If access denied
 
         """
-        async with get_db_session(readonly=True) as session:
+        async with get_db_session() as session:
             result = await session.execute(
                 select(LearningPattern).where(LearningPattern.id == pattern_id),
             )
@@ -225,7 +226,7 @@ class LearningService:
         if cached:
             return cached
 
-        async with get_db_session(readonly=True) as session:
+        async with get_db_session() as session:
             query = select(LearningPattern).where(LearningPattern.agent_id == agent_id)
 
             if namespace:
@@ -292,11 +293,13 @@ class LearningService:
         if cached:
             return cached
 
-        async with get_db_session(readonly=True) as session:
+        async with get_db_session() as session:
             query = select(LearningPattern)
 
             # Access control filter
             if requesting_agent_id:
+                # SQLite-compatible access filter (v2.2.6+)
+                # For shared access, check if requesting_agent_id is in shared_with_agents JSON array
                 access_filter = or_(
                     LearningPattern.access_level == "public",
                     LearningPattern.access_level == "system",
@@ -308,10 +311,14 @@ class LearningService:
                         LearningPattern.access_level == "shared",
                         or_(
                             LearningPattern.agent_id == requesting_agent_id,
-                            func.jsonb_exists_any(
-                                LearningPattern.shared_with_agents,
-                                text(f"ARRAY['{requesting_agent_id}']"),
-                            ),
+                            # SQLite JSON array containment check (Parameterized - SQL Injection Safe)
+                            # SECURITY FIX (2025-11-08): Use bindparams() to prevent SQL injection (CVSS 9.8)
+                            # Previous vulnerable code: f"WHERE value = '{requesting_agent_id}'"
+                            # Attack vector: requesting_agent_id = "'; DROP TABLE learning_patterns; --"
+                            text(
+                                "EXISTS (SELECT 1 FROM json_each(learning_patterns.shared_with_agents) "
+                                "WHERE value = :requesting_agent_id)"
+                            ).bindparams(requesting_agent_id=requesting_agent_id),
                         ),
                     ),
                 )
@@ -325,15 +332,16 @@ class LearningService:
                     ),
                 )
 
-            # Text search
+            # Text search (SQLite-compatible v2.2.6+)
             if query_text:
+                # Search in pattern name or JSON data (simple text search in JSON)
                 search_filter = or_(
                     LearningPattern.pattern_name.ilike(f"%{query_text}%"),
-                    func.jsonb_path_exists(
-                        LearningPattern.pattern_data,
-                        text(
-                            f'\'$.*?(@.type() == "string" && @ like_regex "{query_text}" flag "i")\'',
-                        ),
+                    # SQLite: Search for text within JSON field (stored as text)
+                    # This is less sophisticated than PostgreSQL jsonb_path_exists
+                    # but works for basic text matching
+                    func.lower(cast(LearningPattern.pattern_data, sa.String)).like(
+                        f"%{query_text.lower()}%"
                     ),
                 )
                 query = query.where(search_filter)
@@ -564,7 +572,7 @@ class LearningService:
 
         since_date = datetime.now() - timedelta(days=days)
 
-        async with get_db_session(readonly=True) as session:
+        async with get_db_session() as session:
             # Base query
             base_query = select(LearningPattern)
 
@@ -578,38 +586,43 @@ class LearningService:
                 select(func.count()).select_from(base_query.subquery()),
             )
 
-            # Category distribution
-            category_dist = await session.execute(
+            # Category distribution - consume immediately
+            category_dist_result = await session.execute(
                 select(LearningPattern.category, func.count().label("count")).group_by(
                     LearningPattern.category,
                 ),
             )
+            category_dist = category_dist_result.all()
 
-            # Top patterns by usage
-            top_patterns = await session.execute(
+            # Top patterns by usage - consume immediately
+            top_patterns_result = await session.execute(
                 base_query.order_by(desc(LearningPattern.usage_count)).limit(10),
             )
+            top_patterns = top_patterns_result.scalars().all()
 
-            # Usage over time (recent usage)
-            recent_usage = await session.execute(
+            # Usage over time (recent usage) - SQLite-compatible v2.2.6+
+            # SQLite: Use date() function instead of PostgreSQL's date_trunc()
+            recent_usage_result = await session.execute(
                 select(
-                    func.date_trunc("day", PatternUsageHistory.used_at).label("day"),
+                    func.date(PatternUsageHistory.used_at).label("day"),
                     func.count().label("usage_count"),
                 )
                 .where(PatternUsageHistory.used_at >= since_date)
-                .group_by(func.date_trunc("day", PatternUsageHistory.used_at))
+                .group_by(func.date(PatternUsageHistory.used_at))
                 .order_by("day"),
             )
+            recent_usage = recent_usage_result.all()
 
-            # Success rate statistics
-            success_stats = await session.execute(
+            # Success rate statistics (SQLite-compatible v2.2.6+)
+            # Note: SQLite doesn't have stddev() - removed for compatibility
+            success_stats_result = await session.execute(
                 select(
                     func.avg(LearningPattern.success_rate).label("avg_success_rate"),
-                    func.stddev(LearningPattern.success_rate).label("stddev_success_rate"),
                     func.min(LearningPattern.success_rate).label("min_success_rate"),
                     func.max(LearningPattern.success_rate).label("max_success_rate"),
                 ).select_from(base_query.subquery()),
             )
+            success_stats = success_stats_result.first()
 
             analytics = {
                 "total_patterns": total_patterns or 0,
@@ -624,14 +637,15 @@ class LearningService:
                         "success_rate": pattern.success_rate,
                         "confidence_score": pattern.confidence_score,
                     }
-                    for pattern in top_patterns.scalars().all()
+                    for pattern in top_patterns
                 ],
+                # SQLite date() returns string (YYYY-MM-DD), not datetime
                 "recent_usage": [
-                    {"day": row.day.isoformat(), "usage_count": row.usage_count}
+                    {"day": row.day, "usage_count": row.usage_count}
                     for row in recent_usage
                 ],
-                "success_statistics": dict(success_stats.first()._asdict())
-                if success_stats.first()
+                "success_statistics": dict(success_stats._asdict())
+                if success_stats
                 else {},
             }
 
@@ -657,7 +671,7 @@ class LearningService:
             List of tuples (pattern, relevance_score)
 
         """
-        async with get_db_session(readonly=True) as session:
+        async with get_db_session() as session:
             # Get agent's usage history
             agent_history = await session.execute(
                 select(
@@ -686,9 +700,14 @@ class LearningService:
                         LearningPattern.access_level == "system",
                         and_(
                             LearningPattern.access_level == "shared",
-                            func.jsonb_exists_any(
-                                LearningPattern.shared_with_agents, text(f"ARRAY['{agent_id}']"),
-                            ),
+                            # SQLite JSON array containment check (Parameterized - SQL Injection Safe)
+                            # SECURITY FIX (2025-11-08): Use bindparams() to prevent SQL injection (CVSS 9.8)
+                            # Previous vulnerable code: f"WHERE value = '{agent_id}'"
+                            # Attack vector: agent_id = "'; DROP TABLE learning_patterns; --"
+                            text(
+                                "EXISTS (SELECT 1 FROM json_each(learning_patterns.shared_with_agents) "
+                                "WHERE value = :agent_id)"
+                            ).bindparams(agent_id=agent_id),
                         ),
                     ),
                 ),
