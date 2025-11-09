@@ -331,17 +331,32 @@ class TrustService:
 
     async def batch_update_trust_scores(
         self,
-        updates: list[tuple[str, bool, UUID | None]]
+        updates: list[tuple[str, bool, UUID | None]],
+        user: Any | None = None,
+        requesting_namespace: str | None = None
     ) -> dict[str, float]:
         """Batch update trust scores for multiple agents
 
+        SECURITY FIX (2025-11-09): Added authorization and namespace isolation
+        Prevents batch trust manipulation from AI agent mistakes (CVSS 6.5-7.0 LOCAL)
+
         Args:
             updates: List of (agent_id, accurate, verification_id) tuples
+            user: User performing update (None = automated from VerificationService)
+            requesting_namespace: Requesting namespace (for isolation check)
 
         Returns:
             Dictionary mapping agent_id to new trust score
 
+        Raises:
+            AgentNotFoundError: If agent doesn't exist or namespace mismatch
+            AuthorizationError: If user lacks required privilege
+
         Performance: <10ms for 100 updates
+
+        Security:
+            - V-TRUST-7: Authorization enforced (same as single update)
+            - V-TRUST-11: Namespace isolation enforced per agent
         """
         results = {}
 
@@ -349,7 +364,9 @@ class TrustService:
             new_score = await self.update_trust_score(
                 agent_id=agent_id,
                 accurate=accurate,
-                verification_id=verification_id
+                verification_id=verification_id,
+                user=user,
+                requesting_namespace=requesting_namespace
             )
             results[agent_id] = new_score
 

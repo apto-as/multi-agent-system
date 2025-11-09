@@ -10,6 +10,7 @@ Performance target: <500ms P95 per verification
 """
 import asyncio
 import json
+import shlex
 from datetime import datetime
 from enum import Enum
 from typing import Any
@@ -21,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.exceptions import (
     AgentNotFoundError,
     DatabaseError,
+    ValidationError,
     VerificationError,
     log_and_raise
 )
@@ -29,6 +31,34 @@ from src.models.memory import Memory
 from src.models.verification import VerificationRecord
 from src.services.memory_service import HybridMemoryService
 from src.services.trust_service import TrustService
+
+# Security: Command allowlist for verification
+# Prevents command injection from AI agent mistakes
+# Only these commands can be executed for verification
+ALLOWED_COMMANDS = {
+    "pytest",
+    "python",
+    "python3",
+    "coverage",
+    "ruff",
+    "mypy",
+    "black",
+    "isort",
+    "flake8",
+    "bandit",
+    "safety",
+    "pip",
+    # Shell utilities (safe)
+    "echo",
+    "cat",
+    "ls",
+    "pwd",
+    "whoami",
+    "true",
+    "false",
+    "exit",
+    "sleep",
+}
 
 
 class ClaimType(str, Enum):
@@ -227,6 +257,9 @@ class VerificationService:
     ) -> dict[str, Any]:
         """Execute verification command and capture result
 
+        Security: Commands are validated against an allowlist to prevent
+        command injection from AI agent mistakes.
+
         Args:
             command: Shell command to execute
             timeout_seconds: Maximum execution time
@@ -235,12 +268,48 @@ class VerificationService:
             Dictionary with command output and metadata
 
         Raises:
+            ValidationError: If command is not in allowlist
             VerificationError: If command fails or times out
         """
         try:
-            # Execute command in subprocess
-            process = await asyncio.create_subprocess_shell(
-                command,
+            # SECURITY FIX (2025-11-09): Validate command against allowlist
+            # Prevents command injection from AI agent mistakes (CVSS 6.5-7.0 LOCAL)
+            # Previous: Used create_subprocess_shell() which allowed arbitrary shell commands
+            # Attack vector: command = "pytest --version; rm -rf /" (AI agent mistake)
+            try:
+                cmd_parts = shlex.split(command)
+            except ValueError as e:
+                log_and_raise(
+                    ValidationError,
+                    f"Invalid command syntax: {command}",
+                    original_exception=e,
+                    details={"command": command}
+                )
+
+            if not cmd_parts:
+                log_and_raise(
+                    ValidationError,
+                    "Empty command provided",
+                    details={"command": command}
+                )
+
+            # Check if base command is in allowlist
+            base_command = cmd_parts[0]
+            if base_command not in ALLOWED_COMMANDS:
+                log_and_raise(
+                    ValidationError,
+                    f"Command not allowed: {base_command}. Allowed commands: {sorted(ALLOWED_COMMANDS)}",
+                    details={
+                        "command": command,
+                        "base_command": base_command,
+                        "allowed_commands": sorted(ALLOWED_COMMANDS)
+                    }
+                )
+
+            # Execute command with shell=False (safe mode)
+            # This prevents shell injection (pipes, redirects, etc. are not processed)
+            process = await asyncio.create_subprocess_exec(
+                *cmd_parts,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
@@ -267,7 +336,7 @@ class VerificationService:
                 "timestamp": datetime.utcnow().isoformat()
             }
 
-        except VerificationError:
+        except (ValidationError, VerificationError):
             raise
         except Exception as e:
             log_and_raise(
