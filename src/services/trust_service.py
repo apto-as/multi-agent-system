@@ -132,7 +132,7 @@ class TrustService:
             - V-TRUST-1: Only SYSTEM users or automated verification can update trust
             - V-TRUST-4: Namespace isolation enforced (agent must be in requesting namespace)
         """
-        from src.core.authorization import verify_system_privilege, verify_namespace_access
+        from src.core.authorization import verify_system_privilege
 
         try:
             # V-TRUST-1: Authorization check
@@ -143,7 +143,7 @@ class TrustService:
                 if verification_id is None:
                     log_and_raise(
                         AuthorizationError,
-                        f"Unauthorized trust score update: verification_id required for automated updates",
+                        "Unauthorized trust score update: verification_id required for automated updates",
                         details={
                             "agent_id": agent_id,
                             "reason": reason,
@@ -175,18 +175,17 @@ class TrustService:
                 )
 
             # V-TRUST-4: Namespace isolation check
-            if requesting_namespace is not None:
-                if agent.namespace != requesting_namespace:
-                    # Cross-namespace access denied
-                    log_and_raise(
-                        AuthorizationError,
-                        f"Agent {agent_id} not found in namespace {requesting_namespace}",
-                        details={
-                            "agent_id": agent_id,
-                            "agent_namespace": agent.namespace,
-                            "requesting_namespace": requesting_namespace,
-                        }
-                    )
+            if requesting_namespace is not None and agent.namespace != requesting_namespace:
+                # Cross-namespace access denied
+                log_and_raise(
+                    AuthorizationError,
+                    f"Agent {agent_id} not found in namespace {requesting_namespace}",
+                    details={
+                        "agent_id": agent_id,
+                        "agent_namespace": agent.namespace,
+                        "requesting_namespace": requesting_namespace,
+                    }
+                )
 
             # Calculate new score
             old_score = agent.trust_score

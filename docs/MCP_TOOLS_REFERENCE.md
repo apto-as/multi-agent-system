@@ -1,1169 +1,543 @@
-# TMWS v2.3.0 MCP Tools Reference
+# TMWS MCP Tools Reference
+## Complete Guide to 21 MCP Tools for Trinitas-agents
 
-**Complete reference for Model Context Protocol tools in TMWS**
+**Version**: v2.3.0
+**Target Audience**: Trinitas-agents Development Team
+**Last Updated**: 2025-11-14
+**Status**: Production-ready
 
 ---
 
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [Memory Management Tools](#memory-management-tools)
-3. [Agent Management Tools](#agent-management-tools)
-4. [Task Management Tools](#task-management-tools)
-5. [Workflow Management Tools](#workflow-management-tools)
-6. [System Tools](#system-tools)
-7. [Agent-Specific Usage Patterns](#agent-specific-usage-patterns)
-8. [Best Practices](#best-practices)
-9. [Troubleshooting](#troubleshooting)
+2. [Core Memory Tools (3)](#core-memory-tools)
+3. [System Tools (3)](#system-tools)
+4. [Expiration Management (10)](#expiration-management-tools)
+5. [Trust & Verification (5)](#trust--verification-tools)
+6. [Common Patterns](#common-patterns)
+7. [Error Handling](#error-handling)
+8. [Performance Metrics](#performance-metrics)
 
 ---
 
 ## Overview
 
-TMWS v2.3.0 provides **5 categories of MCP tools** for Claude Desktop integration:
+TMWS provides **21 MCP tools** organized into 4 categories. All tools are accessible via Claude Code once the TMWS MCP server is configured.
 
-1. **Memory Management**: Store and search semantic memories (HybridMemoryService)
-2. **Agent Management**: Register and coordinate agents (RedisAgentService)
-3. **Task Management**: Create and track tasks (RedisTaskService)
-4. **Workflow Management**: Execute multi-step workflows
-5. **System Tools**: Health checks, statistics, agent switching
+### Quick Facts
 
-### Performance Characteristics
+- **Protocol**: Model Context Protocol (MCP)
+- **Architecture**: Dual storage (SQLite + ChromaDB)
+- **Embedding Model**: Multilingual-E5-Large (1024 dimensions)
+- **Average Latency**: 2-20ms P95
+- **Authentication**: Optional API key/JWT (security-sensitive operations)
 
-| Tool Category | Typical Latency | Technology |
-|---------------|----------------|------------|
-| Memory Tools | 0.47ms (search), 2ms (store) | ChromaDB + PostgreSQL |
-| Agent Tools | < 1ms | Redis HASH + ZADD |
-| Task Tools | < 3ms | Redis Streams + ZADD |
-| Workflow Tools | Variable (depends on steps) | PostgreSQL + Redis |
-| System Tools | < 5ms | PostgreSQL + Redis + Chroma |
+### Tool Categories
+
+| Category | Count | Tools |
+|----------|-------|-------|
+| Core Memory | 3 | store_memory, search_memories, create_task |
+| System | 3 | get_agent_status, get_memory_stats, invalidate_cache |
+| Expiration | 10 | prune/stats/TTL management, scheduler control |
+| Verification | 5 | verify_and_record, trust scores, verification history |
 
 ---
 
-## Memory Management Tools
+## Core Memory Tools
+
+These are the most frequently used tools for storing and retrieving information.
 
 ### store_memory
 
-**Purpose**: Store semantic memory with 768-dimensional Multilingual-E5 embedding
-
-**Performance**: 2ms P95 (write-through to PostgreSQL + Chroma)
+Store information in hybrid semantic memory (SQLite + ChromaDB).
 
 **Signature**:
 ```python
-store_memory(
-    content: str,
-    importance: float = 0.5,
-    tags: list[str] = [],
-    namespace: str = "default",
-    access_level: str = "private",
-    metadata: dict = {}
-) -> dict
+store_memory(content: str, importance_score: float = 0.5, tags: list[str] = None, 
+             namespace: str = None, context: dict = None) -> dict
 ```
 
-**Parameters**:
-- `content` (required): Memory content (max 10,000 characters)
-- `importance`: Float 0.0-1.0 (0.0=low, 1.0=critical)
-- `tags`: List of tags for filtering (max 20 tags)
-- `namespace`: Namespace for isolation (default: "default")
-- `access_level`: "private", "team", "shared", "public"
-- `metadata`: Additional metadata (JSON, max 10KB)
+**Performance**: ~2-4ms P95 ✅
 
-**Returns**:
-```json
-{
-  "id": "uuid-here",
-  "content": "Memory content",
-  "importance": 0.9,
-  "tags": ["architecture", "decision"],
-  "embedding_model": "intfloat/multilingual-e5-base",
-  "created_at": "2025-01-09T12:00:00Z",
-  "agent_id": "athena-conductor"
-}
-```
-
-**Example Usage**:
-
+**Example**:
 ```python
-# Athena: Store architectural decision
-result = store_memory(
-    content="Adopted microservices architecture with event-driven communication",
-    importance=0.95,
-    tags=["architecture", "microservices", "decision", "strategic"],
-    namespace="project-x",
-    access_level="team",
-    metadata={
-        "decision_date": "2025-01-09",
-        "stakeholders": ["CTO", "Lead Architect"],
-        "impact": "high"
-    }
+result = await store_memory(
+    content="Phase 1-2 authentication features completed successfully.",
+    importance_score=0.85,
+    tags=["milestone", "phase1", "authentication"],
+    namespace="trinitas-agents"
 )
+print(f"Stored: {result['memory_id']}")
 ```
 
-**Write-Through Pattern**:
-1. Generate 768-dim Multilingual-E5 embedding
-2. Write to PostgreSQL (ACID commit) - **PRIMARY**
-3. Write to Chroma hot cache (best-effort) - **SECONDARY**
+**See**: [QUICK_START_GUIDE.md](QUICK_START_GUIDE.md#store_memory) for detailed examples.
 
 ---
 
 ### search_memories
 
-**Purpose**: Semantic similarity search using Chroma HNSW index
-
-**Performance**: 0.47ms P95 (Chroma) or 50-200ms (PostgreSQL fallback)
+Search semantic memories using ChromaDB vector search.
 
 **Signature**:
 ```python
-search_memories(
-    query: str,
-    limit: int = 10,
-    min_similarity: float = 0.7,
-    namespace: str = "default",
-    tags: list[str] = [],
-    importance_threshold: float = 0.0
-) -> dict
+search_memories(query: str, limit: int = 10, min_similarity: float = 0.7,
+                namespace: str = None, tags: list[str] = None) -> dict
 ```
 
-**Parameters**:
-- `query` (required): Search query (natural language)
-- `limit`: Max results (default: 10, max: 100)
-- `min_similarity`: Cosine similarity threshold 0.0-1.0 (default: 0.7)
-- `namespace`: Namespace filter (default: "default")
-- `tags`: Tag filters (AND logic)
-- `importance_threshold`: Min importance filter
+**Performance**: ~5-20ms P95 ✅
 
-**Returns**:
-```json
-{
-  "query": "architecture decisions",
-  "results": [
-    {
-      "id": "uuid-1",
-      "content": "Adopted microservices...",
-      "similarity": 0.92,
-      "importance": 0.95,
-      "tags": ["architecture", "decision"],
-      "created_at": "2025-01-09T12:00:00Z"
-    }
-  ],
-  "count": 1,
-  "search_source": "chroma",
-  "latency_ms": 0.47
-}
-```
-
-**Example Usage**:
-
+**Example**:
 ```python
-# Artemis: Search for optimization patterns
-results = search_memories(
-    query="database query optimization techniques",
-    limit=10,
-    min_similarity=0.75,
-    tags=["performance", "optimization"],
-    importance_threshold=0.6
+results = await search_memories(
+    query="What did I work on this week?",
+    namespace="trinitas-agents",
+    tags=["daily-standup"]
 )
-
 for memory in results["results"]:
-    print(f"[{memory['similarity']:.2f}] {memory['content']}")
+    print(f"[{memory['similarity']:.0%}] {memory['content'][:100]}")
 ```
 
-**Read-First Pattern**:
-1. Generate query embedding with "query:" prefix
-2. Search Chroma HNSW index (0.47ms) - **PRIMARY**
-3. Hydrate full Memory objects from PostgreSQL
-4. Fallback to PostgreSQL pgvector if Chroma fails
+**See**: [QUICK_START_GUIDE.md](QUICK_START_GUIDE.md#search_memories) for detailed examples.
 
 ---
-
-### update_memory
-
-**Purpose**: Update existing memory (content, importance, tags)
-
-**Performance**: 1.8ms P95
-
-**Signature**:
-```python
-update_memory(
-    memory_id: str,
-    content: str = None,
-    importance: float = None,
-    tags: list[str] = None,
-    metadata: dict = None
-) -> dict
-```
-
-**Example Usage**:
-
-```python
-# Update importance after validation
-update_memory(
-    memory_id="uuid-here",
-    importance=1.0,  # Upgrade to critical
-    tags=["verified", "production", "critical"]
-)
-```
-
----
-
-### delete_memory
-
-**Purpose**: Delete memory from PostgreSQL and Chroma
-
-**Performance**: 1.2ms P95
-
-**Signature**:
-```python
-delete_memory(memory_id: str) -> dict
-```
-
-**Example Usage**:
-
-```python
-# Hestia: Delete security vulnerability after fix
-delete_memory(memory_id="vulnerability-uuid")
-```
-
----
-
-## Agent Management Tools
-
-### register_agent
-
-**Purpose**: Register agent with Redis for coordination
-
-**Performance**: 0.8ms P95
-
-**Signature**:
-```python
-register_agent(
-    agent_id: str,
-    namespace: str = "trinitas",
-    capabilities: list[str] = [],
-    display_name: str = "",
-    metadata: dict = {}
-) -> dict
-```
-
-**Parameters**:
-- `agent_id` (required): Unique agent identifier (2-32 chars)
-- `namespace`: Agent namespace (default: "trinitas")
-- `capabilities`: List of capabilities (max 50)
-- `display_name`: Human-readable name
-- `metadata`: Additional metadata (JSON, max 10KB)
-
-**Returns**:
-```json
-{
-  "agent_id": "athena-conductor",
-  "namespace": "trinitas",
-  "capabilities": ["orchestration", "strategy", "coordination"],
-  "status": "active",
-  "registered_at": "2025-01-09T12:00:00Z"
-}
-```
-
-**Example Usage**:
-
-```python
-# Register custom data analyst agent
-register_agent(
-    agent_id="data-analyst-1",
-    namespace="analytics",
-    capabilities=["data_analysis", "visualization", "reporting"],
-    display_name="Data Analysis Specialist",
-    metadata={
-        "specialization": "predictive_modeling",
-        "tools": ["pandas", "scikit-learn"]
-    }
-)
-```
-
-**Redis Data Structure**:
-```
-HASH agent:data-analyst-1
-  agent_id: "data-analyst-1"
-  namespace: "analytics"
-  capabilities: ["data_analysis", "visualization", "reporting"]
-  status: "active"
-  last_seen: 1704844800.0
-
-ZADD agents:active {agent_id: timestamp}
-ZADD agents:namespace:analytics {agent_id: timestamp}
-EXPIRE agent:data-analyst-1 600  (10 minutes TTL)
-```
-
----
-
-### get_agent
-
-**Purpose**: Retrieve agent status and metadata
-
-**Performance**: 0.58ms P95
-
-**Signature**:
-```python
-get_agent(agent_id: str) -> dict
-```
-
-**Example Usage**:
-
-```python
-# Check if agent is active
-agent = get_agent("artemis-optimizer")
-if agent["status"] == "active":
-    print(f"Agent last seen: {agent['last_seen']}")
-```
-
----
-
-### list_agents
-
-**Purpose**: List agents by namespace or status
-
-**Performance**: 1.8ms P95 (50 agents)
-
-**Signature**:
-```python
-list_agents(
-    namespace: str = None,
-    status: str = "active",
-    limit: int = 100
-) -> list[dict]
-```
-
-**Example Usage**:
-
-```python
-# Hera: List all active Trinitas agents
-agents = list_agents(namespace="trinitas", status="active")
-print(f"Active agents: {len(agents)}")
-for agent in agents:
-    print(f"- {agent['agent_id']}: {agent['capabilities']}")
-```
-
----
-
-### heartbeat
-
-**Purpose**: Update agent heartbeat to prevent TTL expiration
-
-**Performance**: 0.3ms P95
-
-**Signature**:
-```python
-heartbeat(agent_id: str) -> dict
-```
-
-**Example Usage**:
-
-```python
-# Periodic heartbeat (every 30 seconds)
-import asyncio
-
-async def agent_heartbeat_loop():
-    while True:
-        heartbeat("athena-conductor")
-        await asyncio.sleep(30)
-```
-
----
-
-### deregister_agent
-
-**Purpose**: Remove agent from registry
-
-**Performance**: 0.9ms P95
-
-**Signature**:
-```python
-deregister_agent(agent_id: str) -> dict
-```
-
-**Example Usage**:
-
-```python
-# Graceful shutdown
-deregister_agent("custom-analyst")
-```
-
----
-
-## Task Management Tools
 
 ### create_task
 
-**Purpose**: Create task in Redis task queue
-
-**Performance**: 1.5ms P95
+Create a coordinated task for multi-agent workflow.
 
 **Signature**:
 ```python
-create_task(
-    title: str,
-    description: str = "",
-    priority: str = "MEDIUM",
-    assigned_persona: str = None,
-    due_date: str = None,
-    dependencies: list[str] = [],
-    metadata: dict = {}
-) -> dict
+create_task(title: str, description: str = None, priority: str = "medium",
+            assigned_agent_id: str = None, estimated_duration: int = None,
+            due_date: str = None) -> dict
 ```
 
-**Parameters**:
-- `title` (required): Task title (max 255 chars)
-- `description`: Task description
-- `priority`: "LOW", "MEDIUM", "HIGH", "URGENT"
-- `assigned_persona`: Agent ID to assign task
-- `due_date`: ISO 8601 date string
-- `dependencies`: List of task IDs that must complete first
-- `metadata`: Additional metadata (JSON)
-
-**Returns**:
-```json
-{
-  "id": "task-uuid",
-  "title": "Implement feature X",
-  "status": "pending",
-  "priority": "HIGH",
-  "assigned_persona": "artemis-optimizer",
-  "created_at": "2025-01-09T12:00:00Z",
-  "stream_id": "1704844800000-0"
-}
-```
-
-**Example Usage**:
-
+**Example**:
 ```python
-# Eris: Coordinate team task
-task = create_task(
-    title="Implement API authentication",
-    description="Add JWT authentication to all API endpoints",
-    priority="HIGH",
-    assigned_persona="hestia-auditor",
-    due_date="2025-01-15T00:00:00Z",
-    dependencies=["design-task-uuid"],
-    metadata={
-        "epic": "security-hardening",
-        "story_points": 8
-    }
+task = await create_task(
+    title="Implement JWT refresh token mechanism",
+    description="Add token rotation with 7-day refresh window",
+    priority="high",
+    assigned_agent_id="artemis-optimizer",
+    estimated_duration=180,  # 3 hours
+    due_date="2025-11-15T17:00:00Z"
 )
-```
-
----
-
-### update_task_status
-
-**Purpose**: Update task status and progress
-
-**Performance**: 2.5ms P95
-
-**Signature**:
-```python
-update_task_status(
-    task_id: str,
-    status: str,
-    progress: int = None,
-    result: dict = None
-) -> dict
-```
-
-**Parameters**:
-- `task_id` (required): Task UUID
-- `status` (required): "pending", "in_progress", "completed", "failed"
-- `progress`: Integer 0-100 (percentage)
-- `result`: Task result data (JSON)
-
-**Example Usage**:
-
-```python
-# Update task progress
-update_task_status(
-    task_id="task-uuid",
-    status="in_progress",
-    progress=45
-)
-
-# Complete task with results
-update_task_status(
-    task_id="task-uuid",
-    status="completed",
-    progress=100,
-    result={
-        "success": True,
-        "tests_passed": 42,
-        "coverage": 0.95
-    }
-)
-```
-
----
-
-### list_tasks
-
-**Purpose**: List tasks with filters
-
-**Performance**: 2.8ms P95 (50 tasks)
-
-**Signature**:
-```python
-list_tasks(
-    status: str = None,
-    priority: str = None,
-    assigned_persona: str = None,
-    limit: int = 100
-) -> list[dict]
-```
-
-**Example Usage**:
-
-```python
-# Hera: Get high-priority pending tasks
-tasks = list_tasks(status="pending", priority="HIGH", limit=20)
-for task in tasks:
-    print(f"[{task['priority']}] {task['title']} → {task['assigned_persona']}")
-```
-
----
-
-### complete_task
-
-**Purpose**: Mark task as completed with result
-
-**Performance**: 2.0ms P95
-
-**Signature**:
-```python
-complete_task(
-    task_id: str,
-    result: dict = {}
-) -> dict
-```
-
-**Example Usage**:
-
-```python
-# Complete task
-complete_task(
-    task_id="task-uuid",
-    result={
-        "completion_time": "2h 30m",
-        "quality_score": 0.95,
-        "notes": "All tests passing"
-    }
-)
-```
-
----
-
-## Workflow Management Tools
-
-### create_workflow
-
-**Purpose**: Define multi-step workflow
-
-**Signature**:
-```python
-create_workflow(
-    name: str,
-    description: str = "",
-    steps: list[dict],
-    parallel: bool = False,
-    metadata: dict = {}
-) -> dict
-```
-
-**Parameters**:
-- `name` (required): Workflow name
-- `description`: Workflow description
-- `steps` (required): List of workflow steps
-  - `persona`: Agent ID to execute step
-  - `action`: Action to perform
-  - `timeout`: Timeout in seconds (default: 300)
-  - `retry`: Retry count (default: 0)
-- `parallel`: Execute steps in parallel (default: False)
-- `metadata`: Additional metadata
-
-**Example Usage**:
-
-```python
-# Hera: Define deployment workflow
-workflow = create_workflow(
-    name="production_deployment",
-    description="Deploy to production with safety checks",
-    steps=[
-        {
-            "persona": "hestia-auditor",
-            "action": "security_scan",
-            "timeout": 600,
-            "retry": 2
-        },
-        {
-            "persona": "artemis-optimizer",
-            "action": "performance_test",
-            "timeout": 900,
-            "retry": 1
-        },
-        {
-            "persona": "athena-conductor",
-            "action": "deploy_to_production",
-            "timeout": 1800,
-            "retry": 0
-        },
-        {
-            "persona": "muses-documenter",
-            "action": "update_documentation",
-            "timeout": 300,
-            "retry": 1
-        }
-    ],
-    parallel=False,  # Sequential execution
-    metadata={
-        "environment": "production",
-        "rollback_enabled": True
-    }
-)
-```
-
----
-
-### execute_workflow
-
-**Purpose**: Execute workflow and return execution ID
-
-**Signature**:
-```python
-execute_workflow(
-    workflow_id: str,
-    parameters: dict = {}
-) -> dict
-```
-
-**Example Usage**:
-
-```python
-# Execute workflow
-execution = execute_workflow(
-    workflow_id="workflow-uuid",
-    parameters={
-        "git_branch": "main",
-        "build_number": "1.2.3",
-        "notify_slack": True
-    }
-)
-
-print(f"Execution ID: {execution['execution_id']}")
-print(f"Status: {execution['status']}")
-```
-
----
-
-### get_workflow_status
-
-**Purpose**: Get workflow execution status
-
-**Signature**:
-```python
-get_workflow_status(
-    workflow_id: str,
-    execution_id: str = None
-) -> dict
-```
-
-**Example Usage**:
-
-```python
-# Check workflow progress
-status = get_workflow_status(
-    workflow_id="workflow-uuid",
-    execution_id="execution-uuid"
-)
-
-print(f"Status: {status['status']}")
-print(f"Progress: {status['completed_steps']}/{status['total_steps']}")
-print(f"Current step: {status['current_step']['action']}")
 ```
 
 ---
 
 ## System Tools
 
-### health_check
+Administrative and monitoring tools.
 
-**Purpose**: Check system health (PostgreSQL + Redis + Chroma)
+### get_agent_status
 
-**Performance**: < 5ms
-
-**Signature**:
-```python
-health_check() -> dict
-```
-
-**Returns**:
-```json
-{
-  "status": "healthy",
-  "components": {
-    "postgresql": {"status": "up", "latency_ms": 2.1},
-    "redis": {"status": "up", "latency_ms": 0.5},
-    "chroma": {"status": "up", "latency_ms": 0.8}
-  },
-  "timestamp": "2025-01-09T12:00:00Z"
-}
-```
-
----
-
-### get_system_stats
-
-**Purpose**: Get system statistics and metrics
-
-**Performance**: < 10ms
+Get status of connected agents in the TMWS system.
 
 **Signature**:
 ```python
-get_system_stats() -> dict
+get_agent_status() -> dict
 ```
 
-**Returns**:
-```json
-{
-  "chroma": {
-    "cache_size": 10000,
-    "collection_count": 1,
-    "search_latency_p95_ms": 0.47
-  },
-  "redis": {
-    "active_agents": 6,
-    "pending_tasks": 23,
-    "memory_usage_mb": 512
-  },
-  "postgresql": {
-    "connection_pool_size": 10,
-    "active_connections": 3,
-    "memory_count": 125000
-  }
-}
+**Example**:
+```python
+status = await get_agent_status()
+print(f"Active agents: {status['total']}")
+for agent in status['agents']:
+    print(f"  - {agent['agent_id']} ({', '.join(agent['capabilities'])})")
 ```
 
 ---
 
-### switch_agent
+### get_memory_stats
 
-**Purpose**: Switch agent context for current MCP session
-
-**Performance**: < 1ms
+Get combined SQLite + ChromaDB statistics.
 
 **Signature**:
 ```python
-switch_agent(agent_id: str) -> dict
+get_memory_stats() -> dict
 ```
 
-**Example Usage**:
-
+**Example**:
 ```python
-# Switch to security context for audit
-switch_agent("hestia-auditor")
-
-# Perform security-related operations
-results = search_memories(query="security vulnerabilities")
-
-# Switch back to orchestration context
-switch_agent("athena-conductor")
+stats = await get_memory_stats()
+print(f"Total memories: {stats['total_memories']}")
+print(f"ChromaDB hit rate: {stats['mcp_metrics']['chroma_hit_rate']:.1f}%")
 ```
 
 ---
 
-## Agent-Specific Usage Patterns
+### invalidate_cache
 
-### Athena (Strategic Orchestrator)
+Clear ChromaDB cache (use with caution, testing only).
 
-**Primary Tools**:
-- `store_memory`: Record architectural decisions
-- `search_memories`: Recall strategic patterns
-- `create_workflow`: Define coordination workflows
-- `list_agents`: Coordinate team activities
-
-**Usage Pattern**:
-
+**Signature**:
 ```python
-# Store strategic decision
-store_memory(
-    content="Adopted event-driven architecture for scalability",
-    importance=0.95,
-    tags=["strategy", "architecture", "scalability"],
-    namespace="project-alpha"
-)
-
-# Search for relevant patterns
-patterns = search_memories(
-    query="scalability patterns",
-    tags=["architecture"],
-    min_similarity=0.8
-)
-
-# Create coordination workflow
-workflow = create_workflow(
-    name="architecture_review",
-    steps=[
-        {"persona": "athena-conductor", "action": "design_review"},
-        {"persona": "artemis-optimizer", "action": "technical_feasibility"},
-        {"persona": "hestia-auditor", "action": "security_review"}
-    ]
-)
+invalidate_cache() -> dict
 ```
+
+⚠️ **Warning**: This clears vector embeddings. Use only for testing/debugging.
 
 ---
 
-### Artemis (Performance Optimizer)
+## Expiration Management Tools
 
-**Primary Tools**:
-- `store_memory`: Record optimization results
-- `search_memories`: Find optimization patterns
-- `list_tasks`: Track optimization tasks
+TMWS includes a comprehensive TTL (Time-To-Live) system for automatic memory cleanup.
 
-**Usage Pattern**:
+### Security Model
 
-```python
-# Record optimization success
-store_memory(
-    content="Database query optimized: 500ms → 50ms (10x) by adding btree index",
-    importance=0.85,
-    tags=["optimization", "database", "performance"],
-    metadata={
-        "improvement": "10x",
-        "technique": "btree_index",
-        "table": "users"
-    }
-)
+All expiration tools require **authentication** (REQ-1):
+- API key authentication or JWT token authentication
+- Namespace isolation (REQ-2)
+- Role-based access control (REQ-5)
 
-# Search for similar optimizations
-similar = search_memories(
-    query="database optimization techniques",
-    tags=["optimization", "database"],
-    importance_threshold=0.7
-)
+**Mass Deletion Protection** (REQ-3):
+- Operations affecting >10 items require `confirm_mass_deletion=True`
+- Dry-run mode available for safety
 
-# Create optimization task
-task = create_task(
-    title="Optimize API response time",
-    priority="HIGH",
-    assigned_persona="artemis-optimizer",
-    metadata={"target_latency": "< 100ms"}
-)
-```
+**Rate Limiting** (REQ-4):
+- Tool-specific limits (5-30 requests/min in production)
 
 ---
 
-### Hestia (Security Auditor)
+### prune_expired_memories
 
-**Primary Tools**:
-- `store_memory`: Record security findings
-- `search_memories`: Recall security patterns
-- `create_task`: Track security fixes
+Remove expired memories from a namespace.
 
-**Usage Pattern**:
-
+**Signature**:
 ```python
-# Record critical security finding
-store_memory(
-    content="SQL injection vulnerability in /api/users endpoint (CVE-2024-xxxxx)",
-    importance=1.0,  # Critical
-    tags=["security", "vulnerability", "sql_injection", "critical"],
-    metadata={
-        "severity": "critical",
-        "cve": "CVE-2024-xxxxx",
-        "endpoint": "/api/users",
-        "status": "pending_fix"
-    }
-)
-
-# Create security fix task
-task = create_task(
-    title="Fix SQL injection in /api/users",
-    priority="URGENT",
-    assigned_persona="artemis-optimizer",
-    dependencies=[],
-    metadata={
-        "vulnerability_id": "vuln-uuid",
-        "deadline": "24h"
-    }
-)
-
-# Monitor fix progress
-status = list_tasks(priority="URGENT", status="in_progress")
+prune_expired_memories(agent_id: str, namespace: str, api_key: str | None = None,
+                       jwt_token: str | None = None, dry_run: bool = False,
+                       confirm_mass_deletion: bool = False) -> dict
 ```
 
----
+**Security**:
+- Authentication: REQ-1 (API key or JWT)
+- Namespace Isolation: REQ-2 (P0-1 pattern)
+- Mass Deletion: REQ-3 (>10 items requires confirmation)
+- Rate Limit: 5 deletions/hour (REQ-4)
 
-### Eris (Team Coordinator)
-
-**Primary Tools**:
-- `list_agents`: Monitor team status
-- `create_task`: Coordinate team tasks
-- `list_tasks`: Track task progress
-
-**Usage Pattern**:
-
+**Example**:
 ```python
-# Monitor active agents
-agents = list_agents(namespace="trinitas", status="active")
-print(f"Active team members: {len(agents)}")
-
-# Create coordinated task
-task = create_task(
-    title="Frontend-Backend sync for API v2",
-    description="Align API contract between teams",
-    priority="HIGH",
-    metadata={
-        "frontend_lead": "agent-1",
-        "backend_lead": "agent-2",
-        "coordination_required": True
-    }
+# Dry run first
+result = await prune_expired_memories(
+    agent_id="my-agent",
+    namespace="project-x",
+    api_key="your-api-key",
+    dry_run=True
 )
+print(f"Would delete {result['would_delete_count']} memories")
 
-# Track team progress
-pending = list_tasks(status="pending", limit=50)
-in_progress = list_tasks(status="in_progress", limit=50)
-print(f"Pending: {len(pending)}, In Progress: {len(in_progress)}")
-```
-
----
-
-### Hera (Workflow Orchestrator)
-
-**Primary Tools**:
-- `create_workflow`: Define workflows
-- `execute_workflow`: Execute workflows
-- `get_workflow_status`: Monitor workflows
-
-**Usage Pattern**:
-
-```python
-# Define parallel deployment workflow
-workflow = create_workflow(
-    name="parallel_microservices_deploy",
-    steps=[
-        {"persona": "artemis-optimizer", "action": "service_a_deploy"},
-        {"persona": "artemis-optimizer", "action": "service_b_deploy"},
-        {"persona": "artemis-optimizer", "action": "service_c_deploy"}
-    ],
-    parallel=True,  # Execute in parallel
-    metadata={"strategy": "blue_green"}
-)
-
-# Execute workflow
-execution = execute_workflow(
-    workflow_id=workflow["id"],
-    parameters={"environment": "production"}
-)
-
-# Monitor execution
-while True:
-    status = get_workflow_status(workflow["id"], execution["execution_id"])
-    if status["status"] in ["completed", "failed"]:
-        break
-    await asyncio.sleep(5)
-```
-
----
-
-### Muses (Knowledge Manager)
-
-**Primary Tools**:
-- `store_memory`: Document knowledge
-- `search_memories`: Retrieve documentation
-- `list_agents`: Document team capabilities
-
-**Usage Pattern**:
-
-```python
-# Document API specification
-store_memory(
-    content="REST API v2.0 specification: 45 endpoints, OpenAPI 3.0 compliant",
-    importance=0.8,
-    tags=["documentation", "api", "specification"],
-    metadata={
-        "version": "2.0",
-        "format": "openapi_3.0",
-        "endpoint_count": 45
-    }
-)
-
-# Retrieve related documentation
-docs = search_memories(
-    query="API documentation and specifications",
-    tags=["documentation"],
-    limit=20
-)
-
-# Document team capabilities
-agents = list_agents(namespace="trinitas")
-for agent in agents:
-    store_memory(
-        content=f"Agent {agent['agent_id']}: {', '.join(agent['capabilities'])}",
-        importance=0.5,
-        tags=["team", "capabilities", "documentation"]
+# Confirm if >10
+if result['would_delete_count'] > 10:
+    result = await prune_expired_memories(
+        agent_id="my-agent",
+        namespace="project-x",
+        api_key="your-api-key",
+        confirm_mass_deletion=True
     )
 ```
 
 ---
 
-## Best Practices
+### get_expiration_stats
 
-### Memory Management
+Get expiration statistics for a namespace.
 
-1. **Set Appropriate Importance**
-   ```python
-   # Critical: 1.0 (security issues, major decisions)
-   store_memory(content="Critical security fix", importance=1.0)
-
-   # High: 0.8-0.9 (architecture, optimization)
-   store_memory(content="Architecture decision", importance=0.9)
-
-   # Medium: 0.5-0.7 (coordination, tasks)
-   store_memory(content="Team sync notes", importance=0.6)
-
-   # Low: 0.3-0.4 (reference info)
-   store_memory(content="Documentation link", importance=0.4)
-   ```
-
-2. **Use Tags Systematically**
-   ```python
-   # Persona tags
-   tags=["athena_", "artemis_", "hestia_", ...]
-
-   # Category tags
-   tags=["architecture", "security", "performance", ...]
-
-   # Priority tags
-   tags=["critical", "urgent", "high", "medium", "low"]
-
-   # Status tags
-   tags=["completed", "in_progress", "pending", "blocked"]
-   ```
-
-3. **Namespace Isolation**
-   ```python
-   # Project isolation
-   namespace="project-alpha"
-   namespace="project-beta"
-
-   # Environment isolation
-   namespace="production"
-   namespace="staging"
-   ```
-
-### Agent Coordination
-
-1. **Heartbeat Pattern**
-   ```python
-   # Periodic heartbeat every 30s (TTL is 10 minutes)
-   async def heartbeat_loop():
-       while True:
-           await heartbeat(agent_id)
-           await asyncio.sleep(30)
-   ```
-
-2. **Graceful Shutdown**
-   ```python
-   import signal
-
-   async def shutdown_handler(signum, frame):
-       await deregister_agent(agent_id)
-       sys.exit(0)
-
-   signal.signal(signal.SIGINT, shutdown_handler)
-   signal.signal(signal.SIGTERM, shutdown_handler)
-   ```
-
-### Task Management
-
-1. **Task Dependencies**
-   ```python
-   # Create dependent tasks
-   design_task = create_task(title="Design API")
-   implement_task = create_task(
-       title="Implement API",
-       dependencies=[design_task["id"]]
-   )
-   test_task = create_task(
-       title="Test API",
-       dependencies=[implement_task["id"]]
-   )
-   ```
-
-2. **Progress Tracking**
-   ```python
-   # Update progress incrementally
-   update_task_status(task_id, status="in_progress", progress=0)
-   # ... work ...
-   update_task_status(task_id, status="in_progress", progress=50)
-   # ... more work ...
-   complete_task(task_id, result={"success": True})
-   ```
-
----
-
-## Troubleshooting
-
-### Issue: Slow Vector Search
-
-**Symptom**: `search_memories` taking > 10ms
-
-**Diagnosis**:
+**Signature**:
 ```python
-# Check search source
-results = search_memories(query="test")
-if results["search_source"] == "postgresql_fallback":
-    print("WARNING: Chroma unavailable, using slow PostgreSQL fallback")
+get_expiration_stats(agent_id: str, namespace: str, api_key: str | None = None,
+                     jwt_token: str | None = None) -> dict
 ```
 
-**Solutions**:
-1. Check Chroma service: `docker ps | grep chroma`
-2. Verify Chroma data directory: `ls -la ./data/chroma`
-3. Reinitialize Chroma: `python scripts/initialize_chroma.py`
+**Rate Limit**: 30 queries/minute
 
----
-
-### Issue: Agent Registration Failed
-
-**Symptom**: `register_agent` returns error
-
-**Diagnosis**:
+**Example**:
 ```python
-try:
-    register_agent(agent_id="test")
-except Exception as e:
-    print(f"Error: {e}")
+stats = await get_expiration_stats(
+    agent_id="artemis-optimizer",
+    namespace="trinitas-agents",
+    api_key="your-api-key"
+)
+print(f"Expired memories ready to prune: {stats['expired']}")
+print(f"Expiring in 24h: {stats['expiring_soon_24h']}")
 ```
 
-**Solutions**:
-1. Check Redis connectivity: `redis-cli ping`
-2. Verify Redis URL: `echo $TMWS_REDIS_URL`
-3. Check Redis memory: `redis-cli INFO memory`
-
 ---
 
-### Issue: Task Queue Full
+### set_memory_ttl
 
-**Symptom**: `create_task` slow or failing
+Update TTL for an existing memory.
 
-**Diagnosis**:
+**Signature**:
 ```python
-stats = get_system_stats()
-if stats["redis"]["pending_tasks"] > 10000:
-    print("WARNING: Task queue overloaded")
+set_memory_ttl(agent_id: str, memory_id: str, ttl_days: int | None,
+               api_key: str | None = None, jwt_token: str | None = None) -> dict
 ```
 
-**Solutions**:
-1. Increase task processing rate
-2. Archive completed tasks: `python scripts/cleanup_tasks.py`
-3. Implement backpressure in task creation
+**Security**: Only memory owner can modify TTL (P0-1 pattern)
+
+**Example**:
+```python
+# Set 30-day expiration
+result = await set_memory_ttl(
+    agent_id="artemis-optimizer",
+    memory_id="550e8400-e29b-41d4-a716-446655440000",
+    ttl_days=30,
+    api_key="your-api-key"
+)
+
+# Remove expiration (make permanent)
+result = await set_memory_ttl(
+    agent_id="artemis-optimizer",
+    memory_id="550e8400-e29b-41d4-a716-446655440000",
+    ttl_days=None,
+    api_key="your-api-key"
+)
+```
 
 ---
 
-For more details, see:
-- [Architecture Documentation](ARCHITECTURE_V2.3.0.md)
-- [Benchmark Report](BENCHMARK_REPORT.md)
-- [MCP Integration Guide](MCP_INTEGRATION.md)
+### cleanup_namespace
+
+Delete ALL memories from a namespace (admin-only, destructive).
+
+**Signature**:
+```python
+cleanup_namespace(agent_id: str, namespace: str, api_key: str | None = None,
+                  jwt_token: str | None = None, dry_run: bool = False,
+                  confirm_mass_deletion: bool = False) -> dict
+```
+
+⚠️ **WARNING**: DESTRUCTIVE OPERATION - Deletes ALL memories in namespace.
+
+**Security**:
+- Admin-Only: REQ-5 (requires special role)
+- Mass Deletion: REQ-3 (confirmation required)
+- Rate Limit: 2 cleanups/day (very strict)
+
+---
+
+### get_namespace_stats
+
+Get comprehensive statistics for a namespace.
+
+**Signature**:
+```python
+get_namespace_stats(agent_id: str, namespace: str, api_key: str | None = None,
+                    jwt_token: str | None = None) -> dict
+```
+
+**Rate Limit**: 20 queries/minute
+
+---
+
+### Scheduler Tools (5 tools)
+
+Tools for controlling the automatic expiration scheduler:
+
+1. **get_scheduler_status**: Get scheduler status (read-only, 60/min)
+2. **configure_scheduler**: Configure interval (admin-only, 3/hour)
+3. **start_scheduler**: Start scheduler (admin-only, 5/hour)
+4. **stop_scheduler**: Stop scheduler (admin-only, 2/day)
+5. **trigger_scheduler**: Manual cleanup (10/hour)
+
+**Example**:
+```python
+# Check scheduler status
+status = await get_scheduler_status(
+    agent_id="artemis-optimizer",
+    api_key="your-api-key"
+)
+if status['is_running']:
+    print(f"Next cleanup: {status['next_run_time']}")
+```
+
+---
+
+## Trust & Verification Tools
+
+TMWS includes a **Trust System** for verifying agent claims and tracking reliability.
+
+### verify_and_record
+
+Verify a claim and record evidence.
+
+**Signature**:
+```python
+verify_and_record(agent_id: str, claim_type: str, claim_content: dict,
+                  verification_command: str, verified_by_agent_id: str | None = None) -> dict
+```
+
+**Claim Types**:
+- `test_result`: Test execution results
+- `performance_metric`: Performance measurements
+- `code_quality`: Code quality metrics
+- `security_finding`: Security audit findings
+- `deployment_status`: Deployment status
+- `custom`: Other claim types
+
+**Example**:
+```python
+# Artemis claims tests passed - let's verify
+result = await verify_and_record(
+    agent_id="artemis-optimizer",
+    claim_type="test_result",
+    claim_content={"passed": 150, "failed": 0, "coverage": 92.5},
+    verification_command="pytest tests/unit/ -v --cov=src",
+    verified_by_agent_id="hestia-auditor"
+)
+
+if result['accurate']:
+    print("✅ Claim verified")
+else:
+    print(f"⚠️  Claim inaccurate. New trust score: {result['new_trust_score']:.2f}")
+```
+
+---
+
+### get_agent_trust_score
+
+Get agent trust score and statistics.
+
+**Signature**:
+```python
+get_agent_trust_score(agent_id: str) -> dict
+```
+
+**Trust Score Interpretation**:
+- 0.9-1.0: Highly Reliable (verification rarely needed)
+- 0.7-0.89: Reliable (spot verification recommended)
+- 0.5-0.69: Moderate (regular verification needed)
+- 0.3-0.49: Low Trust (verification required for critical claims)
+- 0.0-0.29: Untrusted (verification required for all claims)
+
+**Example**:
+```python
+score_info = await get_agent_trust_score("artemis-optimizer")
+print(f"Trust score: {score_info['trust_score']:.0%}")
+if score_info['requires_verification']:
+    print("⚠️  This agent requires verification for reports")
+```
+
+---
+
+### Additional Verification Tools
+
+1. **get_verification_history**: Get verification history (filter by claim type)
+2. **get_verification_statistics**: Get comprehensive statistics by claim type
+3. **get_trust_history**: Get trust score evolution over time
+
+**Example**:
+```python
+# Get detailed statistics
+stats = await get_verification_statistics("artemis-optimizer")
+print(f"Overall trust score: {stats['trust_score']:.0%}")
+for claim_type, metrics in stats['by_claim_type'].items():
+    print(f"  {claim_type}: {metrics['accuracy']:.0%}")
+```
+
+---
+
+## Common Patterns
+
+### Pattern 1: Daily Standup Memory
+
+```python
+# Store daily progress
+await store_memory(
+    content="Daily Progress - 2025-11-14: Completed Phase 1-2, In Progress: Phase 1-3",
+    importance_score=0.7,
+    tags=["daily-standup", "progress"],
+    namespace="trinitas-agents"
+)
+
+# Search weekly progress
+results = await search_memories(
+    query="What did I work on this week?",
+    tags=["daily-standup"]
+)
+```
+
+### Pattern 2: Security Audit Trail
+
+```python
+# Hestia performs audit
+audit_id = await store_memory(
+    content="Security Audit: Found 3 vulnerabilities (2 HIGH, 1 MEDIUM)",
+    importance_score=1.0,
+    tags=["security", "audit", "critical"],
+    context={"vulnerabilities": 3, "critical": 1}
+)
+
+# Artemis fixes and verifies
+verification = await verify_and_record(
+    agent_id="artemis-optimizer",
+    claim_type="security_fix",
+    claim_content={"vulnerability": "V-AUTH-1", "fixed": True},
+    verification_command="rg 'SECRET_KEY.*=' src/ --type py",
+    verified_by_agent_id="hestia-auditor"
+)
+```
+
+---
+
+## Error Handling
+
+All tools return standardized error format:
+
+```json
+{
+  "error": "Error message",
+  "error_type": "ErrorClassName"
+}
+```
+
+### Common Errors
+
+| Error Type | Cause | Solution |
+|------------|-------|----------|
+| `ValidationError` | Invalid parameters | Check parameter types/ranges |
+| `MCPAuthenticationError` | Invalid API key/JWT | Verify credentials |
+| `MCPAuthorizationError` | Namespace access denied | Check agent namespace access |
+| `MemoryNotFoundError` | Memory ID doesn't exist | Verify memory ID |
+| `ChromaOperationError` | Vector search failed | Check Ollama/embedding service |
+
+---
+
+## Performance Metrics
+
+### Target Performance (P95)
+
+| Operation | Target | Typical | Status |
+|-----------|--------|---------|--------|
+| store_memory | < 5ms | 2-4ms | ✅ |
+| search_memories | < 20ms | 5-20ms | ✅ |
+| create_task | < 10ms | 5-10ms | ✅ |
+| verify_and_record | < 500ms | 100-300ms | ✅ |
+
+### ChromaDB Performance
+
+- **Vector similarity search**: < 10ms P95 ✅
+- **Metadata filtering**: < 20ms P95 ✅
+- **Hot cache hit rate**: > 90% ✅
+- **Embedding generation**: 70-90ms (Ollama)
+
+---
+
+## Support & Resources
+
+- **Quick Start**: [QUICK_START_GUIDE.md](QUICK_START_GUIDE.md)
+- **Learning Pattern API**: [LEARNING_PATTERN_API.md](LEARNING_PATTERN_API.md)
+- **REST API Guide**: [REST_API_GUIDE.md](REST_API_GUIDE.md)
+- **Integration Patterns**: [INTEGRATION_PATTERNS.md](INTEGRATION_PATTERNS.md)
+- **Security Guide**: [SECURITY_GUIDE.md](SECURITY_GUIDE.md)
+
+---
+
+**Document Author**: Artemis (Technical Perfectionist)
+**Reviewed By**: Athena, Hera
+**Last Updated**: 2025-11-14
+**Status**: Production-ready
+**Version**: 1.0.0

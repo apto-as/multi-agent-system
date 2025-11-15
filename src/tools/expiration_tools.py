@@ -35,7 +35,7 @@ from ..security.mcp_auth import (
 )
 from ..security.mcp_rate_limiter import require_mcp_rate_limit
 from ..services.expiration_scheduler import ExpirationScheduler
-from ..services.memory_service import MemoryService
+from ..services.memory_service import HybridMemoryService
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +53,7 @@ class ExpirationTools:
 
     def __init__(
         self,
-        memory_service: MemoryService,
+        memory_service: HybridMemoryService,
         scheduler: ExpirationScheduler | None = None,
     ):
         """Initialize expiration tools.

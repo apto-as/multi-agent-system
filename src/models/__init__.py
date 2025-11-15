@@ -10,6 +10,7 @@ from .api_audit_log import APIAuditLog
 from .audit_log import SecurityAuditLog, SecurityEventSeverity, SecurityEventType
 from .base import MetadataMixin, TimestampMixin, TMWSBase, UUIDMixin
 from .learning_pattern import LearningPattern
+from .license_key import LicenseKey, LicenseKeyUsage
 from .memory import Memory, MemoryConsolidation, MemoryPattern, MemorySharing
 from .persona import Persona, PersonaRole, PersonaType
 from .task import Task, TaskPriority, TaskStatus

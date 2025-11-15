@@ -410,7 +410,7 @@ class LicenseService:
                     )
 
                 # Check if revoked
-                if db_license.revoked:
+                if db_license.revoked_at is not None:
                     return LicenseValidationResult(
                         valid=False,
                         is_revoked=True,
@@ -477,6 +477,10 @@ class LicenseService:
         # Without DB, we can't know the expiration, so we reject non-perpetual keys
         # when DB is unavailable
         if expires_at:
+            # Ensure expires_at is timezone-aware (SQLite loses timezone info)
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=timezone.utc)
+
             expiry_timestamp = str(int(expires_at.timestamp()))
             signature_data_expiry = f"{tier.value}:{license_id}:{expiry_timestamp}"
             expected_signature_expiry = hmac.new(

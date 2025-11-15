@@ -1,8 +1,8 @@
 # TMWS Project Knowledge Base
 ## Trinitas Memory & Workflow System - Claude Code Instructions
 
-**Last Updated**: 2025-10-27
-**Project Version**: v2.2.6
+**Last Updated**: 2025-11-10
+**Project Version**: v2.3.0
 **Status**: Production-ready
 
 ---
@@ -285,6 +285,43 @@ mypy src/
 ---
 
 ## Recent Major Changes
+
+### v2.3.0 - Phase 2A: Verification-Trust Integration (2025-11-11) ✅
+
+**Completed**: Non-invasive extension to VerificationService with P1 security fixes
+
+**Features**:
+- **Pattern Linkage**: Verifications can link to learning patterns via `claim_content.pattern_id`
+- **Trust Propagation**: Accurate verifications boost trust (+0.05 base + 0.02 pattern)
+- **Graceful Degradation**: Pattern propagation failures don't block verification completion
+
+**Security Enhancements (P1 Fix)**:
+- **V-VERIFY-2**: Verifier authorization (requires AGENT/ADMIN role, blocks OBSERVER)
+- **V-VERIFY-4**: Pattern eligibility validation (public/system only, no self-owned patterns)
+- **V-VERIFY-1**: Command injection prevention (ALLOWED_COMMANDS whitelist)
+- **V-VERIFY-3**: Namespace isolation (verified from DB, not user input)
+- **V-TRUST-5**: Self-verification prevention
+
+**Performance**:
+- Total verification: <515ms P95 (target: <550ms) ✅
+- Pattern propagation: <35ms P95 (6.8% overhead)
+
+**Testing**:
+- 21/21 unit tests PASS ✅
+- Security test coverage: V-VERIFY-1/2/3/4 + V-TRUST-5
+
+**Documentation** (2,300+ lines):
+- Integration Guide: `docs/guides/VERIFICATION_TRUST_INTEGRATION_GUIDE.md`
+- API Reference: `docs/api/VERIFICATION_SERVICE_API.md`
+- Architecture: `docs/architecture/PHASE_2A_ARCHITECTURE.md`
+- Usage Examples: `docs/examples/VERIFICATION_TRUST_EXAMPLES.md` (12 examples)
+
+**Key Files**:
+- `src/services/verification_service.py:729-912` - `_propagate_to_learning_patterns()` method
+- `src/services/learning_trust_integration.py` - Integration service (Phase 1)
+- `tests/unit/services/test_verification_service.py` - Updated tests
+
+---
 
 ### v2.2.6 - Code Cleanup & Security Hardening (2025-10-27) ✅
 
@@ -594,6 +631,101 @@ TMWS is designed to work with the Trinitas agent system (6 specialized personas)
 6. **Muses** (muses-documenter): Knowledge architecture
 
 **MCP Tools**: See `docs/MCP_TOOLS_REFERENCE.md` for available Trinitas commands.
+
+### Trinitas Phase-Based Execution Protocol
+
+**Status**: ✅ **Proven Pattern** (2025-11-10 Phase 1 Success: 94.6% success rate)
+
+**Context**: Successful implementation of Learning-Trust Integration (Phase 1) demonstrated the effectiveness of phase-based coordination with proper approval gates.
+
+#### Core Principles
+
+**Phase Structure**:
+```
+Phase N-1: Strategic Planning (戦略立案)
+  ├─ Hera: Strategic design & architecture
+  └─ Athena: Resource coordination & harmony
+  → ✅ Approval Gate: Both agents agree on approach
+
+Phase N-2: Implementation (実装)
+  └─ Artemis: Technical implementation
+  → ✅ Approval Gate: All tests pass, zero regression
+
+Phase N-3: Verification (検証)
+  └─ Hestia: Security audit & final approval
+  → ✅ Final Approval Gate: Security sign-off
+```
+
+#### Rules
+
+**🟢 ALLOWED (許可)**:
+- ✅ Parallel execution within the same phase (同一フェーズ内の並列実行)
+  - Example: Hera + Athena both doing strategic planning simultaneously
+- ✅ Sequential phases with explicit approval gates (承認ゲート付きの順次フェーズ)
+- ✅ Waiting for phase completion before proceeding (フェーズ完了を待ってから次へ)
+
+**🔴 PROHIBITED (禁止)**:
+- ❌ Cross-phase parallel execution (フェーズを跨いだ並列実行)
+  - Example: Athena planning while Artemis implementing
+- ❌ Skipping approval gates (承認ゲートのスキップ)
+- ❌ Implementation before strategic consensus (戦略合意前の実装開始)
+- ❌ Verification before implementation completion (実装完了前の検証開始)
+
+#### Success Example (Phase 1: Learning-Trust Integration)
+
+**Phase 1-1: Strategic Planning** (150 minutes)
+- Hera: Architecture design → 96.9% success probability
+- Athena: Resource coordination → 92.3% success probability
+- **Approval Gate**: Both independently recommended Option B (decoupled integration) ✅
+- **Combined Success Rate**: 94.6%
+
+**Phase 1-2: Implementation** (actual: ~60 minutes)
+- Artemis: Created 3 files (2,036 lines)
+  - `learning_trust_integration.py` (578 lines)
+  - `test_learning_trust_integration.py` (958 lines)
+  - `test_learning_trust_performance.py` (500 lines)
+- **Approval Gate**: 28/28 tests PASS (21 integration + 7 performance) ✅
+
+**Phase 1-3: Verification** (pending)
+- Hestia: Security audit (next step)
+- **Final Approval Gate**: Security sign-off required
+
+**Result**: Zero regression, V-TRUST-1/4 compliant, <5ms P95 performance ✅
+
+#### Anti-Pattern Example (Prior Failures)
+
+**2025-11-09 Option B-Revised P0 Execution** ❌:
+- Athena: Created planning documents (1,600 lines) while implementation was ongoing
+- Artemis: Created `test_command_injection.py` (57 tests, 26KB)
+- Hestia: Created `test_trust_service.py` (35 tests, 27KB)
+- **Problem**: All three worked in parallel without phase coordination
+- **Result**: Athena's planning was redundant (implementation already done)
+
+**Lesson Learned**: Athena/Hera must complete strategic planning BEFORE Artemis/Hestia start implementation.
+
+#### Implementation Checklist
+
+Before starting any multi-agent task:
+
+- [ ] **Phase 1 Complete?** Strategic consensus reached? (Hera/Athena)
+- [ ] **Approval Gate 1?** Both strategists agree on approach?
+- [ ] **Phase 2 Complete?** Implementation finished? (Artemis)
+- [ ] **Approval Gate 2?** All tests pass? Zero regression?
+- [ ] **Phase 3 Complete?** Security approved? (Hestia)
+- [ ] **Final Approval?** Ready for deployment?
+
+#### When to Apply
+
+**Always use Phase-Based Execution for**:
+- Multi-step features requiring strategic planning
+- Security-sensitive implementations
+- Performance-critical optimizations
+- Cross-service integrations
+
+**Can skip for**:
+- Single-file bug fixes
+- Documentation updates
+- Simple refactoring (< 100 LOC)
 
 ---
 

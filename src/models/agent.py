@@ -15,6 +15,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import MetadataMixin, TMWSBase
 
 if TYPE_CHECKING:
+    from .license_key import LicenseKey
     from .task import Task
     from .verification import TrustScoreHistory, VerificationRecord
 
@@ -125,6 +126,24 @@ class Agent(TMWSBase, MetadataMixin):
         Text, nullable=True, comment="Hashed API key for agent authentication",
     )
 
+    # License tier
+    tier: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        default="FREE",
+        index=True,
+        comment="License tier (FREE, PRO, ENTERPRISE)",
+    )
+
+    # RBAC role (Wave 2: License Management)
+    role: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        server_default="viewer",
+        index=True,
+        comment="RBAC role (viewer, editor, admin)",
+    )
+
     # Timestamps
     last_active_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, index=True,
@@ -138,13 +157,18 @@ class Agent(TMWSBase, MetadataMixin):
         foreign_keys="[Task.assigned_agent_id]",
         primaryjoin="Agent.agent_id == Task.assigned_agent_id",
     )
-    verification_records: Mapped[list["VerificationRecord"]] = relationship(
+    verification_records: Mapped[list[VerificationRecord]] = relationship(
         "VerificationRecord",
         back_populates="agent",
         cascade="all, delete-orphan",
     )
-    trust_history: Mapped[list["TrustScoreHistory"]] = relationship(
+    trust_history: Mapped[list[TrustScoreHistory]] = relationship(
         "TrustScoreHistory",
+        back_populates="agent",
+        cascade="all, delete-orphan",
+    )
+    license_keys: Mapped[list[LicenseKey]] = relationship(
+        "LicenseKey",
         back_populates="agent",
         cascade="all, delete-orphan",
     )
