@@ -31,6 +31,7 @@ from src.models.memory import Memory
 from src.models.verification import VerificationRecord
 from src.services.memory_service import HybridMemoryService
 from src.services.trust_service import TrustService
+from src.services.learning_trust_integration import LearningTrustIntegration
 
 # Security: Command allowlist for verification
 # Prevents command injection from AI agent mistakes
@@ -109,7 +110,8 @@ class VerificationService:
         self,
         session: AsyncSession,
         memory_service: HybridMemoryService | None = None,
-        trust_service: TrustService | None = None
+        trust_service: TrustService | None = None,
+        learning_trust_integration: LearningTrustIntegration | None = None
     ):
         """Initialize verification service
 
@@ -117,10 +119,14 @@ class VerificationService:
             session: Database session
             memory_service: Memory service for evidence recording
             trust_service: Trust service for score updates
+            learning_trust_integration: Learning-Trust integration service (Phase 2A)
         """
         self.session = session
         self.memory_service = memory_service or HybridMemoryService(session)
         self.trust_service = trust_service or TrustService(session)
+        self.learning_trust_integration = (
+            learning_trust_integration or LearningTrustIntegration(session)
+        )
 
     async def verify_claim(
         self,
@@ -181,6 +187,63 @@ class VerificationService:
                     details={"agent_id": agent_id}
                 )
 
+            # V-VERIFY-2: RBAC check for verifier (explicit role verification)
+            # Security: Verify that verified_by_agent_id has AGENT or ADMIN role
+            # This prevents OBSERVER-role agents from performing verifications
+            if verified_by_agent_id:
+                # Fetch verifier agent from database
+                verifier_result = await self.session.execute(
+                    select(Agent).where(Agent.agent_id == verified_by_agent_id)
+                )
+                verifier = verifier_result.scalar_one_or_none()
+
+                if not verifier:
+                    log_and_raise(
+                        AgentNotFoundError,
+                        f"Verifier agent not found: {verified_by_agent_id}",
+                        details={
+                            "agent_id": agent_id,
+                            "verified_by_agent_id": verified_by_agent_id
+                        }
+                    )
+
+                # Determine verifier role (same logic as MCPAuthService._determine_agent_role)
+                verifier_capabilities = verifier.capabilities or {}
+                verifier_config = verifier.config or {}
+
+                # Check role from capabilities or config
+                verifier_role = (
+                    verifier_capabilities.get("role") or
+                    verifier_config.get("mcp_role") or
+                    "agent"  # Default role
+                )
+
+                # Allowed roles for verification: agent, namespace_admin, system_admin, super_admin
+                # OBSERVER role is NOT allowed to verify claims
+                if verifier_role not in ["agent", "namespace_admin", "system_admin", "super_admin"]:
+                    log_and_raise(
+                        ValidationError,
+                        f"Verifier '{verified_by_agent_id}' requires AGENT or ADMIN role, has {verifier_role}",
+                        details={
+                            "agent_id": agent_id,
+                            "verified_by_agent_id": verified_by_agent_id,
+                            "verifier_role": verifier_role,
+                            "required_roles": ["agent", "namespace_admin", "system_admin", "super_admin"]
+                        }
+                    )
+
+                # Log successful RBAC check
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.info(
+                    f"✅ Verifier RBAC check passed: {verified_by_agent_id} (role: {verifier_role})",
+                    extra={
+                        "agent_id": agent_id,
+                        "verified_by_agent_id": verified_by_agent_id,
+                        "verifier_role": verifier_role
+                    }
+                )
+
             # Execute verification command
             verification_start = datetime.utcnow()
             actual_result = await self._execute_verification(verification_command)
@@ -224,6 +287,19 @@ class VerificationService:
                 reason=f"verification_{claim_type}"
             )
 
+            # Phase 2A: Propagate to learning patterns (if linked)
+            # This is non-invasive - propagation failures don't block verification
+            propagation_result = await self._propagate_to_learning_patterns(
+                agent_id=agent_id,
+                verification_record=verification_record,
+                accurate=accurate,
+                namespace=agent.namespace
+            )
+
+            # If propagation succeeded, update trust score with learning delta
+            if propagation_result["propagated"]:
+                new_trust_score = propagation_result["new_trust_score"]
+
             await self.session.commit()
 
             return VerificationResult(
@@ -235,7 +311,7 @@ class VerificationService:
                 new_trust_score=new_trust_score
             )
 
-        except (AgentNotFoundError, VerificationError):
+        except (AgentNotFoundError, VerificationError, ValidationError):
             await self.session.rollback()
             raise
         except Exception as e:
@@ -649,3 +725,187 @@ class VerificationService:
                 original_exception=e,
                 details={"agent_id": agent_id}
             )
+
+    async def _propagate_to_learning_patterns(
+        self,
+        agent_id: str,
+        verification_record: VerificationRecord,
+        accurate: bool,
+        namespace: str
+    ) -> dict[str, Any]:
+        """Propagate verification result to learning patterns (Phase 2A integration).
+
+        Non-invasive integration with graceful degradation:
+        - Detects if verification is linked to a learning pattern
+        - Propagates success/failure to LearningTrustIntegration
+        - Updates trust score (additional +/-0.02 beyond verification boost)
+
+        Args:
+            agent_id: Agent identifier
+            verification_record: Completed verification record (with id)
+            accurate: Whether verification was accurate
+            namespace: Agent namespace (verified from DB, V-VERIFY-3)
+
+        Returns:
+            Dictionary with propagation result:
+            {
+                "propagated": bool,         # True if pattern linkage found
+                "pattern_id": str | None,   # Linked pattern UUID
+                "trust_delta": float,       # Trust score change from pattern
+                "reason": str               # Explanation
+            }
+
+        Performance: <50ms P95 (Phase 1 baseline: 5ms, 10x buffer)
+
+        Security:
+            - V-VERIFY-4: Only public/system patterns propagate trust
+            - V-TRUST-1: pattern_id serves as verification_id
+            - V-TRUST-4: Namespace isolation via verified namespace parameter
+        """
+        import logging
+        from src.core.exceptions import NotFoundError, AuthorizationError, ValidationError
+
+        logger = logging.getLogger(__name__)
+
+        try:
+            # Step 1: Detect pattern linkage from claim_content
+            pattern_id_str = verification_record.claim_content.get("pattern_id")
+
+            if not pattern_id_str:
+                logger.debug(
+                    f"No pattern linkage for verification {verification_record.id}",
+                    extra={"agent_id": agent_id, "verification_id": str(verification_record.id)}
+                )
+                return {
+                    "propagated": False,
+                    "pattern_id": None,
+                    "trust_delta": 0.0,
+                    "reason": "No pattern linkage in claim_content"
+                }
+
+            # Step 2: Convert pattern_id to UUID
+            try:
+                pattern_id = UUID(pattern_id_str)
+            except (ValueError, TypeError) as e:
+                logger.warning(
+                    f"Invalid pattern_id format: {pattern_id_str}",
+                    extra={"agent_id": agent_id, "pattern_id_str": pattern_id_str}
+                )
+                return {
+                    "propagated": False,
+                    "pattern_id": pattern_id_str,
+                    "trust_delta": 0.0,
+                    "reason": f"Invalid pattern_id format: {e}"
+                }
+
+            # Step 3: Get current trust score (for delta calculation)
+            result = await self.session.execute(
+                select(Agent).where(Agent.agent_id == agent_id)
+            )
+            agent = result.scalar_one_or_none()
+            old_trust_score = agent.trust_score if agent else 0.5
+
+            # Step 4: Propagate to learning patterns via LearningTrustIntegration
+            if accurate:
+                new_trust_score = await self.learning_trust_integration.propagate_learning_success(
+                    agent_id=agent_id,
+                    pattern_id=pattern_id,
+                    requesting_namespace=namespace
+                )
+                reason = "Pattern success propagated"
+            else:
+                new_trust_score = await self.learning_trust_integration.propagate_learning_failure(
+                    agent_id=agent_id,
+                    pattern_id=pattern_id,
+                    requesting_namespace=namespace
+                )
+                reason = "Pattern failure propagated"
+
+            trust_delta = new_trust_score - old_trust_score
+
+            logger.info(
+                f"✅ Pattern propagation successful: {reason}",
+                extra={
+                    "agent_id": agent_id,
+                    "pattern_id": str(pattern_id),
+                    "accurate": accurate,
+                    "trust_delta": trust_delta,
+                    "new_trust_score": new_trust_score
+                }
+            )
+
+            return {
+                "propagated": True,
+                "pattern_id": str(pattern_id),
+                "trust_delta": trust_delta,
+                "new_trust_score": new_trust_score,
+                "reason": reason
+            }
+
+        except ValidationError as e:
+            # Expected: Pattern not eligible (private, self-owned, etc.)
+            logger.info(
+                f"Pattern propagation skipped: {e}",
+                extra={
+                    "agent_id": agent_id,
+                    "pattern_id": pattern_id_str if 'pattern_id_str' in locals() else None,
+                    "reason": str(e)
+                }
+            )
+            return {
+                "propagated": False,
+                "pattern_id": pattern_id_str if 'pattern_id_str' in locals() else None,
+                "trust_delta": 0.0,
+                "reason": f"Pattern not eligible: {str(e)}"
+            }
+
+        except NotFoundError as e:
+            # Pattern doesn't exist - log warning
+            logger.warning(
+                f"Pattern not found for propagation: {e}",
+                extra={
+                    "agent_id": agent_id,
+                    "pattern_id": pattern_id_str if 'pattern_id_str' in locals() else None
+                }
+            )
+            return {
+                "propagated": False,
+                "pattern_id": pattern_id_str if 'pattern_id_str' in locals() else None,
+                "trust_delta": 0.0,
+                "reason": f"Pattern not found: {str(e)}"
+            }
+
+        except (DatabaseError, AuthorizationError) as e:
+            # Unexpected but recoverable - log warning and continue
+            logger.warning(
+                f"Pattern propagation failed but verification succeeded: {type(e).__name__}: {e}",
+                extra={
+                    "agent_id": agent_id,
+                    "pattern_id": pattern_id_str if 'pattern_id_str' in locals() else None,
+                    "exception_type": type(e).__name__
+                }
+            )
+            return {
+                "propagated": False,
+                "pattern_id": pattern_id_str if 'pattern_id_str' in locals() else None,
+                "trust_delta": 0.0,
+                "reason": f"Propagation error: {type(e).__name__}"
+            }
+
+        except Exception as e:
+            # Completely unexpected - log error but don't raise
+            logger.error(
+                f"Unexpected error in pattern propagation: {type(e).__name__}: {e}",
+                exc_info=True,
+                extra={
+                    "agent_id": agent_id,
+                    "pattern_id": pattern_id_str if 'pattern_id_str' in locals() else None,
+                    "exception_type": type(e).__name__
+                }
+            )
+            return {
+                "propagated": False,
+                "pattern_id": pattern_id_str if 'pattern_id_str' in locals() else None,
+                "trust_delta": 0.0,
+                "reason": f"Internal error: {type(e).__name__}"
+            }

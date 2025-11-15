@@ -215,9 +215,9 @@ class ServiceManager:
 
                     return AgentService(session)
                 elif service_name == "memory":
-                    from ..services.memory_service import MemoryService
+                    from ..services.memory_service import HybridMemoryService
 
-                    return MemoryService(session)
+                    return HybridMemoryService(session)
                 elif service_name == "task":
                     from ..services.task_service import TaskService
 

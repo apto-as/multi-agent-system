@@ -1,8 +1,8 @@
 """TMWS - Trinitas Memory & Workflow Service
-MCP-only architecture (v2.2.6+)
+MCP-only architecture (v2.3.0+)
 """
 
-__version__ = "2.2.6"
+__version__ = "2.3.0"
 
 # Core process management exports
 from .core.process_manager import (

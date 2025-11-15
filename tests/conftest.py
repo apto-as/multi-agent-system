@@ -28,6 +28,8 @@ from src.core.database import Base, get_db_session_dependency  # noqa: E402
 # Import all models to ensure Base.metadata discovers them
 from src.models.agent import Agent  # noqa: E402
 from src.models.learning_pattern import LearningPattern, PatternUsageHistory  # noqa: E402
+from src.models.license_key import LicenseKey, LicenseKeyUsage  # noqa: E402
+from src.models.mcp_connection import MCPConnectionModel  # noqa: E402
 from src.models.memory import Memory  # noqa: E402
 from src.models.task import Task  # noqa: E402
 from src.models.user import User, UserRole  # noqa: E402
@@ -433,3 +435,68 @@ def sample_vector_data():
 def database_marker():
     """Helper to identify current database type (SQLite + ChromaDB architecture)."""
     return "sqlite"
+
+
+# ============================================================================
+# RBAC Test Fixtures (Wave 2: Security Validation Framework)
+# ============================================================================
+
+
+@pytest_asyncio.fixture
+async def viewer_agent(test_session):
+    """Create agent with viewer role for RBAC permission tests."""
+    from uuid import uuid4
+
+    agent = Agent(
+        id=str(uuid4()),
+        agent_id="test-viewer",
+        display_name="Test Viewer",
+        namespace="test",
+        status="active",
+        health_score=1.0,
+        role="viewer",
+    )
+    test_session.add(agent)
+    await test_session.commit()
+    await test_session.refresh(agent)
+    return agent
+
+
+@pytest_asyncio.fixture
+async def editor_agent(test_session):
+    """Create agent with editor role for RBAC permission tests."""
+    from uuid import uuid4
+
+    agent = Agent(
+        id=str(uuid4()),
+        agent_id="test-editor",
+        display_name="Test Editor",
+        namespace="test",
+        status="active",
+        health_score=1.0,
+        role="editor",
+    )
+    test_session.add(agent)
+    await test_session.commit()
+    await test_session.refresh(agent)
+    return agent
+
+
+@pytest_asyncio.fixture
+async def admin_agent(test_session):
+    """Create agent with admin role for RBAC permission tests."""
+    from uuid import uuid4
+
+    agent = Agent(
+        id=str(uuid4()),
+        agent_id="test-admin",
+        display_name="Test Admin",
+        namespace="test",
+        status="active",
+        health_score=1.0,
+        role="admin",
+    )
+    test_session.add(agent)
+    await test_session.commit()
+    await test_session.refresh(agent)
+    return agent

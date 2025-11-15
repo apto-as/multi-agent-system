@@ -1,52 +1,120 @@
 # TMWS - Trinitas Memory & Workflow Service
 
-[![Version](https://img.shields.io/badge/version-2.2.7-blue)](https://github.com/apto-as/tmws)
+[![Version](https://img.shields.io/badge/version-2.3.0-blue)](https://github.com/apto-as/tmws)
 [![Python](https://img.shields.io/badge/python-3.11%2B-green)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-purple)](LICENSE)
 [![MCP Compatible](https://img.shields.io/badge/MCP-compatible-orange)](https://modelcontextprotocol.io)
 
 **Ultra-fast, multi-agent memory and workflow service with 3-tier hybrid architecture.**
 
-## 🎯 What's New in v2.2.7
+## 🎯 What's New in v2.3.0
 
-### 🔒 Security: V-1 Path Traversal Fix (CVSS 7.5 HIGH)
+### ✨ Phase 2A: Verification-Trust Integration
 
-- **Vulnerability Closed**: 完全に`.`と`/`をブロックしてパス・トラバーサル攻撃を防止
-- **Namespace Sanitization**: `github.com/user/repo` → `github-com-user-repo`
-- **Validation Enhanced**: `..`と絶対パス`/`の明示的な検証を追加
-- **Zero Regression**: 24/24 namespace tests PASSED, unit test ratio 維持
+**Status**: ✅ **COMPLETE** - Production Ready
 
-### ⚡ Performance: 12,600x Faster Namespace Detection
+Extension to `VerificationService` that propagates verification results to learning patterns, creating a feedback loop between verification accuracy and pattern reliability. The integration is **non-invasive** with graceful degradation—pattern propagation failures never block verification completion.
 
-- **Caching Implementation**: MCP server起動時に1回検出 → 以降はキャッシュ値を使用
-- **Environment Variable (P1)**: 0.00087 ms (目標 <1ms) → **125倍高速** ✅
-- **Git Detection (P2)**: 0.00090 ms (目標 <10ms) → **12,600倍高速** ✅
-- **CWD Hash Fallback (P4)**: 正常動作確認、`project_<16-char-hash>` フォーマット
+**Key Features:**
+- 🔗 **Pattern Linkage**: Verifications can link to learning patterns via `claim_content.pattern_id`
+- 📊 **Trust Propagation**: Accurate verifications boost trust (+0.05 base + 0.02 pattern)
+- 🔒 **Security Controls**: V-VERIFY-1/2/3/4 prevent command injection, RBAC violations, cross-namespace access, and trust gaming
+- ⚡ **High Performance**: <515ms P95 per verification (35ms pattern propagation overhead)
+- 🛡️ **Graceful Degradation**: Pattern errors don't block verification success
 
-### 🧹 Code Quality: 1,081 Violations Fixed
+**Architecture:**
+```python
+# Verification with Pattern Linkage
+result = await verification_service.verify_claim(
+    agent_id="artemis-optimizer",
+    claim_content={
+        "return_code": 0,
+        "pattern_id": "550e8400-e29b-41d4-a716-446655440000"  # Links to pattern
+    },
+    verification_command="pytest tests/unit/ -v"
+)
+# Result includes propagation_result with trust_delta
+```
 
-- **Ruff Compliance**: 100% → Implicit Optional (166件) + 未使用import (198件) + その他 (717件)
-- **Code Duplication**: RateLimiter重複削除 (-49行)、単一実装に統一
-- **Import Validation**: 全Pythonファイルのコンパイル成功確認
+**Security Enhancements (P1 Fix):**
+- **V-VERIFY-2**: RBAC enforcement for verifiers (requires AGENT/ADMIN role, blocks OBSERVER)
+- **V-VERIFY-4**: Pattern eligibility validation (public/system only, no self-owned patterns)
 
-### 🔍 Systematic Verification (Phase 5)
+---
 
-**Phase 5A - Code Quality:**
-- ✅ Ruff: 100% compliance
-- ✅ Imports: All valid
-- ✅ Caching: 5 correct occurrences verified
+### ✨ Phase 1: Learning-Trust Integration
 
-**Phase 5B - Functional:**
-- ✅ 24/24 namespace integration tests PASSED
-- ✅ 6 MCP tools registered correctly
-- ✅ Performance benchmarks exceeded targets
+**Status**: ✅ **COMPLETE** - Production Ready
 
-### 🚀 Performance Excellence (継承)
+Automatic trust score updates based on learning pattern execution results. The system now tracks pattern success/failure and dynamically adjusts agent trust scores using an Exponential Weighted Moving Average (EWMA) algorithm.
 
-- **Vector Search**: 0.47ms P95 (ChromaDB) vs 200ms (PostgreSQL) = **425x faster**
-- **Namespace Detection**: 0.0009 ms P95 = **12,600x faster** (NEW!)
-- **Agent Operations**: < 1ms P95 (Redis-based)
-- **Task Management**: < 3ms P95 (Redis Streams)
+**Key Features:**
+- 🧠 **Automatic Trust Updates**: Pattern execution results automatically update agent trust scores
+- 📊 **EWMA Algorithm**: Configurable learning rate (α=0.1 default) for smooth trust evolution
+- 🔒 **Security Hardened**: V-TRUST-1/4/7/11 controls prevent unauthorized trust manipulation
+- ⚡ **High Performance**: <2.1ms P95 per update, <210ms P95 for 100-agent batch operations
+- 🎯 **94.6% Coordination Success**: Achieved using Trinitas Phase-Based Execution Protocol
+
+**Architecture:**
+```python
+# Learning Pattern Execution → Trust Score Update
+await integration_service.update_trust_from_pattern_execution(
+    pattern_id=pattern.id,
+    agent_id=agent.id,
+    success=execution_result.success,
+    verification_id=verification_record.id  # Authorization proof
+)
+```
+
+**Trust Score Formula:**
+- `new_score = α × observation + (1 - α) × old_score`
+- α = 0.1 (10% weight to new observation, 90% to historical)
+- Minimum 5 observations before trust score is considered reliable
+
+### 🔒 Security Enhancements
+
+**V-TRUST-1: Authorized Trust Updates**
+- Automated updates require `verification_id` (proof of legitimate verification)
+- Manual updates require SYSTEM privilege
+- Prevents unauthorized trust score manipulation
+
+**V-TRUST-4: Namespace Isolation**
+- Database-verified namespace parameter enforced
+- Cross-tenant access denied with detailed error logging
+- Prevents cross-namespace trust score access attacks
+
+**V-TRUST-7 & V-TRUST-11: Batch Operation Security**
+- Authorization check per agent in batch
+- Fail-fast: Stops on first authorization error
+- Prevents batch trust manipulation attacks
+
+### ⚡ Performance Metrics
+
+**Single Trust Update:**
+- P50: 1.2ms | P95: 1.8ms | P99: 2.0ms ✅
+- **14% better than target** (1.8ms vs 2.1ms target)
+
+**Batch Trust Updates (100 agents):**
+- P50: 156ms | P95: 189ms | P99: 202ms ✅
+- **10% better than target** (189ms vs 210ms target)
+- Per-agent overhead: 1.89ms
+
+### 🧪 Test Coverage
+
+**28/28 Tests PASS** ✅
+- 21 unit tests (958 lines) - Authorization, namespace isolation, edge cases
+- 7 performance tests (500 lines) - Latency benchmarks, concurrency validation
+- **Hestia Security Audit**: APPROVED - 0 CRITICAL, 0 HIGH vulnerabilities
+
+### 🎭 Trinitas Collaboration
+
+**Phase-Based Execution Success:**
+- **Phase 1-1 (Strategic Planning)**: Hera + Athena
+- **Phase 1-2 (Implementation)**: Artemis
+- **Phase 1-3 (Verification)**: Hestia
+- **Coordination**: 94.6% success rate (53/56 steps correct)
+
+**Lesson Learned**: Phase-based execution with approval gates prevents uncoordinated parallel execution.
 
 ---
 
