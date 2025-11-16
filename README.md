@@ -134,9 +134,23 @@ await integration_service.update_trust_from_pattern_execution(
 
 | Method | Use Case | Time | Performance |
 |--------|----------|------|-------------|
-| **uvx** (推奨) | Production | 1-2 min | Full (SQLite + Chroma + Redis) |
+| **🐳 Docker** (最速) | Production | **5 min** | Full (SQLite + Chroma) |
+| **uvx** | Production | 1-2 min | Full (SQLite + Chroma + Redis) |
 | **自動セットアップ** | Local dev | 5-10 min | Full |
 | **手動セットアップ** | Custom | 10-15 min | Full |
+
+### 🚀 New in v2.3.1: Docker Deployment (5 Minutes)
+
+**Fastest path to production deployment**:
+
+```bash
+# See DOCKER_QUICKSTART.md for 5-minute deployment guide
+# Supports: Mac ARM64, Linux Ubuntu, Windows WSL
+```
+
+📖 **[→ Docker Quick Start Guide (5 minutes)](DOCKER_QUICKSTART.md)**
+
+---
 
 ### Method 1: uvx（最速・推奨）
 
