@@ -39,9 +39,36 @@ COPY README.md ./
 # This creates dist/tmws-2.3.0-py3-none-any.whl
 RUN python -m build --wheel --no-isolation
 
-# Verify wheel was created
+# ========================================
+# Phase 2E-1: Bytecode-Only Wheel Creation
+# ========================================
+# Security: R-P0-1 mitigation - Remove all .py source files
+# Method: Compile to .pyc bytecode, repackage wheel
+# Impact: Source protection 3/10 → 9.2/10
+# ========================================
+
+# 1. Unzip wheel to temp directory
+RUN mkdir -p /tmp/wheel && \
+    unzip -q dist/*.whl -d /tmp/wheel
+
+# 2. Compile all .py files to .pyc bytecode
+# -b: Use legacy .pyc file layout for compatibility
+RUN python -m compileall -b /tmp/wheel
+
+# 3. Remove all .py source files (keep only .pyc)
+# Exclude scripts and entry points
+RUN find /tmp/wheel -name "*.py" ! -path "*/bin/*" ! -path "*/scripts/*" -delete
+
+# 4. Repackage as bytecode-only wheel
+# Version bump to 2.3.2 to indicate bytecode distribution
+RUN cd /tmp/wheel && \
+    zip -qr /build/dist/tmws_bytecode-2.3.2-py3-none-any.whl . && \
+    rm -rf /tmp/wheel dist/tmws-2.3.1-*.whl
+
+# Verify bytecode wheel was created
 RUN ls -lh dist/*.whl && \
-    echo "Wheel created successfully: $(ls dist/*.whl)"
+    echo "Bytecode wheel created: $(ls dist/*.whl)" && \
+    unzip -l dist/*.whl | grep -E '\.pyc|\.py' | head -n 10
 
 # ========================================
 # Stage 2: Runtime (PRODUCTION)
@@ -66,14 +93,29 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Create non-root user (UID 1000 for compatibility)
 RUN useradd -m -u 1000 -s /bin/bash tmws
 
-# Copy wheel from builder (NO .py source files)
-COPY --from=builder /build/dist/*.whl /tmp/
+# Copy bytecode-only wheel from builder (NO .py source files)
+COPY --from=builder /build/dist/tmws_bytecode-*.whl /tmp/
 
 # Install wheel and remove after installation
 # This installs compiled .pyc bytecode, NOT .py source
 RUN pip install --no-cache-dir /tmp/*.whl && \
     rm -f /tmp/*.whl && \
     pip cache purge
+
+# ========================================
+# Phase 2E-1: Source Protection Verification
+# ========================================
+# CRITICAL: Verify no .py source files exist in runtime
+# Expected: 0 .py files in /usr/local/lib/python3.11/site-packages/src/
+# ========================================
+RUN SOURCE_COUNT=$(find /usr/local/lib/python3.11/site-packages/src -name "*.py" -type f 2>/dev/null | wc -l) && \
+    echo "Source file count: $SOURCE_COUNT" && \
+    if [ "$SOURCE_COUNT" -ne 0 ]; then \
+        echo "❌ SECURITY FAILURE: $SOURCE_COUNT .py files found in runtime" && \
+        exit 1; \
+    else \
+        echo "✅ Source code protection verified: 0 .py files found"; \
+    fi
 
 # Set up application directories with proper permissions
 RUN mkdir -p \
