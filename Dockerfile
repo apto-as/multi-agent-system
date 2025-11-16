@@ -23,8 +23,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-# Install uv for fast dependency resolution
-RUN pip install --no-cache-dir uv
+# Install uv for fast dependency resolution and build module for wheel creation
+RUN pip install --no-cache-dir uv build
 
 # Copy dependency files
 COPY pyproject.toml ./
