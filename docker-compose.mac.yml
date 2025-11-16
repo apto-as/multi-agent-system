@@ -1,0 +1,151 @@
+# ========================================
+# TMWS v2.3.1 - Mac Hybrid Mode
+# ========================================
+# Architecture:
+#   - Ollama: Native (host, Metal GPU acceleration)
+#   - TMWS: Docker container
+# Connection: http://host.docker.internal:11434
+# ========================================
+
+version: '3.8'
+
+services:
+  tmws:
+    # Option 1: Build from source
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    # Option 2: Use pre-built image (uncomment after first release)
+    # image: ghcr.io/apto-as/tmws:v2.3.1
+
+    container_name: tmws-app
+    hostname: tmws
+
+    ports:
+      # MCP Server API
+      - "8000:8000"
+
+    volumes:
+      # Persistent data (SQLite database)
+      - ./data:/app/data
+
+      # Configuration files
+      - ./config:/app/config
+
+      # ChromaDB vector storage
+      - ./.chroma:/app/.chroma
+
+      # Logs
+      - ./logs:/app/logs
+
+    environment:
+      # Environment
+      - TMWS_ENVIRONMENT=${TMWS_ENVIRONMENT:-production}
+
+      # Security (REQUIRED - set in .env)
+      - TMWS_SECRET_KEY=${TMWS_SECRET_KEY}
+
+      # Database
+      - TMWS_DATABASE_URL=sqlite+aiosqlite:////app/data/tmws.db
+
+      # Ollama (Mac Native - Metal GPU)
+      # host.docker.internal resolves to host machine
+      - TMWS_OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - TMWS_OLLAMA_MODEL=zylonai/multilingual-e5-large
+
+      # ChromaDB
+      - TMWS_CHROMA_PERSIST_DIRECTORY=/app/.chroma
+
+      # Logging
+      - TMWS_LOG_LEVEL=${TMWS_LOG_LEVEL:-INFO}
+      - TMWS_LOG_FILE=/app/logs/tmws.log
+
+      # CORS (if needed for web clients)
+      - TMWS_CORS_ORIGINS=${TMWS_CORS_ORIGINS:-["http://localhost:3000"]}
+
+      # Performance
+      - TMWS_MAX_WORKERS=${TMWS_MAX_WORKERS:-4}
+      - TMWS_REQUEST_TIMEOUT=${TMWS_REQUEST_TIMEOUT:-60}
+
+    restart: unless-stopped
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+    # Resource limits (recommended for production)
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '1.0'
+          memory: 1G
+
+    # Network
+    networks:
+      - tmws-network
+
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  tmws-network:
+    driver: bridge
+
+# ========================================
+# Setup Instructions (Mac)
+# ========================================
+# 1. Install Ollama (native):
+#    brew install ollama
+#    OR download from https://ollama.ai/download
+#
+# 2. Start Ollama (Metal GPU acceleration):
+#    ollama serve
+#
+# 3. Pull embedding model:
+#    ollama pull zylonai/multilingual-e5-large
+#
+# 4. Create .env file:
+#    cp .env.example .env
+#    # Edit .env and set TMWS_SECRET_KEY
+#
+# 5. Create directories:
+#    mkdir -p data config logs .chroma
+#
+# 6. Start TMWS:
+#    docker-compose -f docker-compose.mac.yml up -d
+#
+# 7. Verify:
+#    docker-compose -f docker-compose.mac.yml ps
+#    docker-compose -f docker-compose.mac.yml logs -f
+#    curl http://localhost:8000/health
+#
+# ========================================
+# Troubleshooting
+# ========================================
+# Ollama connection error:
+#   - Verify Ollama is running: curl http://localhost:11434/api/tags
+#   - Check model: ollama list | grep multilingual-e5-large
+#
+# Permission denied on volumes:
+#   chmod -R 755 data config logs .chroma
+#
+# Container unhealthy:
+#   docker-compose -f docker-compose.mac.yml logs tmws
+#   docker exec -it tmws-app /bin/bash
+#
+# Reset everything:
+#   docker-compose -f docker-compose.mac.yml down -v
+#   rm -rf data/.chroma/* data/*.db logs/*
+#   docker-compose -f docker-compose.mac.yml up -d
+# ========================================
