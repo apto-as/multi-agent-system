@@ -33,7 +33,7 @@ Starting with v2.3.2, TMWS uses license keys to:
 - No commercial use
 - Source code inspection disabled (bytecode only)
 
-**Obtain**: [Get FREE License](https://trinitas.ai/licensing/free)
+**Obtain**: Contact your system administrator
 
 **Ideal For**: Personal use, experimentation, learning
 
@@ -49,7 +49,7 @@ Starting with v2.3.2, TMWS uses license keys to:
 - Commercial use allowed
 - Priority bug fixes
 
-**Obtain**: [Purchase STANDARD](https://trinitas.ai/licensing/standard)
+**Obtain**: Contact your system administrator
 
 **Ideal For**: Small teams, startups, production deployments
 
@@ -57,7 +57,7 @@ Starting with v2.3.2, TMWS uses license keys to:
 
 ### ENTERPRISE Tier
 
-**Cost**: Custom pricing (contact sales)
+**Cost**: Custom pricing (contact administrator)
 **Features**:
 - Unlimited agents
 - Priority support (24-hour SLA)
@@ -66,7 +66,7 @@ Starting with v2.3.2, TMWS uses license keys to:
 - Dedicated account manager
 - White-label options
 
-**Obtain**: [Contact Sales](mailto:sales@trinitas.ai)
+**Obtain**: Contact your system administrator for custom configuration
 
 **Ideal For**: Large organizations, high-security deployments, custom requirements
 
@@ -76,25 +76,22 @@ Starting with v2.3.2, TMWS uses license keys to:
 
 ### FREE Tier Process
 
-1. **Visit**: https://trinitas.ai/licensing/free
-2. **Sign Up**: Create account with email + password
-3. **Generate Key**: Click "Generate FREE License"
-4. **Receive Email**: License key sent to your email
-5. **Activate**: Copy license key to `.env` file
+1. **Request**: Contact your system administrator
+2. **Receive**: Administrator generates FREE license key using internal tools
+3. **Activate**: Add license key to `.env` file as `TMWS_LICENSE_KEY`
 
-**Time**: ~5 minutes
+**Time**: Depends on administrator availability
 
 ---
 
 ### STANDARD/ENTERPRISE Process
 
-1. **Visit**: https://trinitas.ai/licensing/standard
-2. **Select Plan**: Monthly or annual billing
-3. **Payment**: Credit card or invoice (Enterprise)
-4. **Receive Key**: License key sent immediately after payment
-5. **Activate**: Copy license key to `.env` file
+1. **Request**: Contact your system administrator
+2. **Approval**: Administrator reviews request and tier requirements
+3. **Receive**: Administrator generates license key for your tier
+4. **Activate**: Add license key to `.env` file as `TMWS_LICENSE_KEY`
 
-**Time**: ~10 minutes (payment processing)
+**Time**: Depends on approval process
 
 ---
 
@@ -186,7 +183,7 @@ docker logs tmws | grep "License validated"
 
 **FREE Tier** (manual renewal):
 - FREE licenses expire after 1 year
-- Renew at: https://trinitas.ai/licensing/renew
+- Contact your system administrator for renewal
 - New license key issued (update `.env` file)
 
 ---
@@ -194,17 +191,16 @@ docker logs tmws | grep "License validated"
 ### Upgrading Tiers
 
 **FREE → STANDARD**:
-1. Visit: https://trinitas.ai/licensing/upgrade
-2. Enter current license key
-3. Select STANDARD plan
-4. Complete payment
-5. Receive new STANDARD license key
-6. Update `.env` file with new key
-7. Restart TMWS
+1. Contact your system administrator
+2. Request STANDARD tier upgrade
+3. Administrator reviews and approves request
+4. Receive new STANDARD license key
+5. Update `.env` file with new key
+6. Restart TMWS
 
 **STANDARD → ENTERPRISE**:
-1. Contact sales: sales@trinitas.ai
-2. Discuss requirements and pricing
+1. Contact your system administrator
+2. Discuss requirements and custom configuration needs
 3. Receive custom ENTERPRISE license key
 4. Update `.env` file
 5. Restart TMWS
@@ -213,9 +209,9 @@ docker logs tmws | grep "License validated"
 
 ### Revoking Licenses
 
-**Self-Service Revocation** (STANDARD/ENTERPRISE):
-- Subscription cancellation: License revoked after billing period ends
-- Immediate revocation: Contact support@trinitas.ai
+**Revocation** (All Tiers):
+- Contact your system administrator to revoke license
+- License revoked immediately or after notice period
 
 **FREE Tier**:
 - Cannot be revoked (lifetime license)
@@ -244,9 +240,9 @@ docker logs tmws | grep "License validated"
 - ❌ Don't log license keys (TMWS automatically redacts)
 
 **Compromise Response**:
-1. Report to security@trinitas.ai
+1. Report to your system administrator immediately
 2. License will be revoked immediately
-3. New license key issued (no charge)
+3. New license key issued by administrator
 
 ### Privacy
 
@@ -303,9 +299,9 @@ docker-compose restart
 **Cause**: License was revoked (subscription canceled or security issue)
 
 **Solution**:
-1. Check subscription status: https://trinitas.ai/account
-2. Renew subscription if expired
-3. Contact support if unexpected: support@trinitas.ai
+1. Contact your system administrator
+2. Request license renewal if subscription expired
+3. Report issue if revocation was unexpected
 
 ---
 
@@ -314,7 +310,7 @@ docker-compose restart
 **Cause**: License key checksum is invalid (tampered or corrupted)
 
 **Solution**:
-- Request new license key: https://trinitas.ai/licensing/reissue
+- Request new license key from your system administrator
 - Check for data corruption (file transfer, copy-paste errors)
 - Verify no quote escaping issues in `.env` file
 
@@ -325,7 +321,7 @@ docker-compose restart
 **Cause**: License has expired but grace period is active
 
 **Solution**:
-- Renew license: https://trinitas.ai/licensing/renew
+- Contact your system administrator for license renewal
 - Update `.env` file with new key
 - Restart TMWS before grace period ends
 
@@ -334,17 +330,14 @@ docker-compose restart
 ## Support
 
 - **Community (FREE)**: https://github.com/apto-as/tmws/discussions
-- **Email (STANDARD)**: support@trinitas.ai (48-hour SLA)
-- **Priority (ENTERPRISE)**: support@trinitas.ai (24-hour SLA)
-- **Security Issues**: security@trinitas.ai
+- **Internal Support**: Contact your system administrator
+- **Security Issues**: Report to your system administrator
 
 ---
 
 ## License Agreement
 
-By using TMWS with a license key, you agree to the Trinitas Software License Agreement:
-
-https://trinitas.ai/legal/license-agreement
+By using TMWS with a license key, you agree to your organization's internal software license agreement and terms of use.
 
 **Key Terms**:
 - FREE tier: Non-commercial use only

@@ -160,13 +160,13 @@ await integration_service.update_trust_from_pattern_execution(
 
 | Tier | Agents | Support | Obtain |
 |------|--------|---------|--------|
-| **FREE** | 1 agent | Community | [Get FREE License](https://trinitas.ai/licensing/free) |
-| **STANDARD** | 10 agents | Email | [Purchase STANDARD](https://trinitas.ai/licensing/standard) |
-| **ENTERPRISE** | Unlimited | Priority | [Contact Sales](mailto:sales@trinitas.ai) |
+| **FREE** | 1 agent | Community | Contact your administrator |
+| **STANDARD** | 10 agents | Internal | Contact your administrator |
+| **ENTERPRISE** | Unlimited | Priority | Contact your administrator for custom configuration |
 
 ### Docker Deployment
 
-1. **Get your license key** from the links above
+1. **Get your license key** from your system administrator
 2. **Set environment variable** in `.env` file:
    ```bash
    TMWS_LICENSE_KEY=TMWS-FREE-your-actual-key-here
@@ -211,10 +211,10 @@ Add to your Claude Desktop config (`claude_desktop_config.json`):
 **Error: "Invalid license key: [reason]"**
 - Ensure license key has not been revoked
 - Check expiration date (7-day grace period applies)
-- Contact support if issue persists: support@trinitas.ai
+- Contact your system administrator if issue persists
 
 **License renewal**:
-- Visit: https://trinitas.ai/licensing/renew
+- Contact your system administrator for license renewal
 
 ---
 
