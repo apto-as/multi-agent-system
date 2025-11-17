@@ -41,6 +41,10 @@ services:
       - ./logs:/app/logs
 
     environment:
+      # License Configuration (Phase 2E-3)
+      - TMWS_LICENSE_KEY=${TMWS_LICENSE_KEY}              # Required
+      - TMWS_LICENSE_STRICT_MODE=${TMWS_LICENSE_STRICT_MODE:-false}  # Optional
+
       # Environment
       - TMWS_ENVIRONMENT=${TMWS_ENVIRONMENT:-production}
 

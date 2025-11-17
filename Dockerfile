@@ -21,6 +21,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
     git \
+    unzip \
+    zip \
     && rm -rf /var/lib/apt/lists/*
 
 # Install uv for fast dependency resolution and build module for wheel creation
@@ -59,11 +61,11 @@ RUN python -m compileall -b /tmp/wheel
 # Exclude scripts and entry points
 RUN find /tmp/wheel -name "*.py" ! -path "*/bin/*" ! -path "*/scripts/*" -delete
 
-# 4. Repackage as bytecode-only wheel
-# Version bump to 2.3.2 to indicate bytecode distribution
-RUN cd /tmp/wheel && \
-    zip -qr /build/dist/tmws_bytecode-2.3.2-py3-none-any.whl . && \
-    rm -rf /tmp/wheel dist/tmws-2.3.1-*.whl
+# 4. Repackage as bytecode-only wheel (replace original)
+RUN rm -f /build/dist/*.whl && \
+    cd /tmp/wheel && \
+    zip -qr /build/dist/tmws-2.3.0-py3-none-any.whl . && \
+    rm -rf /tmp/wheel
 
 # Verify bytecode wheel was created
 RUN ls -lh dist/*.whl && \
@@ -93,28 +95,46 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Create non-root user (UID 1000 for compatibility)
 RUN useradd -m -u 1000 -s /bin/bash tmws
 
-# Copy bytecode-only wheel from builder (NO .py source files)
-COPY --from=builder /build/dist/tmws_bytecode-*.whl /tmp/
+# Copy dependencies definition and bytecode-only wheel
+COPY --from=builder /build/pyproject.toml /tmp/
+COPY --from=builder /build/README.md /tmp/
+COPY --from=builder /build/dist/tmws-*.whl /tmp/
 
-# Install wheel and remove after installation
-# This installs compiled .pyc bytecode, NOT .py source
-RUN pip install --no-cache-dir /tmp/*.whl && \
-    rm -f /tmp/*.whl && \
+# Install uv for fast dependency resolution
+RUN pip install --no-cache-dir uv
+
+# Step 1: Install all dependencies from pyproject.toml (no source code)
+# Step 2: Install bytecode-only wheel without dependencies (--no-deps)
+# This two-step process ensures dependencies are installed from PyPI,
+# while the TMWS code comes from bytecode-only wheel
+RUN cd /tmp && \
+    uv pip install --system --no-cache . && \
+    uv pip install --system --no-cache --no-deps --force-reinstall tmws-*.whl && \
+    cd / && \
+    rm -rf /tmp/* && \
+    pip uninstall -y uv && \
     pip cache purge
 
 # ========================================
 # Phase 2E-1: Source Protection Verification
 # ========================================
 # CRITICAL: Verify no .py source files exist in runtime
-# Expected: 0 .py files in /usr/local/lib/python3.11/site-packages/src/
+# Uses Python's site module for accurate path detection
 # ========================================
-RUN SOURCE_COUNT=$(find /usr/local/lib/python3.11/site-packages/src -name "*.py" -type f 2>/dev/null | wc -l) && \
+RUN SITE_PACKAGES=$(python3 -c "import site; print(site.getsitepackages()[0])")/src && \
+    echo "Checking: ${SITE_PACKAGES}" && \
+    if [ ! -d "$SITE_PACKAGES" ]; then \
+        echo "❌ ERROR: Site-packages directory not found: $SITE_PACKAGES" && \
+        exit 1; \
+    fi && \
+    SOURCE_COUNT=$(find "$SITE_PACKAGES" -name "*.py" -type f | wc -l) && \
     echo "Source file count: $SOURCE_COUNT" && \
     if [ "$SOURCE_COUNT" -ne 0 ]; then \
         echo "❌ SECURITY FAILURE: $SOURCE_COUNT .py files found in runtime" && \
+        find "$SITE_PACKAGES" -name "*.py" -type f && \
         exit 1; \
     else \
-        echo "✅ Source code protection verified: 0 .py files found"; \
+        echo "✅ Source code protection verified: 0 .py files in $SITE_PACKAGES"; \
     fi
 
 # Set up application directories with proper permissions

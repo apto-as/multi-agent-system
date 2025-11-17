@@ -152,6 +152,72 @@ await integration_service.update_trust_from_pattern_execution(
 
 ---
 
+## 📜 License Configuration
+
+**TMWS v2.3.2+ requires a license key** for source code protection and distribution control.
+
+### Obtaining a License Key
+
+| Tier | Agents | Support | Obtain |
+|------|--------|---------|--------|
+| **FREE** | 1 agent | Community | [Get FREE License](https://trinitas.ai/licensing/free) |
+| **STANDARD** | 10 agents | Email | [Purchase STANDARD](https://trinitas.ai/licensing/standard) |
+| **ENTERPRISE** | Unlimited | Priority | [Contact Sales](mailto:sales@trinitas.ai) |
+
+### Docker Deployment
+
+1. **Get your license key** from the links above
+2. **Set environment variable** in `.env` file:
+   ```bash
+   TMWS_LICENSE_KEY=TMWS-FREE-your-actual-key-here
+   ```
+3. **Start TMWS**:
+   ```bash
+   docker-compose up -d
+   ```
+
+### Claude Desktop MCP Integration
+
+Add to your Claude Desktop config (`claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "tmws": {
+      "command": "docker",
+      "args": ["exec", "-it", "tmws", "tmws-mcp-server"],
+      "env": {
+        "TMWS_LICENSE_KEY": "TMWS-FREE-your-actual-key-here"
+      }
+    }
+  }
+}
+```
+
+### License Validation Behavior
+
+- **Missing License**: TMWS will not start (exit code 1)
+- **Invalid License**: TMWS will not start with error message
+- **Valid License**: TMWS starts and logs license tier/expiration
+- **Expired License**: 7-day grace period (warning logs)
+- **Strict Mode**: Set `TMWS_LICENSE_STRICT_MODE=true` to disable grace period
+
+### Troubleshooting
+
+**Error: "TMWS requires a valid license key to start"**
+- Check if `TMWS_LICENSE_KEY` environment variable is set
+- Verify license key format: `TMWS-{TIER}-{UUID}-{CHECKSUM}`
+
+**Error: "Invalid license key: [reason]"**
+- Ensure license key has not been revoked
+- Check expiration date (7-day grace period applies)
+- Contact support if issue persists: support@trinitas.ai
+
+**License renewal**:
+- Visit: https://trinitas.ai/licensing/renew
+
+---
+
 ### Method 1: uvx（最速・推奨）
 
 ```bash
