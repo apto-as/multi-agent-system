@@ -26,7 +26,7 @@
 - Basic features (Memory, Tasks, Workflows, Learning)
 - No credit card required
 
-**Obtain FREE license**: https://trinitas.ai/licensing/free
+**Obtain FREE license**: Contact your system administrator
 
 ---
 
@@ -78,9 +78,9 @@ Please set the TMWS_LICENSE_KEY environment variable:
 
 **A**: Yes!
 
-1. Visit: https://trinitas.ai/licensing/upgrade
-2. Enter your current FREE license key
-3. Complete payment
+1. Contact your system administrator
+2. Request STANDARD tier upgrade
+3. Administrator reviews and approves request
 4. Receive new STANDARD license key
 5. Update `.env` file and restart TMWS
 
@@ -127,9 +127,10 @@ TMWS-FREE-12345678-1234-5678-1234-567812345678-ABCD1234
 
 **A**:
 
-- **FREE**: https://trinitas.ai/licensing/free (instant, email delivery)
-- **STANDARD**: https://trinitas.ai/licensing/standard (purchase, immediate delivery)
-- **ENTERPRISE**: Contact sales@trinitas.ai (custom negotiation)
+- **All Tiers**: Contact your system administrator
+- **FREE**: Request from administrator (instant generation)
+- **STANDARD**: Request from administrator (approval required)
+- **ENTERPRISE**: Request from administrator (custom configuration)
 
 ---
 
@@ -196,7 +197,7 @@ TMWS-FREE-12345678-1234-5678-1234-567812345678-ABCD1234
 3. **Revoked**: Subscription canceled or security issue
 4. **Tampered**: Checksum verification failed (corrupted key)
 
-**Solution**: Request new key at https://trinitas.ai/licensing/reissue
+**Solution**: Request new key from your system administrator
 
 ---
 
@@ -204,7 +205,7 @@ TMWS-FREE-12345678-1234-5678-1234-567812345678-ABCD1234
 
 **A**: **No**. License validation requires **internet access** to check revocation status.
 
-**Workaround** (ENTERPRISE only): Contact sales for air-gapped deployment support (on-premise license server).
+**Workaround** (ENTERPRISE only): Contact your system administrator for air-gapped deployment support (on-premise license server).
 
 ---
 
@@ -214,10 +215,10 @@ TMWS-FREE-12345678-1234-5678-1234-567812345678-ABCD1234
 
 **A**:
 
-1. Visit: https://trinitas.ai/licensing/renew
-2. Enter expired license key
-3. Click "Renew FREE License"
-4. Receive new license key via email
+1. Contact your system administrator before license expires
+2. Request FREE license renewal
+3. Administrator generates new license key
+4. Receive new license key from administrator
 5. Update `.env` file with new key
 6. Restart TMWS
 
@@ -243,13 +244,13 @@ TMWS-FREE-12345678-1234-5678-1234-567812345678-ABCD1234
 
 **A**:
 
-1. Visit: https://trinitas.ai/account/subscription
-2. Click "Cancel Subscription"
-3. Confirm cancellation
+1. Contact your system administrator
+2. Request subscription cancellation
+3. Administrator processes cancellation
 4. License remains valid until end of billing period
 5. After period ends: License expires (7-day grace period applies)
 
-**Refunds**: Pro-rated refunds for annual plans (within 30 days)
+**Refunds**: Contact your system administrator for refund policy
 
 ---
 
@@ -293,9 +294,9 @@ docker-compose restart
 **A**: License was revoked (subscription canceled or security issue).
 
 **Solution**:
-1. Check subscription status: https://trinitas.ai/account
-2. Renew if expired
-3. Contact support@trinitas.ai if unexpected
+1. Contact your system administrator
+2. Request license renewal if subscription expired
+3. Report issue if revocation was unexpected
 
 ---
 
@@ -305,7 +306,7 @@ docker-compose restart
 
 **Solution**: Renew license **before grace period ends** to avoid service interruption.
 
-**Renew**: https://trinitas.ai/licensing/renew
+**Renew**: Contact your system administrator for license renewal
 
 ---
 
@@ -345,7 +346,7 @@ docker-compose restart
 
 **Data retention**: 90 days (support and fraud prevention)
 
-**Privacy policy**: https://trinitas.ai/legal/privacy-policy
+**Privacy policy**: Contact your system administrator for organization privacy policy
 
 ---
 
@@ -377,12 +378,12 @@ docker-compose restart
 **Priority support**: 24-hour SLA (vs 48h for STANDARD)
 **Custom integrations**: Tailored connectors and APIs
 **On-premise deployment**: Air-gapped, self-hosted option
-**White-label**: Remove Trinitas branding
+**White-label**: Remove branding (if applicable)
 **Dedicated account manager**: Personalized assistance
 **SLA guarantees**: Uptime, performance, support response
 **Custom contract terms**: Flexible billing, multi-year discounts
 
-**Contact sales**: sales@trinitas.ai
+**Contact**: Your system administrator for ENTERPRISE tier details
 
 ---
 
@@ -400,7 +401,7 @@ docker-compose restart
 - SaaS with TMWS as backend (white-label SaaS requires special agreement)
 - Open-source redistribution (bytecode or source)
 
-**White-label SaaS**: Contact sales for custom licensing.
+**White-label SaaS**: Contact your system administrator for custom licensing arrangements.
 
 ---
 
@@ -411,18 +412,18 @@ docker-compose restart
 | Tier | Support Channel | Response Time |
 |------|----------------|---------------|
 | **FREE** | GitHub Discussions (community) | Best-effort |
-| **STANDARD** | Email (support@trinitas.ai) | 48 hours |
-| **ENTERPRISE** | Email + Phone | 24 hours (SLA) |
+| **STANDARD** | Contact your administrator | Per organization policy |
+| **ENTERPRISE** | Contact your administrator | Per organization SLA |
 
 ---
 
 ### Q: How do I report a security issue?
 
-**A**: Email **security@trinitas.ai** (not public GitHub issues).
+**A**: Report to your system administrator immediately (not public GitHub issues).
 
-**Response**: 24 hours for CRITICAL, 48 hours for HIGH
+**Response**: Varies by organization policy
 
-**Bug bounty**: Up to $5,000 for verified vulnerabilities (ENTERPRISE tier only)
+**Bug bounty**: Contact your system administrator for organization bug bounty program (if applicable)
 
 ---
 
@@ -431,17 +432,16 @@ docker-compose restart
 **A**:
 
 - **FREE**: Submit feature request on GitHub Discussions (no guarantee)
-- **STANDARD**: Email support@trinitas.ai (prioritized based on demand)
-- **ENTERPRISE**: Custom features included (discuss with account manager)
+- **STANDARD**: Contact your system administrator (prioritized based on organizational needs)
+- **ENTERPRISE**: Custom features included (discuss with your administrator)
 
 ---
 
 ## Still Have Questions?
 
 - **Community**: https://github.com/apto-as/tmws/discussions
-- **Email**: support@trinitas.ai
-- **Sales**: sales@trinitas.ai
-- **Security**: security@trinitas.ai
+- **Internal Support**: Contact your system administrator
+- **Security Issues**: Report to your system administrator
 
 ---
 

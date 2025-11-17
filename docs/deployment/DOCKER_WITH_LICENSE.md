@@ -259,9 +259,9 @@ docker logs tmws --tail 10 | grep "Expires"
    ```
 
 2. **Renew license**:
-   - Visit: https://trinitas.ai/licensing/renew
-   - Enter current license key
-   - Receive new license key
+   - Contact your system administrator
+   - Request FREE license renewal
+   - Receive new license key from administrator
 
 3. **Update `.env` file**:
    ```bash
@@ -454,8 +454,8 @@ scrape_configs:
 ## Support
 
 - **Community**: https://github.com/apto-as/tmws/discussions
-- **Email**: support@trinitas.ai
-- **Security**: security@trinitas.ai
+- **Internal Support**: Contact your system administrator
+- **Security Issues**: Report to your system administrator
 
 ---
 
