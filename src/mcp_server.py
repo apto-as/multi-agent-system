@@ -13,6 +13,7 @@ Phase: 4b (TMWS v2.2.6 - SQLite + ChromaDB architecture)
 import asyncio
 import logging
 import os
+import sys
 from datetime import datetime
 from uuid import uuid4
 
@@ -691,8 +692,125 @@ async def async_main():
         await server.cleanup()
 
 
+async def validate_license_at_startup(license_key: str) -> dict:
+    """
+    Validate license key synchronously at startup.
+
+    Args:
+        license_key: License key string (format: TMWS-{TIER}-{UUID}-{CHECKSUM})
+
+    Returns:
+        dict: Validation result with keys:
+            - valid (bool): Whether license is valid
+            - tier (str|None): License tier (FREE, STANDARD, ENTERPRISE, UNLIMITED)
+            - expires_at (str|None): Expiration timestamp (ISO format)
+            - error (str|None): Error message if invalid
+            - grace_period (bool): True if in 7-day grace period for expired license
+    """
+    from datetime import timedelta
+
+    from src.core.database import get_db_session
+    from src.services.license_service import LicenseService
+
+    try:
+        async with get_db_session() as session:
+            service = LicenseService(db_session=session)
+            result = await service.validate_license_key(key=license_key)
+
+            # Check for grace period (7 days after expiration)
+            grace_period = False
+            if not result.valid and result.expires_at:
+                days_expired = (datetime.utcnow() - result.expires_at).days
+                if 0 <= days_expired <= 7:
+                    grace_period = True
+                    logger.warning(
+                        f"⚠️  License expired {days_expired} days ago. "
+                        f"Grace period: {7 - days_expired} days remaining."
+                    )
+
+            return {
+                "valid": result.valid or grace_period,
+                "tier": result.tier.value if result.tier else None,
+                "expires_at": result.expires_at.isoformat() if result.expires_at else None,
+                "error": result.error_message,
+                "grace_period": grace_period,
+            }
+    except Exception as e:
+        logger.error(f"License validation failed: {e}", exc_info=True)
+        return {
+            "valid": False,
+            "tier": None,
+            "expires_at": None,
+            "error": f"Validation error: {str(e)}",
+            "grace_period": False,
+        }
+
+
 def main():
-    """CLI entry point for tmws-mcp-server command."""
+    """
+    CLI entry point with mandatory license validation.
+
+    Phase 2E-2: Startup License Gate
+    - Validates TMWS_LICENSE_KEY environment variable
+    - Enforces license tier restrictions
+    - 7-day grace period for expired licenses
+    - Fail-fast on invalid/missing license
+    """
+
+    # ========================================
+    # Phase 2E-2: License Validation (NEW)
+    # ========================================
+    license_key = os.getenv("TMWS_LICENSE_KEY")
+
+    if not license_key:
+        logger.critical(
+            "❌ TMWS requires a valid license key to start.\n"
+            "\n"
+            "Please set the TMWS_LICENSE_KEY environment variable:\n"
+            "  export TMWS_LICENSE_KEY='your-license-key'\n"
+            "\n"
+            "To obtain a license key:\n"
+            "  - FREE tier: https://trinitas.ai/licensing/free\n"
+            "  - STANDARD tier: https://trinitas.ai/licensing/standard\n"
+            "  - ENTERPRISE tier: contact sales@trinitas.ai\n"
+        )
+        sys.exit(1)
+
+    # Validate license (async call from sync context)
+    validation = asyncio.run(validate_license_at_startup(license_key))
+
+    if not validation["valid"]:
+        logger.critical(
+            f"❌ Invalid license key: {validation['error']}\n"
+            "\n"
+            "Please check:\n"
+            "  1. License key format: TMWS-{{TIER}}-{{UUID}}-{{CHECKSUM}}\n"
+            "  2. License has not been revoked\n"
+            "  3. License has not expired (7-day grace period available)\n"
+            "\n"
+            "To renew or upgrade:\n"
+            "  https://trinitas.ai/licensing/renew\n"
+        )
+        sys.exit(1)
+
+    # Log successful validation
+    if validation["grace_period"]:
+        logger.warning(
+            f"⚠️  TMWS starting with EXPIRED license (grace period active)\n"
+            f"   Tier: {validation['tier']}\n"
+            f"   Expired: {validation['expires_at']}\n"
+            f"   Please renew soon: https://trinitas.ai/licensing/renew\n"
+        )
+    else:
+        logger.info(
+            f"✅ License validated successfully\n"
+            f"   Tier: {validation['tier']}\n"
+            f"   Expires: {validation['expires_at'] or 'Never (lifetime license)'}\n"
+        )
+
+    # ========================================
+    # Phase 2: Server Startup (EXISTING)
+    # ========================================
     # First-run setup (synchronous)
     first_run_setup()
 

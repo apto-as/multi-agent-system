@@ -739,8 +739,13 @@ MIGRATIONS_DIR = PROJECT_ROOT / "migrations"
 TESTS_DIR = PROJECT_ROOT / "tests"
 LOGS_DIR = PROJECT_ROOT / "logs"
 
-# Ensure critical directories exist
-LOGS_DIR.mkdir(exist_ok=True, mode=0o750)  # Secure directory permissions
+# Ensure critical directories exist (skip in Docker/production environments)
+# In Docker, directories are created by docker-compose volumes
+try:
+    LOGS_DIR.mkdir(exist_ok=True, mode=0o750)  # Secure directory permissions
+except PermissionError:
+    # In Docker/production, directories are managed externally
+    pass
 
 # Global settings instance for application use
 settings = get_settings()

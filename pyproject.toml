@@ -7,6 +7,9 @@ authors = [
 ]
 requires-python = ">=3.11"
 dependencies = [
+    # Web Framework (FastAPI for v2.x compatibility)
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.25.0",
     # MCP Server dependencies (v3.0: MCP only)
     "fastmcp>=0.1.0",
     "mcp>=0.9.0",
