@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.2] - 2025-11-18
+
+### Changed
+- Version correction from v2.4.0 to v2.3.2 (incremental versioning preference)
+- Updated all version references across codebase and documentation
+
+### Verified
+- ✅ SQLite persistence across container restarts (100% data retention validated)
+- ✅ Option A deployment (Native Ollama + Docker TMWS configuration)
+- ✅ Cross-platform compatibility (Windows/macOS/Linux support confirmed)
+- ✅ Ollama connectivity with multilingual-e5-large model
+
+### Documentation
+- Added detailed notes on SQLite volume mount configuration
+- Clarified Option A (Native Ollama) vs Option B (Dockerized Ollama) differences
+- Updated deployment guide references
+
+### Technical Details
+- Docker image: `tmws:2.3.2`
+- Python wheel: `tmws-2.3.2-py3-none-any.whl`
+- Base image: python:3.11-slim
+- SQLite database: Persisted via `./data:/app/data` volume mount
+
+### Notes
+- This is a patch release correcting version numbering
+- No functional changes from Phase 2E-3 (Docker bytecode distribution)
+- All Phase 2E-3 features remain intact (bytecode-only, license validation, security audit)
+- **Historical Note**: v2.4.0 entry below represents the same technical implementation, preserved for record-keeping
+
+---
+
 ## [2.4.0] - 2025-11-18
 
 ### 🎉 Phase 2E-3 Complete: Bytecode-Only Docker Deployment

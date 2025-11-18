@@ -1,10 +1,10 @@
 # Docker Bytecode-Only Deployment Guide
-**TMWS v2.4.0 - Phase 2E-3 Production Deployment**
+**TMWS v2.3.2 - Phase 2E-3 Production Deployment**
 
 ---
 
 **Last Updated**: 2025-11-18
-**Version**: v2.4.0
+**Version**: v2.3.2
 **Status**: ✅ Production Ready (Conditional Approval)
 **Security Rating**: 9.2/10 (Source Protection)
 
@@ -68,7 +68,7 @@ Phase 2E-1 implements **bytecode-only distribution** to protect TMWS source code
 │  5. Compile .py → .pyc: compileall -b               │
 │  6. Delete all .py files: find ... -delete          │
 │  7. Repackage as bytecode-only wheel: zip -qr      │
-│  Result: tmws-2.4.0-py3-none-any.whl (BYTECODE)     │
+│  Result: tmws-2.3.2-py3-none-any.whl (BYTECODE)     │
 └─────────────────────────────────────────────────────┘
                       ↓
 ┌─────────────────────────────────────────────────────┐
@@ -134,10 +134,10 @@ cd tmws
 
 ```bash
 # Production build (bytecode-only)
-docker build -t tmws:v2.4.0 .
+docker build -t tmws:v2.3.2 .
 
 # Development build (with source code, for debugging)
-docker build --target builder -t tmws:v2.4.0-dev .
+docker build --target builder -t tmws:v2.3.2-dev .
 ```
 
 **Build Process Breakdown**:
@@ -170,16 +170,16 @@ docker build --target builder -t tmws:v2.4.0-dev .
 docker images | grep tmws
 
 # Expected output:
-# tmws     v2.4.0     6340fe9eeeeb   5 minutes ago   808MB
+# tmws     v2.3.2     6340fe9eeeeb   5 minutes ago   808MB
 
 # Verify bytecode-only (no .py files)
-docker run --rm tmws:v2.4.0 \
+docker run --rm tmws:v2.3.2 \
   find /usr/local/lib/python3.11/site-packages/src -name "*.py" -type f
 
 # Expected output: (empty, no .py files found)
 
 # Verify .pyc bytecode files exist
-docker run --rm tmws:v2.4.0 \
+docker run --rm tmws:v2.3.2 \
   find /usr/local/lib/python3.11/site-packages/src -name "*.pyc" | head -5
 
 # Expected output:
@@ -202,7 +202,7 @@ version: '3.8'
 
 services:
   tmws:
-    image: tmws:v2.4.0
+    image: tmws:v2.3.2
     container_name: tmws-mcp-server
     restart: unless-stopped
 
@@ -277,7 +277,7 @@ docker-compose up -d
 docker-compose logs -f tmws
 
 # Expected output:
-# tmws-mcp-server | INFO:     Starting TMWS MCP Server v2.4.0
+# tmws-mcp-server | INFO:     Starting TMWS MCP Server v2.3.2
 # tmws-mcp-server | INFO:     License validated: ENTERPRISE (PERPETUAL)
 # tmws-mcp-server | INFO:     Database initialized: /app/data/tmws.db
 # tmws-mcp-server | INFO:     MCP server listening on http://0.0.0.0:8000
@@ -286,7 +286,7 @@ docker-compose logs -f tmws
 curl http://localhost:8000/health
 
 # Expected output:
-# {"status":"healthy","version":"2.4.0","database":"ok","license":"valid"}
+# {"status":"healthy","version":"2.3.2","database":"ok","license":"valid"}
 ```
 
 ### Option 2: Standalone Docker Run
@@ -311,7 +311,7 @@ docker run -d \
   --security-opt no-new-privileges:true \
   --cap-drop ALL \
   --cap-add NET_BIND_SERVICE \
-  tmws:v2.4.0
+  tmws:v2.3.2
 
 # Check logs
 docker logs -f tmws-mcp-server
@@ -342,7 +342,7 @@ spec:
     spec:
       containers:
       - name: tmws
-        image: tmws:v2.4.0
+        image: tmws:v2.3.2
         ports:
         - containerPort: 8000
           name: mcp
@@ -457,7 +457,7 @@ docker-compose ps
 
 # Expected output:
 # NAME              IMAGE          STATUS         PORTS
-# tmws-mcp-server   tmws:v2.4.0   Up 2 minutes   0.0.0.0:8000->8000/tcp
+# tmws-mcp-server   tmws:v2.3.2   Up 2 minutes   0.0.0.0:8000->8000/tcp
 
 # Standalone
 docker ps | grep tmws
@@ -473,7 +473,7 @@ curl http://localhost:8000/health
 # Expected output (healthy):
 {
   "status": "healthy",
-  "version": "2.4.0",
+  "version": "2.3.2",
   "database": "ok",
   "license": "valid",
   "tier": "ENTERPRISE"
@@ -482,7 +482,7 @@ curl http://localhost:8000/health
 # Expected output (unhealthy - invalid license):
 {
   "status": "unhealthy",
-  "version": "2.4.0",
+  "version": "2.3.2",
   "database": "ok",
   "license": "invalid",
   "error": "License key validation failed: Invalid signature"
@@ -573,7 +573,7 @@ curl -X POST http://localhost:8000/memory/create \
 docker ps -a | grep tmws
 
 # Output:
-# tmws-mcp-server   tmws:v2.4.0   Exited (1) 5 seconds ago
+# tmws-mcp-server   tmws:v2.3.2   Exited (1) 5 seconds ago
 ```
 
 **Cause**: Invalid or missing license key
@@ -604,13 +604,13 @@ docker-compose up -d
 
 ```bash
 # Rebuild image (force no cache)
-docker build --no-cache -t tmws:v2.4.0 .
+docker build --no-cache -t tmws:v2.3.2 .
 
 # Verify wheel installation
-docker run --rm tmws:v2.4.0 pip list | grep tmws
+docker run --rm tmws:v2.3.2 pip list | grep tmws
 
 # Expected output:
-# tmws     2.4.0
+# tmws     2.3.2
 ```
 
 ---
@@ -705,7 +705,7 @@ For deeper troubleshooting, enable debug logging:
 TMWS_LOG_LEVEL=DEBUG
 
 # Standalone: Add -e flag
-docker run ... -e TMWS_LOG_LEVEL=DEBUG tmws:v2.4.0
+docker run ... -e TMWS_LOG_LEVEL=DEBUG tmws:v2.3.2
 
 # View debug logs
 docker logs -f tmws-mcp-server
@@ -786,7 +786,7 @@ docker pull aquasec/trivy:latest
 
 # Scan TMWS image
 docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-  aquasec/trivy:latest image tmws:v2.4.0
+  aquasec/trivy:latest image tmws:v2.3.2
 
 # Expected output:
 # CRITICAL: 0

@@ -1,0 +1,36 @@
+/usr/local/lib/python3.11/site-packages/passlib/utils/__init__.py:854: DeprecationWarning: 'crypt' is deprecated and slated for removal in Python 3.13
+  from crypt import crypt as _crypt
+{
+  "status": "PARTIAL_SUCCESS",
+  "error": "MCP module imports but no tools found. Available: ['ChromaOperationError', 'ExpirationScheduler', 'ExpirationTools', 'FastMCP', 'HybridMCPServer', 'HybridMemoryService', 'MCPInitializationError', 'MemoryCreationError', 'MemorySearchError', 'ServiceInitializationError', 'async_main', 'asyncio', 'datetime', 'first_run_setup', 'get_ollama_embedding_service', 'get_session', 'get_settings', 'get_vector_search_service', 'log_and_raise', 'logger', 'logging', 'main', 'os', 'settings', 'sys', 'uuid4', 'validate_license_at_startup']",
+  "tools_count": 0,
+  "available_exports": [
+    "ChromaOperationError",
+    "ExpirationScheduler",
+    "ExpirationTools",
+    "FastMCP",
+    "HybridMCPServer",
+    "HybridMemoryService",
+    "MCPInitializationError",
+    "MemoryCreationError",
+    "MemorySearchError",
+    "ServiceInitializationError",
+    "async_main",
+    "asyncio",
+    "datetime",
+    "first_run_setup",
+    "get_ollama_embedding_service",
+    "get_session",
+    "get_settings",
+    "get_vector_search_service",
+    "log_and_raise",
+    "logger",
+    "logging",
+    "main",
+    "os",
+    "settings",
+    "sys",
+    "uuid4",
+    "validate_license_at_startup"
+  ]
+}

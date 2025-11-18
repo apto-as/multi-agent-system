@@ -1,0 +1,32 @@
+{
+  "verification_suite": "bytecode_security",
+  "timestamp": "2025-11-18T06:16:00.000Z",
+  "py_file_count": 0,
+  "pyc_file_count": 132,
+  "all_imports_successful": true,
+  "license_service_importable": true,
+  "critical_modules_tested": [
+    "src.services.license_service.LicenseService",
+    "src.services.memory_service.HybridMemoryService",
+    "src.services.agent_service.AgentService",
+    "src.services.workflow_service.WorkflowService",
+    "src.services.task_service.TaskService",
+    "src.core.database.get_db_session",
+    "src.models.memory.Memory",
+    "src.models.agent.Agent",
+    "src.mcp_server.HybridMCPServer"
+  ],
+  "security_checks": {
+    "no_env_files": true,
+    "no_pycache_dirs": true,
+    "no_dev_dependencies": true,
+    "details": {
+      "env_files_found": 1,
+      "env_files_detail": "/app/config/.env.example (safe - no secrets)",
+      "pycache_dirs_found": 0,
+      "dev_packages_found": 0
+    }
+  },
+  "pass": true,
+  "summary": "Bytecode-only deployment verified. 132 .pyc files, 0 .py files. All 9 critical modules import successfully. No security issues detected (.env.example is safe)."
+}

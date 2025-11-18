@@ -38,7 +38,7 @@ COPY src/ ./src/
 COPY README.md ./
 
 # Build wheel package (source code compiled into .whl)
-# This creates dist/tmws-2.4.0-py3-none-any.whl
+# This creates dist/tmws-2.3.2-py3-none-any.whl
 RUN python -m build --wheel --no-isolation
 
 # ========================================
@@ -64,7 +64,7 @@ RUN find /tmp/wheel -name "*.py" ! -path "*/bin/*" ! -path "*/scripts/*" -delete
 # 4. Repackage as bytecode-only wheel (replace original)
 RUN rm -f /build/dist/*.whl && \
     cd /tmp/wheel && \
-    zip -qr /build/dist/tmws-2.4.0-py3-none-any.whl . && \
+    zip -qr /build/dist/tmws-2.3.2-py3-none-any.whl . && \
     rm -rf /tmp/wheel
 
 # Verify bytecode wheel was created
@@ -78,7 +78,7 @@ RUN ls -lh dist/*.whl && \
 FROM python:3.11-slim
 
 LABEL maintainer="Trinitas Development Team <dev@trinitas.ai>"
-LABEL version="2.3.1"
+LABEL version="2.3.2"
 LABEL description="TMWS MCP Server - SQLite + ChromaDB architecture"
 
 WORKDIR /app
