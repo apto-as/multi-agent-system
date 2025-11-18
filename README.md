@@ -1,6 +1,6 @@
 # TMWS - Trinitas Memory & Workflow Service
 
-[![Version](https://img.shields.io/badge/version-2.3.1-blue)](https://github.com/apto-as/tmws)
+[![Version](https://img.shields.io/badge/version-2.3.2-blue)](https://github.com/apto-as/tmws)
 [![Python](https://img.shields.io/badge/python-3.11%2B-green)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-purple)](LICENSE)
 [![MCP Compatible](https://img.shields.io/badge/MCP-compatible-orange)](https://modelcontextprotocol.io)
@@ -139,7 +139,7 @@ await integration_service.update_trust_from_pattern_execution(
 | **自動セットアップ** | Local dev | 5-10 min | Full |
 | **手動セットアップ** | Custom | 10-15 min | Full |
 
-### 🚀 New in v2.3.1: Docker Deployment (5 Minutes)
+### 🚀 New in v2.3.2: Docker Deployment (5 Minutes)
 
 **Fastest path to production deployment**:
 

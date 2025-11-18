@@ -1,0 +1,27 @@
+=== BYTECODE VERIFICATION REPORT ===
+
+1. Counting .py source files in /usr/local/lib/python3.11/site-packages/src...
+   Result: 0 files
+
+2. Counting .pyc bytecode files in /usr/local/lib/python3.11/site-packages/src...
+   Result: 132 files
+
+3. Testing imports from bytecode...
+   Result: ImportError: cannot import name 'MemoryService' from 'src.services.memory_service' (/usr/local/lib/python3.11/site-packages/src/services/memory_service.pyc)
+
+4. Checking for .env files (security)...
+   Result: 1 files (should be 0)
+
+5. Checking for __pycache__ directories (should use inline .pyc)...
+   Result: 0 directories (should be 0)
+
+6. Checking for development dependencies (should be none)...
+   Result: 0 packages (should be 0)
+
+=== SUMMARY ===
+PY_COUNT=0
+PYC_COUNT=132
+IMPORT_SUCCESS=ImportError: cannot import name 'MemoryService' from 'src.services.memory_service' (/usr/local/lib/python3.11/site-packages/src/services/memory_service.pyc)
+ENV_COUNT=1
+PYCACHE_COUNT=0
+DEV_DEPS=0

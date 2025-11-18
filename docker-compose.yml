@@ -23,6 +23,10 @@ services:
     container_name: tmws-app
     hostname: tmws
 
+    # Load environment variables from .env file
+    env_file:
+      - .env
+
     ports:
       # MCP Server API
       - "8000:8000"

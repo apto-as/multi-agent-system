@@ -1,0 +1,115 @@
+Unexpected database session error: 'LicenseValidationResult' object has no attribute 'is_valid'
+Traceback (most recent call last):
+  File "/tmp/wheel/src/core/database.py", line 120, in get_db_session
+  File "/tmp/test_e2e_licenses.py", line 54, in test_valid_license_free
+    assert result.is_valid, f"FREE license validation failed: {result.error_message}"
+           ^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/pydantic/main.py", line 1026, in __getattr__
+    raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+AttributeError: 'LicenseValidationResult' object has no attribute 'is_valid'
+Unexpected database session error: 'LicenseValidationResult' object has no attribute 'is_valid'
+Traceback (most recent call last):
+  File "/tmp/wheel/src/core/database.py", line 120, in get_db_session
+  File "/tmp/test_e2e_licenses.py", line 67, in test_valid_license_pro
+    assert result.is_valid, f"PRO license validation failed: {result.error_message}"
+           ^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/pydantic/main.py", line 1026, in __getattr__
+    raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+AttributeError: 'LicenseValidationResult' object has no attribute 'is_valid'
+Unexpected database session error: 'LicenseValidationResult' object has no attribute 'is_valid'
+Traceback (most recent call last):
+  File "/tmp/wheel/src/core/database.py", line 120, in get_db_session
+  File "/tmp/test_e2e_licenses.py", line 80, in test_valid_license_enterprise
+    assert result.is_valid, f"ENTERPRISE license validation failed: {result.error_message}"
+           ^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/pydantic/main.py", line 1026, in __getattr__
+    raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+AttributeError: 'LicenseValidationResult' object has no attribute 'is_valid'
+Unexpected database session error: 'LicenseValidationResult' object has no attribute 'is_valid'
+Traceback (most recent call last):
+  File "/tmp/wheel/src/core/database.py", line 120, in get_db_session
+  File "/tmp/test_e2e_licenses.py", line 93, in test_invalid_signature
+    assert not result.is_valid, "Invalid signature should be rejected"
+               ^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/pydantic/main.py", line 1026, in __getattr__
+    raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+AttributeError: 'LicenseValidationResult' object has no attribute 'is_valid'
+Unexpected database session error: 'LicenseValidationResult' object has no attribute 'is_valid'
+Traceback (most recent call last):
+  File "/tmp/wheel/src/core/database.py", line 120, in get_db_session
+  File "/tmp/test_e2e_licenses.py", line 106, in test_expired_license
+    assert not result.is_valid, "Expired license should be rejected"
+               ^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/pydantic/main.py", line 1026, in __getattr__
+    raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+AttributeError: 'LicenseValidationResult' object has no attribute 'is_valid'
+Unexpected database session error: 'LicenseValidationResult' object has no attribute 'is_valid'
+Traceback (most recent call last):
+  File "/tmp/wheel/src/core/database.py", line 120, in get_db_session
+  File "/tmp/test_e2e_licenses.py", line 124, in test_license_loading_at_startup
+    assert result.is_valid, f"Startup license is invalid: {result.error_message}"
+           ^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/pydantic/main.py", line 1026, in __getattr__
+    raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+AttributeError: 'LicenseValidationResult' object has no attribute 'is_valid'
+Unexpected database session error: 'LicenseValidationResult' object has no attribute 'is_valid'
+Traceback (most recent call last):
+  File "/tmp/wheel/src/core/database.py", line 120, in get_db_session
+  File "/tmp/test_e2e_licenses.py", line 143, in test_license_persistence_mock
+    assert result2.is_valid, "License should persist across service instances"
+           ^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/pydantic/main.py", line 1026, in __getattr__
+    raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+AttributeError: 'LicenseValidationResult' object has no attribute 'is_valid'
+{
+  "test_suite": "e2e_deployment",
+  "timestamp": "2025-11-18T06:11:17.629058",
+  "total_scenarios": 8,
+  "passed": 0,
+  "failed": 7,
+  "duration_ms": 1155.53,
+  "details": [
+    {
+      "test": "valid_license_FREE",
+      "status": "FAIL",
+      "duration_ms": 1149.18,
+      "error": "'LicenseValidationResult' object has no attribute 'is_valid'"
+    },
+    {
+      "test": "valid_license_PRO",
+      "status": "FAIL",
+      "duration_ms": 0.31,
+      "error": "'LicenseValidationResult' object has no attribute 'is_valid'"
+    },
+    {
+      "test": "valid_license_ENTERPRISE",
+      "status": "FAIL",
+      "duration_ms": 0.24,
+      "error": "'LicenseValidationResult' object has no attribute 'is_valid'"
+    },
+    {
+      "test": "invalid_signature_rejection",
+      "status": "FAIL",
+      "duration_ms": 0.23,
+      "error": "'LicenseValidationResult' object has no attribute 'is_valid'"
+    },
+    {
+      "test": "expired_license_rejection",
+      "status": "FAIL",
+      "duration_ms": 0.21,
+      "error": "'LicenseValidationResult' object has no attribute 'is_valid'"
+    },
+    {
+      "test": "license_loading_at_startup",
+      "status": "FAIL",
+      "duration_ms": 1.87,
+      "error": "'LicenseValidationResult' object has no attribute 'is_valid'"
+    },
+    {
+      "test": "license_persistence",
+      "status": "FAIL",
+      "duration_ms": 3.43,
+      "error": "'LicenseValidationResult' object has no attribute 'is_valid'"
+    }
+  ]
+}
