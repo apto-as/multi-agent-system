@@ -1,0 +1,44 @@
+{
+  "description": "Trinitas Dynamic Context Loading (v2.2.0) - UserPromptSubmit Hook Enabled",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PROJECT_DIR:-.}/hooks/core/protocol_injector.py session_start",
+            "description": "Inject TRINITAS-CORE-PROTOCOL.md at session start",
+            "timeout": 5000
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PROJECT_DIR:-.}/hooks/core/dynamic_context_loader.py",
+            "description": "Dynamic context loading based on task type detection",
+            "timeout": 100
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PROJECT_DIR:-.}/hooks/core/protocol_injector.py pre_compact",
+            "description": "Inject protocol reminder before context compression",
+            "timeout": 1000
+          }
+        ]
+      }
+    ]
+  }
+}
