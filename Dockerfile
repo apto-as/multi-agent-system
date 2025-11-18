@@ -149,6 +149,9 @@ RUN mkdir -p \
 # Note: .env should be provided via volume or env vars, not baked in
 COPY --chown=tmws:tmws .env.example /app/config/
 
+# Copy LICENSE file for compliance (Apache 2.0)
+COPY --chown=tmws:tmws LICENSE /app/
+
 # Switch to non-root user
 USER tmws
 
