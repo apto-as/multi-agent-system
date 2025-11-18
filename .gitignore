@@ -119,3 +119,5 @@ dmypy.json
 
 # UV
 uv.lock
+.env.test
+.test-licenses.txt
