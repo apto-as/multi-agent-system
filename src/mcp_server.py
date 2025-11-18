@@ -29,6 +29,7 @@ from src.core.exceptions import (
     ServiceInitializationError,
     log_and_raise,
 )
+from src.core.trinitas_loader import load_trinitas_agents
 from src.services.expiration_scheduler import ExpirationScheduler
 from src.services.memory_service import HybridMemoryService
 from src.services.ollama_embedding_service import get_ollama_embedding_service
@@ -201,6 +202,59 @@ class HybridMCPServer:
             from src.tools.verification_tools import register_verification_tools
             await register_verification_tools(self.mcp)
             logger.info("Verification tools registered (5 MCP tools for agent trust & verification)")
+
+            # Phase 3: Trinitas Agent Loading (v2.4.0+, license-gated)
+            if os.getenv("TMWS_ENABLE_TRINITAS", "false").lower() == "true":
+                try:
+                    from src.core.trinitas_loader import TrinitasLoader
+                    from src.services.license_service import LicenseService
+
+                    # Create LicenseService instance for tier validation
+                    async with get_session() as session:
+                        license_service = LicenseService(db_session=session)
+
+                        # Create TrinitasLoader instance
+                        trinitas_loader = TrinitasLoader(
+                            license_service=license_service,
+                            memory_service=None  # v2.4.0: Uses bundled files, DB in v2.4.1
+                        )
+
+                        # Load Trinitas agents with license gating
+                        trinitas_result = await trinitas_loader.load_trinitas()
+
+                        if trinitas_result["enabled"]:
+                            logger.info(
+                                f"✅ Trinitas Agents loaded successfully\n"
+                                f"   Tier: {trinitas_result['tier'].value}\n"
+                                f"   Agents loaded: {trinitas_result['agents_loaded']}/6\n"
+                                f"   Output: ~/.claude/agents/"
+                            )
+
+                            # Phase 5: Verify integrity of generated agent files
+                            integrity_results = await trinitas_loader.verify_integrity()
+                            invalid_agents = [
+                                persona for persona, valid in integrity_results.items() if not valid
+                            ]
+
+                            if invalid_agents:
+                                logger.error(
+                                    f"🚨 SECURITY ALERT: Agent file integrity check failed\n"
+                                    f"   Invalid agents: {', '.join(invalid_agents)}\n"
+                                    f"   Possible tampering detected. Please regenerate agents."
+                                )
+                            else:
+                                logger.info(
+                                    f"✅ Trinitas integrity verified: All {len(integrity_results)} agents valid"
+                                )
+                        else:
+                            logger.warning(
+                                f"⚠️  Trinitas Agents disabled: {trinitas_result.get('reason', 'Unknown')}\n"
+                                f"   Current tier: {trinitas_result.get('tier', 'Unknown')}"
+                            )
+                except Exception as e:
+                    # Non-critical error: Trinitas is optional feature
+                    logger.error(f"Trinitas loading failed (non-critical): {e}", exc_info=True)
+                    logger.warning("TMWS will continue without Trinitas agents")
 
             logger.info(
                 f"HybridMCPServer initialized: {self.instance_id} "
