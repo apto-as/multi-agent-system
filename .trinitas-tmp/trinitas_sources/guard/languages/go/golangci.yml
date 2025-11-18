@@ -1,0 +1,146 @@
+# Trinitas Quality Guardian - golangci-lint Configuration
+# Go code quality and security enforcement
+
+run:
+  timeout: 5m
+  issues-exit-code: 1
+  tests: true
+  build-tags:
+    - integration
+  skip-dirs:
+    - vendor
+    - .git
+  skip-files:
+    - ".*\\.pb\\.go$"
+    - ".*\\.gen\\.go$"
+
+linters:
+  enable:
+    # Artemis: Code Quality
+    - gofmt
+    - goimports
+    - govet
+    - errcheck
+    - staticcheck
+    - unused
+    - gosimple
+    - structcheck
+    - varcheck
+    - ineffassign
+    - deadcode
+    - typecheck
+
+    # Hestia: Security
+    - gosec
+    - gocritic
+
+    # Best Practices
+    - unconvert
+    - dupl
+    - goconst
+    - gocyclo
+    - gocognit
+    - asciicheck
+    - gofumpt
+    - prealloc
+    - predeclared
+    - nilerr
+    - exhaustive
+    - sqlclosecheck
+    - noctx
+    - whitespace
+    - wsl
+    - goprintffuncname
+
+linters-settings:
+  gofmt:
+    simplify: true
+
+  goimports:
+    local-prefixes: github.com/yourusername
+
+  govet:
+    check-shadowing: true
+    enable-all: true
+
+  golint:
+    min-confidence: 0.8
+
+  gocyclo:
+    min-complexity: 15
+
+  gocognit:
+    min-complexity: 20
+
+  dupl:
+    threshold: 100
+
+  goconst:
+    min-len: 3
+    min-occurrences: 3
+
+  gosec:
+    includes:
+      - G101 # Look for hardcoded credentials
+      - G102 # Bind to all interfaces
+      - G103 # Audit the use of unsafe block
+      - G104 # Audit errors not checked
+      - G106 # Audit ssh.InsecureIgnoreHostKey
+      - G107 # URL provided to HTTP request as taint input
+      - G108 # Profiling endpoint automatically exposed
+      - G201 # SQL query construction using format string
+      - G202 # SQL query construction using string concatenation
+      - G203 # Use of unescaped data in HTML templates
+      - G204 # Audit use of command execution
+      - G301 # Directory creation without restrictions
+      - G302 # File creation without restrictions
+      - G303 # Creating tempfile using predictable path
+      - G304 # File path provided as taint input
+      - G305 # File traversal when extracting zip archive
+      - G306 # Writing permissions
+      - G307 # Deferring unsafe method
+      - G401 # Detect weak crypto
+      - G402 # Look for bad TLS connection settings
+      - G403 # Ensure minimum RSA key length
+      - G404 # Weak random number generator
+      - G501 # Import blacklist: crypto/md5
+      - G502 # Import blacklist: crypto/des
+      - G503 # Import blacklist: crypto/rc4
+      - G504 # Import blacklist: net/http/cgi
+      - G505 # Import blacklist: crypto/sha1
+      - G601 # Implicit memory aliasing in for loop
+
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - experimental
+      - opinionated
+      - performance
+      - style
+    disabled-checks:
+      - dupImport
+      - ifElseChain
+      - octalLiteral
+      - wrapperFunc
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gocyclo
+        - errcheck
+        - dupl
+        - gosec
+        - goconst
+
+    - path: pkg/generated
+      linters:
+        - all
+
+    - linters:
+        - staticcheck
+      text: "SA9003:"
+
+  max-issues-per-linter: 50
+  max-same-issues: 3
+  new: false

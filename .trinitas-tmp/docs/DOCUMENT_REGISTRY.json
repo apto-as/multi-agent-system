@@ -1,0 +1,71 @@
+{
+  "version": "1.0.0",
+  "generated": "2025-11-03T04:30:49.733545+00:00",
+  "total_documents": 3,
+  "documents": {
+    "docs-PHASE1_COMPLETION_REPORT-md": {
+      "doc_id": "docs-PHASE1_COMPLETION_REPORT-md",
+      "path": "docs/PHASE1_COMPLETION_REPORT.md",
+      "title": "Phase 1 Completion Report",
+      "purpose": "report",
+      "status": "current",
+      "created": "2025-11-03T04:26:50.891670+00:00",
+      "created_by": "hera-strategist",
+      "updated": "2025-11-03T04:26:50.891670+00:00",
+      "size": 75895,
+      "checksum": "80b0350b1a895e5b6906087299fff579eab28aa032a09a5e6384898a28ab5884",
+      "version": "v2.2.6",
+      "tags": [
+        "phase1",
+        "completion",
+        "strategic-analysis"
+      ],
+      "dependencies": [],
+      "supersedes": null,
+      "notes": ""
+    },
+    "docs-api-security_utils-md": {
+      "doc_id": "docs-api-security_utils-md",
+      "path": "docs/api/security_utils.md",
+      "title": "Security Utilities API Reference",
+      "purpose": "api-reference",
+      "status": "current",
+      "created": "2025-11-03T04:26:56.891784+00:00",
+      "created_by": "muses-documenter",
+      "updated": "2025-11-03T04:26:56.891784+00:00",
+      "size": 20743,
+      "checksum": "d17baecde59f8203050867dc4e234830991a009b0947bcce9f10d042aada0825",
+      "version": "v2.2.6",
+      "tags": [
+        "api",
+        "security",
+        "reference"
+      ],
+      "dependencies": [],
+      "supersedes": null,
+      "notes": ""
+    },
+    "docs-DOCUMENT_REGISTRY_GUIDE-md": {
+      "doc_id": "docs-DOCUMENT_REGISTRY_GUIDE-md",
+      "path": "docs/DOCUMENT_REGISTRY_GUIDE.md",
+      "title": "Document Registry System - Usage Guide",
+      "purpose": "guide",
+      "status": "current",
+      "created": "2025-11-03T04:30:49.733243+00:00",
+      "created_by": "muses-documenter",
+      "updated": "2025-11-03T04:30:49.733243+00:00",
+      "size": 16432,
+      "checksum": "f0eb8e8ec16bc20405d5d71806b10941d8a95d71ab3a9a4add146d80a1cb4d9d",
+      "version": "v2.2.6",
+      "tags": [
+        "guide",
+        "registry",
+        "documentation",
+        "reference"
+      ],
+      "dependencies": [],
+      "supersedes": null,
+      "notes": "MVP version (Phase 1) usage guide created by Trinitas collaboration"
+    }
+  }
+}
