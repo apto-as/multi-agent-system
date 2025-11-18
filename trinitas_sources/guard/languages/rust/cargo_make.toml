@@ -1,0 +1,110 @@
+# Trinitas Quality Guardian - Cargo Make Configuration
+# Rust build and test automation
+
+[config]
+default_to_workspace = false
+skip_core_tasks = false
+skip_git_env_info = false
+skip_rust_env_info = false
+skip_crate_env_info = false
+
+[env]
+CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = true
+
+# Artemis: Build tasks
+[tasks.build]
+description = "🏹 Artemis: Build the project"
+command = "cargo"
+args = ["build", "--release"]
+
+[tasks.build-dev]
+description = "Build in development mode"
+command = "cargo"
+args = ["build"]
+
+# Artemis: Code quality
+[tasks.format]
+description = "🏹 Artemis: Format code using rustfmt"
+install_crate = "rustfmt"
+command = "cargo"
+args = ["fmt", "--all"]
+
+[tasks.format-check]
+description = "Check code formatting"
+install_crate = "rustfmt"
+command = "cargo"
+args = ["fmt", "--all", "--", "--check"]
+
+[tasks.lint]
+description = "🏹 Artemis: Run clippy linter"
+install_crate = "clippy"
+command = "cargo"
+args = ["clippy", "--all-targets", "--all-features", "--", "-D", "warnings"]
+
+# Hestia: Security
+[tasks.audit]
+description = "🔥 Hestia: Audit dependencies for security vulnerabilities"
+install_crate = "cargo-audit"
+command = "cargo"
+args = ["audit"]
+
+[tasks.security]
+description = "🔥 Hestia: Run all security checks"
+dependencies = ["audit", "lint"]
+
+# Testing
+[tasks.test]
+description = "⚔️ Eris: Run all tests"
+command = "cargo"
+args = ["test", "--all-features"]
+
+[tasks.test-coverage]
+description = "📚 Muses: Generate test coverage report"
+install_crate = "cargo-tarpaulin"
+command = "cargo"
+args = ["tarpaulin", "--out", "Html", "--output-dir", "coverage"]
+
+# Documentation
+[tasks.doc]
+description = "📚 Muses: Build documentation"
+command = "cargo"
+args = ["doc", "--no-deps", "--open"]
+
+[tasks.doc-check]
+description = "Check documentation"
+command = "cargo"
+args = ["doc", "--no-deps"]
+
+# Hera: CI/CD workflow
+[tasks.ci-flow]
+description = "🎭 Hera: Run complete CI workflow"
+dependencies = [
+    "format-check",
+    "lint",
+    "audit",
+    "test",
+    "doc-check"
+]
+
+# Athena: Quality gate
+[tasks.quality-gate]
+description = "🏛️ Athena: Run all quality checks"
+dependencies = [
+    "format",
+    "lint",
+    "security",
+    "test",
+    "doc"
+]
+
+# Clean
+[tasks.clean]
+description = "Clean build artifacts"
+command = "cargo"
+args = ["clean"]
+
+# Help
+[tasks.help]
+description = "Show available tasks"
+command = "cargo"
+args = ["make", "--list-all-steps"]

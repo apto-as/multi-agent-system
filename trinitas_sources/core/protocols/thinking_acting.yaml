@@ -1,0 +1,122 @@
+# Thinking-Acting Separation Protocol
+# Based on Anthropic's best practices
+version: "1.0.0"
+created: "2024-01-15"
+
+protocol:
+  name: "Thinking-Acting Separation"
+  description: "Separate analysis from action for efficiency"
+
+  phases:
+    # Phase 1: Thinking (分析・評価)
+    thinking:
+      description: "Analyze and understand without changing state"
+      personas:
+        primary:
+          - athena-conductor: "harmonious_analysis"
+          - hera-strategist: "strategic_evaluation"
+        support:
+          - hestia-auditor: "risk_assessment"
+
+      allowed_tools:
+        - "analyze_*"
+        - "evaluate_*"
+        - "assess_*"
+        - "read_*"
+        - "search_*"
+        - "inspect_*"
+
+      constraints:
+        max_tokens: 500
+        max_time_seconds: 30
+        no_state_changes: true
+
+      output:
+        type: "structured_analysis"
+        format:
+          situation: "string"
+          risks: "array"
+          opportunities: "array"
+          recommendation: "string"
+
+    # Phase 2: Planning (計画立案)
+    planning:
+      description: "Create action plan based on analysis"
+      personas:
+        primary:
+          - eris-coordinator: "tactical_coordination"
+        support:
+          - hera-strategist: "resource_planning"
+          - hestia-auditor: "checkpoint_definition"
+
+      allowed_tools:
+        - "plan_*"
+        - "design_*"
+        - "structure_*"
+        - "prioritize_*"
+
+      constraints:
+        max_tokens: 300
+        requires_thinking_output: true
+
+      output:
+        type: "execution_plan"
+        format:
+          steps: "array"
+          dependencies: "object"
+          checkpoints: "array"
+          rollback_strategy: "string"
+
+    # Phase 3: Acting (実行)
+    acting:
+      description: "Execute plan with state changes"
+      personas:
+        primary:
+          - artemis-optimizer: "perfect_execution"
+        support:
+          - muses-documenter: "result_documentation"
+
+      allowed_tools:
+        - "execute_*"
+        - "create_*"
+        - "update_*"
+        - "delete_*"
+        - "modify_*"
+        - "write_*"
+
+      constraints:
+        max_tokens: 1000
+        requires_plan: true
+        checkpoint_validation: true
+
+      output:
+        type: "action_result"
+        format:
+          success: "boolean"
+          changes: "array"
+          metrics: "object"
+          documentation: "string"
+
+  # 効率性メトリクス
+  efficiency_targets:
+    thinking_ratio: 0.3  # 全体の30%以下
+    planning_ratio: 0.2  # 全体の20%以下
+    acting_ratio: 0.5    # 全体の50%
+    total_context_budget: 2000  # tokens
+
+  # 判断基準
+  decision_matrix:
+    simple_task:
+      skip_thinking: false
+      skip_planning: true
+      direct_acting: true
+
+    complex_task:
+      full_pipeline: true
+      parallel_thinking: true
+      checkpoint_frequency: "high"
+
+    security_critical:
+      enhanced_thinking: true
+      hestia_validation: "mandatory"
+      rollback_prepared: true

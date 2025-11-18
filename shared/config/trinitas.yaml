@@ -1,0 +1,63 @@
+# Trinitas Core Configuration
+# システム全体の調和的な設定ファイル
+
+system:
+  name: "Trinitas v5.0"
+  version: "5.0.0"
+  coordinator: "athena-conductor"
+  
+personas:
+  athena-conductor:
+    role: "Harmonious Conductor"
+    capabilities: ["orchestration", "workflow", "automation", "coordination"]
+    priority: 1
+    
+  artemis-optimizer:
+    role: "Technical Perfectionist" 
+    capabilities: ["optimization", "performance", "quality", "technical"]
+    priority: 2
+    
+  hestia-auditor:
+    role: "Security Guardian"
+    capabilities: ["security", "audit", "risk", "vulnerability"]
+    priority: 3
+    
+  eris-coordinator:
+    role: "Tactical Coordinator"
+    capabilities: ["coordinate", "tactical", "team", "collaboration"]
+    priority: 4
+    
+  hera-strategist:
+    role: "Strategic Commander"
+    capabilities: ["strategy", "planning", "architecture", "vision"]
+    priority: 5
+    
+  muses-documenter:
+    role: "Knowledge Architect"
+    capabilities: ["documentation", "knowledge", "record", "guide"]
+    priority: 6
+
+security:
+  sandbox_mode: true
+  allowed_operations:
+    - file_read
+    - file_write
+    - directory_create
+    - process_spawn
+  restricted_paths:
+    - "/etc"
+    - "/usr/bin"
+    - "/home/*/.ssh"
+    - "~/.claude"
+  
+workflow:
+  max_concurrent_tasks: 6
+  timeout_seconds: 300
+  auto_retry: 3
+  memory_persistence: true
+  
+quality_gates:
+  code_review: required
+  security_scan: required  
+  performance_test: recommended
+  documentation: required

@@ -1,0 +1,221 @@
+#!/usr/bin/env python3
+"""
+Minimal Protocol Injector for Trinitas-Core
+Only handles SessionStart and PreCompact protocol injection
+All other functionality has been moved to trinitas-mcp
+"""
+
+import json
+import os
+import sys
+from pathlib import Path
+from typing import Optional
+
+class ProtocolInjector:
+    """Minimal protocol injector for TRINITAS-CORE-PROTOCOL.md"""
+    
+    def __init__(self):
+        """Initialize with protocol file path from env or defaults"""
+        # Load .env file if it exists
+        env_path = Path(__file__).parent.parent / '.env'
+        if env_path.exists():
+            self._load_env(env_path)
+        
+        # Get protocol file path - updated to use optimized CLAUDE.md
+        self.protocol_file = os.getenv(
+            'PROTOCOL_FILE',
+            os.path.expanduser('~/.claude/CLAUDE.md')
+        )
+        
+        # Check if injection is enabled
+        self.enabled = os.getenv('PROTOCOL_INJECTION_ENABLED', 'true').lower() == 'true'
+    
+    def _load_env(self, env_path: Path):
+        """Load .env file without using dotenv library"""
+        try:
+            with open(env_path, 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#') and '=' in line:
+                        key, value = line.split('=', 1)
+                        os.environ[key.strip()] = value.strip()
+        except Exception as e:
+            print(f"Warning: Could not load .env: {e}", file=sys.stderr)
+    
+    def load_protocol(self) -> Optional[str]:
+        """Load protocol content from file"""
+        if not self.enabled:
+            return None
+        
+        try:
+            with open(self.protocol_file, 'r', encoding='utf-8') as f:
+                content = f.read()
+                
+            # For optimized loading, return core sections only
+            sections = []
+            
+            # Add header
+            sections.append("# 🌟 Trinitas AI System v5.0 Active")
+            sections.append(f"[Optimized Config: {os.path.basename(self.protocol_file)}]")
+            sections.append("")
+            
+            # Extract Core Personas section
+            if "## Available AI Personas" in content:
+                start = content.find("## Available AI Personas")
+                end = content.find("\n## ", start + 1)
+                if end != -1:
+                    personas_section = content[start:end]
+                    sections.append(personas_section)
+            
+            # Extract Basic Command Structure if available
+            if "## 利用可能なオペレーション" in content:
+                start = content.find("## 利用可能なオペレーション")
+                end = content.find("\n## ", start + 1)
+                if end != -1:
+                    commands_section = content[start:end]
+                    # Limit to essential commands only
+                    essential_commands = []
+                    for line in commands_section.split('\n'):
+                        if any(cmd in line for cmd in ['execute', 'analyze', 'remember', 'recall']):
+                            essential_commands.append(line)
+                        elif line.startswith('##') or line.startswith('###'):
+                            essential_commands.append(line)
+                        elif line.startswith('```') and len(essential_commands) < 20:
+                            essential_commands.append(line)
+                    
+                    if essential_commands:
+                        sections.append("\n## 基本コマンド")
+                        sections.extend(essential_commands[:15])  # Limit to 15 lines
+            
+            # Add simplified persona reminder
+            sections.append("\n## 🎯 Quick Reference")
+            sections.append("- **日本語応答**: 必須（セッション圧縮後も維持）")
+            sections.append("- **Trinitas**: athena, artemis, hestia, eris, hera, muses")
+            sections.append("- **Commands**: /trinitas execute <persona> \"<task>\"")
+            
+            return "\n".join(sections)
+            
+        except FileNotFoundError:
+            # Fallback to essential Trinitas configuration
+            return """# 🌟 Trinitas AI System v5.0 (Fallback)
+[Configuration file not found - using minimal setup]
+
+## システム基本設定
+**応答言語**: 日本語で応答すること（セッション圧縮後も維持）
+
+## Available AI Personas
+1. **Athena (athena-conductor)** - Harmonious Conductor 🏛️ - orchestration, workflow
+2. **Artemis (artemis-optimizer)** - Technical Perfectionist 🏹 - optimization, performance  
+3. **Hestia (hestia-auditor)** - Security Guardian 🔥 - security, audit, risk
+4. **Eris (eris-coordinator)** - Tactical Coordinator ⚔️ - coordination, team
+5. **Hera (hera-strategist)** - Strategic Commander 🎭 - strategy, planning
+6. **Muses (muses-documenter)** - Knowledge Architect 📚 - documentation, knowledge
+
+## 基本コマンド
+/trinitas execute <persona> "<task>"
+
+## 🎯 Quick Reference  
+- **日本語応答**: 必須
+- **Install**: ./install_trinitas_config.sh で最新設定をインストール"""
+        except Exception as e:
+            return f"# Trinitas AI System v5.0\n[Error loading configuration: {e}]\n\n**日本語応答**: 維持してください"
+    
+    def inject_session_start(self):
+        """Inject protocol at session start"""
+        protocol_content = self.load_protocol()
+        if protocol_content:
+            # Output JSON for SessionStart hook
+            output = {
+                "systemMessage": protocol_content
+            }
+            print(json.dumps(output, ensure_ascii=False))
+        else:
+            print(json.dumps({"systemMessage": "Trinitas AI System v5.0 Ready\n日本語で応答してください"}, ensure_ascii=False))
+    
+    def inject_pre_compact(self):
+        """Inject protocol reminder before context compression"""
+        if not self.enabled:
+            return
+        
+        # Output compact reminder for PreCompact
+        reminder = """
+---
+# Trinitas AI System v5.0 - Context Preservation
+
+**重要**: セッション要約時も必ず以下を保持：
+1. **日本語応答**: セッション圧縮後も継続
+2. **ペルソナ使用**: どのペルソナが使われたか
+3. **重要な決定**: 技術的選択の根拠
+4. **セキュリティ**: 特定されたリスクや脆弱性
+5. **進行状況**: タスクの完了状態
+
+6つのTrinitasペルソナ（Athena, Artemis, Hestia, Eris, Hera, Muses）の観点を要約に反映してください。
+---
+        """
+        print(reminder)
+        
+        # Also output brief protocol path
+        print(f"\n[Trinitas v5.0 最適化設定 - {os.path.basename(self.protocol_file)}]")
+    
+    def test(self):
+        """Test protocol injection functionality"""
+        print("Testing Trinitas AI System v5.0 Protocol Injector...")
+        print(f"Protocol file: {self.protocol_file}")
+        print(f"Injection enabled: {self.enabled}")
+        print(f"File exists: {Path(self.protocol_file).exists()}")
+        
+        if self.enabled:
+            content = self.load_protocol()
+            if content:
+                content_size_kb = len(content.encode('utf-8')) / 1024
+                print(f"✅ Protocol loaded successfully ({content_size_kb:.1f}KB)")
+                print(f"📊 Optimization: {'Good' if content_size_kb <= 5.0 else 'Needs improvement'}")
+                print("\nFirst 300 chars:")
+                print(content[:300] + "..." if len(content) > 300 else content)
+                
+                # Test Japanese support
+                if "日本語" in content:
+                    print("✅ Japanese response enforcement: Found")
+                else:
+                    print("⚠️  Japanese response enforcement: Not explicitly found")
+                    
+                # Test persona count
+                persona_count = content.count("**") // 2  # rough estimate
+                print(f"🎭 Estimated persona definitions: {persona_count}")
+            else:
+                print("❌ Failed to load protocol content")
+        else:
+            print("⚠️  Protocol injection disabled or file not found")
+            print("💡 Run: ./install_trinitas_config.sh to install optimized configuration")
+        
+        return 0
+
+def main():
+    """Main entry point"""
+    injector = ProtocolInjector()
+    
+    # Get hook type from argument or environment
+    if len(sys.argv) > 1:
+        hook_type = sys.argv[1]
+    else:
+        hook_event = os.getenv('CLAUDE_HOOK_EVENT', '')
+        if hook_event == 'SessionStart':
+            hook_type = 'session_start'
+        elif hook_event == 'PreCompact':
+            hook_type = 'pre_compact'
+        else:
+            hook_type = 'test'
+    
+    # Execute based on hook type
+    if hook_type == 'session_start':
+        injector.inject_session_start()
+    elif hook_type == 'pre_compact':
+        injector.inject_pre_compact()
+    elif hook_type == 'test':
+        sys.exit(injector.test())
+    else:
+        print(f"Unknown hook type: {hook_type}", file=sys.stderr)
+        sys.exit(1)
+
+if __name__ == '__main__':
+    main()

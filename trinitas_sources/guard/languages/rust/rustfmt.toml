@@ -1,0 +1,61 @@
+# Trinitas Quality Guardian - Rustfmt Configuration
+# Rust code formatting standards
+
+# Basic formatting
+edition = "2021"
+hard_tabs = false
+tab_spaces = 4
+newline_style = "Unix"
+indent_style = "Block"
+
+# Line width
+max_width = 100
+comment_width = 80
+wrap_comments = true
+
+# Imports
+imports_granularity = "Crate"
+imports_indent = "Block"
+imports_layout = "Mixed"
+group_imports = "StdExternalCrate"
+reorder_imports = true
+reorder_modules = true
+
+# Functions and impl blocks
+fn_params_layout = "Tall"
+fn_call_width = 80
+where_single_line = false
+
+# Structs and enums
+struct_field_align_threshold = 20
+enum_discrim_align_threshold = 20
+
+# Chains
+chain_width = 60
+single_line_if_else_max_width = 50
+
+# Spacing
+space_after_colon = true
+space_before_colon = false
+spaces_around_ranges = false
+
+# Comments and docs
+normalize_comments = true
+normalize_doc_attributes = true
+
+# Other
+use_small_heuristics = "Default"
+use_field_init_shorthand = true
+use_try_shorthand = true
+format_code_in_doc_comments = true
+format_macro_matchers = true
+format_macro_bodies = true
+format_strings = true
+match_block_trailing_comma = true
+trailing_comma = "Vertical"
+trailing_semicolon = true
+blank_lines_upper_bound = 2
+blank_lines_lower_bound = 0
+
+# Stability
+unstable_features = false

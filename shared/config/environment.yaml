@@ -1,0 +1,37 @@
+# Environment Configuration
+# 環境固有の設定を温かく管理
+
+development:
+  debug: true
+  logging_level: "INFO"
+  performance_monitoring: true
+  memory_limit_mb: 2048
+  
+production:
+  debug: false
+  logging_level: "WARN"
+  performance_monitoring: true
+  memory_limit_mb: 4096
+  
+testing:
+  debug: true
+  logging_level: "DEBUG"
+  mock_external_apis: true
+  memory_limit_mb: 1024
+  
+paths:
+  workspace: "/Users/apto-as/workspace/github.com/apto-as/trinitas-agents"
+  shared: "./shared"
+  agents: "./agents"
+  tools: "./shared/tools"
+  templates: "./shared/templates"
+  
+integrations:
+  claude_code: true
+  git_hooks: true
+  tmws_service: true
+  
+notifications:
+  success: true
+  errors: true
+  performance_alerts: true

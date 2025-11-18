@@ -1,0 +1,67 @@
+4315689 docs: Complete Phase 2 Week 2 and prepare installation integration
+4abc621 docs: Update README with hooks module test coverage (Phase 2 Week 1 complete)
+7bff1b3 test: Add comprehensive hooks module tests (Phase 2 Week 1 Day 4-5)
+ce51d3c test: Add comprehensive security module tests (Phase 2 Week 1 Day 2-3)
+145838e docs: Add comprehensive testing guide to README (Phase 2 Week 1 Day 1)
+e0ec02d test: Add comprehensive test suite for shared/utils (Phase 2 Week 1 Day 1)
+f6030cf docs: Add Phase 2 comprehensive analysis (Trinitas Full Mode)
+88c8f7e docs: Add Phase 1 completion summary
+dae1af7 refactor: Consolidate installation scripts (Phase 1 Day 5)
+6591ae1 docs: Update README documentation links (Phase 1 Day 4)
+b61ba6b docs: Reorganize documentation structure (Phase 1 Day 4)
+bc3621b refactor: Apply unified utilities to existing code (Phase 1 Day 3)
+edc8856 docs: Add comprehensive usage guide for unified utilities (Phase 1 Day 3)
+db15bfb feat: Add unified utility classes to eliminate code duplication (Phase 1 Day 3)
+1c04ee3 docs: Document intentional dual agent definition system (Phase 1 Day 2)
+4c40680 refactor: Update main agent definitions for MCP Tools (Phase 1 Day 2)
+eddacec refactor: Update Open Code agent definitions for Mem0 MCP (Phase 1 Day 2)
+8f3e3c8 chore: Add analysis reports to .gitignore
+f26f581 refactor: Complete TMWS migration removal (Phase 1 Day 1)
+62437b0 chore: Update .gitignore and add project .claude/settings.json
+2d53291 style: Auto-format code with ruff and fix linting issues
+8601ae2 fix: Replace bare exception catch with specific exception handling
+62faaf7 fix: Update VERSION file to v2.2.4 (from v2.1.0)
+a92a7bd fix: Correct f-string syntax error in security_integration.py:201
+8d30885 docs: Archive legacy protocol documentation to docs/archive/legacy-protocols/
+1c708c1 docs: Add comprehensive test plan for v2.2.4
+3ebda1d feat: Implement Trinitas v2.2.4 with Mem0 MCP integration
+ee1e60b revert: Restore detailed Memory Cookbook structure with coding profile
+03f8966 fix: Minimize Claude Code startup output (98% reduction)
+0104013 fix: Remove Open Code plugin support (not compatible)
+48e861e fix: Remove unsupported Open Code config keys
+72be1e5 fix: Update model to claude-sonnet-4-5 and restore UI settings
+c376e7c chore: Add build artifacts to .gitignore
+ed9988b fix: Fix opencode.json schema to match Open Code requirements
+3be13eb fix: Fix Open Code plugin verbose output logic
+b3b9123 fix: Resolve SecureMemoryLoader import error and minimize output
+ff868d9 feat: Add TMWS integration document generator
+e20ee7e fix: Add Memory Cookbook support to Claude Code installer
+531f570 feat: Open Code Memory Cookbook + Minimal Console Output
+5bf87f7 feat: Update agent files to v2.2.1 with DF2 modifiers
+7abc1ee chore: Remove docs/archive from git tracking
+f75c061 feat: Trinitas v2.2.1 - Memory Cookbook Integration
+723f316 feat: Project cleanup and quality improvements
+7146f57 feat: Open Code migration implementation - Phase 1 complete
+72f3b54 feat: Quality Guardian Framework v2.1 - Multi-language & Auto-enforcement
+c94c61c docs: TMWSドキュメントを更新 - ツール使用方法に焦点
+ca5196a feat: Update TMWS documentation to v2.2.0
+05cf333 feat: v2.1.0 - Anthropic best practices integration
+f558a1f fix: Add agents and hooks installation to all installers
+4472de4 feat: Add Windows support for hook configuration
+9cbc0e6 feat: Add cross-platform support with Python installer (v2.1.0)
+9d9de4b feat: Update to v2.0.0 with semantic versioning
+7155dbd fix: Restore dynamic build functionality to install_trinitas_config.sh
+19ed74d cleanup: Remove redundant installation scripts and .claude temp files
+9d1fc22 feat: Optimize Trinitas v5.0 with 97.6% Hook loading reduction
+86f5a6d feat: Separate TMWS into standalone project - Trinitas v4.0
+5a694d6 feat: Clean up TMWS project and integrate Trinitas custom commands
+cf478af fix: Restore TRINITAS-BASE.md with updated persona names
+1d476a3 refactor: Clean up old v4.0 implementation and prepare TMWS
+4710cc7 docs: Add TMWS system specification document
+64c6a71 docs: Migrate all documentation to Obsidian vault
+70501b9 docs: Create complete specification document v1.0.0
+7ee3254 feat: Implement automatic headless mode fallback for LocalLLM OFF state
+a3fb9dc refactor: Transform MCP server to memory-focused architecture
+de9bafe feat: Phase 1完全実装 - 非同期化とアーキテクチャ改善
+1fb3a42 docs: Phase 2-3実装のための包括的ドキュメントを追加
+2eb70a3 fix: Phase 1セキュリティ修正 - str(e)のサニタイズとdequeインデックス問題の解決
