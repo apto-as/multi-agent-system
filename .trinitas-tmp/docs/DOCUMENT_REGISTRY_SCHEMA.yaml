@@ -1,0 +1,288 @@
+# Trinitas Document Registry Schema v1.0
+# Purpose: Define metadata structure for all documentation files
+# Created: 2025-11-03
+# Created by: Artemis (Technical Perfectionist)
+
+# Schema Version
+schema_version: "1.0.0"
+
+# Document Entry Schema
+document_entry:
+  # Required Fields
+  path:
+    type: string
+    description: "Relative path from repository root"
+    pattern: "^(docs|trinitas_sources)/.*\\.(md|yaml|json)$"
+    example: "docs/architecture/DESIGN.md"
+
+  title:
+    type: string
+    description: "Human-readable document title"
+    max_length: 100
+    example: "System Architecture Design"
+
+  purpose:
+    type: string
+    description: "Primary purpose of the document"
+    enum:
+      - specification
+      - guide
+      - reference
+      - decision_record
+      - template
+      - configuration
+      - planning
+      - report
+      - strategy
+    example: "specification"
+
+  status:
+    type: string
+    description: "Current lifecycle status"
+    enum:
+      - current      # Active and maintained
+      - archived     # No longer maintained but kept for reference
+      - deprecated   # Should not be used, will be removed
+      - superseded   # Replaced by another document
+      - draft        # Work in progress
+    default: "current"
+    example: "current"
+
+  # Automatically Generated Fields
+  created:
+    type: datetime
+    description: "Creation timestamp (from git history or file stat)"
+    format: "ISO 8601"
+    auto_generated: true
+    example: "2025-10-20T09:43:57Z"
+
+  updated:
+    type: datetime
+    description: "Last modification timestamp (from git history)"
+    format: "ISO 8601"
+    auto_generated: true
+    example: "2025-11-03T12:34:56Z"
+
+  size:
+    type: integer
+    description: "File size in bytes"
+    auto_generated: true
+    example: 4096
+
+  checksum:
+    type: string
+    description: "SHA-256 checksum for integrity verification"
+    pattern: "^[a-f0-9]{64}$"
+    auto_generated: true
+    example: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+
+  # Optional Metadata Fields
+  created_by:
+    type: string
+    description: "Author or persona who created the document"
+    enum:
+      - Athena
+      - Artemis
+      - Hestia
+      - Eris
+      - Hera
+      - Muses
+      - System
+      - User
+    optional: true
+    example: "Artemis"
+
+  version:
+    type: string
+    description: "Semantic version of the document"
+    pattern: "^(\\d+\\.\\d+\\.\\d+)$"
+    optional: true
+    example: "1.2.0"
+
+  tags:
+    type: array
+    description: "Categorical tags for search and filtering"
+    items:
+      type: string
+      pattern: "^[a-z0-9_-]+$"
+    optional: true
+    max_items: 10
+    example:
+      - architecture
+      - performance
+      - security
+
+  category:
+    type: string
+    description: "High-level document category"
+    enum:
+      - architecture
+      - development
+      - operations
+      - security
+      - testing
+      - documentation
+      - planning
+      - public
+    optional: true
+    example: "architecture"
+
+  audience:
+    type: array
+    description: "Target audience for the document"
+    items:
+      type: string
+      enum:
+        - developers
+        - users
+        - contributors
+        - maintainers
+        - public
+    optional: true
+    example:
+      - developers
+      - maintainers
+
+  # Relationship Fields
+  dependencies:
+    type: array
+    description: "Documents that this document depends on"
+    items:
+      type: string
+      description: "Path to dependent document"
+    optional: true
+    example:
+      - "docs/architecture/CORE_PRINCIPLES.md"
+      - "CLAUDE.md"
+
+  supersedes:
+    type: string
+    description: "Path to document that this one replaces"
+    optional: true
+    example: "docs/old/LEGACY_DESIGN.md"
+
+  superseded_by:
+    type: string
+    description: "Path to document that replaces this one"
+    optional: true
+    example: "docs/architecture/NEW_DESIGN.md"
+
+  related:
+    type: array
+    description: "Related documents for cross-reference"
+    items:
+      type: string
+    optional: true
+    example:
+      - "docs/guides/GETTING_STARTED.md"
+      - "docs/reference/API.md"
+
+  # Quality Metrics
+  completeness:
+    type: integer
+    description: "Completeness score (0-100)"
+    minimum: 0
+    maximum: 100
+    optional: true
+    auto_generated: true
+    example: 85
+
+  last_reviewed:
+    type: datetime
+    description: "Last review/validation date"
+    format: "ISO 8601"
+    optional: true
+    example: "2025-11-03T10:00:00Z"
+
+  review_interval:
+    type: integer
+    description: "Recommended review interval in days"
+    minimum: 0
+    optional: true
+    default: 90
+    example: 30
+
+  # Technical Metadata
+  language:
+    type: string
+    description: "Primary language of the document"
+    default: "en"
+    pattern: "^[a-z]{2}$"
+    example: "en"
+
+  format:
+    type: string
+    description: "Document format"
+    enum:
+      - markdown
+      - yaml
+      - json
+      - plain_text
+    auto_generated: true
+    example: "markdown"
+
+  # Custom Metadata (Extensible)
+  custom:
+    type: object
+    description: "Project-specific custom metadata"
+    optional: true
+    example:
+      priority: high
+      team: core
+      sprint: 42
+
+# Index Configuration
+index_config:
+  output_path: "docs/INDEX.md"
+  template_path: "docs/templates/INDEX_TEMPLATE.md"
+  grouping:
+    - category
+    - status
+    - purpose
+  sorting:
+    primary: category
+    secondary: title
+
+# Validation Rules
+validation:
+  required_fields:
+    - path
+    - title
+    - purpose
+    - status
+
+  path_validation:
+    allowed_directories:
+      - docs/
+      - trinitas_sources/
+    allowed_extensions:
+      - .md
+      - .yaml
+      - .json
+
+  cross_reference_validation:
+    check_dependencies: true
+    check_supersedes: true
+    check_related: true
+
+  size_limits:
+    warning_threshold: 102400  # 100 KB
+    critical_threshold: 524288  # 500 KB
+
+  staleness_check:
+    warning_days: 180  # 6 months
+    critical_days: 365  # 1 year
+
+# Performance Optimization
+performance:
+  cache_enabled: true
+  cache_ttl: 300  # 5 minutes
+  batch_size: 50  # Process documents in batches
+  parallel_processing: true
+  max_workers: 4
+
+# Logging Configuration
+logging:
+  level: INFO
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "logs/document_registry.log"

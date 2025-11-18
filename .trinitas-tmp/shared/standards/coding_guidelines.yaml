@@ -1,0 +1,121 @@
+# Trinitas Coding Guidelines
+# 美しく調和のとれたコード作成指針
+
+language_standards:
+  python:
+    style_guide: "PEP 8"
+    docstring_format: "Google Style"
+    type_hints: "Required"
+    complexity_limit: 10
+    line_length: 88
+    
+  javascript:
+    style_guide: "Airbnb"
+    es_version: "ES2022"
+    type_checking: "TypeScript preferred"
+    complexity_limit: 10
+    
+  yaml:
+    indentation: 2
+    quote_style: "double"
+    line_length: 120
+    
+  markdown:
+    style_guide: "CommonMark"
+    heading_structure: "Hierarchical"
+    link_style: "Reference preferred"
+
+naming_conventions:
+  files:
+    snake_case: ["python", "yaml", "config"]
+    kebab_case: ["markdown", "html", "css"]
+    camelCase: ["javascript", "typescript"]
+    
+  variables:
+    descriptive: true
+    abbreviations: "Avoid unless standard"
+    constants: "UPPER_SNAKE_CASE"
+    
+  functions:
+    action_oriented: true
+    verb_noun_pattern: true
+    max_parameters: 5
+    
+  classes:
+    PascalCase: true
+    descriptive_names: true
+    single_responsibility: true
+
+documentation_standards:
+  inline_comments:
+    why_not_what: true
+    complex_logic_only: true
+    outdated_removal: "Regular cleanup"
+    
+  function_documentation:
+    purpose: "Clear description"
+    parameters: "Type and description"
+    returns: "Type and description"  
+    examples: "When helpful"
+    
+  module_documentation:
+    overview: "Purpose and scope"
+    dependencies: "External requirements"
+    usage_examples: "Basic usage"
+    api_reference: "Public interface"
+
+security_guidelines:
+  input_validation:
+    sanitize_all_inputs: true
+    validate_types: true
+    bounds_checking: true
+    encoding_validation: true
+    
+  output_handling:
+    escape_outputs: true
+    content_type_headers: true
+    no_sensitive_logging: true
+    
+  authentication:
+    strong_passwords: true
+    session_management: "Secure"
+    multi_factor: "For sensitive operations"
+    
+  data_handling:
+    encryption_at_rest: "For sensitive data"
+    encryption_in_transit: "Always HTTPS"
+    pii_handling: "Minimize and protect"
+
+performance_guidelines:
+  efficiency:
+    algorithmic_complexity: "O(n log n) or better preferred"
+    memory_usage: "Minimize allocations"
+    database_queries: "Optimize and limit"
+    caching: "Strategic implementation"
+    
+  scalability:
+    stateless_design: "Preferred"
+    horizontal_scaling: "Design consideration"
+    resource_pooling: "Where appropriate"
+    
+  monitoring:
+    performance_metrics: "Built-in"
+    error_tracking: "Comprehensive"
+    resource_monitoring: "Continuous"
+
+error_handling:
+  exception_strategy:
+    specific_exceptions: "Catch specific types"
+    graceful_degradation: "Maintain functionality"
+    user_friendly_messages: "Clear communication"
+    logging: "Detailed for debugging"
+    
+  recovery:
+    retry_mechanisms: "With backoff"
+    circuit_breakers: "For external services"
+    fallback_options: "Alternative paths"
+    
+  testing:
+    error_scenarios: "Explicit testing"
+    edge_cases: "Comprehensive coverage"
+    integration_failures: "Simulation testing"

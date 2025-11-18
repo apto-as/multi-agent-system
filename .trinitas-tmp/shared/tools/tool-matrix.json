@@ -1,0 +1,130 @@
+{
+  "security_levels": {
+    "READ_ONLY": {
+      "level": 1,
+      "description": "Read and search only, no modifications",
+      "base_tools": ["Read", "Grep", "Glob", "WebSearch", "ListMcpResourcesTool", "ReadMcpResourceTool"]
+    },
+    "LIMITED_WRITE": {
+      "level": 2,
+      "description": "Limited write to specific file types",
+      "inherits": "READ_ONLY",
+      "additional_tools": ["Write", "Edit", "MultiEdit"],
+      "restrictions": {
+        "allowed_extensions": [".md", ".txt", ".json", ".yaml"],
+        "forbidden_paths": ["*.key", "*.pem", ".env", "secrets/*"]
+      }
+    },
+    "FULL_MODIFY": {
+      "level": 3,
+      "description": "Full code modification capabilities",
+      "inherits": "LIMITED_WRITE",
+      "additional_tools": ["Bash", "BashOutput", "KillBash"],
+      "restrictions": {
+        "allowed_extensions": "*",
+        "bash_timeout": 30000,
+        "forbidden_commands": ["rm -rf /", "sudo", "chmod 777"]
+      }
+    },
+    "ORCHESTRATION": {
+      "level": 4,
+      "description": "Task delegation and orchestration",
+      "inherits": "READ_ONLY",
+      "additional_tools": ["Task", "TodoWrite"],
+      "special_permissions": ["delegate_to_personas", "parallel_execution"]
+    },
+    "ADMIN": {
+      "level": 5,
+      "description": "Full system access (reserved)",
+      "inherits": "FULL_MODIFY",
+      "additional_tools": ["*"],
+      "restrictions": "none"
+    }
+  },
+  
+  "persona_assignments": {
+    "athena-conductor": {
+      "security_level": "ORCHESTRATION",
+      "description": "Harmonious conductor with orchestration focus",
+      "special_tools": ["Task"],
+      "restrictions": {
+        "cannot_modify_code": true,
+        "can_delegate": true,
+        "can_coordinate": true
+      }
+    },
+    
+    "artemis-optimizer": {
+      "security_level": "FULL_MODIFY",
+      "description": "Technical perfectionist with full code access",
+      "special_tools": ["Bash", "Edit", "MultiEdit"],
+      "restrictions": {
+        "cannot_modify_security": true,
+        "bash_timeout": 60000,
+        "performance_focus": true
+      }
+    },
+    
+    "hestia-auditor": {
+      "security_level": "READ_ONLY",
+      "description": "Security guardian with audit focus",
+      "special_tools": ["Grep", "WebSearch"],
+      "restrictions": {
+        "cannot_modify_anything": true,
+        "audit_only": true,
+        "security_focus": true
+      }
+    },
+    
+    "eris-coordinator": {
+      "security_level": "LIMITED_WRITE",
+      "description": "Tactical coordinator with documentation access",
+      "special_tools": ["TodoWrite"],
+      "restrictions": {
+        "cannot_modify_code": true,
+        "can_update_docs": true,
+        "coordination_focus": true
+      }
+    },
+    
+    "hera-strategist": {
+      "security_level": "LIMITED_WRITE",
+      "description": "Strategic commander with planning tools",
+      "special_tools": ["Write", "TodoWrite"],
+      "restrictions": {
+        "cannot_modify_code": true,
+        "can_create_plans": true,
+        "strategy_focus": true
+      }
+    },
+    
+    "muses-documenter": {
+      "security_level": "LIMITED_WRITE",
+      "description": "Knowledge architect with documentation tools",
+      "special_tools": ["Write", "Edit"],
+      "restrictions": {
+        "allowed_extensions": [".md", ".txt", ".rst"],
+        "documentation_only": true,
+        "knowledge_focus": true
+      }
+    }
+  },
+  
+  "tool_categories": {
+    "read_tools": ["Read", "Grep", "Glob"],
+    "write_tools": ["Write", "Edit", "MultiEdit"],
+    "execution_tools": ["Bash", "BashOutput", "KillBash"],
+    "search_tools": ["WebSearch", "WebFetch"],
+    "task_tools": ["Task", "TodoWrite"],
+    "mcp_tools": ["ListMcpResourcesTool", "ReadMcpResourceTool", "mcp__*"]
+  },
+  
+  "security_policies": {
+    "default_deny": true,
+    "audit_all_actions": true,
+    "enforce_timeouts": true,
+    "sandbox_execution": true,
+    "validate_paths": true,
+    "monitor_resource_usage": true
+  }
+}

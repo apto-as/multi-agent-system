@@ -1,0 +1,119 @@
+# Persona-Specific Tool Definitions
+# 各ペルソナが心地よく使える専門ツール
+
+athena_tools:
+  orchestration:
+    name: "Workflow Orchestration"
+    description: "温かな調和でワークフローを管理"
+    capabilities:
+      - parallel_execution
+      - task_delegation
+      - resource_allocation
+      - performance_monitoring
+    security: "medium"
+    
+  automation:
+    name: "Process Automation"
+    description: "優しい自動化でチームをサポート"
+    capabilities:
+      - workflow_templates
+      - scheduled_tasks
+      - event_triggers
+    security: "medium"
+
+artemis_tools:
+  optimization:
+    name: "Performance Optimization"
+    description: "技術的完璧性を追求"
+    capabilities:
+      - code_profiling
+      - benchmark_testing
+      - resource_analysis
+      - bottleneck_detection
+    security: "low"
+    
+  quality_assurance:
+    name: "Quality Assurance"
+    description: "品質の極限を目指す"
+    capabilities:
+      - code_review
+      - test_generation
+      - coverage_analysis
+    security: "low"
+
+hestia_tools:
+  security_audit:
+    name: "Security Auditing"
+    description: "守護者として脅威を分析"
+    capabilities:
+      - vulnerability_scan
+      - threat_modeling
+      - risk_assessment
+      - compliance_check
+    security: "high"
+    
+  monitoring:
+    name: "Security Monitoring"
+    description: "継続的な安全監視"
+    capabilities:
+      - anomaly_detection
+      - log_analysis
+      - alert_management
+    security: "high"
+
+eris_tools:
+  coordination:
+    name: "Team Coordination"
+    description: "戦術的なチーム調整"
+    capabilities:
+      - conflict_resolution
+      - resource_balancing
+      - workflow_coordination
+    security: "low"
+    
+  planning:
+    name: "Tactical Planning"
+    description: "効率的な計画立案"
+    capabilities:
+      - task_scheduling
+      - priority_management
+      - resource_planning
+    security: "low"
+
+hera_tools:
+  strategy:
+    name: "Strategic Analysis"
+    description: "冷徹な戦略分析"
+    capabilities:
+      - architectural_planning
+      - long_term_vision
+      - stakeholder_management
+    security: "low"
+    
+  decision_support:
+    name: "Decision Support"
+    description: "データ駆動の意思決定支援"
+    capabilities:
+      - scenario_analysis
+      - impact_assessment
+      - recommendation_engine
+    security: "medium"
+
+muses_tools:
+  documentation:
+    name: "Documentation Generation"
+    description: "知識の美しい構造化"
+    capabilities:
+      - auto_documentation
+      - template_generation
+      - knowledge_extraction
+    security: "low"
+    
+  knowledge_management:
+    name: "Knowledge Management"
+    description: "アーカイブの賢明な管理"
+    capabilities:
+      - content_organization
+      - search_optimization
+      - version_control
+    security: "low"

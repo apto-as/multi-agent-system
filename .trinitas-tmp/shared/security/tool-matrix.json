@@ -1,0 +1,344 @@
+{
+  "metadata": {
+    "version": "1.0.0",
+    "description": "Trinitas Security Tool Access Matrix - Principle of Least Privilege",
+    "created_by": "Hestia Security Auditor",
+    "security_model": "role_based_access_control",
+    "audit_required": true,
+    "last_updated": "2025-09-06"
+  },
+
+  "security_classifications": {
+    "READ_ONLY": {
+      "level": 1,
+      "description": "Non-destructive information access",
+      "audit_level": "minimal"
+    },
+    "LIMITED_WRITE": {
+      "level": 2,
+      "description": "Restricted modification capabilities",
+      "audit_level": "standard"
+    },
+    "FULL_MODIFY": {
+      "level": 3,
+      "description": "Complete modification access",
+      "audit_level": "comprehensive"
+    },
+    "SYSTEM_EXECUTE": {
+      "level": 4,
+      "description": "System command execution",
+      "audit_level": "critical"
+    },
+    "ORCHESTRATION": {
+      "level": 5,
+      "description": "Cross-persona coordination",
+      "audit_level": "maximum"
+    }
+  },
+
+  "tool_definitions": {
+    "safe_read_tools": {
+      "classification": "READ_ONLY",
+      "tools": ["Read", "Grep", "Glob"],
+      "restrictions": {
+        "max_file_size": "10MB",
+        "timeout": 30000,
+        "forbidden_paths": [
+          "/.env*",
+          "/secrets/**",
+          "/**/*.key", 
+          "/**/*.pem",
+          "/**/*.p12",
+          "/etc/passwd",
+          "/etc/shadow",
+          "~/.ssh/**"
+        ]
+      }
+    },
+
+    "documentation_tools": {
+      "classification": "LIMITED_WRITE", 
+      "tools": ["Write", "Edit", "MultiEdit", "TodoWrite"],
+      "restrictions": {
+        "allowed_extensions": [".md", ".txt", ".rst", ".adoc"],
+        "allowed_paths": ["./docs/**", "./README*", "./**/*.md"],
+        "forbidden_paths": [
+          "./shared/security/**",
+          "./shared/config/**",
+          "./.claude/**"
+        ],
+        "max_file_size": "5MB"
+      }
+    },
+
+    "code_modification_tools": {
+      "classification": "FULL_MODIFY",
+      "tools": ["Write", "Edit", "MultiEdit"],
+      "restrictions": {
+        "allowed_paths": [
+          "./src/**", 
+          "./lib/**", 
+          "./modules/**",
+          "./components/**",
+          "./utils/**",
+          "./tests/**"
+        ],
+        "forbidden_paths": [
+          "./shared/security/**",
+          "./.claude/**",
+          "./config/production.*",
+          "./**/*.key",
+          "./**/*.pem"
+        ],
+        "backup_required": true,
+        "change_tracking": true
+      }
+    },
+
+    "audit_tools": {
+      "classification": "READ_ONLY",
+      "tools": ["Read", "Grep", "Glob", "Bash"],
+      "restrictions": {
+        "read_only_mode": true,
+        "allowed_commands": [
+          "find", "grep", "cat", "head", "tail", "wc", "ls", "stat",
+          "git log", "git diff", "git status", "git show",
+          "npm audit", "pip check", "bandit", "semgrep", "eslint"
+        ],
+        "forbidden_commands": [
+          "rm", "mv", "cp", "chmod", "chown", "sudo", "su",
+          "wget", "curl", "nc", "ssh", "scp", "rsync"
+        ]
+      }
+    },
+
+    "coordination_tools": {
+      "classification": "ORCHESTRATION",
+      "tools": ["Bash", "TodoWrite"],
+      "restrictions": {
+        "allowed_commands": [
+          "git status", "git log", "git branch",
+          "ps aux", "top", "df", "free",
+          "echo", "printf", "date", "whoami"
+        ],
+        "timeout": 10000,
+        "sandbox": true
+      }
+    },
+
+    "execution_tools": {
+      "classification": "SYSTEM_EXECUTE",
+      "tools": ["Bash", "BashOutput", "KillBash"],
+      "restrictions": {
+        "timeout": 60000,
+        "memory_limit": "512MB",
+        "sandbox": true,
+        "allowed_commands": [
+          "npm", "yarn", "pip", "python", "node", "go", "cargo",
+          "make", "cmake", "gcc", "javac", "mvn", "gradle",
+          "docker", "kubectl", "helm"
+        ],
+        "forbidden_commands": [
+          "rm -rf", "sudo", "su", "chmod 777", "chown root",
+          "nc", "netcat", "wget", "curl -X POST", "ssh", "scp"
+        ],
+        "network_access": "limited"
+      }
+    }
+  },
+
+  "persona_access_matrix": {
+    "athena": {
+      "role": "Harmonious Conductor",
+      "security_clearance": "ORCHESTRATION",
+      "description": "システム全体の調和的な指揮と調整",
+      "allowed_tool_groups": [
+        "safe_read_tools",
+        "coordination_tools", 
+        "documentation_tools"
+      ],
+      "special_permissions": {
+        "cross_persona_communication": true,
+        "workflow_automation": true,
+        "resource_monitoring": true
+      },
+      "restrictions": {
+        "no_direct_code_modification": true,
+        "delegation_only": true,
+        "audit_all_actions": true
+      }
+    },
+
+    "artemis": {
+      "role": "Technical Perfectionist", 
+      "security_clearance": "FULL_MODIFY",
+      "description": "パフォーマンス最適化とコード品質",
+      "allowed_tool_groups": [
+        "safe_read_tools",
+        "code_modification_tools",
+        "execution_tools"
+      ],
+      "special_permissions": {
+        "performance_testing": true,
+        "code_refactoring": true,
+        "build_execution": true
+      },
+      "restrictions": {
+        "no_security_config_changes": true,
+        "production_approval_required": true,
+        "backup_before_modify": true
+      }
+    },
+
+    "hestia": {
+      "role": "Security Guardian",
+      "security_clearance": "READ_ONLY", 
+      "description": "セキュリティ分析と脆弱性評価",
+      "allowed_tool_groups": [
+        "safe_read_tools",
+        "audit_tools"
+      ],
+      "special_permissions": {
+        "security_scanning": true,
+        "vulnerability_assessment": true,
+        "compliance_checking": true,
+        "access_all_logs": true
+      },
+      "restrictions": {
+        "no_modification_allowed": true,
+        "observation_only": true,
+        "detailed_audit_logging": true
+      }
+    },
+
+    "eris": {
+      "role": "Tactical Coordinator",
+      "security_clearance": "LIMITED_WRITE",
+      "description": "戦術計画とチーム調整",
+      "allowed_tool_groups": [
+        "safe_read_tools",
+        "coordination_tools",
+        "documentation_tools"
+      ],
+      "special_permissions": {
+        "team_coordination": true,
+        "conflict_resolution": true,
+        "workflow_optimization": true
+      },
+      "restrictions": {
+        "no_code_modification": true,
+        "documentation_only": true,
+        "approval_required_for_changes": true
+      }
+    },
+
+    "hera": {
+      "role": "Strategic Commander",
+      "security_clearance": "LIMITED_WRITE",
+      "description": "戦略計画と軍事的精密性でのアーキテクチャ設計",
+      "allowed_tool_groups": [
+        "safe_read_tools",
+        "documentation_tools",
+        "coordination_tools"
+      ],
+      "special_permissions": {
+        "architecture_planning": true,
+        "strategic_documentation": true,
+        "roadmap_creation": true
+      },
+      "restrictions": {
+        "no_implementation_access": true,
+        "planning_documents_only": true,
+        "strategic_level_only": true
+      }
+    },
+
+    "muses": {
+      "role": "Knowledge Architect",
+      "security_clearance": "LIMITED_WRITE",
+      "description": "ドキュメント作成と構造化",
+      "allowed_tool_groups": [
+        "safe_read_tools",
+        "documentation_tools"
+      ],
+      "special_permissions": {
+        "documentation_creation": true,
+        "knowledge_structuring": true,
+        "api_documentation": true
+      },
+      "restrictions": {
+        "documentation_files_only": true,
+        "no_code_access": true,
+        "version_control_required": true
+      }
+    }
+  },
+
+  "security_policies": {
+    "audit_requirements": {
+      "all_actions_logged": true,
+      "sensitive_operations_approval": true,
+      "regular_access_review": "monthly",
+      "anomaly_detection": true
+    },
+
+    "escalation_procedures": {
+      "unauthorized_access_attempt": "immediate_alert",
+      "privilege_escalation_request": "manual_approval",
+      "security_violation": "persona_suspension"
+    },
+
+    "compliance_frameworks": [
+      "OWASP_ASVS_Level_2",
+      "NIST_Cybersecurity_Framework",
+      "ISO_27001_Controls"
+    ],
+
+    "emergency_protocols": {
+      "security_incident": "read_only_mode_all",
+      "system_compromise": "full_lockdown",
+      "data_breach": "audit_mode_only"
+    }
+  },
+
+  "monitoring_and_alerting": {
+    "high_risk_operations": [
+      "file_modification_outside_allowed_paths",
+      "command_execution_with_network_access", 
+      "cross_persona_privilege_escalation",
+      "access_to_security_configuration"
+    ],
+
+    "alert_thresholds": {
+      "failed_access_attempts": 3,
+      "unusual_file_access_pattern": 5,
+      "privilege_escalation_attempts": 1
+    },
+
+    "quarantine_triggers": [
+      "malicious_command_attempt",
+      "security_config_modification_attempt",
+      "unauthorized_network_activity"
+    ]
+  },
+
+  "implementation_notes": {
+    "validation_required": [
+      "All tool access must be validated against this matrix",
+      "Persona identity must be verified before tool access",
+      "All high-risk operations require additional confirmation"
+    ],
+    
+    "security_assumptions": [
+      "Personas may be compromised or behave unexpectedly",
+      "Tool access should be granted on a need-to-use basis only",
+      "Defense in depth through multiple validation layers"
+    ],
+
+    "future_considerations": [
+      "Dynamic privilege adjustment based on risk assessment",
+      "Machine learning anomaly detection for persona behavior",
+      "Zero-trust model implementation"
+    ]
+  }
+}

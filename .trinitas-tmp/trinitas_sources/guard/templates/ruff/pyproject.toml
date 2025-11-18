@@ -1,0 +1,147 @@
+# Trinitas Quality Guardian - Ruff Configuration Template
+# This is a comprehensive Ruff configuration for Python projects
+# Customized by Artemis for technical excellence
+
+[tool.ruff]
+# Base configuration
+line-length = 88
+target-version = "py311"
+src = ["src", "tests"]
+
+# File patterns to include/exclude
+include = ["*.py", "*.pyi", "**/pyproject.toml"]
+exclude = [
+    ".git",
+    ".ruff_cache",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+    "*/migrations/*",
+]
+
+[tool.ruff.lint]
+# Enable comprehensive rule sets
+select = [
+    # Core Python errors
+    "F",     # Pyflakes
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+
+    # Import sorting and organization
+    "I",     # isort
+
+    # Upgrade and modernization
+    "UP",    # pyupgrade
+
+    # Security and bug detection
+    "B",     # flake8-bugbear
+    "S",     # flake8-bandit
+
+    # Code complexity
+    "C90",   # mccabe complexity
+
+    # Comprehensions and simplification
+    "C4",    # flake8-comprehensions
+    "SIM",   # flake8-simplify
+
+    # Type annotations
+    "ANN",   # flake8-annotations
+
+    # Docstrings
+    "D",     # pydocstyle
+
+    # Testing
+    "PT",    # flake8-pytest-style
+
+    # Performance
+    "PERF",  # Performance anti-patterns
+
+    # Error handling
+    "EM",    # flake8-errmsg
+    "ISC",   # flake8-implicit-str-concat
+
+    # Logging
+    "LOG",   # flake8-logging
+    "G",     # flake8-logging-format
+
+    # Async best practices
+    "ASYNC", # flake8-async
+
+    # Quality improvements
+    "Q",     # flake8-quotes
+    "RET",   # flake8-return
+    "SLF",   # flake8-self
+    "ARG",   # flake8-unused-arguments
+    "PTH",   # flake8-use-pathlib
+    "ERA",   # eradicate (commented-out code)
+    "PL",    # Pylint
+    "RUF",   # Ruff-specific rules
+]
+
+# Rules to ignore (customize based on project needs)
+ignore = [
+    "ANN101",  # Missing type annotation for self
+    "ANN102",  # Missing type annotation for cls
+    "D100",    # Missing docstring in public module
+    "D104",    # Missing docstring in public package
+    "D107",    # Missing docstring in __init__
+    "D203",    # 1 blank line required before class docstring
+    "D212",    # Multi-line docstring summary should start at the first line
+]
+
+# Allow autofix for these rules
+fixable = ["ALL"]
+
+# Never autofix these rules (for safety)
+unfixable = ["B", "S"]  # Don't auto-fix potential bugs or security issues
+
+# Per-file rule overrides
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = [
+    "S101",   # assert is fine in tests
+    "ARG",    # Unused arguments in tests
+    "ANN",    # Type annotations not required in tests
+    "D",      # Docstrings not required in tests
+    "PLR2004", # Magic values are OK in tests
+]
+
+"__init__.py" = ["F401"]  # Unused imports OK in __init__ files
+
+[tool.ruff.lint.isort]
+known-first-party = []  # Add your package names here
+combine-as-imports = true
+force-sort-within-sections = true
+
+[tool.ruff.lint.mccabe]
+# Maximum cyclomatic complexity (10 is a good default)
+max-complexity = 10
+
+[tool.ruff.lint.pydocstyle]
+# Use Google-style docstrings
+convention = "google"
+
+[tool.ruff.lint.pylint]
+max-args = 7
+max-branches = 12
+max-returns = 6
+max-statements = 50
+
+[tool.ruff.lint.flake8-quotes]
+docstring-quotes = "double"
+inline-quotes = "double"
+
+[tool.ruff.format]
+# Formatting options
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+# Docstring formatting
+docstring-code-format = true
+docstring-code-line-length = 72
