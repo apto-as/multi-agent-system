@@ -27,17 +27,12 @@ services:
       - "8000:8000"
 
     volumes:
-      # Persistent data (SQLite database)
-      - ./data:/app/data
+      # Consolidated TMWS data directory (Phase 2E-3: FORTRESS CONSOLIDATION)
+      # Contains: db/, secrets/, logs/, vector_store/, output/
+      - ./.tmws:/app/.tmws
 
-      # Configuration files
+      # Configuration files (kept separate for easy editing)
       - ./config:/app/config
-
-      # ChromaDB vector storage
-      - ./.chroma:/app/.chroma
-
-      # Logs
-      - ./logs:/app/logs
 
     environment:
       # Environment
@@ -46,20 +41,20 @@ services:
       # Security (REQUIRED - set in .env)
       - TMWS_SECRET_KEY=${TMWS_SECRET_KEY}
 
-      # Database
-      - TMWS_DATABASE_URL=sqlite+aiosqlite:////app/data/tmws.db
+      # Database (Phase 2E-3: Consolidated path)
+      - TMWS_DATABASE_URL=sqlite+aiosqlite:////app/.tmws/db/tmws.db
 
       # Ollama (Mac Native - Metal GPU)
       # host.docker.internal resolves to host machine
       - TMWS_OLLAMA_BASE_URL=http://host.docker.internal:11434
       - TMWS_OLLAMA_MODEL=zylonai/multilingual-e5-large
 
-      # ChromaDB
-      - TMWS_CHROMA_PERSIST_DIRECTORY=/app/.chroma
+      # ChromaDB (Phase 2E-3: Consolidated path)
+      - TMWS_CHROMA_PERSIST_DIRECTORY=/app/.tmws/vector_store
 
-      # Logging
+      # Logging (Phase 2E-3: Consolidated path)
       - TMWS_LOG_LEVEL=${TMWS_LOG_LEVEL:-INFO}
-      - TMWS_LOG_FILE=/app/logs/tmws.log
+      - TMWS_LOG_FILE=/app/.tmws/logs/tmws.log
 
       # CORS (if needed for web clients)
       - TMWS_CORS_ORIGINS=${TMWS_CORS_ORIGINS:-["http://localhost:3000"]}
