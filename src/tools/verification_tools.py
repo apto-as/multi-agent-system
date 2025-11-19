@@ -10,8 +10,8 @@ from typing import Any
 from mcp.server import Server
 
 from src.core.database import get_session
-from src.services.verification_service import ClaimType, VerificationService
 from src.services.trust_service import TrustService
+from src.services.verification_service import ClaimType, VerificationService
 
 
 async def register_verification_tools(mcp: Server) -> None:

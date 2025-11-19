@@ -29,8 +29,6 @@ from src.core.exceptions import (
     ServiceInitializationError,
     log_and_raise,
 )
-from src.core.trinitas_loader import load_trinitas_agents
-from src.services.expiration_scheduler import ExpirationScheduler
 from src.services.memory_service import HybridMemoryService
 from src.services.ollama_embedding_service import get_ollama_embedding_service
 from src.services.vector_search_service import get_vector_search_service
@@ -761,7 +759,6 @@ async def validate_license_at_startup(license_key: str) -> dict:
             - error (str|None): Error message if invalid
             - grace_period (bool): True if in 7-day grace period for expired license
     """
-    from datetime import timedelta
 
     from src.core.database import get_db_session
     from src.services.license_service import LicenseService

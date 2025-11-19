@@ -7,7 +7,6 @@ Author: Artemis (Technical Perfectionist)
 Created: 2025-11-12 (Phase 1-2-D: Application Service Implementation)
 """
 
-from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import select
@@ -29,7 +28,7 @@ class SQLAlchemyAgentRepository(AgentRepositoryInterface):
         """
         self._session = session
 
-    async def get_by_id(self, agent_id: UUID | str) -> Optional[Agent]:
+    async def get_by_id(self, agent_id: UUID | str) -> Agent | None:
         """Retrieve Agent by ID.
 
         Args:
@@ -44,10 +43,7 @@ class SQLAlchemyAgentRepository(AgentRepositoryInterface):
         """
         try:
             # Convert UUID to string if needed
-            if isinstance(agent_id, UUID):
-                agent_id_str = str(agent_id)
-            else:
-                agent_id_str = agent_id
+            agent_id_str = str(agent_id) if isinstance(agent_id, UUID) else agent_id
 
             stmt = select(Agent).where(Agent.agent_id == agent_id_str)
             result = await self._session.execute(stmt)
@@ -61,7 +57,7 @@ class SQLAlchemyAgentRepository(AgentRepositoryInterface):
                 details={"agent_id": agent_id_str},
             ) from e
 
-    async def get_by_full_id(self, full_id: str) -> Optional[Agent]:
+    async def get_by_full_id(self, full_id: str) -> Agent | None:
         """Get an agent by full ID.
 
         Args:
@@ -83,7 +79,7 @@ class SQLAlchemyAgentRepository(AgentRepositoryInterface):
                 details={"full_id": full_id},
             ) from e
 
-    async def list_all(self, namespace: Optional[str] = None) -> list[Agent]:
+    async def list_all(self, namespace: str | None = None) -> list[Agent]:
         """List all agents, optionally filtered by namespace.
 
         Args:

@@ -1,13 +1,12 @@
 """Verification and trust tracking models"""
 from datetime import datetime
 from typing import Any
-from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, JSON, String, Text, event
-from sqlalchemy.orm import Mapped, mapped_column, relationship, Session
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, String, Text, event
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.models.base import TMWSBase
 from src.core.exceptions import ImmutableRecordError
+from src.models.base import TMWSBase
 
 
 class VerificationRecord(TMWSBase):

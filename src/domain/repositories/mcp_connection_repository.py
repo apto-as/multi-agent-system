@@ -1,7 +1,6 @@
 """MCP connection repository interface."""
 
 from abc import ABC, abstractmethod
-from typing import Optional
 from uuid import UUID
 
 from src.domain.aggregates.mcp_connection import MCPConnection
@@ -11,7 +10,7 @@ class MCPConnectionRepository(ABC):
     """Abstract base class for MCP connection repository operations."""
 
     @abstractmethod
-    async def get_by_id(self, connection_id: UUID) -> Optional[MCPConnection]:
+    async def get_by_id(self, connection_id: UUID) -> MCPConnection | None:
         """Get a connection by ID.
 
         Args:
@@ -57,7 +56,7 @@ class MCPConnectionRepository(ABC):
         self,
         agent_id: UUID,
         server_name: str,
-    ) -> Optional[MCPConnection]:
+    ) -> MCPConnection | None:
         """Find a connection by server name for an agent.
 
         Args:
@@ -72,7 +71,7 @@ class MCPConnectionRepository(ABC):
     @abstractmethod
     async def get_by_server_name_and_namespace(
         self, server_name: str, namespace: str
-    ) -> Optional[MCPConnection]:
+    ) -> MCPConnection | None:
         """Find connection by server name and namespace.
 
         Args:

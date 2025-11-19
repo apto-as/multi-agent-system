@@ -4,7 +4,7 @@ Abstract interface for event dispatching.
 """
 
 from abc import ABC, abstractmethod
-from typing import Callable, List
+from collections.abc import Callable
 
 from src.domain.events import DomainEvent
 
@@ -18,6 +18,6 @@ class EventDispatcher(ABC):
         pass
 
     @abstractmethod
-    async def dispatch_all(self, events: List[DomainEvent]):
+    async def dispatch_all(self, events: list[DomainEvent]):
         """Dispatch all events to registered handlers"""
         pass

@@ -23,11 +23,9 @@ from uuid import UUID
 
 from fastmcp import FastMCP
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.memory import Memory
 from ..security.mcp_auth import (
-    MCPAuthContext,
     MCPAuthorizationError,
     MCPOperation,
     authenticate_mcp_request,
@@ -423,7 +421,10 @@ class ExpirationTools:
                         )
 
                     # Validate TTL
-                    from ..services.memory_service import _validate_ttl_days, _validate_access_level_ttl_limit
+                    from ..services.memory_service import (
+                        _validate_access_level_ttl_limit,
+                        _validate_ttl_days,
+                    )
 
                     _validate_ttl_days(ttl_days)
                     _validate_access_level_ttl_limit(memory.access_level, ttl_days)
@@ -1020,7 +1021,7 @@ class ExpirationTools:
             async with session_factory() as session:
                 try:
                     # Authentication (no admin check - any agent can trigger)
-                    context = await authenticate_mcp_request(
+                    await authenticate_mcp_request(
                         session=session,
                         agent_id=agent_id,
                         api_key=api_key,

@@ -9,10 +9,10 @@ Optimization Strategy:
 4. Caching: Pre-compiled patterns at module level
 """
 import hashlib
+import logging
 import os
 import re
-import logging
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +56,7 @@ def mask_api_key(key: str) -> str:
 def safe_log_error(
     logger_instance: logging.Logger,
     message: str,
-    exception: Optional[Exception] = None,
+    exception: Exception | None = None,
 ):
     """Log error with environment-aware stack trace."""
     env = os.getenv("TRINITAS_ENV", "development")

@@ -32,6 +32,7 @@ import logging
 import httpx
 import numpy as np
 
+from ..core.config import settings
 from ..core.exceptions import IntegrationError, log_and_raise
 
 logger = logging.getLogger(__name__)
@@ -403,6 +404,9 @@ def get_ollama_embedding_service() -> OllamaEmbeddingService:
     global _ollama_service_instance
 
     if _ollama_service_instance is None:
-        _ollama_service_instance = OllamaEmbeddingService()
+        _ollama_service_instance = OllamaEmbeddingService(
+            ollama_base_url=settings.ollama_base_url,
+            model_name=settings.embedding_model,
+        )
 
     return _ollama_service_instance

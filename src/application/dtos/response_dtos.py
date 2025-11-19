@@ -7,7 +7,6 @@ All response DTOs are immutable (@dataclass(frozen=True)) and provide:
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
 from uuid import UUID
 
 
@@ -52,9 +51,9 @@ class MCPConnectionDTO:
     status: str
     tools: list[ToolDTO]
     created_at: datetime
-    connected_at: Optional[datetime]
-    disconnected_at: Optional[datetime]
-    error_message: Optional[str]
+    connected_at: datetime | None
+    disconnected_at: datetime | None
+    error_message: str | None
 
     @classmethod
     def from_aggregate(cls, connection) -> "MCPConnectionDTO":

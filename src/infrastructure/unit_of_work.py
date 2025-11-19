@@ -1,7 +1,6 @@
 """Unit of Work pattern implementation."""
 
 from abc import ABC, abstractmethod
-from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -50,7 +49,7 @@ class SQLAlchemyUnitOfWork(UnitOfWork):
             session_factory: Callable that returns an AsyncSession
         """
         self.session_factory = session_factory
-        self._session: Optional[AsyncSession] = None
+        self._session: AsyncSession | None = None
 
     async def __aenter__(self):
         """Enter async context manager and create session."""

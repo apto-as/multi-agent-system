@@ -10,7 +10,7 @@ Critical Rules:
 
 import asyncio
 import logging
-from typing import Callable, Dict, List
+from collections.abc import Callable
 
 from src.application.events.dispatcher import EventDispatcher
 from src.domain.events import DomainEvent
@@ -22,7 +22,7 @@ class SynchronousEventDispatcher(EventDispatcher):
     """Synchronous event dispatcher for Phase 1-2"""
 
     def __init__(self):
-        self._handlers: Dict[type[DomainEvent], List[Callable]] = {}
+        self._handlers: dict[type[DomainEvent], list[Callable]] = {}
 
     def register(
         self,
@@ -40,7 +40,7 @@ class SynchronousEventDispatcher(EventDispatcher):
             f"Registered handler {handler_name} " f"for event {event_type.__name__}"
         )
 
-    async def dispatch_all(self, events: List[DomainEvent]):
+    async def dispatch_all(self, events: list[DomainEvent]):
         """
         Dispatch all events to registered handlers
 

@@ -8,7 +8,6 @@ Provides configurable interval, manual triggering, and metrics tracking.
 import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 from src.services.memory_service import HybridMemoryService
 
@@ -45,12 +44,12 @@ class ExpirationScheduler:
 
         self.memory_service = memory_service
         self.interval_hours = interval_hours
-        self._task: Optional[asyncio.Task] = None
+        self._task: asyncio.Task | None = None
         self._running = False
 
         # Metrics
-        self._last_run_time: Optional[datetime] = None
-        self._next_run_time: Optional[datetime] = None
+        self._last_run_time: datetime | None = None
+        self._next_run_time: datetime | None = None
         self._total_cleanups = 0
         self._total_deleted = 0
 
@@ -112,11 +111,11 @@ class ExpirationScheduler:
         """
         return await self._execute_cleanup()
 
-    def get_last_run_time(self) -> Optional[datetime]:
+    def get_last_run_time(self) -> datetime | None:
         """Get the timestamp of the last cleanup run."""
         return self._last_run_time
 
-    def get_next_run_time(self) -> Optional[datetime]:
+    def get_next_run_time(self) -> datetime | None:
         """Get the estimated timestamp of the next cleanup run."""
         return self._next_run_time
 

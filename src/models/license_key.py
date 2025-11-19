@@ -14,7 +14,6 @@ Phase: 2B - Database Migration
 
 from datetime import datetime, timezone
 from enum import Enum as PyEnum
-from typing import Optional
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
@@ -25,7 +24,6 @@ from sqlalchemy import (
     Enum,
     ForeignKey,
     Index,
-    Integer,
     String,
     Text,
 )
@@ -95,12 +93,12 @@ class LicenseKey(Base):
 
     # Timestamps
     issued_at: datetime = Column(DateTime(timezone=True), nullable=False)
-    expires_at: Optional[datetime] = Column(DateTime(timezone=True), nullable=True)
+    expires_at: datetime | None = Column(DateTime(timezone=True), nullable=True)
 
     # Status flags
     is_active: bool = Column(Boolean, default=True, nullable=False)
-    revoked_at: Optional[datetime] = Column(DateTime(timezone=True), nullable=True)
-    revoked_reason: Optional[str] = Column(Text, nullable=True)
+    revoked_at: datetime | None = Column(DateTime(timezone=True), nullable=True)
+    revoked_reason: str | None = Column(Text, nullable=True)
 
     # Relationships
     agent = relationship("Agent", back_populates="license_keys")
@@ -225,8 +223,8 @@ class LicenseKeyUsage(Base):
 
     # Usage metadata
     used_at: datetime = Column(DateTime(timezone=True), nullable=False)
-    feature_accessed: Optional[str] = Column(String(128), nullable=True)
-    usage_metadata: Optional[dict] = Column(Text, nullable=True)  # JSON as TEXT
+    feature_accessed: str | None = Column(String(128), nullable=True)
+    usage_metadata: dict | None = Column(Text, nullable=True)  # JSON as TEXT
 
     # Relationships
     license_key = relationship("LicenseKey", back_populates="usage_records")
