@@ -12,7 +12,10 @@ Phase: 4a (TMWS v2.2.6)
 
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Any
+
+# Import AgentService after avoiding circular imports
+# AgentService is needed for namespace verification during authorization
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from sqlalchemy import and_, delete, func, or_, select
@@ -32,10 +35,6 @@ from src.core.exceptions import (
 from src.models.memory import AccessLevel, Memory
 from src.services.ollama_embedding_service import get_ollama_embedding_service
 from src.services.vector_search_service import get_vector_search_service
-
-# Import AgentService after avoiding circular imports
-# AgentService is needed for namespace verification during authorization
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from src.services.agent_service import AgentService
@@ -313,7 +312,7 @@ class HybridMemoryService:
             # Phase 1B Part 3: Validate access-level based TTL limits
             try:
                 _validate_access_level_ttl_limit(access_level, ttl_days)
-            except ValidationError as e:
+            except ValidationError:
                 # AUDIT LOG: Access-level TTL limit exceeded
                 max_ttl = {
                     AccessLevel.PRIVATE: 365,

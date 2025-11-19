@@ -399,7 +399,7 @@ class MCPAuthService:
         # Rule 1: Own namespace → Always allowed
         if context.namespace == target_namespace:
             logger.debug(
-                f"✅ Namespace access granted: Own namespace",
+                "✅ Namespace access granted: Own namespace",
                 extra={
                     "agent_id": context.agent_id,
                     "namespace": target_namespace,
@@ -412,7 +412,7 @@ class MCPAuthService:
         if target_namespace == "public":
             if operation in (MCPOperation.MEMORY_READ, MCPOperation.NAMESPACE_READ):
                 logger.debug(
-                    f"✅ Namespace access granted: Public read",
+                    "✅ Namespace access granted: Public read",
                     extra={
                         "agent_id": context.agent_id,
                         "namespace": "public",
@@ -422,7 +422,7 @@ class MCPAuthService:
                 return
             else:
                 logger.warning(
-                    f"🚨 Namespace access denied: Write/delete not allowed in public namespace",
+                    "🚨 Namespace access denied: Write/delete not allowed in public namespace",
                     extra={
                         "agent_id": context.agent_id,
                         "namespace": "public",
@@ -441,7 +441,7 @@ class MCPAuthService:
         # Rule 3: Admin roles can access multiple namespaces
         if context.role in (MCPRole.SYSTEM_ADMIN, MCPRole.SUPER_ADMIN):
             logger.info(
-                f"✅ Namespace access granted: Admin role",
+                "✅ Namespace access granted: Admin role",
                 extra={
                     "agent_id": context.agent_id,
                     "role": context.role.value,
@@ -453,7 +453,7 @@ class MCPAuthService:
 
         # Rule 4: Cross-namespace access → DENY
         logger.warning(
-            f"🚨 Namespace access denied: Cross-namespace access not allowed",
+            "🚨 Namespace access denied: Cross-namespace access not allowed",
             extra={
                 "agent_id": context.agent_id,
                 "own_namespace": context.namespace,

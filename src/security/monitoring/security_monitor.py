@@ -140,7 +140,7 @@ class SecurityMonitor:
 
         # Log event
         logger.info(
-            f"security_event_recorded",
+            "security_event_recorded",
             extra={
                 "event_id": str(event.id),
                 "event_type": event_type,
@@ -217,7 +217,7 @@ class SecurityMonitor:
 
         # Log alert creation
         logger.warning(
-            f"security_alert_triggered",
+            "security_alert_triggered",
             extra={
                 "alert_id": str(alert.id),
                 "alert_level": alert.level.value,

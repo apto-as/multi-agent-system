@@ -17,7 +17,7 @@ Created: 2025-11-12 (Phase 1-1-B: Infrastructure Implementation)
 
 from dataclasses import asdict
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select
@@ -25,7 +25,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.aggregates.mcp_connection import MCPConnection
 from src.domain.entities.tool import Tool
-from src.domain.repositories.mcp_connection_repository import MCPConnectionRepository as MCPConnectionRepositoryInterface
+from src.domain.repositories.mcp_connection_repository import (
+    MCPConnectionRepository as MCPConnectionRepositoryInterface,
+)
 from src.domain.value_objects.connection_config import ConnectionConfig
 from src.domain.value_objects.connection_status import ConnectionStatus
 from src.domain.value_objects.tool_category import ToolCategory
@@ -231,7 +233,7 @@ class SQLAlchemyMCPConnectionRepository(MCPConnectionRepositoryInterface):
 
     async def get_by_server_name_and_namespace(
         self, server_name: str, namespace: str
-    ) -> Optional[MCPConnection]:
+    ) -> MCPConnection | None:
         """Find connection by server name and namespace.
 
         SECURITY: Enforces namespace isolation by filtering on namespace.
@@ -472,7 +474,7 @@ class SQLAlchemyMCPConnectionRepository(MCPConnectionRepositoryInterface):
         self,
         agent_id: UUID,
         server_name: str,
-    ) -> Optional[MCPConnection]:
+    ) -> MCPConnection | None:
         """Find a connection by server name for an agent.
 
         Args:

@@ -19,10 +19,11 @@ Created: 2025-11-12 (Phase 1-1-B: Infrastructure Layer)
 
 import asyncio
 from typing import Any
+
 import httpx
 
-from src.domain.value_objects.connection_config import ConnectionConfig
 from src.domain.entities.tool import Tool
+from src.domain.value_objects.connection_config import ConnectionConfig
 from src.infrastructure.acl.mcp_protocol_translator import MCPProtocolTranslator
 from src.infrastructure.exceptions import (
     MCPConnectionError,

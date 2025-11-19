@@ -17,10 +17,11 @@ Pattern:
 
 import functools
 import logging
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
-from ..security.rate_limiter import RateLimit, RateLimiter
 from ..security.mcp_auth import MCPAuthContext, MCPAuthorizationError
+from ..security.rate_limiter import RateLimit, RateLimiter
 
 logger = logging.getLogger(__name__)
 
@@ -305,7 +306,7 @@ class MCPRateLimiter:
 
             if current_count == 1:  # Log only once per window
                 logger.warning(
-                    f"⚠️  MCP rate limiting in DEGRADED MODE: Using local fallback with 50% stricter limits",
+                    "⚠️  MCP rate limiting in DEGRADED MODE: Using local fallback with 50% stricter limits",
                     extra={
                         "tool_name": tool_name,
                         "agent_id": context.agent_id,

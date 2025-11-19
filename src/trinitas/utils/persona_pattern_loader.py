@@ -20,7 +20,7 @@ import logging
 import re
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, Optional, Pattern
+from re import Pattern
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +48,7 @@ class PersonaPatternLoader:
         'Technical Perfectionist'
     """
 
-    def __init__(self, config_path: Optional[Path] = None):
+    def __init__(self, config_path: Path | None = None):
         """Initialize loader with persona patterns from JSON config.
 
         Args:
@@ -63,8 +63,8 @@ class PersonaPatternLoader:
             config_path = self._find_config_file()
 
         self.config_path = config_path
-        self._patterns: Dict[str, Pattern] = {}
-        self._metadata: Dict[str, dict] = {}
+        self._patterns: dict[str, Pattern] = {}
+        self._metadata: dict[str, dict] = {}
         self._load_config()
 
     def _find_config_file(self) -> Path:
@@ -108,7 +108,7 @@ class PersonaPatternLoader:
         """
         logger.debug(f"Loading persona patterns from: {self.config_path}")
 
-        with open(self.config_path, "r", encoding="utf-8") as f:
+        with open(self.config_path, encoding="utf-8") as f:
             config = json.load(f)
 
         for persona_id, persona_data in config["personas"].items():
@@ -131,7 +131,7 @@ class PersonaPatternLoader:
         logger.info(f"Loaded {len(self._patterns)} persona patterns")
 
     @lru_cache(maxsize=128)
-    def detect_persona(self, text: str) -> Optional[str]:
+    def detect_persona(self, text: str) -> str | None:
         """Detect persona from text using pattern matching.
 
         Uses compiled regex patterns to identify which persona is most
@@ -221,7 +221,7 @@ class PersonaPatternLoader:
         """
         return self._metadata.get(persona_id, {})
 
-    def get_pattern(self, persona_id: str) -> Optional[Pattern]:
+    def get_pattern(self, persona_id: str) -> Pattern | None:
         """Get compiled regex pattern for a persona.
 
         Args:
@@ -242,7 +242,7 @@ class PersonaPatternLoader:
 
 
 # Convenience function for quick usage
-def detect_persona(text: str, config_path: Optional[Path] = None) -> Optional[str]:
+def detect_persona(text: str, config_path: Path | None = None) -> str | None:
     """Quick persona detection without creating loader instance.
 
     Args:

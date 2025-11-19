@@ -3,7 +3,6 @@
 All request DTOs use Pydantic for validation and provide clear error messages.
 """
 
-from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field, HttpUrl, field_validator
@@ -34,7 +33,7 @@ class CreateConnectionRequest(BaseModel):
     auth_required: bool = Field(
         default=False, description="Whether authentication is required"
     )
-    api_key: Optional[str] = Field(
+    api_key: str | None = Field(
         default=None, description="API key for authentication"
     )
 

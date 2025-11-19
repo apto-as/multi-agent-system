@@ -12,10 +12,10 @@ Security References:
 - OWASP Logging Security
 """
 
-import os
 import logging
+import os
 from pathlib import Path
-from typing import Optional
+
 from cryptography.fernet import Fernet
 
 logger = logging.getLogger(__name__)
@@ -42,7 +42,7 @@ class SecureLogWriter:
     def __init__(
         self,
         log_file: Path,
-        encryption_key: Optional[bytes] = None,
+        encryption_key: bytes | None = None,
         enforce_permissions: bool = True,
     ):
         """
@@ -58,7 +58,7 @@ class SecureLogWriter:
         """
         self.log_file = log_file
         self.enforce_permissions = enforce_permissions
-        self.cipher: Optional[Fernet] = None
+        self.cipher: Fernet | None = None
 
         if encryption_key:
             try:
@@ -149,7 +149,7 @@ class SecureLogWriter:
             logger.error(f"Failed to write to log file {self.log_file}: {e}")
             raise
 
-    def write_encrypted(self, message: str, encryption_key: Optional[bytes] = None) -> None:
+    def write_encrypted(self, message: str, encryption_key: bytes | None = None) -> None:
         """
         Write encrypted message to log file.
 
@@ -181,8 +181,8 @@ class SecureLogWriter:
     def read_encrypted(
         self,
         line: str,
-        encryption_key: Optional[bytes] = None
-    ) -> Optional[str]:
+        encryption_key: bytes | None = None
+    ) -> str | None:
         """
         Decrypt an encrypted log line.
 

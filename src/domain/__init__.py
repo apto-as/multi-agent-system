@@ -20,11 +20,6 @@ from src.domain.aggregates.mcp_connection import MCPConnection
 # Entities
 from src.domain.entities.tool import Tool
 
-# Value Objects
-from src.domain.value_objects.connection_config import ConnectionConfig
-from src.domain.value_objects.connection_status import ConnectionStatus
-from src.domain.value_objects.tool_category import ToolCategory
-
 # Events
 from src.domain.events import (
     DomainEvent,
@@ -40,6 +35,11 @@ from src.domain.exceptions import (
     InvalidConnectionError,
     InvalidStateTransitionError,
 )
+
+# Value Objects
+from src.domain.value_objects.connection_config import ConnectionConfig
+from src.domain.value_objects.connection_status import ConnectionStatus
+from src.domain.value_objects.tool_category import ToolCategory
 
 __all__ = [
     # Aggregate Roots

@@ -14,7 +14,7 @@ import shlex
 from datetime import datetime
 from enum import Enum
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,14 +24,14 @@ from src.core.exceptions import (
     DatabaseError,
     ValidationError,
     VerificationError,
-    log_and_raise
+    log_and_raise,
 )
 from src.models.agent import Agent
 from src.models.memory import Memory
 from src.models.verification import VerificationRecord
+from src.services.learning_trust_integration import LearningTrustIntegration
 from src.services.memory_service import HybridMemoryService
 from src.services.trust_service import TrustService
-from src.services.learning_trust_integration import LearningTrustIntegration
 
 # Security: Command allowlist for verification
 # Prevents command injection from AI agent mistakes
@@ -442,9 +442,8 @@ class VerificationService:
         3. Check numeric values within tolerance
         """
         # If claim specifies return_code, it must match
-        if "return_code" in claim:
-            if claim["return_code"] != actual.get("return_code"):
-                return False
+        if "return_code" in claim and claim["return_code"] != actual.get("return_code"):
+            return False
 
         # If claim specifies output patterns, verify them
         if "output_contains" in claim:
@@ -467,7 +466,7 @@ class VerificationService:
 
                 # Check numeric tolerance (default 5%)
                 tolerance = claim.get("tolerance", 0.05)
-                if isinstance(claimed_value, (int, float)):
+                if isinstance(claimed_value, int | float):
                     if abs(actual_value - claimed_value) > abs(claimed_value * tolerance):
                         return False
 
@@ -763,7 +762,8 @@ class VerificationService:
             - V-TRUST-4: Namespace isolation via verified namespace parameter
         """
         import logging
-        from src.core.exceptions import NotFoundError, AuthorizationError, ValidationError
+
+        from src.core.exceptions import AuthorizationError, NotFoundError, ValidationError
 
         logger = logging.getLogger(__name__)
 

@@ -21,12 +21,13 @@ from __future__ import annotations
 import hashlib
 import logging
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any
+
+from src.models.license_key import TierEnum  # Fixed: license -> license_key
 
 # TMWS imports
 from src.services.license_service import LicenseService
-from src.models.license import LicenseTier
-from src.services.memory_service import MemoryService
+from src.services.memory_service import HybridMemoryService
 
 logger = logging.getLogger(__name__)
 
@@ -59,8 +60,8 @@ class TrinitasLoader:
     def __init__(
         self,
         license_service: LicenseService,
-        memory_service: MemoryService,
-        agent_output_dir: Optional[Path] = None
+        memory_service: HybridMemoryService,
+        agent_output_dir: Path | None = None
     ):
         """
         Initialize TrinitasLoader with TMWS services.
@@ -81,14 +82,14 @@ class TrinitasLoader:
         self.agent_output_dir = agent_output_dir
         self.agent_output_dir.mkdir(parents=True, exist_ok=True)
 
-    async def load_trinitas(self) -> Dict[str, Any]:
+    async def load_trinitas(self) -> dict[str, Any]:
         """
         Load Trinitas agents with license gating and DB generation.
 
         Returns:
             Dict with:
                 - enabled: bool (True if Trinitas loaded successfully)
-                - tier: LicenseTier (current license tier)
+                - tier: TierEnum (current license tier)
                 - agents_loaded: int (number of agents generated)
                 - checksums: Dict[str, str] (agent checksums)
 
@@ -105,7 +106,7 @@ class TrinitasLoader:
             raise TrinitasLoadError(f"License validation failed: {e}") from e
 
         # Phase 2: Tier-based gating
-        if tier == LicenseTier.FREE:
+        if tier == TierEnum.FREE:
             logger.warning(
                 "Trinitas requires PRO+ license. Current tier: FREE. "
                 "Trinitas agents disabled."
@@ -155,7 +156,7 @@ class TrinitasLoader:
             "checksums": checksums
         }
 
-    def _get_content_level(self, tier: LicenseTier) -> float:
+    def _get_content_level(self, tier: TierEnum) -> float:
         """
         Get content filtering level based on license tier.
 
@@ -165,9 +166,9 @@ class TrinitasLoader:
         Returns:
             Content level (0.7 = 70%, 0.85 = 85%, 1.0 = 100%)
         """
-        if tier == LicenseTier.FREE:
+        if tier == TierEnum.FREE:
             return 0.7  # 70% basic content (but won't be used due to gating)
-        elif tier == LicenseTier.PRO:
+        elif tier == TierEnum.PRO:
             return 0.85  # 85% advanced content
         else:  # ENTERPRISE
             return 1.0  # 100% premium content
@@ -217,7 +218,7 @@ class TrinitasLoader:
 
             output_path.write_text(filtered_content, encoding="utf-8")
 
-        except (OSError, IOError) as e:
+        except OSError as e:
             raise TrinitasLoadError(
                 f"Failed to write agent file {output_path}: {e}"
             ) from e
@@ -290,7 +291,7 @@ class TrinitasLoader:
         # For v2.4.0: Log only (DB storage in v2.4.1)
         logger.debug(f"Checksum recorded: {persona} -> {checksum}")
 
-    async def verify_integrity(self) -> Dict[str, bool]:
+    async def verify_integrity(self) -> dict[str, bool]:
         """
         Verify integrity of all generated agent files.
 
@@ -308,7 +309,7 @@ class TrinitasLoader:
 
             # Calculate current checksum
             content = agent_path.read_text(encoding="utf-8")
-            current_checksum = hashlib.sha256(content.encode()).hexdigest()
+            hashlib.sha256(content.encode()).hexdigest()
 
             # TODO: Compare with stored checksum from DB
             # For v2.4.0: Always return True (full verification in v2.4.1)
@@ -320,8 +321,8 @@ class TrinitasLoader:
 # Convenience function for easy integration
 async def load_trinitas_agents(
     license_service: LicenseService,
-    memory_service: MemoryService
-) -> Dict[str, Any]:
+    memory_service: HybridMemoryService
+) -> dict[str, Any]:
     """
     Convenience function to load Trinitas agents.
 

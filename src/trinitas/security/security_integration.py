@@ -32,7 +32,8 @@ import functools
 import json
 import logging
 import os
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 try:
     from .access_validator import (

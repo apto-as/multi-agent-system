@@ -18,7 +18,6 @@ import hmac
 import time
 from collections import deque
 from datetime import datetime, timedelta
-from typing import Deque, Optional
 
 
 class AlertRateLimiter:
@@ -54,7 +53,7 @@ class AlertRateLimiter:
         self.window_seconds = window_seconds
 
         # Track suppressions per alert type
-        self._suppressions: dict[str, Deque[datetime]] = {}
+        self._suppressions: dict[str, deque[datetime]] = {}
 
     def can_suppress(self, alert_type: str) -> bool:
         """
@@ -129,7 +128,7 @@ class AlertRateLimiter:
         self._clean_old_suppressions(alert_type, now)
         return len(self._suppressions[alert_type])
 
-    def reset(self, alert_type: Optional[str] = None) -> None:
+    def reset(self, alert_type: str | None = None) -> None:
         """
         Reset suppression tracking.
 
