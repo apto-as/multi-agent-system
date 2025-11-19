@@ -100,7 +100,25 @@ class TrinitasLoader:
 
         # Phase 1: License tier validation
         try:
-            tier = await self.license_service.get_current_tier()
+            # Get license key from environment
+            import os
+            license_key = os.getenv("TMWS_LICENSE_KEY")
+            if not license_key:
+                raise TrinitasLoadError("TMWS_LICENSE_KEY environment variable not set")
+
+            # Validate license key and extract tier
+            validation_result = await self.license_service.validate_license_key(
+                license_key, feature_accessed="trinitas_agents"
+            )
+
+            if not validation_result.valid:
+                raise TrinitasLoadError(
+                    f"License validation failed: {validation_result.error_message}"
+                )
+
+            tier = validation_result.tier
+        except TrinitasLoadError:
+            raise
         except Exception as e:
             logger.error(f"License validation failed: {e}")
             raise TrinitasLoadError(f"License validation failed: {e}") from e

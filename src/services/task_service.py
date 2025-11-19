@@ -51,7 +51,7 @@ class TaskService(BaseService):
                 select(Agent).where(Agent.agent_id == assigned_agent_id),
             )
             if not agent_result.scalar_one_or_none():
-                raise NotFoundError(f"Agent {assigned_agent_id} not found")
+                raise NotFoundError("Agent", assigned_agent_id)
 
         # Check for circular dependencies before creating
         if dependencies:
@@ -92,7 +92,7 @@ class TaskService(BaseService):
         """Update an existing task."""
         task = await self.get_task(task_id)
         if not task:
-            raise NotFoundError(f"Task {task_id} not found")
+            raise NotFoundError("Task", str(task_id))
 
         # Update allowed fields
         allowed_fields = [
@@ -154,7 +154,7 @@ class TaskService(BaseService):
         """Delete a task."""
         task = await self.get_task(task_id)
         if not task:
-            raise NotFoundError(f"Task {task_id} not found")
+            raise NotFoundError("Task", str(task_id))
 
         await self.session.delete(task)
         await self.session.commit()

@@ -27,6 +27,7 @@ from src.core.exceptions import (
     MemoryCreationError,
     MemorySearchError,
     ServiceInitializationError,
+    ValidationError,
     log_and_raise,
 )
 from src.services.memory_service import HybridMemoryService
@@ -36,6 +37,47 @@ from src.tools.expiration_tools import ExpirationTools
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
+
+
+# Trinitas Agent Definitions for Auto-Registration (v2.4.0+)
+TRINITAS_AGENTS = {
+    "athena-conductor": {
+        "display_name": "Athena (Harmonious Conductor)",
+        "agent_type": "trinitas",
+        "agent_subtype": "conductor",
+        "capabilities": ["orchestration", "workflow", "coordination"],
+    },
+    "artemis-optimizer": {
+        "display_name": "Artemis (Technical Perfectionist)",
+        "agent_type": "trinitas",
+        "agent_subtype": "optimizer",
+        "capabilities": ["performance", "optimization", "technical_excellence"],
+    },
+    "hestia-auditor": {
+        "display_name": "Hestia (Security Guardian)",
+        "agent_type": "trinitas",
+        "agent_subtype": "auditor",
+        "capabilities": ["security", "audit", "risk_assessment"],
+    },
+    "eris-coordinator": {
+        "display_name": "Eris (Tactical Coordinator)",
+        "agent_type": "trinitas",
+        "agent_subtype": "coordinator",
+        "capabilities": ["tactical", "team_coordination", "conflict_resolution"],
+    },
+    "hera-strategist": {
+        "display_name": "Hera (Strategic Commander)",
+        "agent_type": "trinitas",
+        "agent_subtype": "strategist",
+        "capabilities": ["strategy", "planning", "architecture"],
+    },
+    "muses-documenter": {
+        "display_name": "Muses (Knowledge Architect)",
+        "agent_type": "trinitas",
+        "agent_subtype": "documenter",
+        "capabilities": ["documentation", "knowledge", "archival"],
+    },
+}
 
 
 class HybridMCPServer:
@@ -201,7 +243,9 @@ class HybridMCPServer:
             await register_verification_tools(self.mcp)
             logger.info("Verification tools registered (5 MCP tools for agent trust & verification)")
 
-            # Phase 3: Trinitas Agent Loading (v2.4.0+, license-gated)
+            # Phase 3: Trinitas Agent File Loading (v2.4.0+, license-gated, OPTIONAL)
+            # This phase generates agent markdown files for Claude Desktop
+            # Failure here is non-critical and doesn't block Phase 4
             if os.getenv("TMWS_ENABLE_TRINITAS", "false").lower() == "true":
                 try:
                     from src.core.trinitas_loader import TrinitasLoader
@@ -222,7 +266,7 @@ class HybridMCPServer:
 
                         if trinitas_result["enabled"]:
                             logger.info(
-                                f"✅ Trinitas Agents loaded successfully\n"
+                                f"✅ Trinitas Agent Files loaded successfully\n"
                                 f"   Tier: {trinitas_result['tier'].value}\n"
                                 f"   Agents loaded: {trinitas_result['agents_loaded']}/6\n"
                                 f"   Output: ~/.claude/agents/"
@@ -246,13 +290,143 @@ class HybridMCPServer:
                                 )
                         else:
                             logger.warning(
-                                f"⚠️  Trinitas Agents disabled: {trinitas_result.get('reason', 'Unknown')}\n"
+                                f"⚠️  Trinitas Agent Files disabled: {trinitas_result.get('reason', 'Unknown')}\n"
                                 f"   Current tier: {trinitas_result.get('tier', 'Unknown')}"
                             )
                 except Exception as e:
-                    # Non-critical error: Trinitas is optional feature
-                    logger.error(f"Trinitas loading failed (non-critical): {e}", exc_info=True)
-                    logger.warning("TMWS will continue without Trinitas agents")
+                    # Non-critical error: Trinitas file loading is optional feature
+                    logger.warning(f"Trinitas agent file loading failed (non-critical): {e}")
+                    logger.info("TMWS will continue without agent files (database registration will still work)")
+
+                # Phase 4: Trinitas Agent Auto-Registration (v2.4.0+, INDEPENDENT)
+                # This phase registers agents to database (NOT dependent on file loading)
+                logger.info("Phase 4: Trinitas Agent Auto-Registration starting...")
+
+                try:
+                    from src.services.license_service import LicenseService
+                    from src.services.agent_service import AgentService
+
+                    # Validate license tier for agent registration
+                    async with get_session() as session:
+                        license_service = LicenseService(db_session=session)
+
+                        # Get license key from environment
+                        license_key = os.getenv("TMWS_LICENSE_KEY")
+                        if not license_key:
+                            raise Exception("TMWS_LICENSE_KEY not set")
+
+                        # Validate license and check tier
+                        validation_result = await license_service.validate_license_key(
+                            license_key, feature_accessed="trinitas_agent_registration"
+                        )
+
+                        if not validation_result.valid:
+                            raise Exception(f"Invalid license: {validation_result.error_message}")
+
+                        # Check if tier is sufficient (PRO/ENTERPRISE)
+                        from src.services.license_service import TierEnum
+                        if validation_result.tier == TierEnum.FREE:
+                            logger.warning(
+                                "Trinitas agent registration requires PRO+ license. "
+                                f"Current tier: {validation_result.tier.value}. "
+                                "Agent registration skipped."
+                            )
+                        else:
+                            logger.info(
+                                f"License validated for agent registration: "
+                                f"{validation_result.tier.value} tier"
+                            )
+
+                            # Ensure "trinitas" namespace exists
+                            # NOTE: We create namespace manually to avoid buggy create_namespace()
+                            # which has display_name parameter mismatch with AgentNamespace model
+                            from src.models.agent import AgentNamespace
+                            from sqlalchemy import select
+
+                            namespace_result = await session.execute(
+                                select(AgentNamespace).where(AgentNamespace.namespace == "trinitas")
+                            )
+                            existing_namespace = namespace_result.scalar_one_or_none()
+
+                            if not existing_namespace:
+                                trinitas_namespace = AgentNamespace(
+                                    namespace="trinitas",
+                                    description="Trinitas AI Agent System - 6 specialized personas",
+                                    default_access_level="system",
+                                    is_active=True,
+                                )
+                                session.add(trinitas_namespace)
+                                await session.commit()
+                                logger.info("✅ Created 'trinitas' namespace")
+                            else:
+                                logger.debug("Namespace 'trinitas' already exists")
+
+                            # Register agents to database (directly, bypassing buggy agent_service)
+                            from src.models.agent import Agent, AccessLevel, AgentStatus
+                            from sqlalchemy import select
+
+                            registered_count = 0
+                            skipped_count = 0
+
+                            for agent_id, agent_data in TRINITAS_AGENTS.items():
+                                try:
+                                    # Check if agent already exists
+                                    result = await session.execute(
+                                        select(Agent).where(Agent.agent_id == agent_id)
+                                    )
+                                    existing_agent = result.scalar_one_or_none()
+
+                                    if existing_agent:
+                                        logger.debug(f"Agent {agent_id} already registered, skipping")
+                                        skipped_count += 1
+                                        continue
+
+                                    # Register new agent (direct model instantiation)
+                                    # Store agent_subtype in config
+                                    config = {"agent_subtype": agent_data.get("agent_subtype")}
+
+                                    agent = Agent(
+                                        agent_id=agent_id,
+                                        display_name=agent_data["display_name"],
+                                        agent_type=agent_data["agent_type"],
+                                        capabilities=agent_data["capabilities"],
+                                        config=config,
+                                        namespace="trinitas",
+                                        default_access_level=AccessLevel.SYSTEM,
+                                        status=AgentStatus.ACTIVE,
+                                    )
+
+                                    session.add(agent)
+                                    await session.commit()
+                                    await session.refresh(agent)
+
+                                    logger.info(f"✅ Registered Trinitas agent: {agent_id}")
+                                    registered_count += 1
+
+                                except Exception as e:
+                                    # Individual agent registration failed (continue with others)
+                                    await session.rollback()
+                                    logger.warning(
+                                        f"Failed to register agent {agent_id}: {e}",
+                                        exc_info=True,
+                                        extra={"agent_id": agent_id}
+                                    )
+
+                            logger.info(
+                                f"✅ Trinitas Agent Auto-Registration completed: "
+                                f"{registered_count} registered, {skipped_count} skipped"
+                            )
+
+                except (KeyboardInterrupt, SystemExit):
+                    raise
+                except Exception as e:
+                    # Overall registration failure (graceful degradation)
+                    logger.error(
+                        f"Trinitas Agent Auto-Registration failed: {e}",
+                        exc_info=True,
+                        extra={"phase": "agent_auto_registration"}
+                    )
+                    logger.warning("TMWS will continue without Trinitas agent registration")
 
             logger.info(
                 f"HybridMCPServer initialized: {self.instance_id} "
