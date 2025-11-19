@@ -108,7 +108,7 @@ class AgentService:
             result = await self.session.execute(
                 select(Agent)
                 .where(Agent.agent_id == agent_id)
-                .options(selectinload(Agent.memories), selectinload(Agent.tasks)),
+                .options(selectinload(Agent.tasks)),
             )
             return result.scalar_one_or_none()
         except (KeyboardInterrupt, SystemExit):
