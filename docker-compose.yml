@@ -32,17 +32,12 @@ services:
       - "8000:8000"
 
     volumes:
-      # Persistent data (SQLite database)
-      - ./data:/app/data
+      # Consolidated TMWS data directory (Phase 2E-3: FORTRESS CONSOLIDATION)
+      # Contains: db/, secrets/, logs/, vector_store/, output/
+      - ./.tmws:/app/.tmws
 
-      # Configuration files
+      # Configuration files (kept separate for easy editing)
       - ./config:/app/config
-
-      # ChromaDB vector storage
-      - ./.chroma:/app/.chroma
-
-      # Logs
-      - ./logs:/app/logs
 
     environment:
       # License Configuration (Phase 2E-3)

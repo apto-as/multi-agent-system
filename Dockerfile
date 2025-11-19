@@ -137,11 +137,13 @@ RUN SITE_PACKAGES=$(python3 -c "import site; print(site.getsitepackages()[0])")/
         echo "✅ Source code protection verified: 0 .py files in $SITE_PACKAGES"; \
     fi
 
-# Set up application directories with proper permissions
+# Set up application directories with proper permissions (Phase 2E-3: FORTRESS CONSOLIDATION)
 RUN mkdir -p \
-    /app/data \
-    /app/.chroma \
-    /app/logs \
+    /app/.tmws/db \
+    /app/.tmws/secrets \
+    /app/.tmws/logs \
+    /app/.tmws/vector_store \
+    /app/.tmws/output \
     /app/config \
     && chown -R tmws:tmws /app
 
