@@ -16,13 +16,14 @@ LABEL description="TMWS builder stage - compile dependencies and create wheel"
 
 WORKDIR /build
 
-# Install build dependencies
+# Install build dependencies (Phase 2E-2: Added SQLCipher for pysqlcipher3)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
     git \
     unzip \
     zip \
+    libsqlcipher-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install uv for fast dependency resolution and build module for wheel creation
@@ -36,6 +37,10 @@ COPY uv.lock* ./
 # Copy source code for wheel building
 COPY src/ ./src/
 COPY README.md ./
+
+# Pre-build pysqlcipher3 wheel (Phase 2E-2: Required for runtime stage)
+# This C extension needs compilation in builder stage
+RUN pip wheel --no-cache-dir --wheel-dir=/build/wheels pysqlcipher3>=1.2.0
 
 # Build wheel package (source code compiled into .whl)
 # This creates dist/tmws-2.4.0-py3-none-any.whl (includes Trinitas agents)
@@ -86,9 +91,11 @@ WORKDIR /app
 # Install runtime dependencies only
 # curl: health checks
 # sqlite3: database CLI
+# libsqlcipher1: SQLCipher runtime library (Phase 2E-2)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     sqlite3 \
+    libsqlcipher1 \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
@@ -99,15 +106,19 @@ RUN useradd -m -u 1000 -s /bin/bash tmws
 COPY --from=builder /build/pyproject.toml /tmp/
 COPY --from=builder /build/README.md /tmp/
 COPY --from=builder /build/dist/tmws-*.whl /tmp/
+# Copy pre-built pysqlcipher3 wheel (Phase 2E-2)
+COPY --from=builder /build/wheels/*.whl /tmp/wheels/
 
 # Install uv for fast dependency resolution
 RUN pip install --no-cache-dir uv
 
+# Step 0: Install pre-built pysqlcipher3 wheel (Phase 2E-2)
 # Step 1: Install all dependencies from pyproject.toml (no source code)
 # Step 2: Install bytecode-only wheel without dependencies (--no-deps)
-# This two-step process ensures dependencies are installed from PyPI,
-# while the TMWS code comes from bytecode-only wheel
+# This three-step process ensures C extensions are pre-built in builder stage,
+# dependencies are installed from PyPI, and TMWS code comes from bytecode-only wheel
 RUN cd /tmp && \
+    pip install --no-cache-dir wheels/*.whl && \
     uv pip install --system --no-cache . && \
     uv pip install --system --no-cache --no-deps --force-reinstall tmws-*.whl && \
     cd / && \
