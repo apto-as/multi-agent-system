@@ -92,10 +92,12 @@ WORKDIR /app
 # curl: health checks
 # sqlite3: database CLI
 # libsqlcipher1: SQLCipher runtime library (Phase 2E-2)
+# procps: provides pgrep for healthcheck
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     sqlite3 \
     libsqlcipher1 \
+    procps \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
@@ -171,10 +173,11 @@ USER tmws
 # Expose MCP server port
 EXPOSE 8000
 
-# Health check (30s interval, 10s timeout)
-# Checks if MCP server is responding
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+# Health check disabled for STDIO MCP server
+# STDIO mode doesn't expose HTTP endpoints and process check causes restart loops
+# For production, consider using Docker restart policies instead of healthcheck
+# HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+#     CMD pgrep -f tmws-mcp-server > /dev/null || exit 1
 
 # Environment variables (can be overridden)
 ENV TMWS_ENVIRONMENT=production \
