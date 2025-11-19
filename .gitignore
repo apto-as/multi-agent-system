@@ -81,7 +81,6 @@ config/development.env
 
 # Logs
 *.log
-logs/
 
 # Temporary files
 tmp/
@@ -89,13 +88,25 @@ temp/
 backups/
 archive/
 archives/
-data/
 ssl/
 
 # MCP Server cache
 .serena/cache/
 
-# Vector data
+# TMWS Consolidated Directory (Phase 2E-3: FORTRESS CONSOLIDATION)
+# Track directory structure but exclude sensitive data
+.tmws/secrets/           # CRITICAL: Never commit encryption keys
+.tmws/db/*.db           # Exclude actual database files
+.tmws/db/*.db-shm       # SQLite shared memory
+.tmws/db/*.db-wal       # SQLite write-ahead log
+.tmws/logs/             # Exclude log files
+.tmws/vector_store/     # Exclude ChromaDB data
+.tmws/output/           # Exclude screenshots and temp output
+
+# Legacy scattered directories (deprecated in v2.3.3)
+logs/
+data/
+.chroma/
 chromadb_data/
 vector_cache/
 
@@ -121,3 +132,6 @@ dmypy.json
 uv.lock
 .env.test
 .test-licenses.txt
+
+# Pre-migration backups (Phase 2E-3)
+backup_pre_*.tar.gz
