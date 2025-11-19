@@ -99,16 +99,19 @@ ssl/
 .tmws/db/*.db           # Exclude actual database files
 .tmws/db/*.db-shm       # SQLite shared memory
 .tmws/db/*.db-wal       # SQLite write-ahead log
-.tmws/logs/             # Exclude log files
-.tmws/vector_store/     # Exclude ChromaDB data
-.tmws/output/           # Exclude screenshots and temp output
+.tmws/logs/*.log        # Exclude log files (but allow .gitkeep)
+.tmws/vector_store/*.sqlite3  # Exclude ChromaDB files (but allow .gitkeep)
+.tmws/vector_store/*/    # Exclude ChromaDB subdirectories
+.tmws/output/*.png      # Exclude screenshots (but allow .gitkeep)
+.tmws/output/*.jpg
 
 # Legacy scattered directories (deprecated in v2.3.3)
-logs/
-data/
-.chroma/
-chromadb_data/
-vector_cache/
+# Note: Using leading slash to avoid matching .tmws/ subdirectories
+/logs/
+/data/
+/.chroma/
+/chromadb_data/
+/vector_cache/
 
 # ML Models (not code models)
 ml_models/
