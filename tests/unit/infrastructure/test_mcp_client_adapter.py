@@ -49,7 +49,7 @@ class TestMCPClientAdapter:
         Then: Should establish connection without error
         And: Should return True
         """
-        Arrange
+        # Arrange
         config = ConnectionConfig(
             server_name="test_server",
             url="http://localhost:8080/mcp",
@@ -57,14 +57,14 @@ class TestMCPClientAdapter:
             retry_attempts=3
         )
 
-        Mock HTTP client
+        # Mock HTTP client
         with patch('httpx.AsyncClient') as mock_client:
             mock_response = AsyncMock()
             mock_response.status_code = 200
             mock_response.json.return_value = {"status": "ok"}
             mock_client.return_value.__aenter__.return_value.get.return_value = mock_response
 
-            Act
+            # Act
             adapter = MCPClientAdapter(config)
             result = await adapter.connect()
 
@@ -80,7 +80,7 @@ class TestMCPClientAdapter:
         When: connect() is called
         Then: Should include API key in request headers
         """
-        Arrange
+        # Arrange
         config = ConnectionConfig(
             server_name="auth_server",
             url="http://localhost:8080/mcp",
@@ -88,13 +88,13 @@ class TestMCPClientAdapter:
             api_key="test_api_key_123"
         )
 
-        Mock HTTP client
+        # Mock HTTP client
         with patch('httpx.AsyncClient') as mock_client:
             mock_response = AsyncMock()
             mock_response.status_code = 200
             mock_client.return_value.__aenter__.return_value.get.return_value = mock_response
 
-            Act
+            # Act
             adapter = MCPClientAdapter(config)
             await adapter.connect()
 
@@ -112,7 +112,7 @@ class TestMCPClientAdapter:
         Then: Should return list of Tool entities
         And: Tools should have valid metadata
         """
-        Arrange
+        # Arrange
         config = ConnectionConfig(
             server_name="test_server",
             url="http://localhost:8080/mcp"
@@ -144,14 +144,14 @@ class TestMCPClientAdapter:
             ]
         }
 
-        Mock HTTP client
+        # Mock HTTP client
         with patch('httpx.AsyncClient') as mock_client:
             mock_response = AsyncMock()
             mock_response.status_code = 200
             mock_response.json.return_value = mock_tools_response
             mock_client.return_value.__aenter__.return_value.get.return_value = mock_response
 
-            Act
+            # Act
             adapter = MCPClientAdapter(config)
             await adapter.connect()
             tools = await adapter.discover_tools()
@@ -171,18 +171,18 @@ class TestMCPClientAdapter:
         When: Connection timeout is reached
         Then: Should raise TimeoutError
         """
-        Arrange
+        # Arrange
         config = ConnectionConfig(
             server_name="slow_server",
             url="http://localhost:8080/mcp",
             timeout=1  # 1 second timeout
         )
 
-        Mock timeout
+        # Mock timeout
         with patch('httpx.AsyncClient') as mock_client:
             mock_client.return_value.__aenter__.return_value.get.side_effect = TimeoutError()
 
-            Act & Assert
+            # Act & Assert
             adapter = MCPClientAdapter(config)
             with pytest.raises(TimeoutError):
                 await adapter.connect()
@@ -196,14 +196,14 @@ class TestMCPClientAdapter:
         Then: Should retry up to retry_attempts times
         And: Should succeed if server recovers
         """
-        Arrange
+        # Arrange
         config = ConnectionConfig(
             server_name="flaky_server",
             url="http://localhost:8080/mcp",
             retry_attempts=3
         )
 
-        Mock: Fail twice, succeed on third attempt
+        # Mock: Fail twice, succeed on third attempt
         with patch('httpx.AsyncClient') as mock_client:
             mock_response_fail = AsyncMock()
             mock_response_fail.status_code = 500
@@ -218,7 +218,7 @@ class TestMCPClientAdapter:
                 mock_response_success  # 3rd attempt: success
             ]
 
-            Act
+            # Act
             adapter = MCPClientAdapter(config)
             result = await adapter.connect()
 
@@ -234,7 +234,7 @@ class TestMCPClientAdapter:
         When: disconnect() is called
         Then: Should close HTTP client
         """
-        Arrange
+        # Arrange
         config = ConnectionConfig(
             server_name="test_server",
             url="http://localhost:8080/mcp"
@@ -245,7 +245,7 @@ class TestMCPClientAdapter:
             mock_response.status_code = 200
             mock_client.return_value.__aenter__.return_value.get.return_value = mock_response
 
-            Act
+            # Act
             adapter = MCPClientAdapter(config)
             await adapter.connect()
             await adapter.disconnect()
@@ -262,7 +262,7 @@ class TestMCPClientAdapter:
         Then: Should send POST request with correct payload
         And: Should return execution result
         """
-        Arrange
+        # Arrange
         config = ConnectionConfig(
             server_name="test_server",
             url="http://localhost:8080/mcp"
@@ -278,7 +278,7 @@ class TestMCPClientAdapter:
             mock_response.json.return_value = expected_result
             mock_client.return_value.__aenter__.return_value.post.return_value = mock_response
 
-            Act
+            # Act
             adapter = MCPClientAdapter(config)
             await adapter.connect()
             result = await adapter.execute_tool(tool_name, tool_args)
@@ -306,7 +306,7 @@ class TestMCPProtocolCompliance:
         When: Tool is parsed
         Then: inputSchema should be valid JSON Schema
         """
-        MCP protocol: inputSchema must have "type" field
+        # MCP protocol: inputSchema must have "type" field
         mock_tool = {
             "name": "test_tool",
             "description": "Test tool",
@@ -319,10 +319,10 @@ class TestMCPProtocolCompliance:
             }
         }
 
-        Act
+        # Act
         tool = parse_mcp_tool(mock_tool)
 
-        Assert
+        # Assert
         assert tool.input_schema["type"] == "object"
         assert "properties" in tool.input_schema
         assert "required" in tool.input_schema
@@ -354,7 +354,7 @@ class TestMCPProtocolCompliance:
             mock_response.json.return_value = error_response
             mock_client.return_value.__aenter__.return_value.post.return_value = mock_response
 
-            Act & Assert
+            # Act & Assert
             adapter = MCPClientAdapter(config)
             await adapter.connect()
             with pytest.raises(MCPToolNotFoundError) as exc_info:
