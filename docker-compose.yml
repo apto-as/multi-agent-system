@@ -23,6 +23,10 @@ services:
     container_name: tmws-app
     hostname: tmws
 
+    # STDIO MCP Server Requirements (Phase 4.2: Critical for interactive mode)
+    tty: true           # Allocate pseudo-TTY for STDIO mode
+    stdin_open: true    # Keep STDIN open for interactive MCP server
+
     # Load environment variables from .env file
     env_file:
       - .env
@@ -38,6 +42,10 @@ services:
 
       # Configuration files (kept separate for easy editing)
       - ./config:/app/config
+
+      # Trinitas agent files (Phase 4.2: Agent file delivery to Claude Desktop)
+      # Bidirectional sync: Container generates .md files → Host reads them
+      - ~/.claude/agents:/home/tmws/.claude/agents
 
     environment:
       # License Configuration (Phase 2E-3)
