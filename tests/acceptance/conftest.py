@@ -111,7 +111,7 @@ class MockMCPServer:
                     },
                     "required": ["query"],
                 },
-                category=ToolCategory.MEMORY,
+                category=ToolCategory.API,
             ),
             Tool(
                 name="create_task",
@@ -128,7 +128,7 @@ class MockMCPServer:
                     },
                     "required": ["title"],
                 },
-                category=ToolCategory.WORKFLOW,
+                category=ToolCategory.API_INTEGRATION,
             ),
             Tool(
                 name="analyze_code",
@@ -141,7 +141,7 @@ class MockMCPServer:
                     },
                     "required": ["code", "language"],
                 },
-                category=ToolCategory.ANALYSIS,
+                category=ToolCategory.CLI,
             ),
         ]
 

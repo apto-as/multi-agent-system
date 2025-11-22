@@ -50,7 +50,7 @@ class TestMCPProtocolTranslator:
         """
         # Arrange
         mcp_tool = {
-            "name": "search_memory",
+            "name": "mcp-memory-search",
             "description": "Search semantic memories with vector similarity",
             "inputSchema": {
                 "type": "object",
@@ -74,10 +74,10 @@ class TestMCPProtocolTranslator:
 
         # Assert
         assert isinstance(tool, Tool)
-        assert tool.name == "search_memory"
+        assert tool.name == "mcp-memory-search"
         assert tool.description == "Search semantic memories with vector similarity"
         assert tool.input_schema == mcp_tool["inputSchema"]
-        assert tool.category == ToolCategory.MEMORY  # Auto-inferred from name (MEMORY takes precedence)
+        assert tool.category == ToolCategory.API_INTEGRATION  # Auto-inferred from name (mcp- prefix)
 
     def test_translate_mcp_tool_list_to_domain_tools(self):
         """
@@ -87,17 +87,17 @@ class TestMCPProtocolTranslator:
         When: Translator converts to domain objects
         Then: Should return list of Tool entities
         """
-        # Arrange
+        # Arrange (updated for v2.3.0: use patterns that match 5 Go categories)
         mcp_tools = {
             "tools": [
                 {
                     "name": "store_memory",
-                    "description": "Store a new memory",
+                    "description": "Store and process memory data",
                     "inputSchema": {"type": "object"}
                 },
                 {
                     "name": "create_workflow",
-                    "description": "Create a new workflow",
+                    "description": "Create workflow automation task",
                     "inputSchema": {"type": "object"}
                 }
             ]
@@ -146,10 +146,10 @@ class TestMCPProtocolTranslator:
         When: Translator converts to domain object
         Then: Should use default values for missing fields
         """
-        # Arrange
+        # Arrange (updated for v2.3.0: description must match a category pattern)
         mcp_tool = {
             "name": "minimal_tool",
-            "description": "Minimal tool example"
+            "description": "Data processing tool example"
             # inputSchema is optional in MCP protocol
         }
 
@@ -218,14 +218,19 @@ class TestMCPProtocolTranslator:
 
         Given: MCP tool with specific name patterns
         When: Translator converts to domain
-        Then: Should auto-infer correct category
+        Then: Should auto-infer correct category from 5 Go-defined categories
+
+        Note: Updated for v2.3.0 - ToolCategory now has exactly 5 categories
+        matching Go orchestrator/discovery.go validCategories.
         """
-        # Arrange
+        # Arrange (updated for v2.3.0: 5 Go categories)
         test_cases = [
-            ({"name": "store_memory", "description": "Store memory"}, ToolCategory.MEMORY),
-            ({"name": "create_workflow", "description": "Create workflow"}, ToolCategory.WORKFLOW),
-            ({"name": "analyze_code", "description": "Analyze code"}, ToolCategory.CODE_ANALYSIS),  # Changed from search_code
-            ({"name": "audit_security", "description": "Audit security"}, ToolCategory.SECURITY),
+            ({"name": "mcp-server", "description": "MCP server tool"}, ToolCategory.API_INTEGRATION),
+            ({"name": "data-processor", "description": "Process data"}, ToolCategory.DATA_PROCESSING),
+            ({"name": "rest-api", "description": "REST API client"}, ToolCategory.API_INTEGRATION),
+            ({"name": "file-uploader", "description": "Upload files"}, ToolCategory.FILE_MANAGEMENT),
+            ({"name": "auth-service", "description": "Authentication"}, ToolCategory.SECURITY),
+            ({"name": "log-monitor", "description": "Monitor logs"}, ToolCategory.MONITORING),
         ]
 
         translator = MCPProtocolTranslator()
@@ -265,7 +270,7 @@ class TestMCPProtocolTranslator:
 
         mcp_tool = {
             "name": "complex_tool",
-            "description": "Tool with complex schema",
+            "description": "API integration tool with complex schema",
             "inputSchema": complex_schema
         }
 

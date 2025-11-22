@@ -1,0 +1,81 @@
+syntax = "proto3";
+
+package orchestrator;
+
+option go_package = "github.com/apto-as/tmws/src/orchestrator/api";
+
+service OrchestratorService {
+  // Tool Discovery
+  rpc DiscoverTools(DiscoverToolsRequest) returns (DiscoverToolsResponse);
+  rpc GetTool(GetToolRequest) returns (Tool);
+  rpc ListTools(ListToolsRequest) returns (ListToolsResponse);
+
+  // Container Management
+  rpc StartContainer(StartContainerRequest) returns (ContainerInstance);
+  rpc StopContainer(StopContainerRequest) returns (StopContainerResponse);
+  rpc GetContainerStatus(GetContainerStatusRequest) returns (ContainerStatus);
+}
+
+message DiscoverToolsRequest {
+  repeated string paths = 1;
+}
+
+message DiscoverToolsResponse {
+  repeated Tool tools = 1;
+  int32 total_count = 2;
+}
+
+message GetToolRequest {
+  string tool_id = 1;
+}
+
+message ListToolsRequest {
+  string category = 1;  // optional filter
+  string namespace = 2; // required for security
+}
+
+message ListToolsResponse {
+  repeated Tool tools = 1;
+}
+
+message Tool {
+  string tool_id = 1;
+  string name = 2;
+  string category = 3;
+  string source_path = 4;
+  string version = 5;
+  map<string, string> metadata = 6;
+}
+
+message StartContainerRequest {
+  string tool_id = 1;
+  map<string, string> environment = 2;
+  repeated string volumes = 3;
+}
+
+message ContainerInstance {
+  string container_id = 1;
+  string tool_id = 2;
+  string status = 3;
+  int64 started_at = 4;
+}
+
+message StopContainerRequest {
+  string container_id = 1;
+}
+
+message StopContainerResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message GetContainerStatusRequest {
+  string container_id = 1;
+}
+
+message ContainerStatus {
+  string container_id = 1;
+  string status = 2;
+  int64 uptime_seconds = 3;
+  map<string, string> stats = 4;
+}

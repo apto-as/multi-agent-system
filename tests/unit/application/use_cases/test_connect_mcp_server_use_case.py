@@ -155,7 +155,7 @@ class TestConnectMCPServerUseCase:
         from src.domain.value_objects.tool_category import ToolCategory
 
         mock_tools = [
-            Tool(name="tool1", description="Tool 1", input_schema={}, category=ToolCategory.GENERAL)
+            Tool(name="tool1", description="Tool 1", input_schema={}, category=ToolCategory.DATA_PROCESSING)
         ]
         mock_adapter.discover_tools.return_value = mock_tools
 

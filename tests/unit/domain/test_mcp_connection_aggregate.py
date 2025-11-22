@@ -374,7 +374,7 @@ class TestMCPConnectionAggregate:
             name=name,
             description=f"Test tool: {name}",
             input_schema={"type": "object"},
-            category=ToolCategory.GENERAL
+            category=ToolCategory.DATA_PROCESSING
         )
 
 

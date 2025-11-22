@@ -58,13 +58,13 @@ class MCPProtocolTranslator:
         Example:
             >>> translator = MCPProtocolTranslator()
             >>> mcp_tool = {
-            ...     "name": "search_memory",
-            ...     "description": "Search semantic memories",
+            ...     "name": "search-api",
+            ...     "description": "Search API endpoint",
             ...     "inputSchema": {"type": "object"}
             ... }
             >>> tool = translator.mcp_tool_to_domain(mcp_tool)
             >>> tool.category
-            ToolCategory.MEMORY
+            ToolCategory.API_INTEGRATION
         """
         # Validate required fields
         if "name" not in mcp_tool:

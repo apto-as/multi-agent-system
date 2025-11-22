@@ -196,7 +196,7 @@ def mock_mcp_adapter() -> AsyncMock:
                 name="test_tool",
                 description="Test tool for integration testing",
                 input_schema={"type": "object", "properties": {"param": {"type": "string"}}},
-                category=ToolCategory.GENERAL,
+                category=ToolCategory.DATA_PROCESSING,
             ),
         ],
     )
