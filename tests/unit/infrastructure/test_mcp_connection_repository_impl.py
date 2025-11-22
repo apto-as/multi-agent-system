@@ -143,7 +143,7 @@ class TestMCPConnectionRepository:
             id=uuid4(), server_name="server1", config=config,
             namespace="test", agent_id="agent"
         )
-        tool = Tool(name="test_tool", description="Test", input_schema={}, category=ToolCategory.GENERAL)
+        tool = Tool(name="test_tool", description="Test", input_schema={}, category=ToolCategory.DATA_PROCESSING)
         conn1.mark_as_active([tool])
 
         conn2 = MCPConnection(
@@ -180,7 +180,7 @@ class TestMCPConnectionRepository:
         connection_id = connection.id
 
         # Modify connection
-        tool = Tool(name="tool1", description="Tool 1", input_schema={}, category=ToolCategory.GENERAL)
+        tool = Tool(name="tool1", description="Tool 1", input_schema={}, category=ToolCategory.DATA_PROCESSING)
         connection.mark_as_active([tool])
 
         # Act
@@ -227,13 +227,13 @@ class TestMCPConnectionRepository:
                 name="search_memory",
                 description="Search memories",
                 input_schema={"type": "object"},
-                category=ToolCategory.SEARCH
+                category=ToolCategory.API_INTEGRATION
             ),
             Tool(
                 name="create_task",
                 description="Create task",
                 input_schema={"type": "object"},
-                category=ToolCategory.WORKFLOW
+                category=ToolCategory.API_INTEGRATION
             )
         ]
 
@@ -277,7 +277,7 @@ class TestMCPConnectionRepository:
             namespace="test",
             agent_id="agent"
         )
-        tools = [Tool(name="tool1", description="Tool 1", input_schema={}, category=ToolCategory.GENERAL)]
+        tools = [Tool(name="tool1", description="Tool 1", input_schema={}, category=ToolCategory.DATA_PROCESSING)]
         connection.mark_as_active(tools)
 
         assert len(connection.domain_events) > 0  # Has events

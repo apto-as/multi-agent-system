@@ -155,7 +155,7 @@ class TestDiscoverToolsUseCase:
         from src.domain.value_objects.tool_category import ToolCategory
 
         mock_new_tools = [
-            Tool(name="new_tool", description="New Tool", input_schema={}, category=ToolCategory.GENERAL)
+            Tool(name="new_tool", description="New Tool", input_schema={}, category=ToolCategory.DATA_PROCESSING)
         ]
         mock_adapter.discover_tools.return_value = mock_new_tools
 

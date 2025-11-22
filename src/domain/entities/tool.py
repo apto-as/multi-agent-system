@@ -31,20 +31,20 @@ class Tool:
 
     Example:
         >>> tool = Tool(
-        ...     name="store_memory",
-        ...     description="Store a new memory",
+        ...     name="mcp-server",
+        ...     description="MCP server tool",
         ...     input_schema={"type": "object", "properties": {"content": {"type": "string"}}}
         ... )
         >>> tool.name
-        'store_memory'
+        'mcp-server'
         >>> tool.category
-        ToolCategory.MEMORY
+        ToolCategory.API_INTEGRATION
     """
 
     name: str
     description: str
     input_schema: dict = field(default_factory=dict)
-    category: ToolCategory = field(default=ToolCategory.GENERAL)
+    category: ToolCategory | None = field(default=None)
 
     def __post_init__(self):
         """Initialize entity after dataclass construction.
@@ -59,8 +59,8 @@ class Tool:
         if not self.description or not self.description.strip():
             raise ValueError("Tool description cannot be empty")
 
-        # Auto-infer category if it's still GENERAL
-        if self.category == ToolCategory.GENERAL:
+        # Auto-infer category if not provided
+        if self.category is None:
             self.category = ToolCategory.infer_from_name(self.name, self.description)
 
     def __eq__(self, other: object) -> bool:

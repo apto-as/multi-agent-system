@@ -12,6 +12,12 @@ from .base import MetadataMixin, TimestampMixin, TMWSBase, UUIDMixin
 from .learning_pattern import LearningPattern
 from .license_key import LicenseKey, LicenseKeyUsage
 from .memory import Memory, MemoryConsolidation, MemoryPattern, MemorySharing
+from .tool_discovery import (
+    DiscoveredTool,
+    ToolDependency,
+    ToolInstance,
+    ToolVerificationHistory,
+)
 from .persona import Persona, PersonaRole, PersonaType
 from .task import Task, TaskPriority, TaskStatus
 from .user import User
@@ -61,4 +67,9 @@ __all__ = [
     # Trust and verification
     "VerificationRecord",
     "TrustScoreHistory",
+    # Tool Discovery (Phase 4)
+    "DiscoveredTool",
+    "ToolDependency",
+    "ToolInstance",
+    "ToolVerificationHistory",
 ]

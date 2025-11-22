@@ -249,13 +249,13 @@ class TestMCPConnectionRepository:
                 name="search_memory",
                 description="Search memories",
                 input_schema={"type": "object"},
-                category=ToolCategory.SEARCH
+                category=ToolCategory.API_INTEGRATION
             ),
             Tool(
                 name="create_task",
                 description="Create task",
                 input_schema={"type": "object"},
-                category=ToolCategory.WORKFLOW
+                category=ToolCategory.API_INTEGRATION
             )
         ]
 
@@ -306,7 +306,7 @@ class TestMCPConnectionRepository:
             server_name="test_server",
             config=config
         )
-        tools = [Tool(name="tool1", description="Tool 1", input_schema={}, category=ToolCategory.GENERAL)]
+        tools = [Tool(name="tool1", description="Tool 1", input_schema={}, category=ToolCategory.DATA_PROCESSING)]
         connection.mark_as_active(tools)
 
         assert len(connection.domain_events) > 0  # Has events

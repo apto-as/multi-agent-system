@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### ⚠️ BREAKING CHANGES - Phase 2-4: Go-Python Category Alignment (2025-11-22)
+
+**V-DISC-4 Security Fix**: Tool Category Whitelist Desynchronization (CVSS 7.2 HIGH)
+
+#### Tool Category Alignment with Go Orchestrator
+
+**Impact**: Database migration required for existing tool records (domain entities only, not infrastructure).
+
+**Changes**:
+- Reduced ToolCategory enum from 10 to 5 categories to match Go orchestrator (`src/orchestrator/internal/orchestrator/discovery.go:15-21`)
+- Removed categories: `MCP_SERVER`, `WORKFLOW_AUTOMATION`, `COMMUNICATION`, `DEVELOPMENT`, `UNCATEGORIZED`
+- Kept categories (aligned with Go): `DATA_PROCESSING`, `API_INTEGRATION`, `FILE_MANAGEMENT`, `SECURITY`, `MONITORING`
+
+**Category Mapping** (for existing code):
+- `MCP_SERVER` → `API_INTEGRATION` (MCP is an API integration pattern)
+- `WORKFLOW_AUTOMATION` → `DATA_PROCESSING` (workflows process data)
+- `COMMUNICATION` → `API_INTEGRATION` (communication uses APIs)
+- `DEVELOPMENT` → Removed (no clear mapping, fail-fast instead)
+- `UNCATEGORIZED` → Removed (fail-fast, force explicit categorization)
+- `LIBRARY` → Removed (was only a default value, auto-inference now required)
+
+**Upgraded Inference Patterns**:
+- `DATA_PROCESSING`: Now includes workflow and task automation patterns
+- `API_INTEGRATION`: Now includes MCP server and communication patterns
+
+**Rationale**:
+- Fixes V-DISC-4 (Category Whitelist Desynchronization, CVSS 7.2 HIGH)
+- Ensures Go-Python category consistency (Go is authority source)
+- Improves inference pattern accuracy
+- Fail-fast approach for ambiguous tools (explicit categorization required)
+
+**Files Changed**:
+- `src/domain/value_objects/tool_category.py`: Enum reduced to 5 categories
+- `src/domain/entities/tool.py`: Changed default from `LIBRARY` to `None` (auto-infer)
+- `src/infrastructure/acl/mcp_protocol_translator.py`: Updated docstring example
+- 7 test files: Updated category references
+- `tests/unit/infrastructure/test_mcp_acl.py`: Updated inference test cases
+
+**Migration**: No database migration required (domain ToolCategory is separate from infrastructure DiscoveredTool.category)
+
 ### Added - Phase 2B: Verification-Trust Integration (2025-11-10)
 
 **REST API Endpoints**:

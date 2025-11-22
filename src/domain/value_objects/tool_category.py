@@ -7,90 +7,153 @@ from MCP servers. This categorization helps with:
 - Performance optimization (caching strategies)
 - User experience (grouping related tools)
 
-Author: Athena (TDD) + Hera (DDD)
+⚠️ AUTHORITY SOURCE: Go Orchestrator Implementation
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+This enum MUST match the authoritative Go implementation:
+
+File: src/orchestrator/internal/orchestrator/discovery.go
+Lines: 15-21
+Map: validCategories
+
+Go defines exactly 5 categories (snake_case):
+  1. "data_processing"
+  2. "api_integration"
+  3. "file_management"
+  4. "security"
+  5. "monitoring"
+
+⚠️ DO NOT ADD CATEGORIES without updating Go first!
+⚠️ Python is a consumer, Go is the producer.
+
+Author: Artemis (R-2 Alignment) + Muses (R-3 Implementation)
 Created: 2025-11-12 (Phase 1-1: Day 1)
+Updated: 2025-11-22 (Phase 2-4: Go Alignment, V-DISC-4 Fix)
 """
 
 from enum import Enum
 
 
 class ToolCategory(str, Enum):
-    """Functional category of an MCP tool.
+    """Tool categories - MUST match Go orchestrator/discovery.go validCategories.
 
-    Tools are automatically categorized based on their name and description.
-    This categorization is used for organizing tools and applying category-specific
-    policies (e.g., security restrictions, caching strategies).
+    These 5 categories are defined by the Go orchestrator and validated during
+    tool discovery. Python code MUST NOT add categories without first updating
+    the Go implementation.
+
+    Categories:
+    - DATA_PROCESSING: Data operations, ETL, workflow automation, task orchestration
+    - API_INTEGRATION: External APIs, MCP servers, communication integrations
+    - FILE_MANAGEMENT: File system operations and document handling
+    - SECURITY: Authentication, authorization, encryption tools
+    - MONITORING: Logging, metrics, health check tools
+
+    Migration Notes (v2.3.0):
+    - Removed: MCP_SERVER → API_INTEGRATION (MCP is an API integration pattern)
+    - Removed: WORKFLOW_AUTOMATION → DATA_PROCESSING (workflows process data)
+    - Removed: COMMUNICATION → API_INTEGRATION (communication uses APIs)
+    - Removed: DEVELOPMENT → (no clear mapping, fail-fast instead)
+    - Removed: UNCATEGORIZED → (fail-fast, force explicit categorization)
     """
 
-    GENERAL = "general"
-    """General-purpose tools that don't fit other categories."""
+    DATA_PROCESSING = "data_processing"
+    """Data transformation, ETL, workflow automation, task orchestration."""
 
-    MEMORY = "memory"
-    """Tools for memory management, storage, and retrieval."""
+    API_INTEGRATION = "api_integration"
+    """External APIs, REST, GraphQL, MCP servers, communication services."""
 
-    WORKFLOW = "workflow"
-    """Tools for workflow orchestration and task management."""
-
-    SEARCH = "search"
-    """Tools for searching, querying, and information retrieval."""
-
-    CODE_ANALYSIS = "code_analysis"
-    """Tools for code analysis, linting, and static analysis."""
-
-    DOCUMENTATION = "documentation"
-    """Tools for documentation generation and management."""
+    FILE_MANAGEMENT = "file_management"
+    """File system operations, document handling, storage."""
 
     SECURITY = "security"
-    """Tools for security auditing, scanning, and compliance."""
+    """Authentication, authorization, encryption, secrets management."""
 
-    PERFORMANCE = "performance"
-    """Tools for performance profiling, benchmarking, and optimization."""
-
-    DATA = "data"
-    """Tools for data processing, transformation, and analytics."""
-
-    INTEGRATION = "integration"
-    """Tools for integrating with external services and APIs."""
+    MONITORING = "monitoring"
+    """Logging, metrics, health checks, observability."""
 
     @classmethod
     def infer_from_name(cls, tool_name: str, tool_description: str = "") -> "ToolCategory":
-        """Infer tool category from name and description.
+        """Infer tool category from tool name and description.
 
-        This is a heuristic-based categorization that can be overridden
-        by explicit configuration.
+        Uses pattern matching with deterministic priority order matching Go's
+        validCategories map iteration. Patterns from removed categories have been
+        merged into the 5 Go-defined categories.
+
+        Inference Rules (Priority Order):
+        1. DATA_PROCESSING: data, process, transform, analys, etl, workflow, task, automation, orchestrat
+        2. API_INTEGRATION: api, rest, graphql, client, sdk, mcp, server, connection, message, email, notify, chat, slack, webhook
+        3. FILE_MANAGEMENT: file, document, storage, upload, download
+        4. SECURITY: auth, security, encrypt, vault, secret
+        5. MONITORING: monitor, log, metric, health, observ
+
+        Migration from v2.2.x:
+        - MCP_SERVER patterns → API_INTEGRATION (MCP is an API integration)
+        - WORKFLOW_AUTOMATION patterns → DATA_PROCESSING (workflows process data)
+        - COMMUNICATION patterns → API_INTEGRATION (communication uses APIs)
+        - DEVELOPMENT patterns → Removed (fail-fast, no clear category)
+        - UNCATEGORIZED → Removed (fail-fast, force explicit categorization)
 
         Args:
             tool_name: Name of the tool
-            tool_description: Description of the tool
+            tool_description: Description of the tool (optional)
 
         Returns:
-            Inferred ToolCategory
+            ToolCategory: Inferred category
+
+        Raises:
+            ValueError: If no category matches (fail-fast, no UNCATEGORIZED fallback)
 
         Example:
-            >>> ToolCategory.infer_from_name("store_memory")
-            ToolCategory.MEMORY
-            >>> ToolCategory.infer_from_name("analyze_code", "Performs static analysis")
-            ToolCategory.CODE_ANALYSIS
+            >>> ToolCategory.infer_from_name("mcp-server")
+            ToolCategory.API_INTEGRATION
+            >>> ToolCategory.infer_from_name("workflow-automation-tool")
+            ToolCategory.DATA_PROCESSING
+            >>> ToolCategory.infer_from_name("data-processor")
+            ToolCategory.DATA_PROCESSING
         """
-        text = (tool_name + " " + tool_description).lower()
+        combined = f"{tool_name.lower()} {tool_description.lower()}"
 
-        # Category keywords (ordered by specificity)
-        category_keywords = {
-            cls.MEMORY: ["memory", "store", "recall", "remember", "cache"],
-            cls.WORKFLOW: ["workflow", "task", "orchestrate", "coordinate", "schedule"],
-            cls.SEARCH: ["search", "find", "query", "lookup", "retrieve"],
-            cls.CODE_ANALYSIS: ["analyze", "lint", "check", "validate", "review", "code"],
-            cls.DOCUMENTATION: ["document", "doc", "generate", "markdown", "readme"],
-            cls.SECURITY: ["security", "audit", "scan", "vulnerability", "threat"],
-            cls.PERFORMANCE: ["performance", "benchmark", "profile", "optimize", "speed"],
-            cls.DATA: ["data", "transform", "process", "analytics", "export"],
-            cls.INTEGRATION: ["integrate", "api", "webhook", "external", "connect"],
-        }
+        # Priority order matching Go's deterministic validation
+        INFERENCE_RULES = [
+            (
+                cls.DATA_PROCESSING,
+                [
+                    # Data operations (original)
+                    "data", "process", "transform", "analys", "etl",
+                    # Workflow operations (from removed WORKFLOW_AUTOMATION)
+                    "workflow", "task", "automation", "orchestrat"
+                ]
+            ),
+            (
+                cls.API_INTEGRATION,
+                [
+                    # API operations (original)
+                    "api", "rest", "graphql", "client", "sdk",
+                    # MCP operations (from removed MCP_SERVER)
+                    "mcp", "server", "connection",
+                    # Communication APIs (from removed COMMUNICATION)
+                    "message", "email", "notify", "chat", "slack", "webhook"
+                ]
+            ),
+            (
+                cls.FILE_MANAGEMENT,
+                ["file", "document", "storage", "upload", "download"]
+            ),
+            (
+                cls.SECURITY,
+                ["auth", "security", "encrypt", "vault", "secret"]
+            ),
+            (
+                cls.MONITORING,
+                ["monitor", "log", "metric", "health", "observ"]
+            ),
+        ]
 
-        # Check for category keywords
-        for category, keywords in category_keywords.items():
-            if any(keyword in text for keyword in keywords):
+        for category, patterns in INFERENCE_RULES:
+            if any(pattern in combined for pattern in patterns):
                 return category
 
-        # Default to GENERAL if no match
-        return cls.GENERAL
+        # Fail-fast: No UNCATEGORIZED fallback
+        raise ValueError(
+            f"Tool '{tool_name}' does not match any valid category. "
+            f"Valid categories: {[c.value for c in cls]}"
+        )
