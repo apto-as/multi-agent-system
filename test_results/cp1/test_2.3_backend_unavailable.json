@@ -1,0 +1,1 @@
+{"error":{"code":-32603,"message":"Tool execution failed: failed to fetch verification list: API request failed: Get \"http://localhost:8000/api/v1/verification/list?agent_id=artemis-optimizer\u0026limit=10\": read tcp [::1]:56858-\u003e[::1]:8000: read: connection reset by peer"},"id":5}

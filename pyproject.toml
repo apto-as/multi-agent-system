@@ -92,6 +92,9 @@ build-backend = "setuptools.build_meta"
 where = ["."]
 include = ["src*", "tmws*"]
 
+[tool.setuptools.package-data]
+"*" = ["*.md", "*.yaml", "*.yml", "*.json"]
+
 [tool.pytest.ini_options]
 minversion = "7.0"
 testpaths = ["tests"]
