@@ -9,7 +9,8 @@
 # ========================================
 # Stage 1: Builder
 # ========================================
-FROM python:3.11-slim AS builder
+# V-5 Phase 1: SHA256 pinned for supply chain security (CVSS 7.1 HIGH mitigation)
+FROM python:3.11-slim@sha256:8ef21a26e7c342e978a68cf2d6b07627885930530064f572f432ea422a8c0907 AS builder
 
 LABEL stage=builder
 LABEL description="TMWS builder stage - compile dependencies and create wheel"
@@ -80,7 +81,8 @@ RUN ls -lh dist/*.whl && \
 # ========================================
 # Stage 2: Runtime (PRODUCTION)
 # ========================================
-FROM python:3.11-slim
+# V-5 Phase 1: SHA256 pinned for supply chain security (CVSS 7.1 HIGH mitigation)
+FROM python:3.11-slim@sha256:8ef21a26e7c342e978a68cf2d6b07627885930530064f572f432ea422a8c0907
 
 LABEL maintainer="Trinitas Development Team <dev@trinitas.ai>"
 LABEL version="2.4.0"
