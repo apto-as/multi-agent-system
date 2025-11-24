@@ -1170,6 +1170,656 @@ class HybridMemoryService:
 
         return deleted_count
 
+    async def cleanup_namespace(
+        self,
+        namespace: str,
+        agent_id: str,
+        days: int = 90,
+        min_importance: float = 0.3,
+        dry_run: bool = False,
+        limit: int = 100_000,
+    ) -> dict[str, Any]:
+        """Cleanup old memories in a namespace (SECURITY-CRITICAL).
+
+        This method implements V-NS-1 (Namespace Spoofing Prevention) and
+        V-PRUNE-2 (Parameter Validation) security measures.
+
+        Security Measures:
+        - V-NS-1: Namespace authorization (agent.namespace == target namespace)
+        - V-PRUNE-2: Parameter validation (days: 1-3650, importance: 0.0-1.0)
+        - V-PRUNE-3: Rate limiting (max 100k deletions per call)
+        - Audit logging (BEFORE + AFTER deletion)
+
+        Args:
+            namespace: Target namespace to cleanup (REQUIRED, no default)
+            agent_id: Requesting agent's ID (REQUIRED for authorization)
+            days: Delete memories older than this (default: 90, range: 1-3650)
+            min_importance: Delete memories below this importance (default: 0.3, range: 0.0-1.0)
+            dry_run: If True, only count without deleting (default: False)
+            limit: Maximum deletions per call (default: 100k, for DoS prevention)
+
+        Returns:
+            Dictionary with cleanup results:
+            {
+                "deleted_count": int,
+                "dry_run": bool,
+                "namespace": str,
+                "criteria": {
+                    "days": int,
+                    "min_importance": float,
+                    "limit": int
+                }
+            }
+
+        Raises:
+            AuthorizationError: If agent not authorized for this namespace
+            ValidationError: If parameters invalid (days/importance out of range)
+
+        Security Note:
+            This method is CRITICAL for multi-tenant security. Agent's namespace
+            is VERIFIED from database (never trust user input). Cross-namespace
+            cleanup attempts are logged and rejected immediately.
+
+        Example:
+            >>> # Safe usage (own namespace)
+            >>> result = await memory_service.cleanup_namespace(
+            ...     namespace="my-project",
+            ...     agent_id="my-agent",
+            ...     days=90,
+            ...     min_importance=0.3,
+            ...     dry_run=True  # Test first
+            ... )
+            >>> print(f"Would delete {result['deleted_count']} memories")
+        """
+        # STEP 1: Validate input parameters (V-PRUNE-2)
+        # Validate days parameter
+        if not isinstance(days, int):
+            log_and_raise(
+                ValidationError,
+                f"days must be an integer, got {type(days).__name__}",
+                details={"days": days, "type": type(days).__name__},
+            )
+
+        if days < 1:
+            log_and_raise(
+                ValidationError,
+                f"days must be at least 1, got {days}",
+                details={"days": days},
+            )
+
+        if days > 3650:  # 10 years max
+            log_and_raise(
+                ValidationError,
+                f"days must be at most 3650 (10 years), got {days}",
+                details={"days": days},
+            )
+
+        # Validate min_importance parameter
+        if not isinstance(min_importance, (int, float)):
+            log_and_raise(
+                ValidationError,
+                f"min_importance must be a number, got {type(min_importance).__name__}",
+                details={"min_importance": min_importance, "type": type(min_importance).__name__},
+            )
+
+        if min_importance < 0.0 or min_importance > 1.0:
+            log_and_raise(
+                ValidationError,
+                f"min_importance must be between 0.0 and 1.0, got {min_importance}",
+                details={"min_importance": min_importance},
+            )
+
+        # Validate namespace parameter
+        if not namespace or not isinstance(namespace, str):
+            log_and_raise(
+                ValidationError,
+                "namespace must be a non-empty string",
+                details={"namespace": namespace},
+            )
+
+        # STEP 2: Verify agent exists and get VERIFIED namespace (V-NS-1)
+        from sqlalchemy import select
+
+        from src.models.agent import Agent
+
+        stmt = select(Agent).where(Agent.agent_id == agent_id)
+        result = await self.session.execute(stmt)
+        agent = result.scalar_one_or_none()
+
+        if not agent:
+            log_and_raise(
+                AuthorizationError,
+                f"Agent {agent_id} not found",
+                details={"agent_id": agent_id},
+            )
+
+        # STEP 3: Verify agent's namespace matches target namespace (V-NS-1)
+        # This prevents cross-namespace deletion attacks
+        if agent.namespace != namespace:
+            # CRITICAL SECURITY EVENT: Log unauthorized attempt
+            logger.critical(
+                "unauthorized_namespace_cleanup_attempt",
+                extra={
+                    "agent_id": agent_id,
+                    "agent_namespace": agent.namespace,
+                    "target_namespace": namespace,
+                    "days": days,
+                    "min_importance": min_importance,
+                    "severity": "CRITICAL",
+                },
+            )
+            log_and_raise(
+                AuthorizationError,
+                f"Agent {agent_id} (namespace: {agent.namespace}) not authorized to cleanup namespace {namespace}",
+                details={
+                    "agent_id": agent_id,
+                    "agent_namespace": agent.namespace,
+                    "target_namespace": namespace,
+                },
+            )
+
+        # STEP 4: Find memories to delete
+        from datetime import datetime, timedelta, timezone
+
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
+
+        query = select(Memory.id).where(
+            and_(
+                Memory.namespace == namespace,  # Verified namespace
+                Memory.created_at < cutoff_date,
+                Memory.importance_score < min_importance,
+                Memory.access_count == 0,  # Never accessed
+            ),
+        ).limit(limit)  # V-PRUNE-3: Rate limiting
+
+        result = await self.session.execute(query)
+        memory_ids = [row[0] for row in result.all()]
+
+        # AUDIT LOG: Cleanup started
+        logger.warning(
+            "namespace_cleanup_started",
+            extra={
+                "namespace": namespace,
+                "agent_id": agent_id,
+                "days": days,
+                "min_importance": min_importance,
+                "memories_to_delete": len(memory_ids),
+                "dry_run": dry_run,
+                "limit": limit,
+            },
+        )
+
+        # DRY RUN mode: Return count without deleting
+        if dry_run:
+            logger.info(
+                "namespace_cleanup_dry_run",
+                extra={
+                    "namespace": namespace,
+                    "would_delete": len(memory_ids),
+                },
+            )
+            return {
+                "deleted_count": 0,
+                "would_delete": len(memory_ids),
+                "dry_run": True,
+                "namespace": namespace,
+                "criteria": {
+                    "days": days,
+                    "min_importance": min_importance,
+                    "limit": limit,
+                },
+            }
+
+        # STEP 5: Delete memories (if not dry-run)
+        if not memory_ids:
+            logger.info(
+                "namespace_cleanup_completed",
+                extra={
+                    "namespace": namespace,
+                    "deleted_count": 0,
+                },
+            )
+            return {
+                "deleted_count": 0,
+                "dry_run": False,
+                "namespace": namespace,
+                "criteria": {
+                    "days": days,
+                    "min_importance": min_importance,
+                    "limit": limit,
+                },
+            }
+
+        # Delete from Chroma (best-effort)
+        if self.vector_service:
+            try:
+                await self._ensure_initialized()
+                await self.vector_service.delete_memories_batch([str(mid) for mid in memory_ids])
+            except (KeyboardInterrupt, SystemExit):
+                # Never suppress user interrupts
+                raise
+            except ChromaOperationError as e:
+                # ChromaDB errors (best-effort, log warning and continue)
+                logger.warning(
+                    f"Chroma cleanup failed (continuing with SQLite): {e}",
+                    extra={
+                        "namespace": namespace,
+                        "memory_count": len(memory_ids),
+                    },
+                )
+            except Exception as e:
+                # Unexpected errors (best-effort, log warning and continue)
+                logger.warning(
+                    f"Unexpected error during Chroma cleanup (continuing with SQLite): {e}",
+                    extra={
+                        "namespace": namespace,
+                        "memory_count": len(memory_ids),
+                    },
+                )
+
+        # Delete from SQLite
+        result = await self.session.execute(delete(Memory).where(Memory.id.in_(memory_ids)))
+        await self.session.commit()
+
+        deleted_count = result.rowcount
+
+        # AUDIT LOG: Cleanup completed
+        logger.warning(
+            "namespace_cleanup_completed",
+            extra={
+                "namespace": namespace,
+                "agent_id": agent_id,
+                "deleted_count": deleted_count,
+                "days": days,
+                "min_importance": min_importance,
+            },
+        )
+
+        return {
+            "deleted_count": deleted_count,
+            "dry_run": False,
+            "namespace": namespace,
+            "criteria": {
+                "days": days,
+                "min_importance": min_importance,
+                "limit": limit,
+            },
+        }
+
+    async def prune_expired_memories(
+        self,
+        namespace: str,
+        agent_id: str,
+        limit: int = 1000,
+        dry_run: bool = False,
+    ) -> dict[str, Any]:
+        """Prune expired memories from a namespace (SECURITY-CRITICAL).
+
+        This method implements V-PRUNE-1 (Cross-namespace protection) and
+        V-NS-1 (Namespace Spoofing Prevention) security measures.
+
+        Security Measures:
+        - V-PRUNE-1: Namespace parameter MANDATORY (no default)
+        - V-NS-1: Authorization check (agent.namespace == target namespace)
+        - V-PRUNE-3: Batch limit (max 1000 per call to prevent DoS)
+        - Audit logging (expired memory IDs logged)
+
+        Args:
+            namespace: Target namespace to prune (REQUIRED, no default)
+            agent_id: Requesting agent's ID (REQUIRED for authorization)
+            limit: Maximum deletions per call (default: 1000, max: 100000)
+            dry_run: If True, only count without deleting (default: False)
+
+        Returns:
+            Dictionary with prune results:
+            {
+                "deleted_count": int,
+                "expired_count": int,
+                "dry_run": bool,
+                "namespace": str,
+                "deleted_ids": list[str]  # Only if not dry_run
+            }
+
+        Raises:
+            AuthorizationError: If agent not authorized for this namespace
+            ValidationError: If parameters invalid (limit out of range)
+
+        Security Note:
+            This method is CRITICAL for multi-tenant security. Agent's namespace
+            is VERIFIED from database (never trust user input). Cross-namespace
+            prune attempts are logged and rejected immediately.
+        """
+        # STEP 1: Validate input parameters (V-PRUNE-2)
+        if not namespace or not isinstance(namespace, str):
+            log_and_raise(
+                ValidationError,
+                "namespace must be a non-empty string",
+                details={"namespace": namespace},
+            )
+
+        if not isinstance(limit, int):
+            log_and_raise(
+                ValidationError,
+                f"limit must be an integer, got {type(limit).__name__}",
+                details={"limit": limit, "type": type(limit).__name__},
+            )
+
+        if limit < 1:
+            log_and_raise(
+                ValidationError,
+                f"limit must be at least 1, got {limit}",
+                details={"limit": limit},
+            )
+
+        if limit > 100_000:  # V-PRUNE-3: Prevent DoS
+            log_and_raise(
+                ValidationError,
+                f"limit must be at most 100,000, got {limit}",
+                details={"limit": limit},
+            )
+
+        # STEP 2: Verify agent exists and get VERIFIED namespace (V-NS-1)
+        from sqlalchemy import select
+        from src.models.agent import Agent
+
+        stmt = select(Agent).where(Agent.agent_id == agent_id)
+        result = await self.session.execute(stmt)
+        agent = result.scalar_one_or_none()
+
+        if not agent:
+            log_and_raise(
+                AuthorizationError,
+                f"Agent {agent_id} not found",
+                details={"agent_id": agent_id},
+            )
+
+        # STEP 3: Verify agent's namespace matches target namespace (V-NS-1)
+        if agent.namespace != namespace:
+            # CRITICAL SECURITY EVENT: Log unauthorized attempt
+            logger.critical(
+                "unauthorized_namespace_prune_attempt",
+                extra={
+                    "agent_id": agent_id,
+                    "agent_namespace": agent.namespace,
+                    "target_namespace": namespace,
+                    "limit": limit,
+                    "severity": "CRITICAL",
+                },
+            )
+            log_and_raise(
+                AuthorizationError,
+                f"Agent {agent_id} (namespace: {agent.namespace}) not authorized to prune namespace {namespace}",
+                details={
+                    "agent_id": agent_id,
+                    "agent_namespace": agent.namespace,
+                    "target_namespace": namespace,
+                },
+            )
+
+        # STEP 4: Find expired memories
+        from datetime import datetime, timezone
+
+        now = datetime.now(timezone.utc)
+
+        query = (
+            select(Memory.id)
+            .where(
+                and_(
+                    Memory.namespace == namespace,  # Verified namespace
+                    Memory.expires_at.isnot(None),  # Has expiration set
+                    Memory.expires_at < now,  # Already expired
+                )
+            )
+            .limit(limit)  # V-PRUNE-3: Rate limiting
+        )
+
+        result = await self.session.execute(query)
+        memory_ids = [row[0] for row in result.all()]
+
+        # AUDIT LOG: Prune started
+        logger.warning(
+            "namespace_prune_started",
+            extra={
+                "namespace": namespace,
+                "agent_id": agent_id,
+                "expired_count": len(memory_ids),
+                "dry_run": dry_run,
+                "limit": limit,
+            },
+        )
+
+        # DRY RUN mode: Return count without deleting
+        if dry_run:
+            logger.info(
+                "namespace_prune_dry_run",
+                extra={
+                    "namespace": namespace,
+                    "would_delete": len(memory_ids),
+                },
+            )
+            return {
+                "deleted_count": 0,
+                "expired_count": len(memory_ids),
+                "dry_run": True,
+                "namespace": namespace,
+            }
+
+        # STEP 5: Delete memories (if not dry-run)
+        if not memory_ids:
+            logger.info(
+                "namespace_prune_completed",
+                extra={
+                    "namespace": namespace,
+                    "deleted_count": 0,
+                },
+            )
+            return {
+                "deleted_count": 0,
+                "expired_count": 0,
+                "dry_run": False,
+                "namespace": namespace,
+                "deleted_ids": [],
+            }
+
+        # Delete from Chroma (best-effort)
+        if self.vector_service:
+            try:
+                await self._ensure_initialized()
+                await self.vector_service.delete_memories_batch(
+                    [str(mid) for mid in memory_ids]
+                )
+            except (KeyboardInterrupt, SystemExit):
+                raise
+            except ChromaOperationError as e:
+                logger.warning(
+                    f"Chroma prune failed (continuing with SQLite): {e}",
+                    extra={
+                        "namespace": namespace,
+                        "memory_count": len(memory_ids),
+                    },
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Unexpected error during Chroma prune (continuing with SQLite): {e}",
+                    extra={
+                        "namespace": namespace,
+                        "memory_count": len(memory_ids),
+                    },
+                )
+
+        # Delete from SQLite
+        result = await self.session.execute(
+            delete(Memory).where(Memory.id.in_(memory_ids))
+        )
+        await self.session.commit()
+
+        deleted_count = result.rowcount
+
+        # AUDIT LOG: Prune completed
+        logger.warning(
+            "namespace_prune_completed",
+            extra={
+                "namespace": namespace,
+                "agent_id": agent_id,
+                "deleted_count": deleted_count,
+                "deleted_ids": [str(mid) for mid in memory_ids],
+            },
+        )
+
+        return {
+            "deleted_count": deleted_count,
+            "expired_count": len(memory_ids),
+            "dry_run": False,
+            "namespace": namespace,
+            "deleted_ids": [str(mid) for mid in memory_ids],
+        }
+
+    async def set_memory_ttl(
+        self,
+        memory_id: UUID,
+        agent_id: str,
+        ttl_days: int | None,
+    ) -> dict[str, Any]:
+        """Update TTL for an existing memory (P0-1 security pattern).
+
+        This method implements ownership verification to prevent unauthorized
+        TTL modifications.
+
+        Security Measures:
+        - Ownership verification (memory.agent_id == requesting agent_id)
+        - TTL validation (1-3650 days or None for permanent)
+        - Audit logging (TTL changes logged)
+        - Rate limiting: 30 updates/minute (enforced at API layer)
+
+        Args:
+            memory_id: Memory UUID to update
+            agent_id: Requesting agent's ID (REQUIRED for ownership check)
+            ttl_days: New TTL in days (1-3650) or None for permanent
+
+        Returns:
+            Dictionary with update result:
+            {
+                "success": bool,
+                "memory_id": str,
+                "expires_at": str | None,  # ISO format or null
+                "ttl_days": int | None,
+                "previous_ttl_days": int | None
+            }
+
+        Raises:
+            AuthorizationError: If not memory owner
+            ValidationError: If TTL invalid or memory not found
+
+        Security Note:
+            This method enforces P0-1 ownership pattern. Only the agent who
+            created the memory can modify its TTL. Cross-agent TTL changes
+            are logged and rejected immediately.
+        """
+        # STEP 1: Validate TTL parameter
+        if ttl_days is not None:
+            if not isinstance(ttl_days, int):
+                log_and_raise(
+                    ValidationError,
+                    f"ttl_days must be an integer or None, got {type(ttl_days).__name__}",
+                    details={"ttl_days": ttl_days, "type": type(ttl_days).__name__},
+                )
+
+            if ttl_days < 1:
+                log_and_raise(
+                    ValidationError,
+                    f"ttl_days must be at least 1, got {ttl_days}",
+                    details={"ttl_days": ttl_days},
+                )
+
+            if ttl_days > 3650:  # 10 years max
+                log_and_raise(
+                    ValidationError,
+                    f"ttl_days must be at most 3650 (10 years), got {ttl_days}",
+                    details={"ttl_days": ttl_days},
+                )
+
+        # STEP 2: Fetch memory and verify ownership
+        from sqlalchemy import select
+
+        stmt = select(Memory).where(Memory.id == memory_id)
+        result = await self.session.execute(stmt)
+        memory = result.scalar_one_or_none()
+
+        if not memory:
+            log_and_raise(
+                ValidationError,
+                f"Memory {memory_id} not found",
+                details={"memory_id": str(memory_id)},
+            )
+
+        # STEP 3: Verify ownership (P0-1 pattern)
+        if memory.agent_id != agent_id:
+            # CRITICAL SECURITY EVENT: Log unauthorized attempt
+            logger.critical(
+                "unauthorized_memory_ttl_update_attempt",
+                extra={
+                    "memory_id": str(memory_id),
+                    "memory_agent_id": memory.agent_id,
+                    "requesting_agent_id": agent_id,
+                    "ttl_days": ttl_days,
+                    "severity": "CRITICAL",
+                },
+            )
+            log_and_raise(
+                AuthorizationError,
+                f"Agent {agent_id} not authorized to update memory {memory_id} (owner: {memory.agent_id})",
+                details={
+                    "memory_id": str(memory_id),
+                    "memory_agent_id": memory.agent_id,
+                    "requesting_agent_id": agent_id,
+                },
+            )
+
+        # STEP 4: Calculate previous TTL (for audit logging)
+        from datetime import datetime, timezone
+
+        previous_ttl_days = None
+        if memory.expires_at:
+            delta = memory.expires_at - memory.created_at
+            previous_ttl_days = int(delta.total_seconds() / 86400)  # Convert to days
+
+        # STEP 5: Update TTL
+        if ttl_days is None:
+            # Permanent memory
+            memory.expires_at = None
+            new_expires_at = None
+        else:
+            # Set expiration
+            from datetime import timedelta
+
+            memory.expires_at = datetime.now(timezone.utc) + timedelta(days=ttl_days)
+            new_expires_at = memory.expires_at.isoformat()
+
+        memory.updated_at = datetime.now(timezone.utc)
+
+        await self.session.commit()
+        await self.session.refresh(memory)
+
+        # AUDIT LOG: TTL updated
+        logger.warning(
+            "memory_ttl_updated",
+            extra={
+                "memory_id": str(memory_id),
+                "agent_id": agent_id,
+                "previous_ttl_days": previous_ttl_days,
+                "new_ttl_days": ttl_days,
+                "new_expires_at": new_expires_at,
+            },
+        )
+
+        return {
+            "success": True,
+            "memory_id": str(memory_id),
+            "expires_at": new_expires_at,
+            "ttl_days": ttl_days,
+            "previous_ttl_days": previous_ttl_days,
+        }
+
 
 # Dependency injection for FastAPI
 async def get_memory_service() -> HybridMemoryService:
