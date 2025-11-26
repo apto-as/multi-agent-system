@@ -26,13 +26,14 @@ from src.api.exception_handlers import (
     pydantic_validation_error_handler,
     validation_error_handler,
 )
-from src.api.routers import mcp_connections, memory, verification
+from src.api.routers import mcp_connections, memory, skills, verification
 from src.application.exceptions import (
     ApplicationError,
     AuthorizationError,
     ExternalServiceError,
     ValidationError,
 )
+from src.core.config import settings
 from src.domain.exceptions import AggregateNotFoundError, DomainException
 from src.infrastructure.exceptions import (
     AggregateNotFoundError as InfraAggregateNotFoundError,
@@ -56,10 +57,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "*"  # TODO: Configure for production - replace with actual domains
-        # Example: ["https://example.com", "https://app.example.com"]
-    ],
+    allow_origins=settings.cors_origins or ["http://localhost:3000", "http://localhost:8000"],
     allow_credentials=True,
     allow_methods=["*"],  # Allow all HTTP methods
     allow_headers=["*"],  # Allow all headers
@@ -94,6 +92,7 @@ app.add_exception_handler(Exception, generic_exception_handler)
 
 app.include_router(mcp_connections.router)
 app.include_router(memory.router)
+app.include_router(skills.router)
 app.include_router(verification.router)
 
 # ============================================================================

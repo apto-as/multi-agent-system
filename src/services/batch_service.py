@@ -591,6 +591,7 @@ class BatchService:
             items: list[dict[str, Any]], _metadata: dict[str, Any],
         ) -> list[dict[str, Any]]:
             results = []
+            created_memories = []  # Track Memory objects to get UUIDs after flush
 
             async with get_db_session() as session:
                 for item in items:
@@ -599,14 +600,14 @@ class BatchService:
                             content=item["content"],
                             agent_id=item.get("agent_id", agent_id),
                             namespace=item.get("namespace", namespace),
-                            importance=item.get("importance", 0.5),
-                            memory_type=item.get("memory_type", "episodic"),
+                            importance_score=item.get("importance_score", 0.5),
                             access_level=item.get("access_level", "private"),
-                            context_tags=item.get("context_tags", []),
+                            tags=item.get("tags", []),
                             learning_weight=item.get("learning_weight", 1.0),
                         )
 
                         session.add(memory)
+                        created_memories.append(memory)  # Track Memory object
                         results.append(
                             {"success": True, "memory_id": None},
                         )  # Will be set after flush
@@ -619,16 +620,17 @@ class BatchService:
                             exc_info=True,
                             extra={"operation": "create_memory", "error": str(e)},
                         )
+                        created_memories.append(None)  # Track failure to align indices
                         results.append({"success": False, "error": str(e)})
 
                 try:
-                    await session.flush()
-                    # Update memory IDs in results
-                    success_idx = 0
-                    for _i, result in enumerate(results):
+                    await session.flush()  # Generate UUIDs
+
+                    # Update memory IDs in results (UUIDs now available)
+                    for i, result in enumerate(results):
                         if result["success"]:
-                            # This is a simplified approach - in practice, you'd track the created memories
-                            success_idx += 1
+                            memory = created_memories[i]
+                            result["memory_id"] = memory.id  # Set actual UUID (already string)
 
                 except (KeyboardInterrupt, SystemExit):
                     raise

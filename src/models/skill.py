@@ -28,18 +28,18 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 import sqlalchemy as sa
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .agent import AccessLevel
 from .base import TMWSBase
 
 if TYPE_CHECKING:
-    from .agent import Agent
+    pass
 
 
 class Skill(TMWSBase):
@@ -98,7 +98,6 @@ class Skill(TMWSBase):
         sa.Enum(AccessLevel, values_callable=lambda obj: [e.value for e in obj]),
         nullable=False,
         default=AccessLevel.PRIVATE,
-        server_default="PRIVATE",
         comment="Access control level",
     )
 

@@ -289,6 +289,14 @@ def get_rate_limiter() -> RateLimiter:
                 "mcp_execute_tool": RateLimit(100, 60, burst=20),       # 100/min
                 "mcp_discover_tools": RateLimit(50, 60, burst=10),      # 50/min
                 "mcp_disconnect": RateLimit(20, 60, burst=5),           # 20/min
+                # Skills API (Phase 2E-1)
+                "skill_create": RateLimit(20, 3600, burst=5),           # 20/hour
+                "skill_list": RateLimit(100, 3600, burst=20),           # 100/hour
+                "skill_get": RateLimit(200, 3600, burst=40),            # 200/hour
+                "skill_update": RateLimit(30, 3600, burst=10),          # 30/hour
+                "skill_delete": RateLimit(10, 3600, burst=2),           # 10/hour
+                "skill_share": RateLimit(30, 3600, burst=10),           # 30/hour
+                "skill_activate": RateLimit(20, 3600, burst=5),         # 20/hour
             })
         else:
             # Development: Lenient limits
@@ -297,6 +305,14 @@ def get_rate_limiter() -> RateLimiter:
                 "mcp_execute_tool": RateLimit(200, 60, burst=50),       # 200/min
                 "mcp_discover_tools": RateLimit(100, 60, burst=20),     # 100/min
                 "mcp_disconnect": RateLimit(50, 60, burst=10),          # 50/min
+                # Skills API (Phase 2E-1)
+                "skill_create": RateLimit(60, 3600, burst=15),          # 60/hour
+                "skill_list": RateLimit(300, 3600, burst=60),           # 300/hour
+                "skill_get": RateLimit(600, 3600, burst=120),           # 600/hour
+                "skill_update": RateLimit(100, 3600, burst=30),         # 100/hour
+                "skill_delete": RateLimit(30, 3600, burst=10),          # 30/hour
+                "skill_share": RateLimit(100, 3600, burst=30),          # 100/hour
+                "skill_activate": RateLimit(60, 3600, burst=15),        # 60/hour
             })
 
     return _rate_limiter
@@ -397,6 +413,186 @@ async def check_rate_limit_mcp_disconnect(
     await limiter.check_rate_limit(
         request=request,
         endpoint_type="mcp_disconnect",
+    )
+
+
+# ============================================================================
+# Skills Management Rate Limiting (Phase 2E-1)
+# ============================================================================
+
+
+async def check_rate_limit_skill_create(
+    request: Request,
+) -> None:
+    """Check rate limit for skill creation.
+
+    Raises:
+        HTTPException: 429 if rate limit exceeded
+
+    Security:
+        - 20 creations/hour in production
+        - 60 creations/hour in development
+        - Prevents abuse of skill creation
+        - Disabled in test environment
+    """
+    # Skip rate limiting in test environment
+    if settings.environment == "test":
+        return
+
+    limiter = get_rate_limiter()
+    await limiter.check_rate_limit(
+        request=request,
+        endpoint_type="skill_create",
+    )
+
+
+async def check_rate_limit_skill_list(
+    request: Request,
+) -> None:
+    """Check rate limit for skill listing.
+
+    Raises:
+        HTTPException: 429 if rate limit exceeded
+
+    Security:
+        - 100 lists/hour in production
+        - 300 lists/hour in development
+        - Prevents excessive listing operations
+        - Disabled in test environment
+    """
+    # Skip rate limiting in test environment
+    if settings.environment == "test":
+        return
+
+    limiter = get_rate_limiter()
+    await limiter.check_rate_limit(
+        request=request,
+        endpoint_type="skill_list",
+    )
+
+
+async def check_rate_limit_skill_get(
+    request: Request,
+) -> None:
+    """Check rate limit for skill retrieval.
+
+    Raises:
+        HTTPException: 429 if rate limit exceeded
+
+    Security:
+        - 200 gets/hour in production
+        - 600 gets/hour in development
+        - Prevents excessive read operations
+        - Disabled in test environment
+    """
+    # Skip rate limiting in test environment
+    if settings.environment == "test":
+        return
+
+    limiter = get_rate_limiter()
+    await limiter.check_rate_limit(
+        request=request,
+        endpoint_type="skill_get",
+    )
+
+
+async def check_rate_limit_skill_update(
+    request: Request,
+) -> None:
+    """Check rate limit for skill updates.
+
+    Raises:
+        HTTPException: 429 if rate limit exceeded
+
+    Security:
+        - 30 updates/hour in production
+        - 100 updates/hour in development
+        - Prevents abuse of update operations
+        - Disabled in test environment
+    """
+    # Skip rate limiting in test environment
+    if settings.environment == "test":
+        return
+
+    limiter = get_rate_limiter()
+    await limiter.check_rate_limit(
+        request=request,
+        endpoint_type="skill_update",
+    )
+
+
+async def check_rate_limit_skill_delete(
+    request: Request,
+) -> None:
+    """Check rate limit for skill deletion.
+
+    Raises:
+        HTTPException: 429 if rate limit exceeded
+
+    Security:
+        - 10 deletions/hour in production
+        - 30 deletions/hour in development
+        - Prevents abuse of delete operations
+        - Disabled in test environment
+    """
+    # Skip rate limiting in test environment
+    if settings.environment == "test":
+        return
+
+    limiter = get_rate_limiter()
+    await limiter.check_rate_limit(
+        request=request,
+        endpoint_type="skill_delete",
+    )
+
+
+async def check_rate_limit_skill_share(
+    request: Request,
+) -> None:
+    """Check rate limit for skill sharing.
+
+    Raises:
+        HTTPException: 429 if rate limit exceeded
+
+    Security:
+        - 30 shares/hour in production
+        - 100 shares/hour in development
+        - Prevents abuse of sharing operations
+        - Disabled in test environment
+    """
+    # Skip rate limiting in test environment
+    if settings.environment == "test":
+        return
+
+    limiter = get_rate_limiter()
+    await limiter.check_rate_limit(
+        request=request,
+        endpoint_type="skill_share",
+    )
+
+
+async def check_rate_limit_skill_activate(
+    request: Request,
+) -> None:
+    """Check rate limit for skill activation.
+
+    Raises:
+        HTTPException: 429 if rate limit exceeded
+
+    Security:
+        - 20 activations/hour in production
+        - 60 activations/hour in development
+        - Prevents abuse of activation operations
+        - Disabled in test environment
+    """
+    # Skip rate limiting in test environment
+    if settings.environment == "test":
+        return
+
+    limiter = get_rate_limiter()
+    await limiter.check_rate_limit(
+        request=request,
+        endpoint_type="skill_activate",
     )
 
 

@@ -127,3 +127,132 @@ class DisconnectionResultDTO:
             "server_name": self.server_name,
             "disconnected_at": self.disconnected_at.isoformat(),
         }
+
+from pydantic import BaseModel, Field
+
+
+class SkillDTO(BaseModel):
+    """Response DTO for Skill with Progressive Disclosure support.
+
+    This DTO represents a skill at different detail levels:
+    - detail_level=1: Metadata only (name, persona, namespace, tags)
+    - detail_level=2: + Core Instructions (~2000 tokens)
+    - detail_level=3: Full Content (~10000 tokens)
+    """
+
+    # Core identification
+    id: str = Field(description="UUID as string")
+    name: str
+    namespace: str
+    created_by: str
+
+    # Optional metadata
+    display_name: str | None = None
+    description: str | None = None
+    persona: str | None = None
+    tags: list[str] = Field(default_factory=list)
+
+    # Access control
+    access_level: str
+
+    # Version management
+    version: int
+    version_count: int
+
+    # Progressive Disclosure content (None if not requested)
+    core_instructions: str | None = None
+    content: str | None = None
+    content_hash: str | None = None
+
+    # Audit timestamps
+    created_at: datetime
+    updated_at: datetime
+
+    # Soft delete flag
+    is_deleted: bool = False
+
+    class Config:
+        from_attributes = True
+
+    @classmethod
+    def from_models(
+        cls,
+        skill,
+        skill_version,
+        detail_level: int = 2,
+    ) -> "SkillDTO":
+        """Convert Skill and SkillVersion models to DTO.
+
+        Args:
+            skill: Skill model instance
+            skill_version: SkillVersion model instance (active version)
+            detail_level: Progressive Disclosure level (1, 2, or 3)
+
+        Returns:
+            SkillDTO with appropriate content based on detail_level
+        """
+        # detail_level=1: Metadata only
+        if detail_level == 1:
+            return cls(
+                id=str(skill.id),
+                name=skill.name,
+                namespace=skill.namespace,
+                created_by=skill.created_by,
+                display_name=skill.display_name,
+                description=skill.description,
+                persona=skill.persona,
+                tags=skill.tags if skill.tags else [],
+                access_level=skill.access_level.value,
+                version=skill.active_version,
+                version_count=skill.version_count,
+                core_instructions=None,
+                content=None,
+                content_hash=None,
+                created_at=skill.created_at,
+                updated_at=skill.updated_at,
+                is_deleted=skill.is_deleted,
+            )
+        
+        # detail_level=2: Metadata + Core Instructions
+        elif detail_level == 2:
+            return cls(
+                id=str(skill.id),
+                name=skill.name,
+                namespace=skill.namespace,
+                created_by=skill.created_by,
+                display_name=skill.display_name,
+                description=skill.description,
+                persona=skill.persona,
+                tags=skill.tags if skill.tags else [],
+                access_level=skill.access_level.value,
+                version=skill.active_version,
+                version_count=skill.version_count,
+                core_instructions=skill_version.core_instructions,
+                content=None,
+                content_hash=skill_version.content_hash,
+                created_at=skill.created_at,
+                updated_at=skill.updated_at,
+                is_deleted=skill.is_deleted,
+            )
+        
+        # detail_level=3: Full Content
+        else:
+            return cls(
+                id=str(skill.id),
+                name=skill.name,
+                namespace=skill.namespace,
+                created_by=skill.created_by,
+                display_name=skill.display_name,
+                description=skill.description,
+                persona=skill.persona,
+                tags=skill.tags if skill.tags else [],
+                access_level=skill.access_level.value,
+                version=skill.active_version,
+                version_count=skill.version_count,
+                core_instructions=skill_version.core_instructions,
+                content=skill_version.content,
+                content_hash=skill_version.content_hash,
+                created_at=skill.created_at,
+                updated_at=skill.updated_at,
+                is_deleted=skill.is_deleted,
+            )

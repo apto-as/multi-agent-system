@@ -39,7 +39,7 @@ class TestMemoryServiceIntegration:
         )
 
         with patch(
-            "src.services.memory_service.get_unified_embedding_service",
+            "src.services.ollama_embedding_service.get_ollama_embedding_service",
             return_value=mock_embedding_service,
         ):
             service = HybridMemoryService(test_session)  # v2.2.6: HybridMemoryService
