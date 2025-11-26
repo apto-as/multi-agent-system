@@ -97,6 +97,28 @@ services:
     #   retries: 3
     #   start_period: 30s
 
+    # ========================================
+    # P1-2: Docker Security Baseline (v2.4.0)
+    # ========================================
+    # Defense in depth: Multiple security layers
+    # ========================================
+    security_opt:
+      - no-new-privileges:true  # Prevent privilege escalation
+
+    # Drop all capabilities and add only required ones
+    # Port 8000 doesn't require NET_BIND_SERVICE (<1024)
+    cap_drop:
+      - ALL
+    # cap_add:
+    #   - NET_BIND_SERVICE  # Only needed for ports <1024
+
+    # Read-only root filesystem (optional, commented for compatibility)
+    # Requires explicit tmpfs mounts for writable directories
+    # read_only: true
+    # tmpfs:
+    #   - /tmp
+    #   - /run
+
     # Resource limits (adjust based on your system)
     deploy:
       resources:

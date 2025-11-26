@@ -334,14 +334,20 @@ class LearningService:
 
             # Text search (SQLite-compatible v2.2.6+)
             if query_text:
+                # V-3 MITIGATION: Escape wildcards to prevent DoS
+                from src.security.query_builder import SecureQueryBuilder
+
+                escaped_query, escape_char = SecureQueryBuilder.safe_like_pattern(query_text)
+                escaped_query_lower, _ = SecureQueryBuilder.safe_like_pattern(query_text.lower())
+
                 # Search in pattern name or JSON data (simple text search in JSON)
                 search_filter = or_(
-                    LearningPattern.pattern_name.ilike(f"%{query_text}%"),
+                    LearningPattern.pattern_name.ilike(f"%{escaped_query}%", escape=escape_char),
                     # SQLite: Search for text within JSON field (stored as text)
                     # This is less sophisticated than PostgreSQL jsonb_path_exists
                     # but works for basic text matching
                     func.lower(cast(LearningPattern.pattern_data, sa.String)).like(
-                        f"%{query_text.lower()}%"
+                        f"%{escaped_query_lower}%", escape=escape_char
                     ),
                 )
                 query = query.where(search_filter)

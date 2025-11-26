@@ -398,3 +398,83 @@ async def check_rate_limit_mcp_disconnect(
         request=request,
         endpoint_type="mcp_disconnect",
     )
+
+
+# ============================================================================
+# Memory Management Rate Limiting (Phase 1 - v2.4.0)
+# ============================================================================
+
+
+async def check_rate_limit_memory_cleanup(
+    request: Request,
+) -> None:
+    """Check rate limit for namespace cleanup operation.
+
+    Raises:
+        HTTPException: 429 if rate limit exceeded
+
+    Security:
+        - 5 cleanups/min in production
+        - 10 cleanups/min in development
+        - Prevents abuse of administrative operation
+        - Disabled in test environment
+    """
+    # Skip rate limiting in test environment
+    if settings.environment == "test":
+        return
+
+    limiter = get_rate_limiter()
+    await limiter.check_rate_limit(
+        request=request,
+        endpoint_type="memory_cleanup",
+    )
+
+
+async def check_rate_limit_memory_prune(
+    request: Request,
+) -> None:
+    """Check rate limit for expired memory pruning operation.
+
+    Raises:
+        HTTPException: 429 if rate limit exceeded
+
+    Security:
+        - 5 prunes/min in production
+        - 10 prunes/min in development
+        - Prevents abuse of maintenance operation
+        - Disabled in test environment
+    """
+    # Skip rate limiting in test environment
+    if settings.environment == "test":
+        return
+
+    limiter = get_rate_limiter()
+    await limiter.check_rate_limit(
+        request=request,
+        endpoint_type="memory_prune",
+    )
+
+
+async def check_rate_limit_memory_ttl(
+    request: Request,
+) -> None:
+    """Check rate limit for memory TTL update operation.
+
+    Raises:
+        HTTPException: 429 if rate limit exceeded
+
+    Security:
+        - 30 TTL updates/min in production
+        - 60 TTL updates/min in development
+        - Prevents abuse while allowing reasonable user operations
+        - Disabled in test environment
+    """
+    # Skip rate limiting in test environment
+    if settings.environment == "test":
+        return
+
+    limiter = get_rate_limiter()
+    await limiter.check_rate_limit(
+        request=request,
+        endpoint_type="memory_ttl",
+    )

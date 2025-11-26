@@ -85,6 +85,16 @@ class RateLimiter:
                 ),  # 1 registration per minute, 10min block
                 "search": RateLimit(20, 60),  # 20 searches per minute
                 "embedding": RateLimit(5, 60),  # 5 embedding requests per minute
+                # Phase 1 Memory Management (v2.4.0)
+                "memory_cleanup": RateLimit(
+                    5, 60, block_duration=300,
+                ),  # 5 cleanup calls per minute, 5min block
+                "memory_prune": RateLimit(
+                    5, 60, block_duration=300,
+                ),  # 5 prune calls per minute, 5min block
+                "memory_ttl": RateLimit(
+                    30, 60, block_duration=60,
+                ),  # 30 TTL updates per minute, 1min block
             }
         else:
             # More lenient limits for development
@@ -96,6 +106,16 @@ class RateLimiter:
                 "register": RateLimit(2, 60, block_duration=300),  # 2 registrations per minute
                 "search": RateLimit(30, 60),  # 30 searches per minute
                 "embedding": RateLimit(10, 60),  # 10 embedding requests per minute
+                # Phase 1 Memory Management (v2.4.0)
+                "memory_cleanup": RateLimit(
+                    10, 60, block_duration=180,
+                ),  # 10 cleanup calls per minute, 3min block
+                "memory_prune": RateLimit(
+                    10, 60, block_duration=180,
+                ),  # 10 prune calls per minute, 3min block
+                "memory_ttl": RateLimit(
+                    60, 60, block_duration=30,
+                ),  # 60 TTL updates per minute, 30s block
             }
 
         # Suspicious patterns that indicate attacks

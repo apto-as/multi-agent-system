@@ -17,6 +17,7 @@ from .base import MetadataMixin, TMWSBase
 if TYPE_CHECKING:
     from .license_key import LicenseKey
     from .task import Task
+    from .token_consumption import TokenConsumption
     from .verification import TrustScoreHistory, VerificationRecord
 
 
@@ -169,6 +170,11 @@ class Agent(TMWSBase, MetadataMixin):
     )
     license_keys: Mapped[list[LicenseKey]] = relationship(
         "LicenseKey",
+        back_populates="agent",
+        cascade="all, delete-orphan",
+    )
+    token_consumptions: Mapped[list["TokenConsumption"]] = relationship(
+        "TokenConsumption",
         back_populates="agent",
         cascade="all, delete-orphan",
     )

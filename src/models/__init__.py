@@ -3,6 +3,7 @@
 
 # Base classes
 # Core Models
+from .token_consumption import TokenConsumption
 from .agent import Agent, AgentNamespace, AgentTeam
 
 # API audit logging
@@ -37,6 +38,7 @@ __all__ = [
     "TimestampMixin",
     "MetadataMixin",
     # Core Models
+    "TokenConsumption",
     "Agent",
     "AgentTeam",
     "AgentNamespace",

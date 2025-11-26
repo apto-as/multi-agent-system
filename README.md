@@ -486,15 +486,16 @@ switch_agent(agent_id="artemis-optimizer")
 ## 📖 Documentation
 
 ### Installation & Setup
-- [INSTALL_UVX.md](INSTALL_UVX.md) - **推奨：uvx インストール**（最速）
+<!-- TODO: Add uvx installation guide -->
 - [QUICKSTART.md](QUICKSTART.md) - 5分クイックスタート
 - [INSTALL.md](INSTALL.md) - 詳細な手動インストール
 
-### v2.3.0 Architecture
-- [docs/PHASE_4_HYBRID_MEMORY.md](docs/PHASE_4_HYBRID_MEMORY.md) - HybridMemoryService詳細
-- [docs/PHASE_6_REDIS_AGENTS.md](docs/PHASE_6_REDIS_AGENTS.md) - RedisAgentService設計
-- [docs/PHASE_7_REDIS_TASKS.md](docs/PHASE_7_REDIS_TASKS.md) - RedisTaskService設計
-- [docs/PHASE_9_POSTGRESQL_MINIMIZATION.md](docs/PHASE_9_POSTGRESQL_MINIMIZATION.md) - PostgreSQL最小化戦略
+### Phase 2A: Verification-Trust Integration
+- **[Integration Guide](docs/guides/VERIFICATION_TRUST_INTEGRATION_GUIDE.md)** - Complete walkthrough with setup and usage
+- **[API Reference](docs/api/VERIFICATION_SERVICE_API.md)** - Detailed API documentation (691 lines)
+- **[Examples](docs/examples/VERIFICATION_TRUST_EXAMPLES.md)** - 12 practical examples (1,002 lines)
+- **[Security Fixes](docs/security/PHASE2A_SECURITY_FIXES.md)** - P1 security enhancements (477 lines)
+- **[Architecture](docs/architecture/PHASE_2A_ARCHITECTURE.md)** - Technical design and implementation details
 
 ### MCP Integration
 - [docs/MCP_INTEGRATION.md](docs/MCP_INTEGRATION.md) - **Claude Desktop統合ガイド**
@@ -502,8 +503,8 @@ switch_agent(agent_id="artemis-optimizer")
 
 ### Other
 - [docs/API_AUTHENTICATION.md](docs/API_AUTHENTICATION.md) - API認証設定
-- [docs/TRINITAS_INTEGRATION.md](docs/TRINITAS_INTEGRATION.md) - Trinitas統合
-- [CUSTOM_AGENTS_GUIDE.md](CUSTOM_AGENTS_GUIDE.md) - カスタムエージェント登録
+- [docs/trinitas/AGENTS.md](docs/trinitas/AGENTS.md) - Trinitas Agent System Configuration
+<!-- TODO: Add custom agents guide -->
 
 ---
 
@@ -802,7 +803,7 @@ We welcome contributions! Areas of interest:
 - Bug fixes
 - **Security improvements** (please coordinate via security@apto.as for sensitive issues)
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+<!-- TODO: Add CONTRIBUTING.md with guidelines -->
 
 ---
 

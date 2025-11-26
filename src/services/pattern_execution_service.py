@@ -804,10 +804,15 @@ class PatternExecutionEngine:
 
         Target: <100ms with optimized queries
         """
+        # V-3 MITIGATION: Escape wildcards to prevent DoS
+        from src.security.query_builder import SecureQueryBuilder
+
+        escaped_query, escape_char = SecureQueryBuilder.safe_like_pattern(query)
+
         # Optimize: Use index-hinted queries
         stmt = (
             select(Memory)
-            .where(Memory.content.ilike(f"%{query}%"))
+            .where(Memory.content.ilike(f"%{escaped_query}%", escape=escape_char))
             .order_by(Memory.importance.desc())
             .limit(10)
         )

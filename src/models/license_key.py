@@ -39,6 +39,7 @@ class TierEnum(str, PyEnum):
     FREE = "FREE"
     PRO = "PRO"
     ENTERPRISE = "ENTERPRISE"
+    ADMINISTRATOR = "ADMINISTRATOR"  # v2.4.0: Unlimited + Perpetual tier
 
 
 class LicenseKey(Base):

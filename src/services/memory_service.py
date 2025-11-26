@@ -33,6 +33,7 @@ from src.core.exceptions import (
     log_and_raise,
 )
 from src.models.memory import AccessLevel, Memory
+from src.security.security_audit_facade import get_audit_logger
 from src.services.ollama_embedding_service import get_ollama_embedding_service
 from src.services.vector_search_service import get_vector_search_service
 
@@ -194,6 +195,9 @@ class HybridMemoryService:
         # AgentService for authorization (lazy initialization if not provided)
         self._agent_service = agent_service
 
+        # Security audit logger (initialized async)
+        self.audit_logger = None
+
         # Get model info for metadata tracking
         model_info = self.embedding_service.get_model_info()
         self.embedding_model_name = model_info.get("model_name", "zylonai/multilingual-e5-large")
@@ -241,6 +245,11 @@ class HybridMemoryService:
                 original_exception=e,
                 details={"component": "HybridMemoryService"},
             )
+
+    async def _ensure_audit_initialized(self) -> None:
+        """Initialize audit logger if not already initialized."""
+        if self.audit_logger is None:
+            self.audit_logger = await get_audit_logger()
 
     async def create_memory(
         self,
@@ -1190,6 +1199,12 @@ class HybridMemoryService:
         - V-PRUNE-3: Rate limiting (max 100k deletions per call)
         - Audit logging (BEFORE + AFTER deletion)
 
+        Audit Logging:
+            - BEFORE: "namespace_cleanup_initiated" (HIGH severity)
+            - AFTER: "namespace_cleanup_complete" (MEDIUM severity)
+            - Captures: namespace, agent_id, parameters, results
+            - Graceful: Operations succeed even if audit fails
+
         Args:
             namespace: Target namespace to cleanup (REQUIRED, no default)
             agent_id: Requesting agent's ID (REQUIRED for authorization)
@@ -1318,6 +1333,27 @@ class HybridMemoryService:
                 },
             )
 
+        # AUDIT LOG: Namespace cleanup initiated (BEFORE operation)
+        await self._ensure_audit_initialized()
+        if self.audit_logger:
+            await self.audit_logger.log_event(
+                event_type="namespace_cleanup_initiated",
+                event_data={
+                    "severity": "HIGH",  # Critical bulk deletion operation
+                    "message": f"Namespace cleanup initiated by {agent_id}",
+                    "details": {
+                        "namespace": namespace,
+                        "agent_id": agent_id,
+                        "days": days,
+                        "min_importance": min_importance,
+                        "dry_run": dry_run,
+                        "limit": limit,
+                    }
+                },
+                agent_id=agent_id,
+                user_id=agent_id,
+            )
+
         # STEP 4: Find memories to delete
         from datetime import datetime, timedelta, timezone
 
@@ -1435,6 +1471,22 @@ class HybridMemoryService:
             },
         )
 
+        # AUDIT LOG: Namespace cleanup complete (AFTER operation)
+        if self.audit_logger:
+            await self.audit_logger.log_event(
+                event_type="namespace_cleanup_complete",
+                event_data={
+                    "severity": "MEDIUM",
+                    "message": f"Deleted {deleted_count} memories from {namespace}",
+                    "details": {
+                        "namespace": namespace,
+                        "deleted_count": deleted_count,
+                        "dry_run": dry_run,
+                    }
+                },
+                agent_id=agent_id,
+            )
+
         return {
             "deleted_count": deleted_count,
             "dry_run": False,
@@ -1463,6 +1515,12 @@ class HybridMemoryService:
         - V-NS-1: Authorization check (agent.namespace == target namespace)
         - V-PRUNE-3: Batch limit (max 1000 per call to prevent DoS)
         - Audit logging (expired memory IDs logged)
+
+        Audit Logging:
+            - BEFORE: "expired_memory_prune_initiated" (HIGH severity)
+            - AFTER: "expired_memory_prune_complete" (MEDIUM severity)
+            - Captures: namespace, agent_id, parameters, results
+            - Graceful: Operations succeed even if audit fails
 
         Args:
             namespace: Target namespace to prune (REQUIRED, no default)
@@ -1554,6 +1612,24 @@ class HybridMemoryService:
                     "agent_namespace": agent.namespace,
                     "target_namespace": namespace,
                 },
+            )
+
+        # AUDIT LOG: Expired memory prune initiated (BEFORE operation)
+        await self._ensure_audit_initialized()
+        if self.audit_logger:
+            await self.audit_logger.log_event(
+                event_type="expired_memory_prune_initiated",
+                event_data={
+                    "severity": "HIGH",
+                    "message": f"Pruning expired memories in {namespace}",
+                    "details": {
+                        "namespace": namespace,
+                        "agent_id": agent_id,
+                        "dry_run": dry_run,
+                        "limit": limit,
+                    }
+                },
+                agent_id=agent_id,
             )
 
         # STEP 4: Find expired memories
@@ -1666,6 +1742,22 @@ class HybridMemoryService:
             },
         )
 
+        # AUDIT LOG: Expired memory prune complete (AFTER operation)
+        if self.audit_logger:
+            await self.audit_logger.log_event(
+                event_type="expired_memory_prune_complete",
+                event_data={
+                    "severity": "MEDIUM",
+                    "message": f"Pruned {deleted_count} expired memories",
+                    "details": {
+                        "namespace": namespace,
+                        "deleted_count": deleted_count,
+                        "deleted_ids": [str(mid) for mid in memory_ids[:10]],  # First 10 IDs
+                    }
+                },
+                agent_id=agent_id,
+            )
+
         return {
             "deleted_count": deleted_count,
             "expired_count": len(memory_ids),
@@ -1690,6 +1782,12 @@ class HybridMemoryService:
         - TTL validation (1-3650 days or None for permanent)
         - Audit logging (TTL changes logged)
         - Rate limiting: 30 updates/minute (enforced at API layer)
+
+        Audit Logging:
+            - BEFORE: "memory_ttl_update_initiated" (MEDIUM severity)
+            - AFTER: "memory_ttl_update_complete" (LOW severity)
+            - Captures: memory_id, agent_id, parameters, results
+            - Graceful: Operations succeed even if audit fails
 
         Args:
             memory_id: Memory UUID to update
@@ -1741,7 +1839,7 @@ class HybridMemoryService:
         # STEP 2: Fetch memory and verify ownership
         from sqlalchemy import select
 
-        stmt = select(Memory).where(Memory.id == memory_id)
+        stmt = select(Memory).where(Memory.id == str(memory_id))  # Convert UUID to string for SQLite
         result = await self.session.execute(stmt)
         memory = result.scalar_one_or_none()
 
@@ -1773,6 +1871,23 @@ class HybridMemoryService:
                     "memory_agent_id": memory.agent_id,
                     "requesting_agent_id": agent_id,
                 },
+            )
+
+        # AUDIT LOG: Memory TTL update initiated (BEFORE operation)
+        await self._ensure_audit_initialized()
+        if self.audit_logger:
+            await self.audit_logger.log_event(
+                event_type="memory_ttl_update_initiated",
+                event_data={
+                    "severity": "MEDIUM",
+                    "message": f"Updating TTL for memory {memory_id}",
+                    "details": {
+                        "memory_id": str(memory_id),
+                        "new_ttl_days": ttl_days,
+                        "agent_id": agent_id,
+                    }
+                },
+                agent_id=agent_id,
             )
 
         # STEP 4: Calculate previous TTL (for audit logging)
@@ -1811,6 +1926,23 @@ class HybridMemoryService:
                 "new_expires_at": new_expires_at,
             },
         )
+
+        # AUDIT LOG: Memory TTL update complete (AFTER operation)
+        if self.audit_logger:
+            await self.audit_logger.log_event(
+                event_type="memory_ttl_update_complete",
+                event_data={
+                    "severity": "LOW",
+                    "message": f"TTL updated to {ttl_days} days",
+                    "details": {
+                        "memory_id": str(memory_id),
+                        "previous_ttl_days": previous_ttl_days,
+                        "new_ttl_days": ttl_days,
+                        "new_expires_at": new_expires_at,
+                    }
+                },
+                agent_id=agent_id,
+            )
 
         return {
             "success": True,

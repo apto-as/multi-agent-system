@@ -25,6 +25,15 @@ os.environ["TMWS_DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 from src.core.config import get_settings  # noqa: E402
 from src.core.database import Base, get_db_session_dependency  # noqa: E402
 
+# Import for dependency override (test authentication bypass)
+from src.api.dependencies import User, get_current_user  # noqa: E402
+
+# Import memory service dependency (for mocking)
+try:
+    from src.api.routers.memory import get_memory_service  # noqa: E402
+except ImportError:
+    get_memory_service = None  # Not available in all test scenarios
+
 # Import all models to ensure Base.metadata discovers them
 from src.models.agent import Agent  # noqa: E402
 from src.models.learning_pattern import LearningPattern, PatternUsageHistory  # noqa: E402
@@ -39,12 +48,10 @@ from src.models.workflow import Workflow  # noqa: E402
 # Get test settings
 settings = get_settings()
 
-# TMWS v3.0: FastAPI removed, MCP-only
+# TMWS v2.3.0+: FastAPI available in main.py
 # Import FastAPI app only if available (for backward compatibility with existing tests)
 try:
-    from src.api.app import create_app
-
-    app = create_app()
+    from src.api.main import app
 except ImportError:
     # v3.0: MCP-only, no FastAPI app
     app = None
@@ -114,16 +121,29 @@ async def db_session(test_session) -> AsyncGenerator[AsyncSession, None]:
     yield test_session
 
 
+@pytest.fixture
+def mock_user():
+    """Create mock user for bypassing authentication in tests.
+
+    Returns:
+        User object with test agent credentials
+    """
+    return User(
+        agent_id="test-agent-id",
+        namespace="test-namespace",
+        roles=["user", "admin"],
+    )
+
+
 @pytest_asyncio.fixture
-async def client(test_session):
+async def client(test_session, mock_user):
     """Create test client (v3.0: Skips if FastAPI not available)."""
-    try:
-        from src.api.app import create_app
-    except ImportError:
+    if app is None:
         pytest.skip("FastAPI not available in TMWS v3.0 (MCP-only)")
 
-    app = create_app()
+    # Override dependencies: database session + authentication bypass
     app.dependency_overrides[get_db_session_dependency] = lambda: test_session
+    app.dependency_overrides[get_current_user] = lambda: mock_user
 
     with TestClient(app) as test_client:
         yield test_client
@@ -132,17 +152,16 @@ async def client(test_session):
 
 
 @pytest_asyncio.fixture
-async def async_client(test_session):
+async def async_client(test_session, mock_user):
     """Create async test client for E2E tests (v3.0: Skips if FastAPI not available)."""
-    try:
-        from src.api.app import create_app
-    except ImportError:
+    if app is None:
         pytest.skip("FastAPI not available in TMWS v3.0 (MCP-only)")
 
     from httpx import ASGITransport, AsyncClient
 
-    app = create_app()
+    # Override dependencies: database session + authentication bypass
     app.dependency_overrides[get_db_session_dependency] = lambda: test_session
+    app.dependency_overrides[get_current_user] = lambda: mock_user
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
