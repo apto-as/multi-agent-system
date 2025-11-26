@@ -21,6 +21,7 @@ from uuid import uuid4
 
 import pytest
 import pytest_asyncio
+from fastapi import Request
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -175,6 +176,38 @@ async def test_agent_other_namespace(test_session: AsyncSession) -> Agent:
     return agent
 
 
+@pytest_asyncio.fixture
+async def test_agent_same_namespace(test_session: AsyncSession) -> Agent:
+    """Create test agent in same namespace for sharing tests.
+
+    This agent is in the SAME namespace as test_agent, allowing
+    for valid skill sharing operations.
+
+    Args:
+        test_session: Database session
+
+    Returns:
+        Agent: Test agent with namespace 'test-namespace'
+    """
+    from uuid import uuid4
+
+    agent_uuid = uuid4()
+    agent = Agent(
+        agent_id=str(agent_uuid),
+        namespace="test-namespace",  # Same as test_agent
+        display_name="Collaborator Agent",
+        capabilities=["mcp:connect", "mcp:execute"],
+        status=AgentStatus.ACTIVE,
+        metadata={"test": True, "role": "collaborator"},
+    )
+
+    test_session.add(agent)
+    await test_session.commit()
+    await test_session.refresh(agent)
+
+    return agent
+
+
 # ============================================================================
 # MCP Adapter Mocks (External Service)
 # ============================================================================
@@ -247,21 +280,50 @@ def test_client(
     """
     from unittest.mock import patch
 
+    from src.api.dependencies import User
+    from src.security.jwt_service import jwt_service
+
     # Override database session dependency
     async def override_get_session() -> AsyncGenerator[AsyncSession, None]:
         async with test_session_factory() as session:
             yield session
 
-    # Override authentication dependency (mock current user)
-    async def override_get_current_user() -> MagicMock:
-        # Return mock user with test_agent data
-        from src.api.dependencies import User
+    # Override authentication dependency (parse JWT from request)
+    async def override_get_current_user(request: Request) -> User:
+        # Extract JWT token from Authorization header
 
-        return User(
-            agent_id=test_agent.agent_id,
-            namespace=test_agent.namespace,
-            roles=["user"],
-        )
+        auth_header = request.headers.get("Authorization")
+        if not auth_header or not auth_header.startswith("Bearer "):
+            # Fallback to test_agent for requests without auth
+            user = User(
+                agent_id=test_agent.agent_id,
+                namespace=test_agent.namespace,
+                roles=["user"],
+            )
+            print(f"[TEST-AUTH] No auth header, using test_agent: {user.agent_id}, namespace={user.namespace}")
+            return user
+
+        token = auth_header.split(" ")[1]
+
+        # Decode JWT to get agent info
+        try:
+            payload = jwt_service.decode_token_unsafe(token)
+            user = User(
+                agent_id=payload.get("preferred_agent_id"),
+                namespace=payload.get("agent_namespace"),
+                roles=payload.get("roles", ["user"]),
+            )
+            print(f"[TEST-AUTH] JWT decoded: agent_id={user.agent_id}, namespace={user.namespace}")
+            return user
+        except Exception as e:
+            # Fallback to test_agent if token invalid
+            user = User(
+                agent_id=test_agent.agent_id,
+                namespace=test_agent.namespace,
+                roles=["user"],
+            )
+            print(f"[TEST-AUTH] JWT decode failed ({e}), using test_agent: {user.agent_id}, namespace={user.namespace}")
+            return user
 
     # Apply dependency overrides
     app.dependency_overrides[get_db_session] = override_get_session
@@ -401,3 +463,149 @@ def create_jwt_token(agent: Agent, expires_delta: timedelta | None = None) -> st
         user=mock_user,
         expires_delta=expires_delta or timedelta(hours=1),
     )
+
+
+# ============================================================================
+# Skills API Test Data Fixtures
+# ============================================================================
+
+
+@pytest_asyncio.fixture
+async def test_skill(test_session: AsyncSession, test_agent: Agent):
+    """Create test skill (PRIVATE access level).
+
+    Args:
+        test_session: Database session
+        test_agent: Test agent (owner)
+
+    Returns:
+        Skill: Test skill with version 1
+    """
+    from src.models.agent import AccessLevel
+    from src.models.skill import Skill, SkillVersion
+
+    skill_id = str(uuid4())
+    skill = Skill(
+        id=skill_id,
+        name="test-skill",
+        namespace=test_agent.namespace,
+        created_by=test_agent.agent_id,
+        persona="artemis-optimizer",
+        tags=["python", "testing"],
+        access_level=AccessLevel.PRIVATE,
+        active_version=1,
+        is_deleted=False,
+    )
+
+    skill_version = SkillVersion(
+        id=str(uuid4()),
+        skill_id=skill_id,
+        version=1,
+        content="# Test Skill\n\n## Core Instructions\n\nTest content.",
+        core_instructions="## Core Instructions\n\nTest content.",
+        content_hash="test_hash_123",
+        created_by=test_agent.agent_id,
+    )
+
+    test_session.add(skill)
+    test_session.add(skill_version)
+    await test_session.commit()
+    await test_session.refresh(skill)
+
+    return skill
+
+
+@pytest_asyncio.fixture
+async def test_skill_shared(test_session: AsyncSession, test_agent: Agent):
+    """Create test skill with SHARED access level.
+
+    Args:
+        test_session: Database session
+        test_agent: Test agent (owner)
+
+    Returns:
+        Skill: Test skill with SHARED access level
+    """
+    from src.models.agent import AccessLevel
+    from src.models.skill import Skill, SkillVersion
+
+    skill_id = str(uuid4())
+    skill = Skill(
+        id=skill_id,
+        name="shared-skill",
+        namespace=test_agent.namespace,
+        created_by=test_agent.agent_id,
+        access_level=AccessLevel.SHARED,
+        active_version=1,
+        is_deleted=False,
+    )
+
+    skill_version = SkillVersion(
+        id=str(uuid4()),
+        skill_id=skill_id,
+        version=1,
+        content="# Shared Skill\n\n## Core Instructions\n\nShared content.",
+        core_instructions="## Core Instructions\n\nShared content.",
+        content_hash="shared_hash_123",
+        created_by=test_agent.agent_id,
+    )
+
+    test_session.add(skill)
+    test_session.add(skill_version)
+    await test_session.commit()
+    await test_session.refresh(skill)
+
+    return skill
+
+
+@pytest_asyncio.fixture
+async def test_skill_active(test_session: AsyncSession, test_agent: Agent):
+    """Create test skill that is already activated.
+
+    Args:
+        test_session: Database session
+        test_agent: Test agent (owner)
+
+    Returns:
+        Skill: Test skill with active SkillActivation record
+    """
+    from src.models.agent import AccessLevel
+    from src.models.skill import Skill, SkillActivation, SkillVersion
+
+    skill_id = str(uuid4())
+    skill = Skill(
+        id=skill_id,
+        name="active-skill",
+        namespace=test_agent.namespace,
+        created_by=test_agent.agent_id,
+        access_level=AccessLevel.PRIVATE,
+        active_version=1,
+        is_deleted=False,
+    )
+
+    skill_version = SkillVersion(
+        id=str(uuid4()),
+        skill_id=skill_id,
+        version=1,
+        content="# Active Skill\n\n## Core Instructions\n\nActive content.",
+        core_instructions="## Core Instructions\n\nActive content.",
+        content_hash="active_hash_123",
+        created_by=test_agent.agent_id,
+    )
+
+    activation = SkillActivation(
+        id=str(uuid4()),
+        skill_id=skill_id,
+        agent_id=test_agent.agent_id,
+        version=1,
+        namespace=test_agent.namespace,
+        activated_at=datetime.now(timezone.utc),
+    )
+
+    test_session.add(skill)
+    test_session.add(skill_version)
+    test_session.add(activation)
+    await test_session.commit()
+    await test_session.refresh(skill)
+
+    return skill

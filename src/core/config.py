@@ -174,6 +174,21 @@ class Settings(BaseSettings):
     # ==== PERFORMANCE & CACHING ====
     cache_ttl: int = Field(default=3600, ge=1, le=86400)
 
+    # ==== SKILLS API CONFIGURATION (Phase 6A) ====
+    # Content validation limits
+    skills_max_field_length: int = Field(
+        default=255,
+        ge=1,
+        le=1000,
+        description="Maximum length for skill name, description, etc.",
+    )
+    skills_core_instructions_max_length: int = Field(
+        default=8000,
+        ge=100,
+        le=100000,
+        description="Maximum length for core instructions (progressive disclosure level 2)",
+    )
+
     # ==== VALIDATION RULES ====
     @model_validator(mode="before")
     @classmethod
