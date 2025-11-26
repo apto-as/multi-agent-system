@@ -324,23 +324,62 @@ class Settings(BaseSettings):
     @field_validator("cors_origins")
     @classmethod
     def validate_cors_security(cls, v, info):
-        """404 Security: CORS must be properly configured."""
+        """404 Security: CORS must be properly configured.
+
+        Prevents:
+        1. Wildcard origins ("*") in production
+        2. Invalid URL schemes (only http/https allowed)
+        3. Trailing slashes in origins
+        4. Empty origin strings
+
+        Raises:
+            ValueError: If validation fails
+        """
         environment = info.data.get("environment", "development") if info.data else "development"
 
-        if environment == "production":
-            if not v:
+        # Empty list check
+        if not v:
+            if environment == "production":
                 raise ValueError("CORS origins must be explicitly configured in production")
+            return v  # Allow empty in development
 
-            if "*" in v:
-                raise ValueError("Wildcard CORS origins not allowed in production")
+        # Validate each origin
+        for origin in v:
+            # Empty string check
+            if not origin or not origin.strip():
+                raise ValueError("CORS origin cannot be empty string")
 
-            # Check for localhost origins in production
+            # Block wildcard
+            if origin == "*":
+                if environment == "production":
+                    raise ValueError(
+                        "Wildcard CORS origin '*' not allowed in production. "
+                        "Specify explicit origins like 'https://example.com'"
+                    )
+                # Also check for mixed wildcard + specific origins
+                if len(v) > 1:
+                    raise ValueError("Cannot use wildcard '*' with specific origins")
+
+            # Validate URL scheme (skip wildcard)
+            if origin != "*":
+                if not origin.startswith(("http://", "https://")):
+                    raise ValueError(
+                        f"Invalid CORS origin '{origin}': "
+                        f"Must start with 'http://' or 'https://'"
+                    )
+
+                # No trailing slash
+                if origin.endswith("/"):
+                    raise ValueError(
+                        f"Invalid CORS origin '{origin}': "
+                        f"Must not end with trailing slash"
+                    )
+
+        # Check for localhost origins in production
+        if environment == "production":
             localhost_origins = [o for o in v if "localhost" in o or "127.0.0.1" in o]
             if localhost_origins:
                 logger.warning(f"Localhost CORS origins in production: {localhost_origins}")
-
-        if "*" in v and len(v) > 1:
-            raise ValueError("Cannot use wildcard '*' with specific origins")
 
         return v
 
