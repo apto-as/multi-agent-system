@@ -130,5 +130,70 @@ def generate_api_key() -> str:
     return f"tmws_{secrets.token_urlsafe(32)}"
 
 
+def generate_and_hash_api_key_for_agent() -> tuple[str, str]:
+    """Generate a new API key for an agent and hash it with bcrypt (SECURE).
+
+    This function should be used when creating new agents or regenerating API keys.
+
+    Returns:
+        Tuple of (raw_api_key, api_key_hash):
+        - raw_api_key: Plaintext API key to give to the agent (show once only!)
+        - api_key_hash: Bcrypt hash to store in Agent.api_key_hash
+
+    Example:
+        >>> raw_key, key_hash = generate_and_hash_api_key_for_agent()
+        >>> agent.api_key_hash = key_hash  # Store bcrypt hash in DB
+        >>> # Give raw_key to agent (display once, never store plaintext!)
+
+    Security:
+        - Uses bcrypt for secure hashing (CVSS 0.0 - not vulnerable to GPU brute force)
+        - Replaces deprecated SHA256 with salt (CVSS 7.5 HIGH)
+    """
+    # Generate secure API key
+    raw_api_key = generate_api_key()
+
+    # Hash with bcrypt (SECURE)
+    api_key_hash = hash_password(raw_api_key)
+
+    return raw_api_key, api_key_hash
+
+
+def detect_hash_format(api_key_hash: str) -> str:
+    """Detect hash format from api_key_hash string.
+
+    Args:
+        api_key_hash: Hashed API key string
+
+    Returns:
+        "bcrypt" if bcrypt format ($2b$... or $2a$...)
+        "sha256_salt" if "salt:hash" format
+
+    Raises:
+        ValueError: If hash format is unknown
+
+    Example:
+        >>> detect_hash_format("$2b$12$...")
+        'bcrypt'
+        >>> detect_hash_format("abc123:def456")
+        'sha256_salt'
+    """
+    if not api_key_hash:
+        raise ValueError("api_key_hash cannot be empty")
+
+    # Bcrypt format: $2b$... or $2a$...
+    if api_key_hash.startswith("$2b$") or api_key_hash.startswith("$2a$"):
+        return "bcrypt"
+
+    # SHA256 with salt format: "salt:hash"
+    if ":" in api_key_hash:
+        return "sha256_salt"
+
+    # Unknown format
+    raise ValueError(
+        f"Unknown hash format: {api_key_hash[:20]}... "
+        "(expected bcrypt '$2b$...' or SHA256 'salt:hash')"
+    )
+
+
 # Alias for backward compatibility
 get_password_hash = hash_password
