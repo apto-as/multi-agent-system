@@ -399,9 +399,20 @@ class MCPAuthService:
         """Determine agent role based on capabilities and config.
 
         Security (REQ-5): Role-based access control.
+
+        Note: Handles both dict and list formats for agent.capabilities
+        to support legacy data and various agent configurations.
         """
-        # Check agent capabilities for role indicators
+        # Normalize capabilities to dict format
         capabilities = agent.capabilities or {}
+
+        # Handle legacy list format: convert to dict
+        if isinstance(capabilities, list):
+            logger.debug(
+                f"Agent {agent.agent_id} has list-format capabilities, treating as regular agent",
+                extra={"agent_id": agent.agent_id, "capabilities": capabilities},
+            )
+            capabilities = {}  # No role extraction from list format
 
         # Super admin: Full system access
         if capabilities.get("role") == "super_admin":
