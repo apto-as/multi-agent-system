@@ -81,7 +81,7 @@ class TestMCPAuthenticationMocks:
             assert context.agent_id == "test-agent"
             assert context.namespace == "test-namespace"
             assert context.auth_method == "api_key"
-            mock_verify.assert_called_once_with("valid-key", "salt:hash")
+            mock_verify.assert_called_once_with("valid-key", "hash", "salt")
 
     @pytest.mark.asyncio
     async def test_authenticate_with_invalid_api_key_mock(
