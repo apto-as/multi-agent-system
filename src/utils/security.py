@@ -104,7 +104,7 @@ def verify_password_with_salt(password: str, hashed: str, salt: str) -> bool:
 
     combined = password + salt
     computed_hash = hashlib.sha256(combined.encode()).hexdigest()
-    return computed_hash == hashed
+    return secrets.compare_digest(computed_hash, hashed)
 
 
 def generate_secure_token(length: int = 32) -> str:

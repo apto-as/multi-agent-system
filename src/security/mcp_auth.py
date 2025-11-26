@@ -276,7 +276,21 @@ class MCPAuthService:
                     )
 
                 # Note: api_key_hash format is "salt:hash"
-                is_valid = verify_password_with_salt(api_key, agent.api_key_hash)
+                try:
+                    # Parse api_key_hash format: "salt:hash"
+                    salt, hashed = agent.api_key_hash.split(":", 1)
+                except ValueError:
+                    logger.error(
+                        f"Invalid api_key_hash format for agent {agent_id}",
+                        extra={"agent_id": agent_id, "tool_name": tool_name},
+                    )
+                    raise MCPAuthenticationError(
+                        "Authentication failed",
+                        details={"agent_id": agent_id},
+                    )
+
+                # Verify API key with parsed salt and hash
+                is_valid = verify_password_with_salt(api_key, hashed, salt)
                 if not is_valid:
                     logger.warning(
                         f"🚨 Authentication failed: Invalid API key for agent: {agent_id}",
