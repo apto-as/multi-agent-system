@@ -117,6 +117,23 @@ class Settings(BaseSettings):
     )
     chroma_collection: str = Field(default="tmws_memories")
 
+    # ==== SKILLS SYSTEM CONFIGURATION (Phase 5B) ====
+    # Core instructions length for Progressive Disclosure Layer 2
+    skills_core_instructions_max_length: int = Field(
+        default=500,
+        ge=100,
+        le=10000,
+        description="Maximum length of core instructions extracted from skill content (default: 500 chars)",
+    )
+
+    # Input validation limits (S-3-M1: Input Size Validation)
+    skills_max_field_length: int = Field(
+        default=255,
+        ge=1,
+        le=1000,
+        description="Maximum length for skill name, persona, and namespace fields (default: 255 chars)",
+    )
+
     # ==== OLLAMA EMBEDDING CONFIGURATION (v2.3.0 - Ollama Required) ====
     # ⚠️ CRITICAL: Ollama is REQUIRED - no fallback mechanisms
     # This ensures consistent embedding dimensions and prevents silent failures
