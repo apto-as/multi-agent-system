@@ -1,6 +1,6 @@
 [project]
 name = "tmws"
-version = "2.4.0"
+version = "2.3.0-rc1"
 description = "Trinitas Memory & Workflow Service - Multi-agent AI coordination with SQLite + Chroma architecture + Trinitas Agents"
 authors = [
     {name = "Trinitas Development Team", email = "dev@trinitas.ai"}
@@ -33,6 +33,7 @@ dependencies = [
     "structlog>=23.0.0",
     "aiohttp>=3.9.0",
     "python-dateutil>=2.8.2",
+    "click>=8.1.0",  # CLI framework for management scripts
     # Security
     "python-jose[cryptography]>=3.3.0",
     "passlib[bcrypt]>=1.7.4",
@@ -40,7 +41,7 @@ dependencies = [
     "cryptography>=42.0.0",
     "PyJWT>=2.8.0",
     "hvac>=2.0.0",
-    "pysqlcipher3>=1.2.0",  # SQLite encryption with SQLCipher - REQUIRED for P0-1
+    # Note: pysqlcipher3 moved to optional dependencies - not actively used in v2.3.0
     "bleach[css]>=6.0.0",  # HTML sanitization with CSS support - REQUIRED
     # Background Tasks
     "celery>=5.3.0",
@@ -82,6 +83,10 @@ dev = [
 monitoring = [
     "opentelemetry-api>=1.22.0",
     "opentelemetry-sdk>=1.22.0",
+]
+
+encryption = [
+    "pysqlcipher3>=1.2.0",  # SQLite encryption with SQLCipher (requires SQLCipher C library)
 ]
 
 [build-system]

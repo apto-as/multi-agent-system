@@ -65,6 +65,7 @@ class TierEnum(str, Enum):
     FREE = "FREE"
     PRO = "PRO"
     ENTERPRISE = "ENTERPRISE"
+    ADMINISTRATOR = "ADMINISTRATOR"  # v2.4.0: Unlimited + Perpetual tier
 
 
 class LicenseFeature(str, Enum):
@@ -104,10 +105,14 @@ class TierLimits(BaseModel):
     tier: TierEnum
     max_agents: int = Field(description="Maximum number of agents")
     max_memories_per_agent: int = Field(description="Maximum memories per agent")
-    rate_limit_per_minute: int = Field(description="API rate limit per minute")
+    rate_limit_per_minute: int | None = Field(description="API rate limit per minute (None = unlimited)")
     features: list[LicenseFeature] = Field(description="Enabled features")
     max_namespace_count: int = Field(description="Maximum number of namespaces")
     support_level: str = Field(description="Support tier (Community/Email/Priority)")
+    # v2.4.0: Token budget system (Progressive Disclosure)
+    max_tokens_per_hour: int | None = Field(
+        description="Maximum tokens per hour (None = unlimited)"
+    )
 
 
 class LicenseValidationResult(BaseModel):
@@ -163,6 +168,7 @@ class LicenseService:
                 ],
                 max_namespace_count=3,
                 support_level="Community",
+                max_tokens_per_hour=10_000,  # v2.4.0: 10k tokens/hour (Phase 2D-2)
             ),
             TierEnum.PRO: TierLimits(
                 tier=TierEnum.PRO,
@@ -186,12 +192,13 @@ class LicenseService:
                 ],
                 max_namespace_count=10,
                 support_level="Email",
+                max_tokens_per_hour=50_000,  # v2.4.0: 50k tokens/hour (Phase 2D-2)
             ),
             TierEnum.ENTERPRISE: TierLimits(
                 tier=TierEnum.ENTERPRISE,
                 max_agents=1000,
                 max_memories_per_agent=100000,
-                rate_limit_per_minute=1000,
+                rate_limit_per_minute=1_000_000,  # v2.4.0: DoS threshold only
                 features=[
                     # All features (FREE + PRO + ENTERPRISE)
                     LicenseFeature.MEMORY_STORE,
@@ -218,6 +225,41 @@ class LicenseService:
                 ],
                 max_namespace_count=100,
                 support_level="Priority",
+                max_tokens_per_hour=None,  # v2.4.0: Unlimited tokens
+            ),
+            # v2.4.0: ADMINISTRATOR tier (unlimited + perpetual)
+            TierEnum.ADMINISTRATOR: TierLimits(
+                tier=TierEnum.ADMINISTRATOR,
+                max_agents=10000,  # Practically unlimited
+                max_memories_per_agent=1_000_000,  # Practically unlimited
+                rate_limit_per_minute=None,  # No rate limits
+                features=[
+                    # All features (same as ENTERPRISE)
+                    LicenseFeature.MEMORY_STORE,
+                    LicenseFeature.MEMORY_SEARCH,
+                    LicenseFeature.TASK_CREATE,
+                    LicenseFeature.AGENT_STATUS,
+                    LicenseFeature.MEMORY_STATS,
+                    LicenseFeature.CACHE_INVALIDATE,
+                    LicenseFeature.EXPIRATION_PRUNE,
+                    LicenseFeature.EXPIRATION_STATS,
+                    LicenseFeature.MEMORY_TTL,
+                    LicenseFeature.NAMESPACE_CLEANUP,
+                    LicenseFeature.NAMESPACE_STATS,
+                    LicenseFeature.SCHEDULER_STATUS,
+                    LicenseFeature.SCHEDULER_CONFIGURE,
+                    LicenseFeature.SCHEDULER_START,
+                    LicenseFeature.SCHEDULER_STOP,
+                    LicenseFeature.SCHEDULER_TRIGGER,
+                    LicenseFeature.VERIFY_AND_RECORD,
+                    LicenseFeature.TRUST_SCORE,
+                    LicenseFeature.VERIFICATION_HISTORY,
+                    LicenseFeature.VERIFICATION_STATISTICS,
+                    LicenseFeature.TRUST_HISTORY,
+                ],
+                max_namespace_count=1000,  # Practically unlimited
+                support_level="Premium",
+                max_tokens_per_hour=None,  # v2.4.0: Unlimited + Perpetual
             ),
         }
 

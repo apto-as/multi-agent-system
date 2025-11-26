@@ -93,7 +93,7 @@ claim_content = {
     "tolerance": 0.05  # ±5% acceptable (default: 0.05)
 }
 
-# With pattern linkage (Phase 2A)
+# With pattern linkage (Phase 2A) - NEW
 claim_content = {
     "return_code": 0,
     "output_contains": ["PASSED"],
@@ -104,6 +104,27 @@ claim_content = {
 claim_content = {
     "exact_match": {"status": "success", "count": 42}
 }
+```
+
+**Pattern Linkage Behavior (NEW in Phase 2A)**:
+
+When `pattern_id` is provided in `claim_content`:
+1. **Trust Boost**: Accurate verifications receive an additional +0.02 trust score boost (on top of base +0.05)
+2. **Trust Penalty**: Inaccurate verifications receive an additional -0.02 penalty (on top of base -0.05)
+3. **Eligibility Rules** (V-VERIFY-4):
+   - Pattern must have `access_level` of PUBLIC or SYSTEM
+   - Pattern must NOT be owned by the agent being verified (prevents self-boosting)
+4. **Graceful Degradation**: If pattern propagation fails, verification still completes with base trust update
+
+**Example Trust Score Calculation**:
+```python
+# Without pattern linkage
+accurate=True:  0.500 + 0.050 = 0.550
+accurate=False: 0.500 - 0.050 = 0.450
+
+# With pattern linkage
+accurate=True:  0.500 + 0.050 + 0.020 = 0.570
+accurate=False: 0.500 - 0.050 - 0.020 = 0.430
 ```
 
 **Returns**:
@@ -143,8 +164,32 @@ VerificationResult(
 - **V-VERIFY-1**: Command validated against ALLOWED_COMMANDS (prevents command injection)
 - **V-VERIFY-2**: Verifier RBAC check (requires AGENT/ADMIN role) (NEW - P1 fix)
 - **V-VERIFY-3**: Namespace verified from database (prevents cross-tenant access)
-- **V-VERIFY-4**: Pattern eligibility validated (public/system only, not self-owned)
-- **V-TRUST-5**: Self-verification prevented (verified_by_agent_id != agent_id)
+- **V-VERIFY-4**: Pattern eligibility validated (public/system only, not self-owned) (NEW - P1 fix)
+- **V-TRUST-5**: Self-verification prevented (verified_by_agent_id != agent_id) (NEW - P1 fix)
+
+**P1 Security Enhancements**:
+
+Phase 2A introduced three critical security fixes:
+
+1. **V-VERIFY-2: Verifier Authorization**
+   - Only agents with `AGENT` or `ADMIN` roles can perform verifications
+   - `OBSERVER` role agents are blocked with `ValidationError`
+   - Prevents observers from manipulating trust scores
+   - Error: `"Verifier 'agent-id' requires AGENT or ADMIN role, has observer"`
+
+2. **V-VERIFY-4: Pattern Eligibility Validation**
+   - Only PUBLIC or SYSTEM patterns can propagate trust updates
+   - PRIVATE patterns are rejected to prevent gaming trust scores
+   - Self-owned patterns are rejected to prevent self-boosting
+   - Error: `"Pattern not eligible: Pattern 'name' is private, not eligible for trust updates"`
+   - Error: `"Pattern not eligible: Agent cannot boost trust via own pattern 'name'"`
+
+3. **V-TRUST-5: Self-Verification Prevention**
+   - Agents cannot verify their own claims (`agent_id == verified_by_agent_id`)
+   - Prevents self-boosting of trust scores
+   - Error: `"Self-verification not allowed: agent artemis-optimizer cannot verify own claims"`
+
+See [PHASE2A_SECURITY_FIXES.md](../security/PHASE2A_SECURITY_FIXES.md) for detailed threat models and test coverage.
 
 **Example 1**: Basic verification
 ```python

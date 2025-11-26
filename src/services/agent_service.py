@@ -861,11 +861,16 @@ class AgentService:
     ) -> list[Agent]:
         """Search agents by name, capabilities, or other attributes."""
         try:
+            # V-3 MITIGATION: Escape wildcards to prevent DoS
+            from src.security.query_builder import SecureQueryBuilder
+
+            escaped_query, escape_char = SecureQueryBuilder.safe_like_pattern(query)
+
             # Simple text search - could be enhanced with full-text search
             search_query = select(Agent).where(
-                (Agent.display_name.ilike(f"%{query}%"))
-                | (Agent.agent_id.ilike(f"%{query}%"))
-                | (Agent.agent_type.ilike(f"%{query}%")),
+                (Agent.display_name.ilike(f"%{escaped_query}%", escape=escape_char))
+                | (Agent.agent_id.ilike(f"%{escaped_query}%", escape=escape_char))
+                | (Agent.agent_type.ilike(f"%{escaped_query}%", escape=escape_char)),
             )
 
             if namespace:

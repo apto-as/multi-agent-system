@@ -684,6 +684,248 @@ async def example_verification_statistics(session: AsyncSession):
 
 ---
 
+## Example 13: Verify Performance Optimization with Pattern Linkage (NEW)
+
+### Scenario
+Verify that a performance optimization (database index addition) improves query speed and link to a public optimization pattern for trust boost.
+
+### Code
+
+```python
+async def example_performance_optimization_with_pattern(session: AsyncSession):
+    """Verify performance optimization with pattern linkage"""
+    from src.models.learning_pattern import LearningPattern
+    from uuid import UUID
+
+    service = VerificationService(session)
+
+    # 1. Create public optimization pattern (shared knowledge)
+    pattern = LearningPattern(
+        agent_id="artemis-optimizer",
+        pattern_name="database-index-optimization",
+        pattern_type="performance_optimization",
+        description="Adding database indexes reduces query time by 60-85%",
+        access_level="public",  # Public pattern - eligible for trust propagation
+        namespace="engineering",
+        success_count=15,
+        total_usage_count=18,
+        metadata={
+            "optimization_type": "database_index",
+            "avg_improvement_pct": 72.5,
+            "examples": [
+                "idx_learning_patterns_agent_performance: -85%",
+                "idx_pattern_usage_agent_success_time: -81%",
+                "idx_workflow_executions_error_analysis: -60%"
+            ]
+        }
+    )
+    session.add(pattern)
+    await session.commit()
+
+    # 2. Verify optimization claim with pattern linkage
+    result = await service.verify_claim(
+        agent_id="artemis-optimizer",
+        claim_type=ClaimType.PERFORMANCE_METRIC,
+        claim_content={
+            "metrics": {
+                "query_time_before_ms": 2000.0,
+                "query_time_after_ms": 300.0,
+                "improvement_pct": 85.0
+            },
+            "tolerance": 0.1,  # ±10% acceptable
+            "pattern_id": str(pattern.id)  # Link to optimization pattern
+        },
+        verification_command="python scripts/benchmark_database_queries.py --json"
+    )
+
+    # 3. Display results
+    print(f"✅ Verification accurate: {result.accurate}")
+    print(f"📊 New trust score: {result.new_trust_score:.3f}")
+
+    # 4. Show pattern propagation details
+    prop = result.propagation_result
+    print(f"\n🔗 Pattern Propagation:")
+    print(f"  - Pattern: {pattern.pattern_name}")
+    print(f"  - Propagated: {prop['propagated']}")
+    print(f"  - Trust delta: {prop['trust_delta']:+.3f}")
+    print(f"  - Reason: {prop['reason']}")
+
+    # 5. Show performance metrics
+    actual_metrics = result.actual.get("metrics", {})
+    print(f"\n📈 Performance Metrics:")
+    print(f"  - Before: {actual_metrics.get('query_time_before_ms')}ms")
+    print(f"  - After: {actual_metrics.get('query_time_after_ms')}ms")
+    print(f"  - Improvement: {actual_metrics.get('improvement_pct')}%")
+
+    return result
+```
+
+### Expected Output
+
+```
+✅ Verification accurate: True
+📊 New trust score: 0.570
+
+🔗 Pattern Propagation:
+  - Pattern: database-index-optimization
+  - Propagated: True
+  - Trust delta: +0.020
+  - Reason: Pattern success propagated
+
+📈 Performance Metrics:
+  - Before: 2000.0ms
+  - After: 300.0ms
+  - Improvement: 85.0%
+```
+
+### Trust Score Breakdown
+
+```
+Initial score:      0.500
+Verification boost: +0.050  (accurate=True, performance claim verified)
+Pattern boost:      +0.020  (public optimization pattern success)
+───────────────────────────
+Final score:        0.570
+```
+
+### Key Benefits
+
+1. **Knowledge Sharing**: Public pattern shares optimization knowledge across team
+2. **Trust Boost**: Artemis gains +0.02 additional trust for using proven pattern
+3. **Pattern Reinforcement**: Pattern's success_count increments (15 → 16)
+4. **Verification Evidence**: Performance metrics permanently recorded in memory
+
+---
+
+## Example 14: Graceful Degradation - Pattern Propagation Failure (NEW)
+
+### Scenario
+Demonstrate that verification succeeds even when pattern propagation encounters an error (database timeout, network issue, etc.).
+
+### Code
+
+```python
+async def example_graceful_degradation_propagation_error(session: AsyncSession):
+    """Verification completes despite pattern propagation database error"""
+    from src.models.learning_pattern import LearningPattern
+    from src.services.learning_trust_integration import LearningTrustIntegration
+    from unittest.mock import AsyncMock, patch
+
+    service = VerificationService(session)
+
+    # 1. Create valid public pattern
+    pattern = LearningPattern(
+        agent_id="hestia-auditor",  # Different agent (not self-owned)
+        pattern_name="security-audit-pattern",
+        pattern_type="security",
+        access_level="public",
+        namespace="security",
+        success_count=42
+    )
+    session.add(pattern)
+    await session.commit()
+
+    # 2. Mock LearningTrustIntegration to simulate database timeout
+    with patch.object(
+        LearningTrustIntegration,
+        'propagate_learning_success',
+        new_callable=AsyncMock
+    ) as mock_propagate:
+        # Simulate database timeout during trust update
+        from src.core.exceptions import DatabaseError
+        mock_propagate.side_effect = DatabaseError(
+            "Database timeout during trust update",
+            details={"timeout_ms": 5000}
+        )
+
+        # 3. Verification should still succeed
+        result = await service.verify_claim(
+            agent_id="artemis-optimizer",
+            claim_type=ClaimType.SECURITY_FINDING,
+            claim_content={
+                "return_code": 0,
+                "output_contains": ["0 vulnerabilities"],
+                "pattern_id": str(pattern.id)  # Valid pattern
+            },
+            verification_command="bandit -r src/ -f json"
+        )
+
+    # 4. Verification succeeded despite propagation failure
+    print(f"✅ Verification accurate: {result.accurate}")
+    print(f"📊 New trust score: {result.new_trust_score:.3f}")
+
+    # 5. Pattern propagation failed gracefully
+    prop = result.propagation_result
+    print(f"\n⚠️  Pattern Propagation (Graceful Degradation):")
+    print(f"  - Propagated: {prop['propagated']}")
+    print(f"  - Pattern ID: {prop['pattern_id']}")
+    print(f"  - Trust delta: {prop['trust_delta']}")
+    print(f"  - Reason: {prop['reason']}")
+
+    # 6. Evidence still recorded
+    print(f"\n📄 Evidence recorded: {result.evidence_id}")
+    print(f"✅ Verification completed successfully (graceful degradation)")
+
+    return result
+```
+
+### Expected Output
+
+```
+✅ Verification accurate: True
+📊 New trust score: 0.550
+
+⚠️  Pattern Propagation (Graceful Degradation):
+  - Propagated: False
+  - Pattern ID: 550e8400-e29b-41d4-a716-446655440000
+  - Trust delta: 0.000
+  - Reason: Propagation error: DatabaseError
+
+📄 Evidence recorded: 12345678-1234-5678-1234-567812345678
+✅ Verification completed successfully (graceful degradation)
+```
+
+### Trust Score Breakdown
+
+```
+Initial score:      0.500
+Verification boost: +0.050  (accurate=True, verification succeeded)
+Pattern boost:      +0.000  (propagation failed, but verification continues)
+───────────────────────────
+Final score:        0.550  (base verification boost only)
+```
+
+### Error Handling Behavior
+
+| Error Type | Propagation Result | Verification Result | Trust Update |
+|------------|-------------------|---------------------|--------------|
+| Pattern not found | `propagated=False` | ✅ SUCCESS | Base boost only (+0.05) |
+| Pattern not eligible (private) | `propagated=False` | ✅ SUCCESS | Base boost only (+0.05) |
+| Pattern not eligible (self-owned) | `propagated=False` | ✅ SUCCESS | Base boost only (+0.05) |
+| Database timeout | `propagated=False` | ✅ SUCCESS | Base boost only (+0.05) |
+| Authorization error | `propagated=False` | ✅ SUCCESS | Base boost only (+0.05) |
+| Unknown error | `propagated=False` | ✅ SUCCESS | Base boost only (+0.05) |
+
+### Design Rationale
+
+**Graceful Degradation Guarantees**:
+
+1. **Verification Always Completes**: Pattern propagation failures never block verification completion
+2. **Evidence Always Recorded**: Verification evidence is saved to memory regardless of propagation status
+3. **Trust Always Updated**: Base trust score update (+0.05 or -0.05) always applies
+4. **Pattern Boost is Optional**: Additional +0.02 pattern boost is best-effort only
+
+**Error Logging**:
+- `ValidationError`, `NotFoundError`: Logged at `INFO` level (expected scenarios)
+- `DatabaseError`, `AuthorizationError`: Logged at `WARNING` level (unexpected but recoverable)
+- `Exception`: Logged at `ERROR` level (completely unexpected)
+
+**Performance Impact**:
+- Pattern propagation timeout: <50ms (99.9% of cases)
+- Graceful degradation overhead: <5ms (error handling only)
+
+---
+
 ## Running the Examples
 
 ### Setup
