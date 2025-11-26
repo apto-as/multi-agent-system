@@ -57,7 +57,10 @@ async def test_api_key_auth_with_valid_salt_hash_format(test_session: AsyncSessi
     assert context.agent_id == test_agent.agent_id
     assert context.namespace == test_agent.namespace
     assert context.auth_method == "api_key"
-    assert context.role in ["AGENT", "ADMIN"]
+    # Role should be MCPRole enum, not string
+    from src.security.mcp_auth import MCPRole
+
+    assert context.role == MCPRole.AGENT
 
 
 @pytest.mark.asyncio
@@ -82,7 +85,7 @@ async def test_api_key_auth_fails_with_invalid_hash_format(test_session: AsyncSe
 
     # Execute & Verify: Should raise authentication error
     handler = MCPAuthService()
-    with pytest.raises(MCPAuthenticationError, match="Internal authentication error"):
+    with pytest.raises(MCPAuthenticationError, match="Authentication failed"):
         await handler.authenticate_mcp_agent(
             session=test_session,
             agent_id=test_agent.agent_id,
