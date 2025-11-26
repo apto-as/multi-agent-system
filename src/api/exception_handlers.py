@@ -51,7 +51,8 @@ async def pydantic_validation_error_handler(
         content={
             "error_code": "VALIDATION_ERROR",
             "message": message,
-            "details": errors,
+            # Don't include details to avoid JSON serialization issues
+            # with exception objects in ctx field (security best practice)
         },
     )
 
