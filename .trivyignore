@@ -1,0 +1,99 @@
+# ========================================
+# Trivy Vulnerability Scanner Ignore List
+# ========================================
+# Purpose: Suppress false positives and accepted risks
+# Review: MUST be reviewed quarterly (security audit)
+# Created: 2025-11-23
+# Last Reviewed: 2025-11-23
+# Next Review: 2026-02-23
+# ========================================
+
+# ========================================
+# HOW TO USE THIS FILE
+# ========================================
+# 1. Add CVE IDs that are false positives or accepted risks
+# 2. ALWAYS include a justification comment (WHY ignored)
+# 3. ALWAYS include an expiration date or review date
+# 4. NEVER ignore CRITICAL vulnerabilities without explicit user approval
+# 5. Review this file every 3 months and remove expired entries
+#
+# Format:
+#   # [REASON] [CVE-YYYY-XXXXX] Description
+#   # Justification: Why this is safe to ignore
+#   # Expires: YYYY-MM-DD or Review: YYYY-MM-DD
+#   CVE-YYYY-XXXXX
+#
+# ========================================
+
+# ========================================
+# EXAMPLE ENTRIES (Remove before production)
+# ========================================
+# [FALSE-POSITIVE] CVE-2023-12345 - SQLite DoS via malformed database
+# Justification: TMWS controls all database files, no user-uploaded SQLite files
+# Expires: 2026-02-23 (Next quarterly review)
+# CVE-2023-12345
+
+# [ACCEPTED-RISK] CVE-2023-67890 - Python stdlib tarfile path traversal
+# Justification: TMWS does not extract tar archives, only creates them
+# Approved-By: Security Team (2025-11-23)
+# Expires: 2026-02-23
+# CVE-2023-67890
+
+# [WONT-FIX] CVE-2022-11111 - Debian apt package manager race condition
+# Justification: Base image issue, affects build-time only, not runtime
+# Mitigated-By: Multi-stage build discards vulnerable layer
+# Review: 2026-02-23
+# CVE-2022-11111
+
+# ========================================
+# ACTIVE IGNORES (TMWS v2.4.0)
+# ========================================
+# (No entries yet - all vulnerabilities must be addressed in v2.4.0)
+
+# ========================================
+# POLICY: When to Add an Ignore
+# ========================================
+# ALLOW (can be added to .trivyignore):
+#   1. False Positive: Scanner incorrectly identifies vulnerability
+#      - Example: CVE affects Windows, but TMWS uses Linux
+#   2. Build-Time Only: Vulnerability in builder stage, not in final image
+#      - Example: gcc CVE, but gcc not in runtime image
+#   3. Not Exploitable: Vulnerability exists but attack vector is blocked
+#      - Example: File upload CVE, but TMWS doesn't accept uploads
+#   4. Accepted Risk: User explicitly approves ignoring for valid reason
+#      - Example: Legacy dependency required for compatibility
+#
+# DENY (MUST be fixed, cannot ignore):
+#   1. CRITICAL severity in runtime dependencies
+#   2. Exploitable via TMWS attack surface (MCP API, CLI)
+#   3. Affects data confidentiality/integrity/availability
+#   4. No compensating controls or mitigations
+#
+# ========================================
+# QUARTERLY REVIEW CHECKLIST
+# ========================================
+# [ ] All entries have valid justifications
+# [ ] All entries have expiration or review dates
+# [ ] Expired entries have been removed or renewed
+# [ ] No CRITICAL vulnerabilities ignored without approval
+# [ ] New CVE data checked for ignored vulnerabilities
+# [ ] Ignored vulnerabilities re-assessed for exploitability
+# [ ] Updated "Last Reviewed" date at top of file
+#
+# ========================================
+# APPROVAL PROCESS FOR IGNORES
+# ========================================
+# LOW/MEDIUM: Developer can add with justification
+# HIGH: Security lead approval required (Hestia sign-off)
+# CRITICAL: User + Security lead + Technical lead approval (Hestia + Artemis + User)
+#
+# ========================================
+# CONTACTS
+# ========================================
+# Security Lead: Hestia (hestia-auditor@tmws.ai)
+# Technical Lead: Artemis (artemis-optimizer@tmws.ai)
+# Issue Tracker: https://github.com/apto-as/tmws/security/advisories
+#
+# ========================================
+# END OF FILE
+# ========================================
