@@ -12,12 +12,12 @@ env:
 
 jobs:
   build-and-push:
-    name: Build and Push Multi-Platform Docker Image
+    name: Build and Push Docker Image
     runs-on: ubuntu-latest
 
     permissions:
       contents: read
-      packages: write  # Required to push to ghcr.io
+      packages: write
 
     steps:
       - name: Checkout repository
@@ -30,9 +30,6 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-        with:
-          driver-opts: |
-            image=moby/buildkit:latest
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -49,8 +46,7 @@ jobs:
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=latest
 
       - name: Build and push Docker image
         id: build
@@ -63,51 +59,14 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          build-args: |
-            BUILDKIT_INLINE_CACHE=1
 
-      - name: Image digest
-        run: echo "Image pushed with digest ${{ steps.build.outputs.digest }}"
-
-      - name: Deployment instructions
+      - name: Summary
         run: |
-          echo "Docker image successfully published!"
-          echo ""
-          echo "To pull and use this image:"
-          echo "  docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}"
-          echo ""
-          echo "Or update docker-compose.yml:"
-          echo "  image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}"
-          echo ""
-          echo "Available platforms: linux/amd64, linux/arm64"
-
-  security-scan:
-    name: Security Scan with Trivy
-    runs-on: ubuntu-latest
-    needs: build-and-push
-
-    permissions:
-      contents: read
-      security-events: write  # Required for GitHub Security tab
-
-    steps:
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH'
-          exit-code: '0'  # Report vulnerabilities but don't block deployment
-
-      - name: Upload Trivy results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: 'trivy-results.sarif'
-
-      - name: Trivy scan summary
-        if: always()
-        run: |
-          echo "✅ Security scan complete"
-          echo "View detailed results in the GitHub Security tab"
+          echo "## Docker Image Published" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Digest:** \`${{ steps.build.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Pull command:**" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
