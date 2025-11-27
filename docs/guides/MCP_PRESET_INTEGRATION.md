@@ -66,7 +66,8 @@ On first run, TMWS automatically creates `~/.tmws/mcp.json` with these default s
 
 - **context7**: Documentation lookup (auto-connect)
 - **playwright**: Browser automation (auto-connect)
-- **gdrive**: Google Drive access (manual connect, requires OAuth)
+- **serena**: Code analysis (auto-connect)
+- **chrome-devtools**: Chrome DevTools (manual connect, requires `chrome --remote-debugging-port=9222`)
 
 You can edit this file to add, remove, or modify MCP server configurations.
 
@@ -209,24 +210,6 @@ Use `${VAR_NAME}` syntax to reference environment variables:
 }
 ```
 
-### Google Drive (File Access)
-
-```json
-{
-  "mcpServers": {
-    "gdrive": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@anthropic/mcp-gdrive"],
-      "env": {
-        "GDRIVE_CREDENTIALS_PATH": "${HOME}/.config/gdrive/credentials.json"
-      },
-      "autoConnect": false
-    }
-  }
-}
-```
-
 ### Custom HTTP Server
 
 ```json
@@ -269,19 +252,13 @@ Use `${VAR_NAME}` syntax to reference environment variables:
     "serena": {
       "type": "stdio",
       "command": "uvx",
-      "args": ["serena-mcp-server"],
-      "env": {
-        "SERENA_PROJECT_PATH": "${PWD}"
-      },
-      "autoConnect": false
+      "args": ["--from", "serena-mcp-server", "serena"],
+      "autoConnect": true
     },
-    "gdrive": {
+    "chrome-devtools": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@anthropic/mcp-gdrive"],
-      "env": {
-        "GDRIVE_CREDENTIALS_PATH": "${HOME}/.config/gdrive/credentials.json"
-      },
+      "args": ["-y", "@anthropic/mcp-chrome-devtools@latest"],
       "autoConnect": false
     },
     "custom-http": {
