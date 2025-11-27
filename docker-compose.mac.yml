@@ -1,5 +1,5 @@
 # ========================================
-# TMWS v2.3.1 - Mac Hybrid Mode
+# TMWS v2.4.0 - Mac Hybrid Mode
 # ========================================
 # Architecture:
 #   - Ollama: Native (host, Metal GPU acceleration)
@@ -7,17 +7,10 @@
 # Connection: http://host.docker.internal:11434
 # ========================================
 
-version: '3.8'
-
 services:
   tmws:
-    # Option 1: Build from source
-    build:
-      context: .
-      dockerfile: Dockerfile
-
-    # Option 2: Use pre-built image (uncomment after first release)
-    # image: ghcr.io/apto-as/tmws:v2.3.1
+    # Use pre-built image from GitHub Container Registry
+    image: ghcr.io/apto-as/tmws:latest
 
     container_name: tmws-app
     hostname: tmws
