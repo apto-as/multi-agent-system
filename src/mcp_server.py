@@ -7,8 +7,14 @@ MCP Server providing Trinitas agents with:
 - SQLite as relational data store
 - Agent coordination and task management
 
-Phase: 4b (TMWS v2.2.6 - SQLite + ChromaDB architecture)
+Architecture: SQLite + ChromaDB
 """
+from importlib.metadata import version as get_version
+
+try:
+    __version__ = get_version("tmws")
+except Exception:
+    __version__ = "2.4.0"  # Fallback
 
 import asyncio
 import logging
@@ -119,7 +125,7 @@ class HybridMCPServer:
         }
 
         # MCP server setup
-        self.mcp = FastMCP(name="tmws", version="2.2.6")
+        self.mcp = FastMCP(name="tmws", version=__version__)
 
         # Register MCP tools
         self._register_tools()
@@ -798,7 +804,7 @@ def first_run_setup():
     if not INITIALIZED_FLAG.exists():
         # Output to stderr for visibility
         print("=" * 60, file=sys.stderr)
-        print("🚀 TMWS v2.2.6 - First-time Setup", file=sys.stderr)
+        print(f"🚀 TMWS v{__version__} - First-time Setup", file=sys.stderr)
         print("=" * 60, file=sys.stderr)
         print(file=sys.stderr)
         print(f"📁 Data directory: {TMWS_HOME}", file=sys.stderr)
@@ -895,7 +901,7 @@ async def async_main():
         await server.initialize()
 
         logger.info(
-            "🚀 TMWS v2.2.6 MCP Server Started\n"
+            f"🚀 TMWS v{__version__} MCP Server Started\n"
             "   Architecture: Hybrid (SQLite + Chroma)\n"
             "   Embeddings: Multilingual-E5 (1024-dim)\n"
             "   Vector Search: Chroma (P95: 0.47ms)\n"
