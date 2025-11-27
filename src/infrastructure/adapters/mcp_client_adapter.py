@@ -230,11 +230,10 @@ class MCPClientAdapter:
                 # Use ACL to convert MCP error to exception
                 exc = self._translator.mcp_error_to_exception(error_data)
                 raise exc
-            else:
-                raise MCPToolNotFoundError(
-                    tool_name,
-                    available_tools=[]
-                )
+            raise MCPToolNotFoundError(
+                tool_name,
+                available_tools=[]
+            )
 
         if response.status_code != 200:
             raise MCPProtocolError(

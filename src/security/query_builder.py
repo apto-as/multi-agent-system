@@ -135,7 +135,7 @@ class SecureQueryBuilder:
             ... )
         """
         # Validate all column names against model schema
-        for column_name in filters.keys():
+        for column_name in filters:
             if not hasattr(model, column_name):
                 msg = f"Invalid column name: {column_name} not in {model.__name__}"
                 raise ValueError(msg)

@@ -38,8 +38,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .agent import AccessLevel
 from .base import TMWSBase
 
-if TYPE_CHECKING:
-    pass
 
 
 class Skill(TMWSBase):

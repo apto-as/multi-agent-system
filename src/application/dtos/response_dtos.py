@@ -212,7 +212,7 @@ class SkillDTO(BaseModel):
                 updated_at=skill.updated_at,
                 is_deleted=skill.is_deleted,
             )
-        
+
         # detail_level=2: Metadata + Core Instructions
         elif detail_level == 2:
             return cls(
@@ -234,7 +234,7 @@ class SkillDTO(BaseModel):
                 updated_at=skill.updated_at,
                 is_deleted=skill.is_deleted,
             )
-        
+
         # detail_level=3: Full Content
         else:
             return cls(

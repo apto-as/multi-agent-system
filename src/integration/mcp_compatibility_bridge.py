@@ -142,12 +142,11 @@ class MCPCompatibilityBridge:
                     # Try WebSocket first if available
                     if self.connection_established and self.websocket_client:
                         return await self._call_via_websocket(tool_func.__name__, args, kwargs)
+                    # Fallback to direct function call
+                    elif asyncio.iscoroutinefunction(tool_func):
+                        return await tool_func(*args, **kwargs)
                     else:
-                        # Fallback to direct function call
-                        if asyncio.iscoroutinefunction(tool_func):
-                            return await tool_func(*args, **kwargs)
-                        else:
-                            return tool_func(*args, **kwargs)
+                        return tool_func(*args, **kwargs)
                 except (KeyboardInterrupt, SystemExit):
                     logger.critical(f"🚨 User interrupt during {tool_name} execution")
                     raise

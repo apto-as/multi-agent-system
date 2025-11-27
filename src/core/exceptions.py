@@ -293,5 +293,4 @@ def log_and_raise(
     exc = exception_class(message, details=details, log_level=log_level)
     if original_exception:
         raise exc from original_exception
-    else:
-        raise exc
+    raise exc

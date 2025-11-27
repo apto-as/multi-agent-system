@@ -25,7 +25,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.agent import Agent, AgentStatus
-from ..security.agent_auth import AgentAuthService
 from ..security.jwt_service import JWTService
 
 logger = logging.getLogger(__name__)
@@ -120,7 +119,6 @@ class MCPAuthService:
 
     def __init__(self):
         """Initialize MCP auth service with security dependencies."""
-        self.agent_auth = AgentAuthService()
         self.jwt_service = JWTService()
 
         # REQ-5: Operation → Required Role mapping

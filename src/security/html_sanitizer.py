@@ -195,7 +195,7 @@ class HTMLSanitizer:
         )
 
         # Apply CSS sanitization if configured
-        if "css_sanitizer" in self.config and self.config["css_sanitizer"]:
+        if self.config.get("css_sanitizer"):
             cleaned = self._sanitize_css(cleaned)
 
         return cleaned

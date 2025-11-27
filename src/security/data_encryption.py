@@ -326,7 +326,7 @@ class MemoryEncryption:
         encrypted_memory = memory_data.copy()
 
         # Encrypt main content
-        if "content" in memory_data and memory_data["content"]:
+        if memory_data.get("content"):
             encrypted_content = await self.field_encryption.encrypt_field(
                 memory_data["content"], "content", agent_id, DataClassification.CONFIDENTIAL,
             )
@@ -349,7 +349,7 @@ class MemoryEncryption:
                     metadata.pop(key, None)
 
         # Encrypt embeddings if present
-        if "embeddings" in memory_data and memory_data["embeddings"]:
+        if memory_data.get("embeddings"):
             encrypted_embeddings = await self.field_encryption.encrypt_field(
                 memory_data["embeddings"], "embeddings", agent_id, DataClassification.INTERNAL,
             )
