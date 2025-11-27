@@ -1,6 +1,6 @@
 # MCP Preset Integration Guide
 
-**Version**: v2.4.2+
+**Version**: v2.4.3+
 **Status**: Production Ready
 **Created**: 2025-11-27
 
@@ -337,6 +337,162 @@ For slow-starting servers:
 2. **Version control `.mcp.json.example`**: Include example with placeholders
 3. **Use `.gitignore`**: Exclude actual `.mcp.json` if it contains sensitive paths
 4. **Audit `autoConnect`**: Only auto-connect servers you trust
+
+## Dynamic Server Management (v2.4.3+)
+
+TMWS provides MCP tools that allow agents to dynamically connect to and disconnect from preset MCP servers at runtime. This is useful for servers configured with `autoConnect: false`.
+
+### Available Tools
+
+#### `list_mcp_servers`
+
+Lists all MCP servers defined in presets with their current connection status.
+
+**Usage Example (Agent conversation)**:
+```
+User: "What MCP servers are available?"
+Agent: [calls list_mcp_servers]
+```
+
+**Response**:
+```json
+{
+  "status": "success",
+  "server_count": 4,
+  "servers": [
+    {
+      "name": "context7",
+      "transport_type": "stdio",
+      "auto_connect": true,
+      "is_connected": true,
+      "tool_count": 5
+    },
+    {
+      "name": "chrome-devtools",
+      "transport_type": "stdio",
+      "auto_connect": false,
+      "is_connected": false,
+      "tool_count": 0
+    }
+  ]
+}
+```
+
+#### `connect_mcp_server`
+
+Connects to a preset MCP server by name.
+
+**Parameters**:
+- `server_name` (string, required): Name of the server as defined in presets
+
+**Usage Example**:
+```
+User: "chrome-devtoolsを使えるようにして"
+Agent: [calls connect_mcp_server with server_name="chrome-devtools"]
+```
+
+**Response (success)**:
+```json
+{
+  "status": "connected",
+  "server": "chrome-devtools",
+  "transport_type": "stdio",
+  "tool_count": 12,
+  "tools": ["browser_navigate", "browser_click", ...]
+}
+```
+
+**Response (already connected)**:
+```json
+{
+  "status": "already_connected",
+  "server": "chrome-devtools",
+  "tool_count": 12
+}
+```
+
+**Response (not found)**:
+```json
+{
+  "status": "error",
+  "error": "Server 'unknown' not found in presets",
+  "available_servers": ["context7", "playwright", "serena", "chrome-devtools"]
+}
+```
+
+#### `disconnect_mcp_server`
+
+Disconnects from an MCP server.
+
+**Parameters**:
+- `server_name` (string, required): Name of the server to disconnect
+
+**Usage Example**:
+```
+User: "chrome-devtoolsを切断して"
+Agent: [calls disconnect_mcp_server with server_name="chrome-devtools"]
+```
+
+**Response**:
+```json
+{
+  "status": "disconnected",
+  "server": "chrome-devtools"
+}
+```
+
+#### `get_mcp_status`
+
+Gets the current status of all MCP server connections.
+
+**Response**:
+```json
+{
+  "status": "success",
+  "connected_count": 3,
+  "connections": [
+    {
+      "name": "context7",
+      "is_connected": true,
+      "tool_count": 5
+    }
+  ],
+  "total_tools": 17
+}
+```
+
+### Security Considerations
+
+1. **Preset-Only Connections**: Only servers defined in `~/.tmws/mcp.json` or `.mcp.json` can be connected. This prevents arbitrary command execution.
+
+2. **Connection Limit**: Maximum 10 concurrent connections to prevent resource exhaustion.
+
+3. **No Direct Command Execution**: Agents cannot specify arbitrary commands - they can only reference predefined presets.
+
+### Example Workflow
+
+```
+# 1. User asks to enable chrome-devtools
+User: "Chrome DevToolsを有効にして"
+
+# 2. Agent lists available servers
+Agent: [list_mcp_servers]
+→ Sees chrome-devtools is available but not connected
+
+# 3. Agent connects to the server
+Agent: [connect_mcp_server server_name="chrome-devtools"]
+→ Server connected, 12 tools now available
+
+# 4. Agent confirms to user
+Agent: "Chrome DevToolsに接続しました。12個のツールが利用可能になりました。"
+
+# 5. User finishes using chrome-devtools
+User: "Chrome DevToolsの使用を終了"
+
+# 6. Agent disconnects
+Agent: [disconnect_mcp_server server_name="chrome-devtools"]
+→ Server disconnected
+```
 
 ## API Reference
 
