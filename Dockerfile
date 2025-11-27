@@ -68,17 +68,19 @@ RUN python -m compileall -b /tmp/wheel
 RUN find /tmp/wheel -name "*.py" ! -path "*/bin/*" ! -path "*/scripts/*" -delete
 
 # 4. Repackage as bytecode-only wheel (replace original)
-# Use dynamic version from pyproject.toml
+# Use dynamic version from pyproject.toml (first match only - project version)
 RUN rm -f /build/dist/*.whl && \
     cd /tmp/wheel && \
-    TMWS_VERSION=$(grep -oP 'version = "\K[^"]+' /build/pyproject.toml) && \
-    zip -qr /build/dist/tmws-${TMWS_VERSION}-py3-none-any.whl . && \
+    TMWS_VERSION=$(grep -oP '^version = "\K[^"]+' /build/pyproject.toml | head -1) && \
+    echo "Building wheel version: ${TMWS_VERSION}" && \
+    zip -qr "/build/dist/tmws-${TMWS_VERSION}-py3-none-any.whl" . && \
+    ls -la /build/dist/ && \
     rm -rf /tmp/wheel
 
 # Verify bytecode wheel was created
-RUN ls -lh dist/*.whl && \
-    echo "Bytecode wheel created: $(ls dist/*.whl)" && \
-    unzip -l dist/*.whl | grep -E '\.pyc|\.py' | head -n 10
+RUN ls -lh /build/dist/*.whl && \
+    echo "Bytecode wheel created: $(ls /build/dist/*.whl)" && \
+    unzip -l /build/dist/*.whl | grep -E '\.pyc|\.py' | head -n 10
 
 # ========================================
 # Stage 2: Runtime (PRODUCTION)
@@ -123,10 +125,13 @@ RUN pip install --no-cache-dir uv
 # Step 2: Install bytecode-only wheel without dependencies (--no-deps)
 # This three-step process ensures C extensions are pre-built in builder stage,
 # dependencies are installed from PyPI, and TMWS code comes from bytecode-only wheel
+# Note: Use find to get exact wheel filename without shell expansion issues
 RUN cd /tmp && \
-    pip install --no-cache-dir wheels/*.whl && \
+    pip install --no-cache-dir wheels/pysqlcipher3*.whl && \
     uv pip install --system --no-cache . && \
-    uv pip install --system --no-cache --no-deps --force-reinstall tmws-*.whl && \
+    TMWS_WHL=$(find . -maxdepth 1 -name 'tmws-*.whl' -type f | head -1) && \
+    echo "Installing TMWS wheel: ${TMWS_WHL}" && \
+    pip install --no-cache-dir --no-deps --force-reinstall "${TMWS_WHL}" && \
     cd / && \
     rm -rf /tmp/* && \
     pip uninstall -y uv && \
