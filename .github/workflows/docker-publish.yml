@@ -18,6 +18,7 @@ jobs:
     permissions:
       contents: read
       packages: write  # Required to push to ghcr.io
+      id-token: write  # Required for artifact attestation (OIDC)
 
     steps:
       - name: Checkout repository
