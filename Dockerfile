@@ -89,7 +89,7 @@ RUN ls -lh /build/dist/*.whl && \
 FROM python:3.11-slim@sha256:193fdd0bbcb3d2ae612bd6cc3548d2f7c78d65b549fcaa8af75624c47474444d
 
 LABEL maintainer="Trinitas Development Team <dev@trinitas.ai>"
-LABEL version="2.4.1"
+LABEL version="2.4.2"
 LABEL description="TMWS MCP Server - SQLite + ChromaDB architecture + Trinitas Agents + Ed25519 License"
 
 WORKDIR /app
