@@ -4,46 +4,55 @@ License Service - TMWS License Key Management and Validation
 This service provides license key generation, validation, and tier-based
 feature enforcement for the TMWS system.
 
-Security (Phase 2E-2: Signature-Only Validation):
+Security (Phase 2E-2: Signature-Only Validation + Phase 2E-1: Ed25519):
 - Database-independent validation (tampering has zero effect)
-- HMAC-SHA256 cryptographic signatures (2^256 keyspace)
+- Ed25519 signature verification (primary, v2.4.1+)
+- HMAC-SHA256 fallback for legacy keys (v2.4.0 and earlier)
 - Constant-time comparison for timing attack resistance
 - Expiry date embedded in license key (not fetched from database)
 - Offline-first validation (no network or database dependency)
 - Usage tracking is optional (best-effort, does not affect validation)
 
-License Key Format (Version 2):
-    TMWS-{TIER}-{UUID}-{EXPIRY}-{SIGNATURE}
+License Key Format (Version 3 - Ed25519):
+    TMWS-{TIER}-{UUID}-{EXPIRY}-{ED25519_SIGNATURE_B64}
 
     Example (Perpetual):
-        TMWS-ENTERPRISE-550e8400-e29b-41d4-a716-446655440000-PERPETUAL-a7f3b9c2d1e4f5a6
+        TMWS-ENTERPRISE-550e8400-e29b-41d4-a716-446655440000-PERPETUAL-base64signature...
 
     Example (Time-Limited):
+        TMWS-PRO-550e8400-e29b-41d4-a716-446655440000-20261117-base64signature...
+
+Legacy Format (Version 2 - HMAC):
+    TMWS-{TIER}-{UUID}-{EXPIRY}-{HMAC_HEX_16}
+
+    Example:
         TMWS-PRO-550e8400-e29b-41d4-a716-446655440000-20261117-a7f3b9c2d1e4f5a6
 
 Tiers:
 - FREE: Basic features (6 MCP tools, 60 req/min)
 - PRO: Professional features (11 MCP tools, 300 req/min)
 - ENTERPRISE: Full features (21 MCP tools, 1000 req/min)
+- ADMINISTRATOR: Unlimited + Perpetual (internal use)
 
 Security Properties:
-- User cannot forge license keys without SECRET_KEY
+- User cannot forge license keys without Trinitas PRIVATE KEY
 - User cannot modify tier, expiry, or UUID without invalidating signature
 - Database tampering has ZERO effect on validation
+- Docker image contains only PUBLIC KEY (safe to distribute)
 - Performance: <5ms P95 (pure crypto, no I/O)
 
 Author: Artemis (Technical Perfectionist)
 Created: 2025-11-14
-Updated: 2025-11-17 (Phase 2E-2: Signature-Only Validation)
-Version: 2.0.0
+Updated: 2025-11-27 (Phase 2E-1: Ed25519 Public Key Verification)
+Version: 3.0.0
 """
 
+import base64
 import hashlib
 import hmac
-import secrets
+import logging
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Optional
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
@@ -57,6 +66,18 @@ from src.core.exceptions import (
 )
 from src.models.agent import Agent
 from src.models.license_key import LicenseKey, LicenseKeyUsage
+
+# Ed25519 signature verification (v2.4.1+)
+try:
+    from cryptography.exceptions import InvalidSignature
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+    ED25519_AVAILABLE = True
+except ImportError:
+    ED25519_AVAILABLE = False
+    Ed25519PublicKey = None
+    InvalidSignature = Exception  # Placeholder
+
+logger = logging.getLogger(__name__)
 
 
 class TierEnum(str, Enum):
@@ -119,14 +140,14 @@ class LicenseValidationResult(BaseModel):
     """Result of license key validation."""
 
     valid: bool
-    tier: Optional[TierEnum] = None
-    license_id: Optional[UUID] = None
-    issued_at: Optional[datetime] = None
-    expires_at: Optional[datetime] = None
+    tier: TierEnum | None = None
+    license_id: UUID | None = None
+    issued_at: datetime | None = None
+    expires_at: datetime | None = None
     is_expired: bool = False
     is_revoked: bool = False
-    error_message: Optional[str] = None
-    limits: Optional[TierLimits] = None
+    error_message: str | None = None
+    limits: TierLimits | None = None
 
 
 class LicenseService:
@@ -141,7 +162,7 @@ class LicenseService:
     - HMAC-SHA256 signature generation and validation
     """
 
-    def __init__(self, db_session: Optional[AsyncSession] = None):
+    def __init__(self, db_session: AsyncSession | None = None):
         """
         Initialize LicenseService.
 
@@ -150,6 +171,10 @@ class LicenseService:
         """
         self.db_session = db_session
         self.secret_key = settings.secret_key
+
+        # Initialize Ed25519 public key for signature verification (v2.4.1+)
+        self._ed25519_public_key: Ed25519PublicKey | None = None
+        self._load_ed25519_public_key()
 
         # Tier limits configuration
         self._tier_limits = {
@@ -263,12 +288,116 @@ class LicenseService:
             ),
         }
 
+    def _load_ed25519_public_key(self) -> None:
+        """
+        Load Ed25519 public key from configuration.
+
+        The public key is stored as Base64-encoded raw bytes (32 bytes).
+        This is the format output by generate_keys.py (trinitas_public.b64).
+
+        Security:
+        - Public key is safe to embed in Docker images
+        - Only Trinitas has the corresponding private key
+        - Cannot forge signatures without private key
+        """
+        if not ED25519_AVAILABLE:
+            logger.warning(
+                "cryptography package not installed - Ed25519 verification disabled"
+            )
+            return
+
+        public_key_b64 = settings.license_public_key
+        if not public_key_b64:
+            logger.info(
+                "TMWS_LICENSE_PUBLIC_KEY not set - using HMAC-SHA256 fallback"
+            )
+            return
+
+        try:
+            # Decode Base64 to raw bytes (32 bytes)
+            public_key_bytes = base64.b64decode(public_key_b64)
+
+            # Load Ed25519 public key from raw bytes
+            self._ed25519_public_key = Ed25519PublicKey.from_public_bytes(
+                public_key_bytes
+            )
+            logger.info(
+                "Ed25519 public key loaded successfully - signature verification enabled"
+            )
+        except Exception as e:
+            logger.error(
+                f"Failed to load Ed25519 public key: {e} - using HMAC fallback"
+            )
+            self._ed25519_public_key = None
+
+    def _verify_ed25519_signature(
+        self, signature_data: str, signature_b64: str
+    ) -> bool:
+        """
+        Verify Ed25519 signature.
+
+        Args:
+            signature_data: Data that was signed (tier:uuid:expiry)
+            signature_b64: Base64 URL-safe encoded signature (without padding)
+
+        Returns:
+            True if signature is valid, False otherwise
+
+        Security:
+        - Ed25519 provides 128-bit security level
+        - Signature is 64 bytes (512 bits)
+        - Constant-time verification (cryptography library handles this)
+        """
+        if not self._ed25519_public_key:
+            return False
+
+        try:
+            # Add padding if needed (URL-safe base64 without padding)
+            padding = 4 - len(signature_b64) % 4
+            if padding != 4:
+                signature_b64 += "=" * padding
+
+            # Decode signature from URL-safe Base64
+            signature_bytes = base64.urlsafe_b64decode(signature_b64)
+
+            # Verify signature (raises InvalidSignature if invalid)
+            self._ed25519_public_key.verify(
+                signature_bytes, signature_data.encode()
+            )
+            return True
+        except InvalidSignature:
+            return False
+        except Exception as e:
+            logger.warning(f"Ed25519 signature verification error: {e}")
+            return False
+
+    def _is_ed25519_signature(self, signature: str) -> bool:
+        """
+        Determine if a signature is Ed25519 (Base64) or HMAC (hex).
+
+        Ed25519 signatures are 64 bytes = 86 Base64 characters (without padding).
+        HMAC-SHA256 truncated signatures are 16 hex characters.
+
+        Args:
+            signature: The signature string to check
+
+        Returns:
+            True if signature appears to be Ed25519 format
+        """
+        # HMAC signatures are exactly 16 hex characters
+        if len(signature) == 16 and all(c in "0123456789abcdef" for c in signature.lower()):
+            return False
+
+        # Ed25519 signatures are longer and Base64-encoded
+        # 64 bytes = 86 Base64 chars (without padding) or 88 chars (with padding)
+        return len(signature) >= 80
+
     async def generate_license_key(
         self,
         agent_id: UUID,
         tier: TierEnum,
-        expires_days: Optional[int] = None,
-        license_id: Optional[UUID] = None,
+        expires_days: int | None = None,
+        license_id: UUID | None = None,
     ) -> str:
         """
         Generate a new license key with HMAC-SHA256 signature and save to database.
@@ -375,17 +504,22 @@ class LicenseService:
         return license_key
 
     async def validate_license_key(
-        self, key: str, feature_accessed: Optional[str] = None
+        self, key: str, feature_accessed: str | None = None
     ) -> LicenseValidationResult:
         """
         Validate license key using signature-only approach (NO DATABASE DEPENDENCY).
 
         Security:
         - Signature-only validation (database tampering has zero effect)
+        - Ed25519 signature verification (primary, v2.4.1+)
+        - HMAC-SHA256 fallback for legacy keys (v2.4.0 and earlier)
         - Constant-time comparison for signature (timing attack resistance)
-        - HMAC-SHA256 cryptographic signature verification
         - Expiry date embedded in license key (not fetched from database)
         - Usage tracking is optional (best-effort, does not affect validation)
+
+        Signature Detection:
+        - Ed25519: Base64 URL-safe encoded, >= 80 characters
+        - HMAC-SHA256: 16 hex characters (0-9, a-f)
 
         Args:
             key: License key to validate
@@ -396,7 +530,7 @@ class LicenseService:
 
         Example:
             >>> result = await service.validate_license_key(
-            ...     "TMWS-PRO-550e8400-e29b-41d4-a716-446655440000-20261117-a7f3b9c2",
+            ...     "TMWS-PRO-550e8400-e29b-41d4-a716-446655440000-20261117-base64sig...",
             ...     feature_accessed="memory_store"
             ... )
             >>> if result.valid:
@@ -459,16 +593,35 @@ class LicenseService:
                 )
 
         # Phase 5: Verify signature (CRITICAL - NO DATABASE)
+        # Support both Ed25519 (v2.4.1+) and HMAC-SHA256 (legacy)
         signature_data = f"{tier.value}:{license_id}:{expiry_str}"
-        expected_signature = hmac.new(
-            self.secret_key.encode(), signature_data.encode(), hashlib.sha256
-        ).hexdigest()[:16]
+        signature_valid = False
 
-        # Constant-time comparison (timing attack resistance)
-        if not hmac.compare_digest(signature_provided, expected_signature):
+        # Check signature type and verify accordingly
+        if self._is_ed25519_signature(signature_provided):
+            # Ed25519 signature verification (v2.4.1+)
+            if self._ed25519_public_key:
+                signature_valid = self._verify_ed25519_signature(
+                    signature_data, signature_provided
+                )
+            else:
+                # No public key configured - cannot verify Ed25519
+                return LicenseValidationResult(
+                    valid=False,
+                    error_message="Ed25519 license key requires TMWS_LICENSE_PUBLIC_KEY configuration",
+                )
+        else:
+            # HMAC-SHA256 signature verification (legacy)
+            expected_signature = hmac.new(
+                self.secret_key.encode(), signature_data.encode(), hashlib.sha256
+            ).hexdigest()[:16]
+            # Constant-time comparison (timing attack resistance)
+            signature_valid = hmac.compare_digest(signature_provided, expected_signature)
+
+        if not signature_valid:
             return LicenseValidationResult(
                 valid=False,
-                error_message="Invalid signature (possible tampering or incorrect SECRET_KEY)",
+                error_message="Invalid signature (possible tampering or incorrect key)",
             )
 
         # Phase 6: Check expiration
@@ -652,7 +805,7 @@ class LicenseService:
         return await self.generate_license_key(agent_id, tier, expires_days=None)
 
     async def revoke_license_key(
-        self, license_id: UUID, reason: Optional[str] = None
+        self, license_id: UUID, reason: str | None = None
     ) -> bool:
         """
         Revoke a license key, making it unusable.
