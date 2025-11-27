@@ -5,11 +5,14 @@ cross-project memory leakage (addresses CVSS 9.8 vulnerability C-1).
 """
 
 import hashlib
+import logging
 import os
 import re
 from pathlib import Path
 
 import yaml
+
+logger = logging.getLogger(__name__)
 
 
 class NamespaceError(Exception):
@@ -167,8 +170,9 @@ async def get_git_remote_url(git_root: Path) -> str | None:
         match = re.search(r'url\s*=\s*(.+)', content)
         if match:
             return match.group(1).strip()
-    except Exception:
-        pass
+    except OSError as e:
+        # File read errors (permissions, not found after check, etc.)
+        logger.debug(f"Could not read git config {git_config}: {e}")
 
     return None
 
@@ -274,8 +278,9 @@ async def detect_project_namespace() -> str:
                 namespace = sanitize_namespace(namespace)
                 validate_namespace(namespace)
                 return namespace
-        except Exception:
-            pass
+        except (OSError, yaml.YAMLError, NamespaceError) as e:
+            # File read errors, YAML parse errors, or validation errors
+            logger.debug(f"Could not load namespace from marker file {marker}: {e}")
 
     # Priority 4: Current working directory hash (fallback)
     cwd = Path.cwd().resolve()
@@ -283,8 +288,6 @@ async def detect_project_namespace() -> str:
     namespace = f"project_{cwd_hash}"
 
     # Log warning for fallback
-    import logging
-    logger = logging.getLogger(__name__)
     logger.warning(
         f"No project namespace detected. Using cwd hash: {namespace}. "
         f"Set TRINITAS_PROJECT_NAMESPACE environment variable or create "

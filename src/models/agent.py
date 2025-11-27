@@ -173,7 +173,7 @@ class Agent(TMWSBase, MetadataMixin):
         back_populates="agent",
         cascade="all, delete-orphan",
     )
-    token_consumptions: Mapped[list["TokenConsumption"]] = relationship(
+    token_consumptions: Mapped[list[TokenConsumption]] = relationship(
         "TokenConsumption",
         back_populates="agent",
         cascade="all, delete-orphan",

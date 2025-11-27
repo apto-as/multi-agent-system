@@ -155,7 +155,7 @@ class SkillServicePOC:
         skill_id: UUID,
         agent_id: str,
         namespace: str,
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """POC 2: Core instructions layer query (Layer 1 + 2).
 
         Target: < 30ms P95

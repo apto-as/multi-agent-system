@@ -83,7 +83,7 @@ class Settings(BaseSettings):
 
     # ==== CORS - RESTRICTIVE BY DEFAULT ====
     cors_origins: list[str] = Field(
-        default_factory=lambda: [],
+        default_factory=list,
         description="CORS origins - MUST be explicitly set for production",
     )
 
