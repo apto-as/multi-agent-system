@@ -1,0 +1,71 @@
+# TMWS Docker Compose Service
+#
+# This systemd service manages the TMWS Docker Compose stack.
+# It ensures TMWS starts automatically on boot and restarts on failure.
+#
+# Installation:
+#   1. Copy this file: sudo cp tmws.service /etc/systemd/system/
+#   2. Reload systemd: sudo systemctl daemon-reload
+#   3. Enable service: sudo systemctl enable tmws
+#   4. Start service: sudo systemctl start tmws
+#   5. Check status: sudo systemctl status tmws
+#
+# Configuration:
+#   - Edit /home/tmws/.tmws/docker-compose.yml for container settings
+#   - Edit /home/tmws/.tmws/.env for environment variables
+#
+# Logs:
+#   - journalctl -u tmws -f
+#   - docker-compose -f /home/tmws/.tmws/docker-compose.yml logs -f
+#
+# Author: Trinitas Development Team
+# Created: 2025-11-27
+# Version: 1.0.0
+
+[Unit]
+Description=TMWS - Trinitas Memory & Workflow Service
+Documentation=https://github.com/apto-as/tmws
+After=docker.service network-online.target
+Requires=docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+
+# User configuration (change if using different user)
+User=tmws
+Group=docker
+
+# Working directory
+WorkingDirectory=/home/tmws/.tmws
+
+# Environment
+Environment=COMPOSE_PROJECT_NAME=tmws
+Environment=COMPOSE_FILE=/home/tmws/.tmws/docker-compose.yml
+
+# Start command
+ExecStart=/usr/bin/docker-compose -f ${COMPOSE_FILE} -p ${COMPOSE_PROJECT_NAME} up -d
+
+# Stop command
+ExecStop=/usr/bin/docker-compose -f ${COMPOSE_FILE} -p ${COMPOSE_PROJECT_NAME} down
+
+# Reload command (for systemctl reload tmws)
+ExecReload=/usr/bin/docker-compose -f ${COMPOSE_FILE} -p ${COMPOSE_PROJECT_NAME} restart
+
+# Timeout for start/stop operations
+TimeoutStartSec=120
+TimeoutStopSec=60
+
+# Restart policy
+Restart=on-failure
+RestartSec=10
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/tmws/.tmws
+
+[Install]
+WantedBy=multi-user.target

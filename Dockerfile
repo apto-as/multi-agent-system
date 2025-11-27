@@ -1,5 +1,5 @@
 # ========================================
-# TMWS v2.3.1 Production Dockerfile
+# TMWS v2.4.1 Production Dockerfile
 # ========================================
 # Multi-stage build for source code protection and minimal image size
 # Artemis optimization target: <500MB final image
@@ -85,8 +85,8 @@ RUN ls -lh dist/*.whl && \
 FROM python:3.11-slim@sha256:193fdd0bbcb3d2ae612bd6cc3548d2f7c78d65b549fcaa8af75624c47474444d
 
 LABEL maintainer="Trinitas Development Team <dev@trinitas.ai>"
-LABEL version="2.4.0"
-LABEL description="TMWS MCP Server - SQLite + ChromaDB architecture + Trinitas Agents"
+LABEL version="2.4.1"
+LABEL description="TMWS MCP Server - SQLite + ChromaDB architecture + Trinitas Agents + Ed25519 License"
 
 WORKDIR /app
 
@@ -181,9 +181,19 @@ EXPOSE 8000
 # HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
 #     CMD pgrep -f tmws-mcp-server > /dev/null || exit 1
 
+# ========================================
+# Phase 2E-1: License Public Key
+# ========================================
+# Ed25519 public key for license verification (Base64-encoded)
+# Set via --build-arg TMWS_LICENSE_PUBLIC_KEY="..." during build
+# This is SAFE to embed - only the private key can sign licenses
+# ========================================
+ARG TMWS_LICENSE_PUBLIC_KEY=""
+
 # Environment variables (can be overridden)
 ENV TMWS_ENVIRONMENT=production \
     TMWS_LOG_LEVEL=INFO \
+    TMWS_LICENSE_PUBLIC_KEY=${TMWS_LICENSE_PUBLIC_KEY} \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 

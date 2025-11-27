@@ -145,6 +145,19 @@ class Settings(BaseSettings):
         default="http://localhost:11434", description="Ollama server URL for embedding generation",
     )
 
+    # ==== LICENSE VERIFICATION (v2.4.1 - Ed25519 Public Key) ====
+    # ⚠️ SECURITY: Public key for license signature verification
+    # - Private key is kept by Trinitas (never distributed)
+    # - Public key is embedded in Docker images (safe to distribute)
+    # - Ed25519 provides 128-bit security level
+    # - Signature verification prevents license key forgery
+    # Format: Base64-encoded 32-byte Ed25519 public key
+    license_public_key: str = Field(
+        default="",
+        description="Ed25519 public key for license verification (Base64-encoded). "
+        "Set via TMWS_LICENSE_PUBLIC_KEY. If empty, falls back to HMAC verification.",
+    )
+
     # ==== LOGGING & MONITORING ====
     log_level: str = Field(default="INFO", pattern="^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$")
 

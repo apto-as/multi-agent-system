@@ -1,0 +1,115 @@
+#!/bin/bash
+# TMWS MCP STDIO Wrapper Script
+#
+# This script provides a STDIO interface to TMWS running in Docker.
+# It is designed to be used with Claude Desktop's MCP configuration.
+#
+# Usage:
+#   1. Install this script: sudo cp tmws-mcp /usr/local/bin/ && sudo chmod +x /usr/local/bin/tmws-mcp
+#   2. Configure Claude Desktop MCP: claude mcp add tmws -- tmws-mcp
+#   3. The script will automatically start/stop Docker container as needed
+#
+# Requirements:
+#   - Docker installed and running
+#   - TMWS Docker image: ghcr.io/apto-as/tmws:latest
+#   - Docker Compose configuration at ~/.tmws/docker-compose.yml (or TMWS_COMPOSE_FILE)
+#
+# Environment Variables:
+#   TMWS_COMPOSE_FILE    - Path to docker-compose.yml (default: ~/.tmws/docker-compose.yml)
+#   TMWS_PROJECT_NAME    - Docker Compose project name (default: tmws)
+#   TMWS_AUTO_START      - Auto-start container if not running (default: true)
+#   TMWS_AUTO_STOP       - Auto-stop container on script exit (default: false)
+#
+# Author: Trinitas Development Team
+# Created: 2025-11-27
+# Version: 1.0.0
+
+set -e
+
+# Configuration
+COMPOSE_FILE="${TMWS_COMPOSE_FILE:-$HOME/.tmws/docker-compose.yml}"
+PROJECT_NAME="${TMWS_PROJECT_NAME:-tmws}"
+AUTO_START="${TMWS_AUTO_START:-true}"
+AUTO_STOP="${TMWS_AUTO_STOP:-false}"
+CONTAINER_NAME="${PROJECT_NAME}-app"
+
+# Logging function (to stderr to avoid interfering with STDIO)
+log() {
+    echo "[tmws-mcp] $1" >&2
+}
+
+# Check if Docker is running
+check_docker() {
+    if ! docker info >/dev/null 2>&1; then
+        log "ERROR: Docker is not running"
+        exit 1
+    fi
+}
+
+# Check if container is running
+is_container_running() {
+    docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"
+}
+
+# Start container if not running
+start_container() {
+    if [ ! -f "$COMPOSE_FILE" ]; then
+        log "ERROR: Docker Compose file not found: $COMPOSE_FILE"
+        log "Please run the TMWS installer first"
+        exit 1
+    fi
+
+    log "Starting TMWS container..."
+    docker-compose -f "$COMPOSE_FILE" -p "$PROJECT_NAME" up -d >/dev/null 2>&1
+
+    # Wait for container to be ready
+    local max_wait=30
+    local wait_count=0
+    while [ $wait_count -lt $max_wait ]; do
+        if is_container_running; then
+            log "Container started successfully"
+            return 0
+        fi
+        sleep 1
+        wait_count=$((wait_count + 1))
+    done
+
+    log "ERROR: Container failed to start within ${max_wait} seconds"
+    exit 1
+}
+
+# Stop container on exit (if AUTO_STOP is enabled)
+stop_container() {
+    if [ "$AUTO_STOP" = "true" ] && [ -f "$COMPOSE_FILE" ]; then
+        log "Stopping TMWS container..."
+        docker-compose -f "$COMPOSE_FILE" -p "$PROJECT_NAME" down >/dev/null 2>&1
+    fi
+}
+
+# Main execution
+main() {
+    # Check Docker
+    check_docker
+
+    # Check if container is running, start if needed
+    if ! is_container_running; then
+        if [ "$AUTO_START" = "true" ]; then
+            start_container
+        else
+            log "ERROR: TMWS container is not running"
+            log "Start with: docker-compose -f $COMPOSE_FILE up -d"
+            exit 1
+        fi
+    fi
+
+    # Set up trap to stop container on exit (if configured)
+    trap stop_container EXIT
+
+    # Connect to container via STDIO
+    # The container should be running 'tmws' (MCP server) in STDIO mode
+    log "Connecting to TMWS MCP server..."
+    exec docker attach --no-stdin=false "$CONTAINER_NAME"
+}
+
+# Run main function
+main
