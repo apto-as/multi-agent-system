@@ -377,34 +377,25 @@ class MCPPresetLoader:
                 "context7": {
                     "type": "stdio",
                     "command": "npx",
-                    "args": ["-y", "@context7/mcp-server"],
-                    "env": {
-                        "CONTEXT7_API_KEY": "${CONTEXT7_API_KEY}"
-                    },
+                    "args": ["-y", "@upstash/context7-mcp@latest"],
                     "autoConnect": True
                 },
                 "playwright": {
                     "type": "stdio",
                     "command": "npx",
-                    "args": ["-y", "@anthropic/mcp-playwright"],
+                    "args": ["-y", "@anthropic/mcp-playwright@latest"],
                     "autoConnect": True
                 },
                 "serena": {
                     "type": "stdio",
                     "command": "uvx",
-                    "args": ["serena-mcp-server"],
-                    "env": {
-                        "SERENA_PROJECT_PATH": "/path/to/your/project"
-                    },
-                    "autoConnect": False
+                    "args": ["--from", "serena-mcp-server", "serena"],
+                    "autoConnect": True
                 },
-                "gdrive": {
+                "chrome-devtools": {
                     "type": "stdio",
                     "command": "npx",
-                    "args": ["-y", "@anthropic/mcp-gdrive"],
-                    "env": {
-                        "GDRIVE_CREDENTIALS_PATH": "${HOME}/.config/gdrive/credentials.json"
-                    },
+                    "args": ["-y", "@anthropic/mcp-chrome-devtools@latest"],
                     "autoConnect": False
                 },
                 "custom-http-server": {

@@ -907,17 +907,7 @@ def first_run_setup():
                         "command": "npx",
                         "args": ["-y", "@anthropic/mcp-chrome-devtools@latest"],
                         "autoConnect": False,
-                        "$comment": "Chrome DevTools - requires Chrome with remote debugging"
-                    },
-                    "gdrive": {
-                        "type": "stdio",
-                        "command": "npx",
-                        "args": ["-y", "@anthropic/mcp-gdrive@latest"],
-                        "env": {
-                            "GDRIVE_CREDENTIALS_PATH": "${HOME}/.config/gdrive/credentials.json"
-                        },
-                        "autoConnect": False,
-                        "$comment": "Google Drive access - requires OAuth setup"
+                        "$comment": "Chrome DevTools - requires Chrome with remote debugging (chrome --remote-debugging-port=9222)"
                     }
                 }
             }
