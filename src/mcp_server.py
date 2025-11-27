@@ -33,9 +33,9 @@ from src.core.exceptions import (
     MemoryCreationError,
     MemorySearchError,
     ServiceInitializationError,
-    ValidationError,
     log_and_raise,
 )
+from src.infrastructure.mcp import MCPManager
 from src.services.memory_service import HybridMemoryService
 from src.services.ollama_embedding_service import get_ollama_embedding_service
 from src.services.vector_search_service import get_vector_search_service
@@ -123,6 +123,9 @@ class HybridMCPServer:
             "errors": 0,
             "avg_latency_ms": 0.0,
         }
+
+        # External MCP server manager (for preset connections)
+        self.external_mcp_manager: MCPManager | None = None
 
         # MCP server setup
         self.mcp = FastMCP(name="tmws", version=__version__)
@@ -310,7 +313,6 @@ class HybridMCPServer:
 
                 try:
                     from src.services.license_service import LicenseService
-                    from src.services.agent_service import AgentService
 
                     # Validate license tier for agent registration
                     async with get_session() as session:
@@ -346,8 +348,9 @@ class HybridMCPServer:
                             # Ensure "trinitas" namespace exists
                             # NOTE: We create namespace manually to avoid buggy create_namespace()
                             # which has display_name parameter mismatch with AgentNamespace model
-                            from src.models.agent import AgentNamespace
                             from sqlalchemy import select
+
+                            from src.models.agent import AgentNamespace
 
                             namespace_result = await session.execute(
                                 select(AgentNamespace).where(AgentNamespace.namespace == "trinitas")
@@ -368,8 +371,9 @@ class HybridMCPServer:
                                 logger.debug("Namespace 'trinitas' already exists")
 
                             # Register agents to database (directly, bypassing buggy agent_service)
-                            from src.models.agent import Agent, AccessLevel, AgentStatus
                             from sqlalchemy import select
+
+                            from src.models.agent import AccessLevel, Agent, AgentStatus
 
                             registered_count = 0
                             skipped_count = 0
@@ -433,6 +437,41 @@ class HybridMCPServer:
                         extra={"phase": "agent_auto_registration"}
                     )
                     logger.warning("TMWS will continue without Trinitas agent registration")
+
+            # Phase 6: External MCP Server Auto-Connection (v2.4.2+)
+            # Connect to preset MCP servers defined in .mcp.json or ~/.tmws/mcp_servers.json
+            try:
+                from pathlib import Path
+
+                from src.infrastructure.mcp import MCPManager
+
+                self.external_mcp_manager = MCPManager()
+
+                # Try to load presets from project directory first, then user config
+                project_dir = Path.cwd()
+                connected_servers = await self.external_mcp_manager.auto_connect_from_config(
+                    project_dir=project_dir
+                )
+
+                if connected_servers:
+                    logger.info(
+                        f"✅ External MCP servers connected: {len(connected_servers)}\n"
+                        f"   Servers: {', '.join(connected_servers)}"
+                    )
+
+                    # Log available tools from connected servers
+                    all_tools = await self.external_mcp_manager.list_all_tools()
+                    total_tools = sum(len(tools) for tools in all_tools.values())
+                    logger.info(f"   Total external tools available: {total_tools}")
+                else:
+                    logger.info("No external MCP servers configured for auto-connect")
+
+            except (KeyboardInterrupt, SystemExit):
+                raise
+            except Exception as e:
+                # Non-critical: External MCP connections are optional
+                logger.warning(f"External MCP server auto-connection failed (non-critical): {e}")
+                logger.info("TMWS will continue without external MCP server connections")
 
             logger.info(
                 f"HybridMCPServer initialized: {self.instance_id} "
@@ -768,6 +807,16 @@ class HybridMCPServer:
     async def cleanup(self):
         """Cleanup on shutdown."""
         try:
+            # Disconnect external MCP servers
+            if self.external_mcp_manager:
+                try:
+                    connections = self.external_mcp_manager.list_connections()
+                    if connections:
+                        logger.info(f"Disconnecting {len(connections)} external MCP servers...")
+                    await self.external_mcp_manager.disconnect_all()
+                except Exception as e:
+                    logger.warning(f"Error disconnecting external MCP servers: {e}")
+
             # Log final metrics
             logger.info(
                 f"HybridMCPServer shutdown: {self.instance_id}\n"
@@ -810,6 +859,7 @@ def first_run_setup():
         print(f"📁 Data directory: {TMWS_HOME}", file=sys.stderr)
         print(f"   ├── Database: {TMWS_DATA_DIR}/tmws.db", file=sys.stderr)
         print(f"   ├── ChromaDB: {TMWS_CHROMA_DIR}", file=sys.stderr)
+        print(f"   ├── MCP config: {TMWS_HOME}/mcp.json", file=sys.stderr)
         print(f"   └── Secret key: {TMWS_HOME}/.secret_key", file=sys.stderr)
         print(file=sys.stderr)
         print("✅ Smart defaults enabled:", file=sys.stderr)
@@ -822,6 +872,58 @@ def first_run_setup():
         # Create TMWS_HOME directory
         TMWS_HOME.mkdir(parents=True, exist_ok=True)
         TMWS_DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+        # Create default MCP configuration file
+        MCP_CONFIG_FILE = TMWS_HOME / "mcp.json"
+        if not MCP_CONFIG_FILE.exists():
+            import json
+            default_mcp_config = {
+                "$schema": "https://tmws.dev/schemas/mcp-servers.json",
+                "$comment": "TMWS MCP Server Configuration. Edit this file to add/remove MCP servers.",
+                "mcpServers": {
+                    "context7": {
+                        "type": "stdio",
+                        "command": "npx",
+                        "args": ["-y", "@upstash/context7-mcp@latest"],
+                        "autoConnect": True,
+                        "$comment": "Documentation lookup - https://context7.com"
+                    },
+                    "playwright": {
+                        "type": "stdio",
+                        "command": "npx",
+                        "args": ["-y", "@anthropic/mcp-playwright@latest"],
+                        "autoConnect": True,
+                        "$comment": "Browser automation - https://playwright.dev"
+                    },
+                    "serena": {
+                        "type": "stdio",
+                        "command": "uvx",
+                        "args": ["--from", "serena-mcp-server", "serena"],
+                        "autoConnect": True,
+                        "$comment": "Code analysis - https://github.com/oraios/serena"
+                    },
+                    "chrome-devtools": {
+                        "type": "stdio",
+                        "command": "npx",
+                        "args": ["-y", "@anthropic/mcp-chrome-devtools@latest"],
+                        "autoConnect": False,
+                        "$comment": "Chrome DevTools - requires Chrome with remote debugging"
+                    },
+                    "gdrive": {
+                        "type": "stdio",
+                        "command": "npx",
+                        "args": ["-y", "@anthropic/mcp-gdrive@latest"],
+                        "env": {
+                            "GDRIVE_CREDENTIALS_PATH": "${HOME}/.config/gdrive/credentials.json"
+                        },
+                        "autoConnect": False,
+                        "$comment": "Google Drive access - requires OAuth setup"
+                    }
+                }
+            }
+            with open(MCP_CONFIG_FILE, "w") as f:
+                json.dump(default_mcp_config, f, indent=2)
+            print(f"   └── MCP config: {MCP_CONFIG_FILE}", file=sys.stderr)
 
         # Initialize database schema
         print("🔧 Initializing database schema...", file=sys.stderr)

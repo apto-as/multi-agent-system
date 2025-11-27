@@ -1,0 +1,44 @@
+{
+  "$schema": "https://tmws.dev/schemas/mcp-servers.json",
+  "$comment": "TMWS MCP Server Configuration. Copy to ~/.tmws/mcp.json and edit as needed.",
+  "mcpServers": {
+    "context7": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp@latest"],
+      "autoConnect": true,
+      "$comment": "Documentation lookup - https://context7.com"
+    },
+    "playwright": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@anthropic/mcp-playwright@latest"],
+      "autoConnect": true,
+      "$comment": "Browser automation - https://playwright.dev"
+    },
+    "serena": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["--from", "serena-mcp-server", "serena"],
+      "autoConnect": true,
+      "$comment": "Code analysis - https://github.com/oraios/serena"
+    },
+    "chrome-devtools": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@anthropic/mcp-chrome-devtools@latest"],
+      "autoConnect": false,
+      "$comment": "Chrome DevTools - requires Chrome with remote debugging (chrome --remote-debugging-port=9222)"
+    },
+    "gdrive": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@anthropic/mcp-gdrive@latest"],
+      "env": {
+        "GDRIVE_CREDENTIALS_PATH": "${HOME}/.config/gdrive/credentials.json"
+      },
+      "autoConnect": false,
+      "$comment": "Google Drive access - requires OAuth setup"
+    }
+  }
+}
