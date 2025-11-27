@@ -94,6 +94,7 @@ jobs:
 
       - name: Upload Python Builder Scan Results
         if: always()
+        continue-on-error: true  # Don't fail if Code Scanning is not enabled
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: 'trivy-python-builder.sarif'
@@ -101,6 +102,7 @@ jobs:
 
       - name: Upload Python Runtime Scan Results
         if: always()
+        continue-on-error: true  # Don't fail if Code Scanning is not enabled
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: 'trivy-python-runtime.sarif'
