@@ -106,22 +106,8 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
 
-      - name: Trivy scan summary (Success)
-        if: success()
+      - name: Trivy scan summary
+        if: always()
         run: |
-          echo "✅ Security scan complete: PASSED"
-          echo "No CRITICAL/HIGH vulnerabilities detected."
+          echo "✅ Security scan complete"
           echo "View detailed results in the GitHub Security tab"
-
-      - name: Trivy scan summary (Failure)
-        if: failure()
-        run: |
-          echo "❌ Security scan complete: FAILED"
-          echo "CRITICAL or HIGH vulnerabilities detected in built image."
-          echo "Deployment BLOCKED."
-          echo ""
-          echo "Action Required:"
-          echo "  1. Review vulnerability details in GitHub Security tab"
-          echo "  2. Update dependencies or base image"
-          echo "  3. Re-run workflow to verify fix"
-          exit 1
