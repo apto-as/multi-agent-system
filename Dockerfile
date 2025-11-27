@@ -68,9 +68,11 @@ RUN python -m compileall -b /tmp/wheel
 RUN find /tmp/wheel -name "*.py" ! -path "*/bin/*" ! -path "*/scripts/*" -delete
 
 # 4. Repackage as bytecode-only wheel (replace original)
+# Use dynamic version from pyproject.toml
 RUN rm -f /build/dist/*.whl && \
     cd /tmp/wheel && \
-    zip -qr /build/dist/tmws-2.4.0-py3-none-any.whl . && \
+    TMWS_VERSION=$(grep -oP 'version = "\K[^"]+' /build/pyproject.toml) && \
+    zip -qr /build/dist/tmws-${TMWS_VERSION}-py3-none-any.whl . && \
     rm -rf /tmp/wheel
 
 # Verify bytecode wheel was created
