@@ -103,6 +103,32 @@ class Settings(BaseSettings):
     rate_limit_enabled: bool = Field(default=True)
     rate_limit_requests: int = Field(default=100, ge=1, le=10000)
 
+    # v2.4.4: Sliding window rate limiting (experimental)
+    # When True, uses more accurate sliding window algorithm
+    # When False (default), uses simpler fixed window algorithm
+    use_sliding_window: bool = Field(
+        default=False,
+        description="Enable sliding window rate limiting (experimental)",
+    )
+
+    # v2.4.4: Rate limiter cache cleanup interval (seconds)
+    # Old client stats are cleaned up periodically to prevent memory leaks
+    rate_limit_cleanup_interval: int = Field(
+        default=300,  # 5 minutes
+        ge=60,
+        le=3600,
+        description="Interval between rate limit cache cleanups (seconds)",
+    )
+
+    # v2.4.4: Rate limiter cache retention period (seconds)
+    # Client stats older than this are removed during cleanup
+    rate_limit_cache_ttl: int = Field(
+        default=3600,  # 1 hour
+        ge=300,
+        le=86400,
+        description="Time to keep client stats before cleanup (seconds)",
+    )
+
     # ==== VECTORIZATION & CHROMADB (v2.2.6: 1024-dim Multilingual-E5 Large) ====
     embedding_model: str = Field(default="zylonai/multilingual-e5-large")
     vector_dimension: int = Field(default=1024, ge=1, le=4096)  # ✅ Updated to 1024-dim (v2.2.6)
