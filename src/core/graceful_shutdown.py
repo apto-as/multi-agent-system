@@ -87,19 +87,6 @@ async def lifespan_handler(_app):
 
     shutdown_handler.add_cleanup_task(close_db_connections)
 
-    # Add Redis cleanup
-    try:
-        from src.core.config import get_settings
-
-        settings = get_settings()
-        if hasattr(settings, "redis_url") and settings.redis_url:
-            import redis.asyncio as redis
-
-            redis_client = redis.from_url(settings.redis_url)
-            shutdown_handler.add_cleanup_task(redis_client.close)
-    except Exception as e:
-        logger.warning(f"Redis cleanup setup failed: {e}")
-
     yield
 
     # Shutdown
