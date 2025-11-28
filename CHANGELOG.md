@@ -7,6 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.5] - 2025-11-28
+
+### Added - OpenCode Environment Support (MVP)
+
+**Environment Detection** (`src/utils/environment_detector.py`):
+- Auto-detect execution environment (OpenCode, Claude Code, VS Code, Cursor, Terminal)
+- Environment variable detection (OPENCODE_PROJECT_ROOT, OPENCODE_VERSION, etc.)
+- Path-based detection (.opencode, opencode.yaml, .claude, .vscode, .cursor)
+- Security: MAX_SEARCH_DEPTH (5 levels), symlink resolution, env var sanitization
+
+**Configuration Generation** (`src/utils/config_generator.py`):
+- Generate MCP configuration files for detected environments
+- OpenCode: `.opencode/mcp_config.json` with schema
+- Claude Code: `.claude/claude_desktop_config.json`
+- VS Code/Cursor: `.vscode/mcp_config.json`
+- Security: Atomic writes, directory traversal prevention, file permissions (0o644)
+
+**Public API**:
+```python
+from src.utils.environment_detector import detect_environment, is_opencode_environment
+from src.utils.config_generator import generate_opencode_config, ConfigGenerator
+
+# Detect environment
+info = detect_environment()
+if info.is_opencode:
+    print(f"OpenCode project at: {info.project_root}")
+
+# Generate config
+generate_opencode_config(project_root=Path.cwd())
+```
+
+**Test Coverage**:
+- 59 unit tests (100% PASS)
+- Environment detection: 31 tests
+- Config generation: 28 tests
+- Security tests: Path traversal, atomic writes, permissions
+
+### Security - v2.4.5
+
+**Hestia Security Audit**: ✅ APPROVED
+
+| Control | Status |
+|---------|--------|
+| Path Traversal Prevention | ✅ PASS |
+| Env Variable Sanitization | ✅ PASS |
+| Atomic File Operations | ✅ PASS |
+| Permission Handling | ✅ PASS |
+| Input Validation | ✅ PASS |
+| Command Injection | ✅ PASS (constants only) |
+
+**Tracked Recommendations** (P3):
+- R-1: Enhanced environment variable masking in debug logs
+- R-2: Command whitelist validation if `command` becomes user-configurable
+
+---
+
 ### ⚠️ BREAKING CHANGES - Phase 2-4: Go-Python Category Alignment (2025-11-22)
 
 **V-DISC-4 Security Fix**: Tool Category Whitelist Desynchronization (CVSS 7.2 HIGH)
