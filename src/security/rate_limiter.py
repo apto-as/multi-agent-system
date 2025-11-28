@@ -4,9 +4,31 @@ Hestia's Paranoid Traffic Control System
 "……大量のリクエストは必ず攻撃です……全て制限します……"
 
 v2.4.3: Redis removed - using local in-memory rate limiting only
+v2.4.4: Fixed time calculation bug (.seconds → .total_seconds()),
+        added periodic cache cleanup, single-instance documentation
+
+IMPORTANT: Single-Instance Deployment Only
+==========================================
+This rate limiter uses in-memory storage and is designed for single-instance
+deployments only. In a distributed environment (multiple instances behind a
+load balancer), each instance maintains separate rate limit counters, which:
+
+1. Allows clients to exceed rate limits by distributing requests across instances
+2. Creates inconsistent blocking behavior across instances
+3. May cause memory duplication across instances
+
+For distributed deployments, use a centralized rate limiting solution:
+- Redis-based rate limiting (recommended)
+- API Gateway rate limiting (AWS API Gateway, Kong, etc.)
+- Cloud provider DDoS protection (AWS Shield, Cloudflare)
+
+Configuration:
+- TMWS_USE_SLIDING_WINDOW: Enable sliding window rate limiting (default: False)
+- Sliding window provides more accurate rate limiting but has slightly higher CPU cost
 """
 
 import logging
+import threading
 import time
 from collections import deque
 from dataclasses import dataclass, field
@@ -61,6 +83,15 @@ class RateLimiter:
             "blocked_requests": 0,
             "unique_clients": set(),
         }
+
+        # v2.4.4: Periodic cache cleanup tracking
+        self._last_cleanup: datetime = datetime.utcnow()
+        self._cleanup_interval: int = getattr(self.settings, "rate_limit_cleanup_interval", 300)
+        self._cache_ttl: int = getattr(self.settings, "rate_limit_cache_ttl", 3600)
+
+        # v2.4.4: Thread-safety for cleanup (Hestia security requirement)
+        self._cleanup_lock = threading.Lock()
+        self._stats_lock = threading.RLock()
 
         # Default rate limits (production-grade strict limits)
         env = self.settings.environment
@@ -197,6 +228,9 @@ class RateLimiter:
         """Internal rate limit check implementation."""
         client_ip = self._get_client_ip(request)
         now = datetime.utcnow()
+
+        # v2.4.4: Periodic cleanup to prevent memory leaks
+        self._cleanup_old_stats()
 
         # Update global stats
         self.global_stats["total_requests"] += 1
@@ -388,11 +422,11 @@ class RateLimiter:
         limit = self.rate_limits.get("per_ip", self.rate_limits["per_ip"])
         now = datetime.utcnow()
 
-        # Count recent requests
+        # Count recent requests (v2.4.4: fixed .seconds → .total_seconds() bug)
         recent_requests = [
             req_time
             for req_time in client_stats.requests
-            if (now - req_time).seconds < limit.period
+            if (now - req_time).total_seconds() < limit.period
         ]
 
         allowed_requests = limit.requests + limit.burst
@@ -439,10 +473,10 @@ class RateLimiter:
 
         user_requests = self.user_rate_limits[user_id]
 
-        # Count recent requests
+        # Count recent requests (v2.4.4: fixed .seconds → .total_seconds() bug)
         recent_count = sum(
             1 for req_time in user_requests
-            if (now - req_time).seconds < limit.period
+            if (now - req_time).total_seconds() < limit.period
         )
 
         if recent_count >= limit.requests + limit.burst:
@@ -471,10 +505,11 @@ class RateLimiter:
         now = datetime.utcnow()
 
         # Use client's request history for endpoint-specific limits
+        # v2.4.4: fixed .seconds → .total_seconds() bug
         recent_requests = [
             req_time
             for req_time in client_stats.requests
-            if (now - req_time).seconds < limit.period
+            if (now - req_time).total_seconds() < limit.period
         ]
 
         if len(recent_requests) >= limit.requests:
@@ -511,11 +546,78 @@ class RateLimiter:
     def _clean_old_requests(self, client_stats: ClientStats) -> None:
         """Clean old requests from client statistics."""
         now = datetime.utcnow()
-        cutoff_time = now - timedelta(seconds=3600)  # Keep 1 hour of history
+        cutoff_time = now - timedelta(seconds=self._cache_ttl)
 
         # Remove old requests
         while client_stats.requests and client_stats.requests[0] < cutoff_time:
             client_stats.requests.popleft()
+
+    def _cleanup_old_stats(self) -> int:
+        """v2.4.4: Periodic cleanup of old client statistics to prevent memory leaks.
+
+        This method removes client stats that have been inactive for longer than
+        the configured cache TTL. It runs at most once per cleanup interval.
+
+        Thread-safety: Uses _cleanup_lock to prevent double cleanup, and
+        _stats_lock to protect dictionary modifications (Hestia security requirement).
+
+        Returns:
+            int: Number of clients removed during cleanup
+        """
+        now = datetime.utcnow()
+
+        # Quick check without lock (optimization)
+        if (now - self._last_cleanup).total_seconds() < self._cleanup_interval:
+            return 0
+
+        # Try to acquire cleanup lock (non-blocking to avoid deadlock)
+        if not self._cleanup_lock.acquire(blocking=False):
+            # Another thread is cleaning up, skip
+            return 0
+
+        try:
+            # Double-check inside lock (another thread may have cleaned up)
+            if (now - self._last_cleanup).total_seconds() < self._cleanup_interval:
+                return 0
+
+            # Update last cleanup time
+            self._last_cleanup = now
+            cutoff_time = now - timedelta(seconds=self._cache_ttl)
+
+            # Find stale clients (read under stats lock)
+            with self._stats_lock:
+                clients_to_remove = []
+                for client_ip, stats in self.local_storage.items():
+                    # Remove if no recent activity
+                    if stats.last_seen < cutoff_time:
+                        clients_to_remove.append(client_ip)
+                    # Also check if blocked_until has expired (allow re-entry)
+                    elif stats.blocked_until and stats.blocked_until < now:
+                        # Don't remove, just clear the block
+                        stats.blocked_until = None
+
+                # Remove stale clients (still under lock)
+                for client_ip in clients_to_remove:
+                    del self.local_storage[client_ip]
+
+                # Also cleanup user rate limits
+                user_cutoff = now - timedelta(seconds=self._cache_ttl)
+                users_to_remove = []
+                for user_id, requests in self.user_rate_limits.items():
+                    if requests and requests[-1] < user_cutoff:
+                        users_to_remove.append(user_id)
+                for user_id in users_to_remove:
+                    del self.user_rate_limits[user_id]
+
+            if clients_to_remove or users_to_remove:
+                logger.info(
+                    f"Rate limiter cleanup: removed {len(clients_to_remove)} clients, "
+                    f"{len(users_to_remove)} users",
+                )
+
+            return len(clients_to_remove)
+        finally:
+            self._cleanup_lock.release()
 
     def _determine_severity(self, event_type: str) -> str:
         """Determine severity level based on event type."""

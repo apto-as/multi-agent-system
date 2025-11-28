@@ -444,9 +444,9 @@ class TestCriticalSecurity:
             auth_method="api_key",
         )
 
-        # Step 3: Create rate limiter with NO Redis (FAIL-SECURE mode)
+        # Step 3: Create rate limiter (v2.4.3+: local in-memory only)
         # Use in-memory rate limiter for deterministic testing
-        rate_limiter_service = RateLimiter(redis_client=None)  # No Redis
+        rate_limiter_service = RateLimiter()  # v2.4.3+: No Redis, local only
         mcp_rate_limiter = MCPRateLimiter(rate_limiter=rate_limiter_service)
 
         # Step 4: Get rate limit for dangerous operation
@@ -461,10 +461,10 @@ class TestCriticalSecurity:
 
         logger.info(f"Rate limit config: {rate_limit.requests} requests per {rate_limit.period}s")
 
-        # Step 5: Make requests up to FAIL-SECURE limit (50% reduction without Redis)
-        # FAIL-SECURE: 5 requests → 2 requests (max(1, 5 // 2))
-        effective_limit = max(1, rate_limit.requests // 2)
-        logger.info(f"FAIL-SECURE effective limit: {effective_limit} requests (50% reduction)")
+        # Step 5: Make requests up to effective limit (requests + burst)
+        # v2.4.3+: Local rate limiter uses full limit (no FAIL-SECURE 50% reduction)
+        effective_limit = rate_limit.requests + rate_limit.burst
+        logger.info(f"Effective limit: {effective_limit} requests (requests + burst)")
 
         # Step 5: Make requests up to effective limit (should succeed)
         for i in range(effective_limit):
@@ -474,7 +474,7 @@ class TestCriticalSecurity:
             except MCPAuthorizationError:
                 pytest.fail(f"Request {i+1} should be allowed (within FAIL-SECURE limit)")
 
-        logger.info("✅ All requests within FAIL-SECURE limit PASSED")
+        logger.info("✅ All requests within effective limit PASSED")
 
         # Step 6: Make one more request (should FAIL - exceeds limit)
         with pytest.raises(MCPAuthorizationError) as exc_info:
@@ -596,7 +596,7 @@ class TestCriticalSecurity:
 
         # Step 5: Test rate limit violation logging
         caplog.clear()
-        rate_limiter_service = RateLimiter(redis_client=None)
+        rate_limiter_service = RateLimiter()  # v2.4.3+: No Redis, local only
         mcp_rate_limiter = MCPRateLimiter(rate_limiter=rate_limiter_service)
 
         tool_name = "prune_expired_memories"
