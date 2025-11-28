@@ -1,12 +1,11 @@
-"""MCP Rate Limiting for TMWS v2.3.0.
+"""MCP Rate Limiting for TMWS v2.4.3.
 
 Provides rate limiting for MCP tool invocations to prevent DoS attacks.
 Implements Hestia's REQ-4 security requirement.
 
 Security Architecture:
 - REQ-4: Tool-specific rate limits (stricter for dangerous operations)
-- Distributed rate limiting via Redis
-- Fail-secure fallback to local limits
+- Local in-memory rate limiting (v2.4.3: Redis removed)
 - Security audit logging for all violations
 
 Pattern:
@@ -18,6 +17,7 @@ Pattern:
 import functools
 import logging
 from collections.abc import Callable
+from datetime import datetime, timedelta
 from typing import Any
 
 from ..security.mcp_auth import MCPAuthContext, MCPAuthorizationError
@@ -119,8 +119,7 @@ class MCPRateLimiter:
 
     Security (REQ-4):
     - Per-agent, per-tool rate limiting
-    - Redis-backed distributed limits
-    - Fail-secure fallback to local limits
+    - Local in-memory limits (v2.4.3: Redis removed)
     - Audit logging for violations
 
     Thread-safety: Service is stateless and thread-safe.
@@ -136,7 +135,7 @@ class MCPRateLimiter:
         self.rate_limiter = rate_limiter or RateLimiter()
         self.rate_limits = MCP_RATE_LIMITS.copy()
 
-        # Track local stats for fallback when Redis unavailable
+        # Local counters for rate limiting
         self.local_counters: dict[str, dict[str, Any]] = {}
 
     async def check_rate_limit(
@@ -154,128 +153,42 @@ class MCPRateLimiter:
             MCPAuthorizationError: If rate limit exceeded
 
         Security Pattern:
-            FAIL-SECURE - Deny on Redis failure or any error
+            FAIL-SECURE - Deny on any error
         """
         # Get rate limit for tool
         limit = self.rate_limits.get(tool_name)
 
         if not limit:
-            # Tool not in rate limit config → Allow (but log)
+            # Tool not in rate limit config -> Allow (but log)
             logger.debug(
                 f"No rate limit configured for MCP tool: {tool_name}",
                 extra={"tool_name": tool_name, "agent_id": context.agent_id},
             )
             return
 
-        # Redis key: mcp:ratelimit:{tool_name}:{agent_id}:{time_bucket}
-        import time
-
-        time_bucket = int(time.time() // limit.period)
-        redis_key = f"mcp:ratelimit:{tool_name}:{context.agent_id}:{time_bucket}"
-
-        # Try Redis first
-        if self.rate_limiter.redis_client:
-            try:
-                current_count = await self._check_redis_limit(
-                    redis_key=redis_key,
-                    limit=limit,
-                    context=context,
-                    tool_name=tool_name,
-                )
-
-                # Check if limit exceeded
-                if current_count > (limit.requests + limit.burst):
-                    await self._handle_rate_limit_exceeded(
-                        context=context,
-                        tool_name=tool_name,
-                        limit=limit,
-                        current_count=current_count,
-                    )
-
-                return
-
-            except (KeyboardInterrupt, SystemExit):
-                raise  # Never suppress user interrupts
-            except MCPAuthorizationError:
-                raise  # Re-raise rate limit errors
-            except Exception as e:
-                # Redis failure → Fallback to local limits (FAIL-SECURE)
-                logger.error(
-                    f"❌ Redis rate limit check failed (failing to local): {type(e).__name__}",
-                    exc_info=True,
-                    extra={
-                        "tool_name": tool_name,
-                        "agent_id": context.agent_id,
-                        "redis_key": redis_key,
-                    },
-                )
-                # Continue to local fallback below
-
-        # Fallback: Local rate limiting (FAIL-SECURE: 50% stricter)
+        # Check local rate limit
         await self._check_local_limit(
             context=context,
             tool_name=tool_name,
             limit=limit,
-            stricter=True,  # FAIL-SECURE: Apply stricter limits
         )
-
-    async def _check_redis_limit(
-        self,
-        redis_key: str,
-        limit: RateLimit,
-        context: MCPAuthContext,
-        tool_name: str,
-    ) -> int:
-        """Check rate limit using Redis.
-
-        Returns:
-            Current request count
-
-        Raises:
-            Exception: If Redis operation fails
-        """
-        # Increment counter
-        current_count = await self.rate_limiter.redis_client.incr(redis_key)
-
-        # Set expiry on first request
-        if current_count == 1:
-            await self.rate_limiter.redis_client.expire(redis_key, limit.period)
-
-        logger.debug(
-            f"Redis rate limit check: {tool_name} for {context.agent_id}: {current_count}/{limit.requests + limit.burst}",
-            extra={
-                "tool_name": tool_name,
-                "agent_id": context.agent_id,
-                "current_count": current_count,
-                "limit": limit.requests + limit.burst,
-            },
-        )
-
-        return current_count
 
     async def _check_local_limit(
         self,
         context: MCPAuthContext,
         tool_name: str,
         limit: RateLimit,
-        stricter: bool = False,
     ) -> None:
-        """Check rate limit using local counters (fallback).
+        """Check rate limit using local counters.
 
         Args:
             context: MCP auth context
             tool_name: Tool name
             limit: Rate limit config
-            stricter: If True, apply 50% stricter limits (FAIL-SECURE)
 
         Raises:
             MCPAuthorizationError: If rate limit exceeded
-
-        Security:
-            FAIL-SECURE - Apply stricter limits when Redis unavailable
         """
-        from datetime import datetime, timedelta
-
         # Create counter key
         counter_key = f"{tool_name}:{context.agent_id}"
 
@@ -299,21 +212,18 @@ class MCPRateLimiter:
         counter["count"] += 1
         current_count = counter["count"]
 
-        # Calculate effective limit (50% stricter if FAIL-SECURE)
+        # Calculate effective limit
         effective_limit = limit.requests + limit.burst
-        if stricter:
-            effective_limit = max(1, effective_limit // 2)  # 50% reduction, min 1
 
-            if current_count == 1:  # Log only once per window
-                logger.warning(
-                    "⚠️  MCP rate limiting in DEGRADED MODE: Using local fallback with 50% stricter limits",
-                    extra={
-                        "tool_name": tool_name,
-                        "agent_id": context.agent_id,
-                        "normal_limit": limit.requests + limit.burst,
-                        "effective_limit": effective_limit,
-                    },
-                )
+        logger.debug(
+            f"MCP rate limit check: {tool_name} for {context.agent_id}: {current_count}/{effective_limit}",
+            extra={
+                "tool_name": tool_name,
+                "agent_id": context.agent_id,
+                "current_count": current_count,
+                "limit": effective_limit,
+            },
+        )
 
         # Check if limit exceeded
         if current_count > effective_limit:
@@ -322,7 +232,6 @@ class MCPRateLimiter:
                 tool_name=tool_name,
                 limit=limit,
                 current_count=current_count,
-                is_local_fallback=True,
             )
 
     async def _handle_rate_limit_exceeded(
@@ -331,7 +240,6 @@ class MCPRateLimiter:
         tool_name: str,
         limit: RateLimit,
         current_count: int,
-        is_local_fallback: bool = False,
     ) -> None:
         """Handle rate limit exceeded event.
 
@@ -340,7 +248,6 @@ class MCPRateLimiter:
             tool_name: Tool name
             limit: Rate limit config
             current_count: Current request count
-            is_local_fallback: True if using local fallback limits
 
         Raises:
             MCPAuthorizationError: Always (rate limit exceeded)
@@ -351,7 +258,7 @@ class MCPRateLimiter:
         """
         # Security audit log
         logger.warning(
-            f"🚨 MCP rate limit exceeded: tool={tool_name}, agent={context.agent_id}, count={current_count}/{limit.requests + limit.burst}",
+            f"MCP rate limit exceeded: tool={tool_name}, agent={context.agent_id}, count={current_count}/{limit.requests + limit.burst}",
             extra={
                 "tool_name": tool_name,
                 "agent_id": context.agent_id,
@@ -360,7 +267,6 @@ class MCPRateLimiter:
                 "limit": limit.requests + limit.burst,
                 "period": limit.period,
                 "block_duration": limit.block_duration,
-                "is_local_fallback": is_local_fallback,
                 "event_type": "mcp_rate_limit_exceeded",
             },
         )
@@ -378,7 +284,6 @@ class MCPRateLimiter:
                 "limit": limit.requests + limit.burst,
                 "period": limit.period,
                 "retry_after": retry_after,
-                "is_local_fallback": is_local_fallback,
             },
         )
 
@@ -395,9 +300,6 @@ class MCPRateLimiter:
 
         Returns:
             Dict with remaining requests, limit, and reset time
-
-        Note:
-            This is a best-effort query and may be inaccurate if Redis unavailable.
         """
         limit = self.rate_limits.get(tool_name)
 
@@ -422,8 +324,6 @@ class MCPRateLimiter:
                 "remaining": limit.requests + limit.burst,
                 "reset_at": None,
             }
-
-        from datetime import timedelta
 
         current_count = counter["count"]
         remaining = max(0, (limit.requests + limit.burst) - current_count)
@@ -489,7 +389,7 @@ def require_mcp_rate_limit(tool_name: str) -> Callable:
             if context is None:
                 # FAIL-SECURE: No context = deny
                 logger.error(
-                    f"❌ MCP rate limit decorator: No MCPAuthContext found for {tool_name}",
+                    f"MCP rate limit decorator: No MCPAuthContext found for {tool_name}",
                     extra={"tool_name": tool_name, "func": func.__name__},
                 )
                 raise MCPAuthorizationError(

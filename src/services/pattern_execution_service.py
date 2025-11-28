@@ -908,10 +908,9 @@ async def create_pattern_execution_engine(
     settings = get_settings()
 
     # Initialize cache manager if not provided
+    # v2.4.3: Using local-only caching (Redis removed)
     if cache_manager is None:
-        cache_manager = CacheManager(
-            redis_url=settings.redis_url, local_ttl=60, redis_ttl=300, max_local_size=1000,
-        )
+        cache_manager = CacheManager(local_ttl=60, max_local_size=1000)
         await cache_manager.initialize()
 
     # Get database session

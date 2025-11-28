@@ -2,6 +2,8 @@
 Hestia's Paranoid Traffic Control System
 
 "……大量のリクエストは必ず攻撃です……全て制限します……"
+
+v2.4.3: Redis removed - using local in-memory rate limiting only
 """
 
 import logging
@@ -11,7 +13,6 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any
 
-import redis
 from fastapi import HTTPException, Request, status
 
 from ..core.config import get_settings
@@ -45,28 +46,20 @@ class ClientStats:
 
 
 class RateLimiter:
-    """Advanced rate limiting system with multiple strategies.
+    """Advanced rate limiting system with local in-memory storage.
+
+    v2.4.3: Simplified to local-only rate limiting (Redis removed).
     Hestia's Rule: 99.7% of attacks use excessive request patterns.
     """
 
-    def __init__(self, redis_client: redis.Redis | None = None):
-        """Initialize rate limiter."""
+    def __init__(self):
+        """Initialize rate limiter with local storage only."""
         self.settings = get_settings()
-        self.redis_client = redis_client
         self.local_storage: dict[str, ClientStats] = {}
         self.global_stats = {
             "total_requests": 0,
             "blocked_requests": 0,
             "unique_clients": set(),
-        }
-
-        # Redis health tracking (H-2 fix: explicit degraded mode visibility)
-        self.redis_health = {
-            "is_available": redis_client is not None,
-            "failure_count": 0,
-            "last_failure_time": None,
-            "degraded_mode_active": False,
-            "consecutive_failures": 0,
         }
 
         # Default rate limits (production-grade strict limits)
@@ -151,46 +144,8 @@ class RateLimiter:
         self.permanent_bans: set = set()
         self.ban_threshold = 10  # Violations before permanent ban
 
-    def _record_redis_failure(self, operation: str, error: Exception) -> None:
-        """Record Redis failure for operational visibility (H-2 fix).
-
-        Args:
-            operation: Operation that failed (e.g., "global_rate_limit", "user_rate_limit")
-            error: The exception that occurred
-
-        """
-        self.redis_health["failure_count"] += 1
-        self.redis_health["consecutive_failures"] += 1
-        self.redis_health["last_failure_time"] = datetime.utcnow()
-
-        # Enter degraded mode after multiple consecutive failures
-        if (
-            self.redis_health["consecutive_failures"] >= 3
-            and not self.redis_health["degraded_mode_active"]
-        ):
-            self.redis_health["degraded_mode_active"] = True
-            logger.critical(
-                "⚠️  DEGRADED MODE ACTIVATED: Redis connection failing. "
-                f"Using fail-secure fallback limits. Operation: {operation}",
-            )
-
-        # Log every failure for operational visibility
-        logger.error(
-            f"Redis operation failed: {operation} - {error}. "
-            f"Total failures: {self.redis_health['failure_count']}, "
-            f"Consecutive: {self.redis_health['consecutive_failures']}. "
-            f"Degraded mode: {self.redis_health['degraded_mode_active']}",
-        )
-
-    def _record_redis_success(self) -> None:
-        """Record successful Redis operation."""
-        if self.redis_health["consecutive_failures"] > 0:
-            self.redis_health["consecutive_failures"] = 0
-
-            # Exit degraded mode
-            if self.redis_health["degraded_mode_active"]:
-                self.redis_health["degraded_mode_active"] = False
-                logger.info("✅ DEGRADED MODE EXITED: Redis connection restored")
+        # User rate limit tracking (in-memory)
+        self.user_rate_limits: dict[str, deque] = {}
 
     async def check_rate_limit(
         self, request: Request, endpoint_type: str = "default", user_id: str | None = None,
@@ -239,8 +194,7 @@ class RateLimiter:
     async def _check_rate_limit_internal(
         self, request: Request, endpoint_type: str = "default", user_id: str | None = None,
     ) -> bool:
-        """Internal rate limit check implementation.
-        """
+        """Internal rate limit check implementation."""
         client_ip = self._get_client_ip(request)
         now = datetime.utcnow()
 
@@ -423,34 +377,11 @@ class RateLimiter:
         return False
 
     async def _check_global_limit(self) -> bool:
-        """Check global rate limit."""
+        """Check global rate limit using local counter."""
         limit = self.rate_limits["global"]
-        current_time = time.time()
 
-        # Use Redis if available for distributed rate limiting
-        if self.redis_client:
-            try:
-                key = f"global_rate_limit:{int(current_time // limit.period)}"
-                current_count = await self.redis_client.incr(key)
-                await self.redis_client.expire(key, limit.period)
-
-                self._record_redis_success()  # H-2 fix: track success
-                return current_count <= limit.requests
-            except (KeyboardInterrupt, SystemExit):
-                raise
-            except Exception as e:
-                # H-2 fix: explicit degraded mode tracking
-                self._record_redis_failure("global_rate_limit", e)
-                # FAIL-SECURE: Redis failure = use 50% stricter fallback limits
-                fallback_allowed = limit.requests // 2
-                is_allowed = self.global_stats["total_requests"] < fallback_allowed
-                logger.warning(
-                    f"⚠️  Global rate limit using fallback (Redis unavailable). "
-                    f"Allowed: {fallback_allowed}, Current: {self.global_stats['total_requests']}, "
-                    f"Result: {'ALLOW' if is_allowed else 'DENY'}",
-                    extra={"degraded_mode": True, "fallback_limit": fallback_allowed},
-                )
-                return is_allowed
+        # Simple global counter (resets periodically via cleanup)
+        return self.global_stats["total_requests"] < limit.requests
 
     async def _check_ip_limit(self, client_stats: ClientStats, _endpoint_type: str) -> bool:
         """Check IP-based rate limit."""
@@ -498,54 +429,38 @@ class RateLimiter:
         return True
 
     async def _check_user_limit(self, user_id: str, _endpoint_type: str) -> bool:
-        """Check user-based rate limit."""
-        if not self.redis_client:
-            return True  # Skip if no Redis
-
+        """Check user-based rate limit using local storage."""
         limit = self.rate_limits.get("per_user", self.rate_limits["per_user"])
+        now = datetime.utcnow()
 
-        try:
-            key = f"user_rate_limit:{user_id}:{int(time.time() // limit.period)}"
-            current_count = await self.redis_client.incr(key)
-            await self.redis_client.expire(key, limit.period)
+        # Get or create user's request history
+        if user_id not in self.user_rate_limits:
+            self.user_rate_limits[user_id] = deque(maxlen=1000)
 
-            self._record_redis_success()  # H-2 fix: track success
+        user_requests = self.user_rate_limits[user_id]
 
-            if current_count > limit.requests + limit.burst:
-                logger.warning(f"User rate limit exceeded for {user_id}")
+        # Count recent requests
+        recent_count = sum(
+            1 for req_time in user_requests
+            if (now - req_time).seconds < limit.period
+        )
 
-                raise HTTPException(
-                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                    detail="User rate limit exceeded",
-                    headers={"Retry-After": str(limit.period)},
-                )
-
-            return True
-
-        except (KeyboardInterrupt, SystemExit):
-            raise
-        except HTTPException:
-            # Re-raise HTTP exceptions (not Redis errors)
-            raise
-        except Exception as e:
-            # H-2 fix: explicit degraded mode tracking
-            self._record_redis_failure("user_rate_limit", e)
-            # FAIL-SECURE: Redis failure = deny access for safety
-            logger.error(
-                f"❌ User rate limit check failed (FAIL-SECURE: denying access). User: {user_id}, Error: {e}",
-                exc_info=True,
-                extra={"user_id": user_id, "degraded_mode": True},
-            )
+        if recent_count >= limit.requests + limit.burst:
+            logger.warning(f"User rate limit exceeded for {user_id}")
             raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Service temporarily unavailable (degraded mode)",
-                headers={"Retry-After": "30"},
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="User rate limit exceeded",
+                headers={"Retry-After": str(limit.period)},
             )
+
+        # Record this request
+        user_requests.append(now)
+        return True
 
     async def _check_endpoint_limit(
         self, client_stats: ClientStats, endpoint_type: str, request: Request,
     ) -> bool:
-        """Check endpoint-specific rate limits."""
+        """Check endpoint-specific rate limits using local storage."""
         if endpoint_type == "default":
             return True
 
@@ -553,71 +468,43 @@ class RateLimiter:
         if not limit:
             return True
 
-        # Use Redis for endpoint-specific limits
-        if self.redis_client:
-            try:
-                key = f"endpoint_limit:{endpoint_type}:{client_stats.ip_address}:{int(time.time() // limit.period)}"
-                current_count = await self.redis_client.incr(key)
-                await self.redis_client.expire(key, limit.period)
+        now = datetime.utcnow()
 
-                self._record_redis_success()  # H-2 fix: track success
+        # Use client's request history for endpoint-specific limits
+        recent_requests = [
+            req_time
+            for req_time in client_stats.requests
+            if (now - req_time).seconds < limit.period
+        ]
 
-                if current_count > limit.requests:
-                    logger.warning(
-                        f"Endpoint rate limit exceeded: {endpoint_type} from {client_stats.ip_address}",
-                    )
+        if len(recent_requests) >= limit.requests:
+            logger.warning(
+                f"Endpoint rate limit exceeded: {endpoint_type} from {client_stats.ip_address}",
+            )
 
-                    await self._log_security_event(
-                        "endpoint_rate_limit_exceeded",
-                        client_stats.ip_address,
-                        request,
-                        {
-                            "endpoint_type": endpoint_type,
-                            "requests": current_count,
-                            "limit": limit.requests,
-                        },
-                    )
+            await self._log_security_event(
+                "endpoint_rate_limit_exceeded",
+                client_stats.ip_address,
+                request,
+                {
+                    "endpoint_type": endpoint_type,
+                    "requests": len(recent_requests),
+                    "limit": limit.requests,
+                },
+            )
 
-                    # For critical endpoints like login, block for longer
-                    if endpoint_type in ["login", "register"]:
-                        client_stats.blocked_until = datetime.utcnow() + timedelta(
-                            seconds=limit.block_duration,
-                        )
-                        client_stats.violations += 5  # Heavy penalty for auth abuse
-
-                    raise HTTPException(
-                        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                        detail=f"Rate limit exceeded for {endpoint_type}",
-                        headers={"Retry-After": str(limit.period)},
-                    )
-
-                return True
-
-            except (KeyboardInterrupt, SystemExit):
-                raise
-            except HTTPException:
-                # Re-raise HTTP exceptions (not Redis errors)
-                raise
-            except Exception as e:
-                # H-2 fix: explicit degraded mode tracking
-                self._record_redis_failure("endpoint_rate_limit", e)
-                # FAIL-SECURE: Redis failure = apply strict local block
-                client_stats.blocked_until = datetime.utcnow() + timedelta(seconds=60)
-                logger.error(
-                    f"❌ Endpoint rate limit check failed (FAIL-SECURE: blocking client). "
-                    f"Endpoint: {endpoint_type}, IP: {client_stats.ip_address}, Error: {e}",
-                    exc_info=True,
-                    extra={
-                        "endpoint_type": endpoint_type,
-                        "client_ip": client_stats.ip_address,
-                        "degraded_mode": True,
-                    },
+            # For critical endpoints like login, block for longer
+            if endpoint_type in ["login", "register"]:
+                client_stats.blocked_until = datetime.utcnow() + timedelta(
+                    seconds=limit.block_duration,
                 )
-                raise HTTPException(
-                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail="Service temporarily unavailable (degraded mode)",
-                    headers={"Retry-After": "60"},
-                )
+                client_stats.violations += 5  # Heavy penalty for auth abuse
+
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Rate limit exceeded for {endpoint_type}",
+                headers={"Retry-After": str(limit.period)},
+            )
 
         return True
 
@@ -631,15 +518,7 @@ class RateLimiter:
             client_stats.requests.popleft()
 
     def _determine_severity(self, event_type: str) -> str:
-        """
-        Determine severity level based on event type.
-
-        Args:
-            event_type: Type of security event
-
-        Returns:
-            Severity level: CRITICAL, HIGH, MEDIUM, or LOW
-        """
+        """Determine severity level based on event type."""
         critical_events = ["permanent_ban", "ddos_attack", "attack_bot_detected"]
         high_events = ["rate_limit_exceeded", "suspicious_pattern", "temporary_ban"]
 
@@ -721,18 +600,6 @@ class RateLimiter:
                     self.local_storage.values(), key=lambda s: s.violations, reverse=True,
                 )[:10]
             ],
-            # H-2 fix: Redis health visibility for operations
-            "redis_health": {
-                "available": self.redis_health["is_available"],
-                "degraded_mode": self.redis_health["degraded_mode_active"],
-                "failure_count": self.redis_health["failure_count"],
-                "consecutive_failures": self.redis_health["consecutive_failures"],
-                "last_failure": (
-                    self.redis_health["last_failure_time"].isoformat()
-                    if self.redis_health["last_failure_time"]
-                    else None
-                ),
-            },
         }
 
 
@@ -755,15 +622,7 @@ class DDoSProtection:
         }
 
     async def analyze_traffic(self, request: Request) -> bool:
-        """Analyze traffic for DDoS patterns.
-
-        Args:
-            request: Incoming request
-
-        Returns:
-            True if traffic is normal, False if attack detected
-
-        """
+        """Analyze traffic for DDoS patterns."""
         datetime.utcnow()
         client_ip = self.rate_limiter._get_client_ip(request)
 
@@ -823,7 +682,6 @@ class DDoSProtection:
 
     async def _check_slowloris_attack(self, request: Request) -> tuple[str, bool]:
         """Check for Slowloris-style attacks."""
-        # Check for incomplete requests or very slow connections
         content_length = request.headers.get("content-length")
         if content_length:
             try:

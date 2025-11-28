@@ -273,7 +273,7 @@ def get_rate_limiter() -> RateLimiter:
     Security Note:
         - Limits configured per endpoint type
         - Fail-secure: Errors result in 503 (deny access)
-        - Redis optional (degrades to in-memory if unavailable)
+        - v2.4.3: Local in-memory rate limiting (Redis removed)
     """
     global _rate_limiter
 

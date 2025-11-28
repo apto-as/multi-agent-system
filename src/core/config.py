@@ -103,9 +103,6 @@ class Settings(BaseSettings):
     rate_limit_enabled: bool = Field(default=True)
     rate_limit_requests: int = Field(default=100, ge=1, le=10000)
 
-    # ==== REDIS CONFIGURATION ====
-    redis_url: str = Field(default="redis://localhost:6379/0", description="Redis connection URL")
-
     # ==== VECTORIZATION & CHROMADB (v2.2.6: 1024-dim Multilingual-E5 Large) ====
     embedding_model: str = Field(default="zylonai/multilingual-e5-large")
     vector_dimension: int = Field(default=1024, ge=1, le=4096)  # ✅ Updated to 1024-dim (v2.2.6)
