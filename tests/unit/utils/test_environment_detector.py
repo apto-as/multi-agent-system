@@ -357,3 +357,105 @@ class TestEnvironmentDetectorIntegration:
 
         assert result.environment == ExecutionEnvironment.TERMINAL
         assert result.project_root == tmp_path
+
+
+class TestR1SensitiveDataMasking:
+    """R-1 Security tests: Enhanced environment variable masking (v2.4.6)."""
+
+    def test_masks_api_key_env_var(self):
+        """Test that API_KEY environment variables are masked."""
+        result = EnvironmentDetector._sanitize_env_value(
+            "sk-1234567890abcdef", "MY_API_KEY"
+        )
+        assert "MASKED" in result
+        assert "sk-" not in result
+
+    def test_masks_secret_env_var(self):
+        """Test that SECRET environment variables are masked."""
+        result = EnvironmentDetector._sanitize_env_value(
+            "supersecretvalue123", "APP_SECRET"
+        )
+        assert "MASKED" in result
+        assert "supersecret" not in result
+
+    def test_masks_password_env_var(self):
+        """Test that PASSWORD environment variables are masked."""
+        result = EnvironmentDetector._sanitize_env_value(
+            "mypassword123", "DATABASE_PASSWORD"
+        )
+        assert "MASKED" in result
+        assert "mypassword" not in result
+
+    def test_masks_token_env_var(self):
+        """Test that TOKEN environment variables are masked."""
+        result = EnvironmentDetector._sanitize_env_value(
+            "bearer_token_value", "AUTH_TOKEN"
+        )
+        assert "MASKED" in result
+        assert "bearer" not in result
+
+    def test_masks_database_url(self):
+        """Test that DATABASE_URL is masked."""
+        result = EnvironmentDetector._sanitize_env_value(
+            "postgresql://user:pass@localhost/db", "DATABASE_URL"
+        )
+        assert "MASKED" in result
+        assert "user:pass" not in result
+
+    def test_does_not_mask_safe_env_var(self):
+        """Test that safe environment variables are not masked."""
+        result = EnvironmentDetector._sanitize_env_value(
+            "/test/project/path", "OPENCODE_PROJECT_ROOT"
+        )
+        assert "MASKED" not in result
+        assert "/test/project/path" in result
+
+    def test_detects_jwt_token(self):
+        """Test that JWT tokens are detected and masked."""
+        jwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"
+        result = EnvironmentDetector._sanitize_env_value(jwt, "SOME_VALUE")
+        assert "MASKED" in result
+        assert "eyJ" not in result
+
+    def test_detects_openai_style_key(self):
+        """Test that OpenAI-style API keys are detected."""
+        assert EnvironmentDetector._looks_like_secret("sk-1234567890abcdefghijklmnop") is True
+
+    def test_detects_github_pat(self):
+        """Test that GitHub PATs are detected."""
+        assert EnvironmentDetector._looks_like_secret("ghp_1234567890abcdefghijklmnop") is True
+
+    def test_detects_aws_access_key(self):
+        """Test that AWS access keys are detected."""
+        assert EnvironmentDetector._looks_like_secret("AKIAIOSFODNN7EXAMPLE") is True
+
+    def test_detects_hex_encoded_secret(self):
+        """Test that hex-encoded secrets are detected."""
+        hex_secret = "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6"
+        assert EnvironmentDetector._looks_like_secret(hex_secret) is True
+
+    def test_short_values_not_treated_as_secrets(self):
+        """Test that short values are not mistaken for secrets."""
+        assert EnvironmentDetector._looks_like_secret("short") is False
+        assert EnvironmentDetector._looks_like_secret("123") is False
+
+    def test_normal_paths_not_treated_as_secrets(self):
+        """Test that normal paths are not mistaken for secrets."""
+        assert EnvironmentDetector._looks_like_secret("/usr/local/bin") is False
+        assert EnvironmentDetector._looks_like_secret("C:\\Users\\test") is False
+
+    def test_entropy_calculation(self):
+        """Test entropy calculation for secret detection."""
+        # Low entropy (repetitive)
+        low_entropy = EnvironmentDetector._calculate_entropy_score("aaaaaaaaaa")
+        # High entropy (random)
+        high_entropy = EnvironmentDetector._calculate_entropy_score("a1B2c3D4e5")
+
+        assert high_entropy > low_entropy
+
+    def test_masked_output_shows_length(self):
+        """Test that masked output shows character length."""
+        result = EnvironmentDetector._sanitize_env_value(
+            "secret123456", "MY_SECRET"
+        )
+        assert "12 chars" in result

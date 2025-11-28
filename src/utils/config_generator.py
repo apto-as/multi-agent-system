@@ -4,6 +4,7 @@ Generates appropriate configuration files (MCP config, etc.) for
 OpenCode, Claude Code, VS Code, and other supported environments.
 
 v2.4.5: Initial OpenCode support (MVP implementation)
+v2.4.6: Enhanced security (R-2: command whitelist validation)
 """
 
 import json
@@ -23,14 +24,148 @@ class ConfigGeneratorError(Exception):
     pass
 
 
+class CommandValidationError(ConfigGeneratorError):
+    """Raised when command validation fails (R-2 security)."""
+    pass
+
+
+# R-2: Allowed commands whitelist for MCP server configuration
+# Only these commands can be used in generated MCP configs
+ALLOWED_COMMANDS = frozenset({
+    # Python package managers
+    "uv",
+    "uvx",
+    "pip",
+    "pipx",
+    "python",
+    "python3",
+    # Node.js package managers
+    "npm",
+    "npx",
+    "node",
+    "yarn",
+    "pnpm",
+    # Docker commands
+    "docker",
+    "docker-compose",
+    # TMWS specific
+    "tmws",
+    "tmws-mcp-server",
+})
+
+# R-2: Dangerous command patterns that should never be allowed
+DANGEROUS_COMMAND_PATTERNS = frozenset({
+    "rm",
+    "del",
+    "rmdir",
+    "sudo",
+    "su",
+    "chmod",
+    "chown",
+    "curl",
+    "wget",
+    "sh",
+    "bash",
+    "zsh",
+    "powershell",
+    "cmd",
+    "eval",
+    "exec",
+})
+
+
+def validate_command(command: str, strict: bool = True) -> bool:
+    """Validate that a command is safe to use (R-2 security).
+
+    Args:
+        command: The command to validate.
+        strict: If True, only allow whitelisted commands.
+                If False, allow any command not in dangerous patterns.
+
+    Returns:
+        True if command is valid.
+
+    Raises:
+        CommandValidationError: If command is invalid.
+    """
+    if not command or not isinstance(command, str):
+        raise CommandValidationError("Command must be a non-empty string")
+
+    # Normalize command (handle paths like /usr/bin/python)
+    base_command = command.split("/")[-1].strip()
+
+    # Check for dangerous patterns
+    if base_command.lower() in DANGEROUS_COMMAND_PATTERNS:
+        raise CommandValidationError(
+            f"Command '{base_command}' is not allowed for security reasons. "
+            f"Dangerous commands are blocked."
+        )
+
+    # In strict mode, only allow whitelisted commands
+    if strict and base_command not in ALLOWED_COMMANDS:
+        raise CommandValidationError(
+            f"Command '{base_command}' is not in the allowed commands whitelist. "
+            f"Allowed commands: {', '.join(sorted(ALLOWED_COMMANDS))}"
+        )
+
+    return True
+
+
 @dataclass
 class MCPServerConfig:
-    """MCP server configuration for an environment."""
+    """MCP server configuration for an environment.
+
+    Security (R-2):
+        - Command is validated against whitelist on creation
+        - Args are sanitized for shell injection prevention
+    """
 
     name: str = "tmws"
     command: str = "uv"
     args: list[str] = field(default_factory=lambda: ["run", "tmws-mcp-server"])
     env: dict[str, str] = field(default_factory=dict)
+    validate_command_strict: bool = field(default=True, repr=False)
+
+    def __post_init__(self) -> None:
+        """Validate command after initialization (R-2 security)."""
+        validate_command(self.command, strict=self.validate_command_strict)
+
+        # R-2: Sanitize args to prevent shell injection
+        self.args = [self._sanitize_arg(arg) for arg in self.args]
+
+    @staticmethod
+    def _sanitize_arg(arg: str) -> str:
+        """Sanitize command argument (R-2 security).
+
+        Removes or escapes potentially dangerous characters.
+        """
+        if not arg:
+            return arg
+
+        # Remove null bytes
+        arg = arg.replace("\x00", "")
+
+        # Block common shell injection patterns
+        dangerous_patterns = [
+            ";",  # Command separator
+            "|",  # Pipe
+            "&",  # Background/AND
+            "$(",  # Command substitution
+            "`",  # Command substitution (backtick)
+            "$((",  # Arithmetic expansion
+            ">>",  # Append redirect
+            "<<",  # Heredoc
+            "<(",  # Process substitution
+            ">(",  # Process substitution
+        ]
+
+        for pattern in dangerous_patterns:
+            if pattern in arg:
+                raise CommandValidationError(
+                    f"Argument contains potentially dangerous pattern '{pattern}': {arg}"
+                )
+
+        return arg
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary format for JSON serialization."""
@@ -287,7 +422,11 @@ def generate_opencode_config(
 # Export public interface
 __all__ = [
     "ConfigGeneratorError",
+    "CommandValidationError",
     "MCPServerConfig",
     "ConfigGenerator",
     "generate_opencode_config",
+    "validate_command",
+    "ALLOWED_COMMANDS",
+    "DANGEROUS_COMMAND_PATTERNS",
 ]
