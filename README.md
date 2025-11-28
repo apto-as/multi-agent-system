@@ -1,20 +1,21 @@
 # TMWS - Trinitas Memory & Workflow Service
 
-[![Version](https://img.shields.io/badge/version-2.4.5-blue)](https://github.com/apto-as/tmws)
+[![Version](https://img.shields.io/badge/version-2.4.6-blue)](https://github.com/apto-as/tmws)
 [![Python](https://img.shields.io/badge/python-3.11%2B-green)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-purple)](LICENSE)
 [![MCP Compatible](https://img.shields.io/badge/MCP-compatible-orange)](https://modelcontextprotocol.io)
 
 **Ultra-fast, multi-agent memory and workflow service with SQLite + ChromaDB architecture.**
 
-## What's New in v2.4.5
+## What's New in v2.4.6
 
-- **OpenCode Support**: Auto-detect OpenCode environment and generate MCP configuration
-- **Multi-Environment Detection**: Supports OpenCode, Claude Code, VS Code, Cursor
-- **Security Hardened**: Path traversal prevention, atomic writes, input validation
+- **P3 Security Enhancements**: Enhanced credential protection and command validation
+- **R-1 Env Masking**: Automatic detection and masking of API keys, secrets, tokens (13 patterns)
+- **R-2 Command Whitelist**: 18 allowed commands, 14 dangerous commands blocked
 
 ### Previous Releases
 
+**v2.4.5**: OpenCode support, multi-environment detection, security hardening
 **v2.4.4**: Rate limit bypass fix, cache cleanup, thread-safety improvements
 **v2.4.3**: Redis removed, Docker-only deployment, local rate limiting
 

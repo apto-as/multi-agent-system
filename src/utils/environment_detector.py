@@ -4,16 +4,35 @@ Detects execution environment (OpenCode, Claude Code, VS Code, etc.)
 and provides appropriate configuration for each environment.
 
 v2.4.5: Initial OpenCode support (MVP implementation)
+v2.4.6: Enhanced security (R-1: sensitive data masking)
 """
 
 import logging
 import os
+import re
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+# R-1: Sensitive environment variable patterns for masking
+SENSITIVE_ENV_PATTERNS = frozenset({
+    re.compile(r".*api[_-]?key.*", re.IGNORECASE),
+    re.compile(r".*secret.*", re.IGNORECASE),
+    re.compile(r".*password.*", re.IGNORECASE),
+    re.compile(r".*token.*", re.IGNORECASE),
+    re.compile(r".*credential.*", re.IGNORECASE),
+    re.compile(r".*private[_-]?key.*", re.IGNORECASE),
+    re.compile(r".*auth.*", re.IGNORECASE),
+    re.compile(r".*bearer.*", re.IGNORECASE),
+    re.compile(r".*access[_-]?key.*", re.IGNORECASE),
+    re.compile(r".*signing[_-]?key.*", re.IGNORECASE),
+    re.compile(r".*encryption[_-]?key.*", re.IGNORECASE),
+    re.compile(r".*database[_-]?url.*", re.IGNORECASE),
+    re.compile(r".*connection[_-]?string.*", re.IGNORECASE),
+})
 
 
 class ExecutionEnvironment(str, Enum):
@@ -178,7 +197,7 @@ class EnvironmentDetector:
                     detected_by=f"env:{env_var}",
                     metadata={
                         "env_var": env_var,
-                        "env_value": cls._sanitize_env_value(value),
+                        "env_value": cls._sanitize_env_value(value, env_var),
                         "opencode_version": os.environ.get("OPENCODE_VERSION", "unknown"),
                     },
                 )
@@ -338,13 +357,21 @@ class EnvironmentDetector:
             return None
 
     @classmethod
-    def _sanitize_env_value(cls, value: str) -> str:
+    def _sanitize_env_value(cls, value: str, env_var_name: str = "") -> str:
         """Sanitize environment variable value for logging.
 
-        Security:
+        Security (R-1 Enhanced):
             - Truncates long values
-            - Masks potentially sensitive data
+            - Masks sensitive data based on env var name patterns
             - Removes control characters
+            - Detects and masks inline secrets (base64, hex patterns)
+
+        Args:
+            value: The environment variable value to sanitize.
+            env_var_name: The name of the environment variable (for pattern matching).
+
+        Returns:
+            Sanitized string safe for logging.
         """
         if not value:
             return ""
@@ -352,12 +379,95 @@ class EnvironmentDetector:
         # Remove control characters
         sanitized = "".join(c for c in value if c.isprintable())
 
+        # R-1: Check if env var name matches sensitive patterns
+        if env_var_name:
+            for pattern in SENSITIVE_ENV_PATTERNS:
+                if pattern.match(env_var_name):
+                    # Mask sensitive values, showing only length indicator
+                    return f"[MASKED:{len(sanitized)} chars]"
+
+        # R-1: Detect inline secrets even if var name doesn't match
+        # Check for base64 encoded strings (common for secrets)
+        if cls._looks_like_secret(sanitized):
+            return f"[MASKED:{len(sanitized)} chars]"
+
         # Truncate for logging
         max_length = 100
         if len(sanitized) > max_length:
             sanitized = sanitized[:max_length] + "..."
 
         return sanitized
+
+    @classmethod
+    def _looks_like_secret(cls, value: str) -> bool:
+        """Detect if a value looks like a secret (R-1 security).
+
+        Checks for common secret patterns:
+        - Base64 encoded strings
+        - Hex encoded strings
+        - JWT tokens
+        - API key formats
+
+        Returns:
+            True if value appears to be a secret.
+        """
+        if len(value) < 16:
+            return False
+
+        # JWT pattern (three base64 parts separated by dots)
+        if re.match(r"^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$", value):
+            return True
+
+        # Long hex string (common for API keys)
+        if re.match(r"^[a-fA-F0-9]{32,}$", value):
+            return True
+
+        # Base64 with high entropy (likely encoded secret)
+        if re.match(r"^[A-Za-z0-9+/=]{32,}$", value):
+            # Additional check: base64 strings often end with = padding
+            if value.endswith("=") or value.endswith("=="):
+                return True
+            # High ratio of mixed case and numbers suggests encoded data
+            if cls._calculate_entropy_score(value) > 3.5:
+                return True
+
+        # Common API key patterns
+        api_key_patterns = [
+            r"^sk-[a-zA-Z0-9]{20,}$",  # OpenAI-style
+            r"^pk_[a-zA-Z0-9]{20,}$",  # Stripe-style
+            r"^ghp_[a-zA-Z0-9]{20,}$",  # GitHub PAT
+            r"^gho_[a-zA-Z0-9]{20,}$",  # GitHub OAuth
+            r"^AKIA[A-Z0-9]{16}$",  # AWS Access Key
+        ]
+        for pattern in api_key_patterns:
+            if re.match(pattern, value):
+                return True
+
+        return False
+
+    @classmethod
+    def _calculate_entropy_score(cls, value: str) -> float:
+        """Calculate a simple entropy score for a string.
+
+        Higher score indicates more random/encrypted content.
+        Used to detect potentially sensitive encoded values.
+        """
+        import math
+        from collections import Counter
+
+        if not value:
+            return 0.0
+
+        counter = Counter(value)
+        length = len(value)
+        entropy = 0.0
+
+        for count in counter.values():
+            if count > 0:
+                probability = count / length
+                entropy -= probability * math.log2(probability)
+
+        return entropy
 
     @classmethod
     def _unknown_environment(cls, reason: str) -> EnvironmentInfo:

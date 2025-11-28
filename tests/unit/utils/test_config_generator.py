@@ -422,3 +422,154 @@ class TestConfigGeneratorGetTemplate:
         config = json.loads(template)
 
         assert "mcpServers" in config
+
+
+class TestR2CommandWhitelist:
+    """R-2 Security tests: Command whitelist validation (v2.4.6)."""
+
+    def test_valid_default_command(self):
+        """Test that default command 'uv' is valid."""
+        from src.utils.config_generator import validate_command
+        assert validate_command("uv", strict=True) is True
+
+    def test_valid_commands_whitelist(self):
+        """Test all whitelisted commands are valid."""
+        from src.utils.config_generator import validate_command, ALLOWED_COMMANDS
+
+        for cmd in ALLOWED_COMMANDS:
+            assert validate_command(cmd, strict=True) is True
+
+    def test_invalid_command_raises_error(self):
+        """Test that non-whitelisted command raises error in strict mode."""
+        from src.utils.config_generator import validate_command, CommandValidationError
+
+        with pytest.raises(CommandValidationError) as exc_info:
+            validate_command("unknown_command", strict=True)
+        assert "not in the allowed commands whitelist" in str(exc_info.value)
+
+    def test_dangerous_command_blocked(self):
+        """Test that dangerous commands are always blocked."""
+        from src.utils.config_generator import validate_command, CommandValidationError
+
+        dangerous = ["rm", "sudo", "bash", "sh", "eval", "curl", "wget"]
+        for cmd in dangerous:
+            with pytest.raises(CommandValidationError) as exc_info:
+                validate_command(cmd, strict=False)
+            assert "not allowed for security reasons" in str(exc_info.value)
+
+    def test_command_with_path_is_normalized(self):
+        """Test that commands with paths are normalized."""
+        from src.utils.config_generator import validate_command
+        # /usr/bin/python should normalize to 'python'
+        assert validate_command("/usr/bin/python", strict=True) is True
+
+    def test_empty_command_raises_error(self):
+        """Test that empty command raises error."""
+        from src.utils.config_generator import validate_command, CommandValidationError
+
+        with pytest.raises(CommandValidationError):
+            validate_command("", strict=True)
+
+        with pytest.raises(CommandValidationError):
+            validate_command(None, strict=True)
+
+    def test_mcp_server_config_validates_command(self):
+        """Test that MCPServerConfig validates command on creation."""
+        from src.utils.config_generator import MCPServerConfig, CommandValidationError
+
+        # Valid command should work
+        config = MCPServerConfig(command="uv")
+        assert config.command == "uv"
+
+        # Invalid command should raise
+        with pytest.raises(CommandValidationError):
+            MCPServerConfig(command="rm")
+
+    def test_mcp_server_config_sanitizes_args(self):
+        """Test that MCPServerConfig sanitizes arguments."""
+        from src.utils.config_generator import MCPServerConfig, CommandValidationError
+
+        # Valid args should work
+        config = MCPServerConfig(args=["run", "tmws-mcp-server"])
+        assert config.args == ["run", "tmws-mcp-server"]
+
+        # Dangerous args should raise
+        with pytest.raises(CommandValidationError):
+            MCPServerConfig(args=["run", "cmd; rm -rf /"])
+
+    def test_shell_injection_patterns_blocked(self):
+        """Test that shell injection patterns are blocked in args."""
+        from src.utils.config_generator import MCPServerConfig, CommandValidationError
+
+        dangerous_args = [
+            "arg; rm -rf /",
+            "arg | cat /etc/passwd",
+            "arg && malicious",
+            "$(whoami)",
+            "`id`",
+            "arg >> /tmp/output",
+        ]
+
+        for dangerous_arg in dangerous_args:
+            with pytest.raises(CommandValidationError) as exc_info:
+                MCPServerConfig(args=[dangerous_arg])
+            assert "dangerous pattern" in str(exc_info.value)
+
+    def test_null_bytes_removed_from_args(self):
+        """Test that null bytes are removed from arguments."""
+        from src.utils.config_generator import MCPServerConfig
+
+        config = MCPServerConfig(args=["run\x00", "tmws"])
+        assert "\x00" not in config.args[0]
+        assert config.args[0] == "run"
+
+    def test_non_strict_mode_allows_unknown_commands(self):
+        """Test that non-strict mode allows unknown but safe commands."""
+        from src.utils.config_generator import validate_command
+
+        # Unknown but safe command should pass in non-strict mode
+        assert validate_command("custom_safe_tool", strict=False) is True
+
+    def test_mcp_server_config_strict_mode_flag(self):
+        """Test MCPServerConfig respects validate_command_strict flag."""
+        from src.utils.config_generator import MCPServerConfig
+
+        # Non-strict mode allows unknown commands
+        config = MCPServerConfig(
+            command="custom_tool",
+            validate_command_strict=False
+        )
+        assert config.command == "custom_tool"
+
+    def test_dangerous_commands_list_comprehensive(self):
+        """Test that dangerous commands list is comprehensive."""
+        from src.utils.config_generator import DANGEROUS_COMMAND_PATTERNS
+
+        # Ensure critical dangerous commands are included
+        critical_dangerous = ["rm", "sudo", "bash", "sh", "eval", "chmod"]
+        for cmd in critical_dangerous:
+            assert cmd in DANGEROUS_COMMAND_PATTERNS
+
+    def test_allowed_commands_includes_python_tools(self):
+        """Test that allowed commands includes Python ecosystem tools."""
+        from src.utils.config_generator import ALLOWED_COMMANDS
+
+        python_tools = ["python", "python3", "pip", "uv", "uvx", "pipx"]
+        for tool in python_tools:
+            assert tool in ALLOWED_COMMANDS
+
+    def test_allowed_commands_includes_node_tools(self):
+        """Test that allowed commands includes Node.js ecosystem tools."""
+        from src.utils.config_generator import ALLOWED_COMMANDS
+
+        node_tools = ["node", "npm", "npx", "yarn", "pnpm"]
+        for tool in node_tools:
+            assert tool in ALLOWED_COMMANDS
+
+    def test_allowed_commands_includes_docker(self):
+        """Test that allowed commands includes Docker tools."""
+        from src.utils.config_generator import ALLOWED_COMMANDS
+
+        docker_tools = ["docker", "docker-compose"]
+        for tool in docker_tools:
+            assert tool in ALLOWED_COMMANDS
