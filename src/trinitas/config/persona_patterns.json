@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "version": "2.2.4",
-  "description": "Unified persona detection patterns for Trinitas v2.2.4",
+  "version": "2.4.7",
+  "description": "Unified persona detection patterns for Trinitas v2.4.7 (9 agents)",
   "personas": {
     "athena": {
       "display_name": "Athena",
@@ -56,6 +56,33 @@
       "flags": "i",
       "priority": 5,
       "contexts": ["documentation"]
+    },
+    "aphrodite": {
+      "display_name": "Aphrodite",
+      "title": "UI/UX Designer",
+      "emoji": "🌸",
+      "pattern": "\\b(design|ui|ux|interface|visual|layout|usabil)\\w*",
+      "flags": "i",
+      "priority": 4,
+      "contexts": ["design", "frontend"]
+    },
+    "metis": {
+      "display_name": "Metis",
+      "title": "Development Assistant",
+      "emoji": "🔧",
+      "pattern": "\\b(implement|code|develop|build|test|debug|fix)\\w*",
+      "flags": "i",
+      "priority": 2,
+      "contexts": ["development", "testing"]
+    },
+    "aurora": {
+      "display_name": "Aurora",
+      "title": "Research Assistant",
+      "emoji": "🌅",
+      "pattern": "\\b(search|find|lookup|research|context|retrieve)\\w*",
+      "flags": "i",
+      "priority": 3,
+      "contexts": ["research", "memory"]
     }
   }
 }
