@@ -1089,8 +1089,18 @@ def first_run_setup():
     Creates necessary directories, initializes database schema, and displays setup information.
     """
     import asyncio
+    import logging
     import sys
     from pathlib import Path
+
+    # Configure logging to stderr early to keep stdout clean for MCP STDIO protocol
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        stream=sys.stderr,
+    )
+    logging.getLogger("sqlalchemy").handlers = []
+    logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 
     TMWS_HOME = Path.home() / ".tmws"
     TMWS_DATA_DIR = TMWS_HOME / "data"
@@ -1229,10 +1239,15 @@ def first_run_setup():
 
 async def async_main():
     """Async main entry point for MCP server."""
+    # Configure logging to stderr to keep stdout clean for MCP STDIO protocol
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        stream=sys.stderr,  # MCP STDIO: stdout is reserved for JSON-RPC
     )
+    # Ensure SQLAlchemy logs also go to stderr
+    logging.getLogger("sqlalchemy").handlers = []
+    logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 
     server = HybridMCPServer()
 
