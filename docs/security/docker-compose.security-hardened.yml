@@ -1,0 +1,151 @@
+# ========================================
+# TMWS Security-Hardened Docker Compose
+# Hestia Security Audit: 2025-11-29
+# ========================================
+# 🔥 このファイルは推奨設定例です
+# 本番環境では環境に応じてカスタマイズしてください
+# ========================================
+
+version: '3.8'
+
+networks:
+  tmws_internal:
+    driver: bridge
+    # 🔥 内部ネットワークとして設定（外部通信はOllamaのみ）
+    internal: false
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/24
+          gateway: 172.20.0.1
+
+services:
+  tmws:
+    image: tmws:latest
+    container_name: tmws_production
+
+    # 🔥 非特権ユーザーで実行
+    user: "1000:1000"
+
+    # 🔥 読み取り専用ルートファイルシステム（書き込みは特定ボリュームのみ）
+    read_only: true
+
+    # 🔥 Linux capabilities最小化
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE  # ポート8000バインド用
+
+    # 🔥 セキュリティオプション
+    security_opt:
+      - no-new-privileges:true  # 権限昇格禁止
+      - seccomp:unconfined  # 本番環境では適切なseccompプロファイルを使用
+
+    # 🔥 ネットワーク設定
+    networks:
+      tmws_internal:
+        ipv4_address: 172.20.0.10
+
+    # 🔥 ポート公開（localhostのみバインド）
+    ports:
+      - "127.0.0.1:8000:8000"
+
+    # 🔥 環境変数（.envファイルから読み込み）
+    env_file:
+      - .env.production  # 本番用
+
+    environment:
+      # Ollamaエンドポイント（ホストまたは別コンテナ）
+      TMWS_OLLAMA_BASE_URL: "http://host.docker.internal:11434"
+
+      # セキュリティ設定
+      TMWS_SECURITY_HEADERS_ENABLED: "true"
+      TMWS_SESSION_TIMEOUT: "3600"
+      TMWS_MAX_REQUEST_SIZE: "10485760"
+
+      # ログレベル（本番環境ではINFO推奨）
+      TMWS_LOG_LEVEL: "INFO"
+
+    # 🔥 ボリュームマウント（書き込み可能なディレクトリのみ）
+    volumes:
+      # データベース（永続化）
+      - type: volume
+        source: tmws_db
+        target: /app/.tmws/db
+
+      # ベクトルストア（永続化）
+      - type: volume
+        source: tmws_vector
+        target: /app/.tmws/vector_store
+
+      # ログ（永続化）
+      - type: volume
+        source: tmws_logs
+        target: /app/.tmws/logs
+
+      # 出力ファイル（一時領域）
+      - type: tmpfs
+        target: /app/.tmws/output
+        tmpfs:
+          size: 100M
+          mode: 0700
+
+      # 🔥 tmpディレクトリ（読み取り専用ルートFS対応）
+      - type: tmpfs
+        target: /tmp
+        tmpfs:
+          size: 50M
+          mode: 1777
+
+    # 🔥 リソース制限（DoS防止）
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+    # 🔥 再起動ポリシー
+    restart: unless-stopped
+
+    # 🔥 ヘルスチェック（STDIOモードでは無効化）
+    # HTTPモードの場合は有効化してください
+    # healthcheck:
+    #   test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 3
+    #   start_period: 30s
+
+    # 🔥 ログ設定（ログローテーション）
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=tmws,environment=production"
+
+volumes:
+  # 🔥 ボリュームの明示的定義
+  tmws_db:
+    driver: local
+    driver_opts:
+      type: none
+      device: ${PWD}/data/db
+      o: bind
+
+  tmws_vector:
+    driver: local
+    driver_opts:
+      type: none
+      device: ${PWD}/data/vector_store
+      o: bind
+
+  tmws_logs:
+    driver: local
+    driver_opts:
+      type: none
+      device: ${PWD}/data/logs
+      o: bind
