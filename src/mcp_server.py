@@ -494,6 +494,12 @@ class HybridMCPServer:
             await skill_tools.register_tools(self.mcp, get_session)
             logger.info("Skill tools registered (8 MCP tools for skill lifecycle management)")
 
+            # Register agent tools (v2.4.7+ MCP-first architecture)
+            from src.tools.agent_tools import AgentTools
+            agent_tools = AgentTools()
+            await agent_tools.register_tools(self.mcp, get_session)
+            logger.info("Agent tools registered (9 MCP tools for agent management)")
+
             # Phase 3: Trinitas Agent File Loading (v2.4.0+, license-gated, OPTIONAL)
             # This phase generates agent markdown files for Claude Desktop
             # Failure here is non-critical and doesn't block Phase 4
