@@ -160,6 +160,61 @@ MCP_RATE_LIMITS = {
         burst=3,
         block_duration=600,
     ),
+    # Agent operations: MCP-first (v2.4.7)
+    "agent_list": RateLimit(
+        requests=60,  # 60 list operations per minute
+        period=60,
+        burst=10,
+        block_duration=60,
+    ),
+    "agent_get": RateLimit(
+        requests=120,  # 120 reads per minute
+        period=60,
+        burst=20,
+        block_duration=60,
+    ),
+    "agent_search": RateLimit(
+        requests=30,  # 30 searches per minute
+        period=60,
+        burst=5,
+        block_duration=120,
+    ),
+    "agent_register": RateLimit(
+        requests=5,  # 5 registrations per hour
+        period=3600,
+        burst=1,
+        block_duration=1800,  # 30 minutes
+    ),
+    "agent_update": RateLimit(
+        requests=30,  # 30 updates per hour
+        period=3600,
+        burst=5,
+        block_duration=600,
+    ),
+    "agent_deactivate": RateLimit(
+        requests=5,  # 5 deactivations per hour
+        period=3600,
+        burst=0,  # No burst for status changes
+        block_duration=1800,
+    ),
+    "agent_activate": RateLimit(
+        requests=10,  # 10 activations per hour
+        period=3600,
+        burst=2,
+        block_duration=600,
+    ),
+    "agent_stats": RateLimit(
+        requests=60,  # 60 stats queries per minute
+        period=60,
+        burst=10,
+        block_duration=60,
+    ),
+    "agent_recommend": RateLimit(
+        requests=30,  # 30 recommendations per minute
+        period=60,
+        burst=5,
+        block_duration=120,
+    ),
 }
 
 

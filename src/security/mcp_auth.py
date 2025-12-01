@@ -87,6 +87,12 @@ class MCPOperation(str, Enum):
     SKILL_ACTIVATE = "skill:activate"
     SKILL_DEACTIVATE = "skill:deactivate"
 
+    # Agent operations (v2.4.7: MCP-first)
+    AGENT_READ = "agent:read"
+    AGENT_WRITE = "agent:write"
+    AGENT_DELETE = "agent:delete"
+    AGENT_ADMIN = "agent:admin"  # For status changes, team management
+
 
 class MCPRole(str, Enum):
     """MCP roles for RBAC (REQ-5)."""
