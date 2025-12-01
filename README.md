@@ -1,6 +1,6 @@
 # TMWS - Trinitas Memory & Workflow Service
 
-[![Version](https://img.shields.io/badge/version-2.4.6-blue)](https://github.com/apto-as/tmws)
+[![Version](https://img.shields.io/badge/version-2.4.8-blue)](https://github.com/apto-as/tmws)
 [![Python](https://img.shields.io/badge/python-3.11%2B-green)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-purple)](LICENSE)
 [![MCP Compatible](https://img.shields.io/badge/MCP-compatible-orange)](https://modelcontextprotocol.io)
@@ -312,4 +312,4 @@ Licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
 ---
 
-**TMWS v2.4.7** - Ultra-fast memory and workflow service for AI agents (MCP-first architecture)
+**TMWS v2.4.8** - Ultra-fast memory and workflow service for AI agents (MCP-first architecture)

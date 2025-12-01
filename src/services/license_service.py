@@ -360,13 +360,17 @@ class LicenseService:
             return False
 
         try:
-            # Add padding if needed (URL-safe base64 without padding)
+            # Restore '+' and '/' from '.' and '~' (sign_license.py replaces to avoid delimiter conflict)
+            # This is a custom encoding: '.' -> '+', '~' -> '/'
+            signature_b64 = signature_b64.replace(".", "+").replace("~", "/")
+
+            # Add padding if needed (standard base64 without padding)
             padding = 4 - len(signature_b64) % 4
             if padding != 4:
                 signature_b64 += "=" * padding
 
-            # Decode signature from URL-safe Base64
-            signature_bytes = base64.urlsafe_b64decode(signature_b64)
+            # Decode signature from standard Base64
+            signature_bytes = base64.b64decode(signature_b64)
 
             # Verify signature (raises InvalidSignature if invalid)
             self._ed25519_public_key.verify(
