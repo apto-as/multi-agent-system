@@ -1,5 +1,5 @@
 # ========================================
-# TMWS v2.4.1 Production Dockerfile
+# TMWS v2.4.7 Production Dockerfile
 # ========================================
 # Multi-stage build for source code protection and minimal image size
 # Artemis optimization target: <500MB final image
@@ -89,8 +89,8 @@ RUN ls -lh /build/dist/*.whl && \
 FROM python:3.11-slim@sha256:193fdd0bbcb3d2ae612bd6cc3548d2f7c78d65b549fcaa8af75624c47474444d
 
 LABEL maintainer="Trinitas Development Team <dev@trinitas.ai>"
-LABEL version="2.4.6"
-LABEL description="TMWS MCP Server - SQLite + ChromaDB architecture + Trinitas Agents + Ed25519 License"
+LABEL version="2.4.7"
+LABEL description="TMWS MCP Server - SQLite + ChromaDB architecture + Trinitas Agents + Ed25519 License + MCP-first Skills/Agent Tools"
 
 WORKDIR /app
 

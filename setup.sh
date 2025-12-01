@@ -1,4 +1,37 @@
 #!/bin/bash
+# ========================================
+# ⚠️  DEPRECATED - DO NOT USE
+# ========================================
+# This script is for TMWS v2.2.0 (PostgreSQL + pgvector architecture)
+# which has been replaced by SQLite + ChromaDB architecture in v2.4.0+
+#
+# For current installation, use Docker:
+#   docker-compose up -d
+#
+# Or see README.md for Quick Start instructions.
+#
+# This file is kept for historical reference only.
+# ========================================
+
+echo ""
+echo "⚠️  =========================================="
+echo "⚠️  DEPRECATED: This script is outdated"
+echo "⚠️  =========================================="
+echo ""
+echo "TMWS v2.4.7 uses SQLite + ChromaDB architecture."
+echo "PostgreSQL is no longer required."
+echo ""
+echo "Please use Docker instead:"
+echo "  docker-compose up -d"
+echo ""
+echo "Or follow the Quick Start in README.md:"
+echo "  https://github.com/apto-as/tmws#quick-start-docker"
+echo ""
+exit 1
+
+# ========================================
+# ORIGINAL SCRIPT BELOW (for reference)
+# ========================================
 # TMWS v2.2.0 自動セットアップスクリプト
 
 set -e  # エラーで停止
