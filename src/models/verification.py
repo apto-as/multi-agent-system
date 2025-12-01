@@ -1,12 +1,16 @@
 """Verification and trust tracking models"""
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, String, Text, event
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.core.exceptions import ImmutableRecordError
 from src.models.base import TMWSBase
+
+if TYPE_CHECKING:
+    from src.models.agent import Agent
+    from src.models.memory import Memory
 
 
 class VerificationRecord(TMWSBase):

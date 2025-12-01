@@ -21,7 +21,6 @@ import hashlib
 import logging
 import platform
 import uuid
-from typing import Dict
 
 # Use standard logging to avoid config dependencies
 logger = logging.getLogger(__name__)
@@ -78,7 +77,7 @@ def get_machine_fingerprint() -> str:
     return fingerprint_hash
 
 
-def get_machine_info() -> Dict[str, str]:
+def get_machine_info() -> dict[str, str]:
     """Get detailed machine information for debugging.
 
     Returns:

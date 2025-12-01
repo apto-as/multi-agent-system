@@ -9,9 +9,12 @@ Security Note:
 - Verified namespace is used for all authorization checks (P0-1 compliance)
 """
 
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 from fastapi import Depends, HTTPException, Request, status
+
+if TYPE_CHECKING:
+    from src.infrastructure.mcp.manager import MCPManager
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,6 +28,7 @@ from src.application.use_cases.disconnect_mcp_server_use_case import (
 )
 from src.application.use_cases.discover_tools_use_case import DiscoverToolsUseCase
 from src.application.use_cases.execute_tool_use_case import ExecuteToolUseCase
+from src.application.use_cases.get_tools_summary_use_case import GetToolsSummaryUseCase
 from src.core.config import settings
 from src.core.database import get_db_session
 from src.infrastructure.adapters.mcp_client_adapter import MCPClientAdapter
@@ -256,6 +260,42 @@ async def get_execute_tool_use_case(
     )
 
 
+# Global MCPManager instance for tools summary
+_mcp_manager: "MCPManager | None" = None
+
+
+def get_mcp_manager() -> "MCPManager":
+    """Get or create global MCPManager instance.
+
+    Returns:
+        Configured MCPManager for MCP connections
+
+    Note:
+        MCPManager is a singleton for connection pooling.
+        Import is deferred to avoid circular imports.
+    """
+    global _mcp_manager
+
+    if _mcp_manager is None:
+        from src.infrastructure.mcp.manager import MCPManager
+        _mcp_manager = MCPManager()
+
+    return _mcp_manager
+
+
+async def get_tools_summary_use_case() -> GetToolsSummaryUseCase:
+    """Inject GetToolsSummaryUseCase with MCPManager.
+
+    This use case implements Anthropic's defer_loading pattern
+    for efficient token usage in Push-type context injection.
+
+    Returns:
+        Configured GetToolsSummaryUseCase instance
+    """
+    mcp_manager = get_mcp_manager()
+    return GetToolsSummaryUseCase(mcp_manager=mcp_manager)
+
+
 # ============================================================================
 # Rate Limiting (V-MCP-2 Security Fix)
 # ============================================================================
@@ -289,6 +329,7 @@ def get_rate_limiter() -> RateLimiter:
                 "mcp_execute_tool": RateLimit(100, 60, burst=20),       # 100/min
                 "mcp_discover_tools": RateLimit(50, 60, burst=10),      # 50/min
                 "mcp_disconnect": RateLimit(20, 60, burst=5),           # 20/min
+                "mcp_tools_summary": RateLimit(30, 60, burst=10),       # 30/min (Push API)
                 # Skills API (Phase 2E-1)
                 "skill_create": RateLimit(20, 3600, burst=5),           # 20/hour
                 "skill_list": RateLimit(100, 3600, burst=20),           # 100/hour
@@ -305,6 +346,7 @@ def get_rate_limiter() -> RateLimiter:
                 "mcp_execute_tool": RateLimit(200, 60, burst=50),       # 200/min
                 "mcp_discover_tools": RateLimit(100, 60, burst=20),     # 100/min
                 "mcp_disconnect": RateLimit(50, 60, burst=10),          # 50/min
+                "mcp_tools_summary": RateLimit(60, 60, burst=20),       # 60/min (Push API)
                 # Skills API (Phase 2E-1)
                 "skill_create": RateLimit(60, 3600, burst=15),          # 60/hour
                 "skill_list": RateLimit(300, 3600, burst=60),           # 300/hour
@@ -413,6 +455,34 @@ async def check_rate_limit_mcp_disconnect(
     await limiter.check_rate_limit(
         request=request,
         endpoint_type="mcp_disconnect",
+    )
+
+
+async def check_rate_limit_mcp_tools_summary(
+    request: Request,
+) -> None:
+    """Check rate limit for MCP tools summary (defer_loading pattern).
+
+    Raises:
+        HTTPException: 429 if rate limit exceeded
+
+    Security:
+        - 30 summaries/min in production
+        - 60 summaries/min in development
+        - Designed for Push-type context injection (Hooks/Plugins)
+        - Disabled in test environment
+
+    Reference:
+        https://www.anthropic.com/engineering/advanced-tool-use
+    """
+    # Skip rate limiting in test environment
+    if settings.environment == "test":
+        return
+
+    limiter = get_rate_limiter()
+    await limiter.check_rate_limit(
+        request=request,
+        endpoint_type="mcp_tools_summary",
     )
 
 

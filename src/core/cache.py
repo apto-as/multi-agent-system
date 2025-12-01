@@ -6,7 +6,6 @@ v2.4.3: Redis removed - using local cache only (SQLite + ChromaDB architecture)
 
 import asyncio
 import hashlib
-import json
 import logging
 import time
 from functools import wraps

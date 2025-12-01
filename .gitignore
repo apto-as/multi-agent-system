@@ -138,3 +138,14 @@ uv.lock
 
 # Pre-migration backups (Phase 2E-3)
 backup_pre_*.tar.gz
+
+# ============================================
+# Node.js (OpenCode Plugin)
+# Added: 2025-12-01
+# ============================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.tsbuildinfo
+package-lock.json

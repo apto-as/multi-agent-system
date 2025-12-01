@@ -3,7 +3,6 @@
 
 # Base classes
 # Core Models
-from .token_consumption import TokenConsumption
 from .agent import Agent, AgentNamespace, AgentTeam
 
 # API audit logging
@@ -13,14 +12,15 @@ from .base import MetadataMixin, TimestampMixin, TMWSBase, UUIDMixin
 from .learning_pattern import LearningPattern
 from .license_key import LicenseKey, LicenseKeyUsage
 from .memory import Memory, MemoryConsolidation, MemoryPattern, MemorySharing
+from .persona import Persona, PersonaRole, PersonaType
+from .task import Task, TaskPriority, TaskStatus
+from .token_consumption import TokenConsumption
 from .tool_discovery import (
     DiscoveredTool,
     ToolDependency,
     ToolInstance,
     ToolVerificationHistory,
 )
-from .persona import Persona, PersonaRole, PersonaType
-from .task import Task, TaskPriority, TaskStatus
 from .user import User
 from .verification import TrustScoreHistory, VerificationRecord
 from .workflow import Workflow, WorkflowStatus, WorkflowType
