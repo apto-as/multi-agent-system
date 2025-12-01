@@ -83,6 +83,25 @@ TRINITAS_AGENTS = {
         "agent_subtype": "documenter",
         "capabilities": ["documentation", "knowledge", "archival"],
     },
+    # Support Layer Agents (v2.4.7+)
+    "aphrodite-designer": {
+        "display_name": "Aphrodite (UI/UX Designer)",
+        "agent_type": "trinitas",
+        "agent_subtype": "designer",
+        "capabilities": ["design", "ui", "ux", "interface", "accessibility"],
+    },
+    "metis-developer": {
+        "display_name": "Metis (Development Assistant)",
+        "agent_type": "trinitas",
+        "agent_subtype": "developer",
+        "capabilities": ["implementation", "testing", "debugging", "refactoring"],
+    },
+    "aurora-researcher": {
+        "display_name": "Aurora (Research Assistant)",
+        "agent_type": "trinitas",
+        "agent_subtype": "researcher",
+        "capabilities": ["search", "research", "context", "retrieval", "synthesis"],
+    },
 }
 
 
