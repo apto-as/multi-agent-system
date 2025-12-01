@@ -79,6 +79,14 @@ class MCPOperation(str, Enum):
     CLEANUP_NAMESPACE = "cleanup:namespace"  # Admin only
     CLEANUP_GLOBAL = "cleanup:global"  # Super admin only
 
+    # Skill operations (v2.4.7: MCP-first)
+    SKILL_READ = "skill:read"
+    SKILL_WRITE = "skill:write"
+    SKILL_DELETE = "skill:delete"
+    SKILL_SHARE = "skill:share"
+    SKILL_ACTIVATE = "skill:activate"
+    SKILL_DEACTIVATE = "skill:deactivate"
+
 
 class MCPRole(str, Enum):
     """MCP roles for RBAC (REQ-5)."""

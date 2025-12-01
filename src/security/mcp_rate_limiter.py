@@ -111,6 +111,55 @@ MCP_RATE_LIMITS = {
         burst=0,
         block_duration=1800,
     ),
+    # Skill operations: MCP-first (v2.4.7)
+    "skill_list": RateLimit(
+        requests=60,  # 60 list operations per minute
+        period=60,
+        burst=10,
+        block_duration=60,
+    ),
+    "skill_get": RateLimit(
+        requests=120,  # 120 reads per minute
+        period=60,
+        burst=20,
+        block_duration=60,
+    ),
+    "skill_create": RateLimit(
+        requests=10,  # 10 creates per hour
+        period=3600,
+        burst=2,
+        block_duration=1800,  # 30 minutes
+    ),
+    "skill_update": RateLimit(
+        requests=30,  # 30 updates per hour
+        period=3600,
+        burst=5,
+        block_duration=600,  # 10 minutes
+    ),
+    "skill_delete": RateLimit(
+        requests=5,  # 5 deletes per hour
+        period=3600,
+        burst=0,  # No burst for deletions
+        block_duration=1800,  # 30 minutes
+    ),
+    "skill_share": RateLimit(
+        requests=20,  # 20 shares per hour
+        period=3600,
+        burst=3,
+        block_duration=600,
+    ),
+    "skill_activate": RateLimit(
+        requests=20,  # 20 activations per hour
+        period=3600,
+        burst=3,
+        block_duration=600,
+    ),
+    "skill_deactivate": RateLimit(
+        requests=20,  # 20 deactivations per hour
+        period=3600,
+        burst=3,
+        block_duration=600,
+    ),
 }
 
 
