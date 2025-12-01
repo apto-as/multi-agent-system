@@ -29,7 +29,7 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import sqlalchemy as sa
 from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text
@@ -37,7 +37,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .agent import AccessLevel
 from .base import TMWSBase
-
 
 
 class Skill(TMWSBase):

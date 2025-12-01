@@ -1578,6 +1578,7 @@ class HybridMemoryService:
 
         # STEP 2: Verify agent exists and get VERIFIED namespace (V-NS-1)
         from sqlalchemy import select
+
         from src.models.agent import Agent
 
         stmt = select(Agent).where(Agent.agent_id == agent_id)

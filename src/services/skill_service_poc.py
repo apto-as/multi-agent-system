@@ -14,7 +14,6 @@ NOT production-ready. For validation purposes only.
 """
 
 from datetime import datetime, timezone
-from typing import Optional
 from uuid import UUID, uuid4
 
 from sqlalchemy import select
@@ -22,8 +21,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import get_settings
 from src.core.exceptions import ValidationError
-from src.models.skill import Skill, SkillVersion, AccessLevel
 from src.models.memory import Memory
+from src.models.skill import AccessLevel, Skill, SkillVersion
 
 
 class SkillServicePOC:

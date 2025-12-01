@@ -28,7 +28,6 @@ Version: 2.0.0 (Redis → SQLite migration)
 """
 
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field

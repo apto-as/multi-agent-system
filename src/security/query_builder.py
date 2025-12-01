@@ -29,7 +29,7 @@ Created: 2025-11-24
 Version: 1.0.0
 """
 
-from typing import Any, Dict, List, Tuple, Type
+from typing import Any
 
 from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -54,7 +54,7 @@ class SecureQueryBuilder:
         user_input: str,
         escape_char: str = "\\",
         allow_wildcards: bool = False
-    ) -> Tuple[str, str]:
+    ) -> tuple[str, str]:
         """Escape LIKE wildcards in user input.
 
         Escapes three special characters in SQL LIKE patterns:
@@ -105,8 +105,8 @@ class SecureQueryBuilder:
 
     @staticmethod
     async def build_filter_query(
-        model: Type[DeclarativeBase],
-        filters: Dict[str, Any],
+        model: type[DeclarativeBase],
+        filters: dict[str, Any],
         session: AsyncSession
     ):
         """Build parameterized filter query with schema validation.
@@ -153,8 +153,8 @@ class SecureQueryBuilder:
 
     @staticmethod
     async def build_search_query(
-        model: Type[DeclarativeBase],
-        search_columns: List[str],
+        model: type[DeclarativeBase],
+        search_columns: list[str],
         search_term: str,
         session: AsyncSession,
         case_insensitive: bool = True
