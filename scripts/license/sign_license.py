@@ -82,8 +82,11 @@ def sign_license(
     # Sign with Ed25519
     signature = private_key.sign(signature_data.encode())
 
-    # Encode signature as URL-safe base64 (no padding)
-    signature_b64 = base64.urlsafe_b64encode(signature).rstrip(b"=").decode()
+    # Encode signature as standard base64, then replace '+' and '/' with URL-safe chars
+    # Standard base64 uses '+' and '/', which don't conflict with license key '-' separator
+    # We replace: '+' -> '.' and '/' -> '~' and remove padding '='
+    signature_b64 = base64.b64encode(signature).rstrip(b"=").decode()
+    signature_b64 = signature_b64.replace("+", ".").replace("/", "~")
 
     # Assemble license key
     license_key = f"TMWS-{tier}-{license_id}-{expiry_str}-{signature_b64}"
