@@ -312,4 +312,4 @@ Licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
 ---
 
-**TMWS v2.4.3** - Ultra-fast memory and workflow service for AI agents
+**TMWS v2.4.7** - Ultra-fast memory and workflow service for AI agents (MCP-first architecture)
