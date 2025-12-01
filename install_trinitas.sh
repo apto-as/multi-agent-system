@@ -2,7 +2,7 @@
 
 # ============================================================================
 # Trinitas Agent System - Unified Cross-Platform Installer
-# Version: 2.5.0
+# Version: 2.4.8
 # Supports: Claude Code, OpenCode
 # Platforms: macOS, Linux, Windows (via WSL or Git Bash)
 #
@@ -18,8 +18,8 @@
 set -e
 
 # Version
-VERSION="2.5.0"
-TRINITAS_VERSION="2.2.4"
+VERSION="2.4.8"
+TRINITAS_VERSION="2.4.8"
 
 # Color definitions
 RED='\033[0;31m'
