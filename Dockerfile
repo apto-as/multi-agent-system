@@ -176,6 +176,10 @@ COPY --chown=tmws:tmws .env.example /app/config/
 # Copy LICENSE file for compliance (Apache 2.0)
 COPY --chown=tmws:tmws LICENSE /app/
 
+# Copy entrypoint script for agent auto-registration
+COPY --chown=tmws:tmws docker/entrypoint.sh /app/
+RUN chmod +x /app/entrypoint.sh
+
 # Switch to non-root user
 USER tmws
 
@@ -204,10 +208,10 @@ ENV TMWS_ENVIRONMENT=production \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
-# Start MCP server
-# Uses console script from pyproject.toml[project.scripts]
-# After wheel installation: tmws-mcp-server -> src.mcp_server:main
-CMD ["tmws-mcp-server"]
+# Start MCP server via entrypoint (handles agent auto-registration)
+# Entrypoint handles: DB init, agent registration, then exec tmws-mcp-server
+# To disable auto-registration: TMWS_AUTO_REGISTER_AGENTS=false
+CMD ["/app/entrypoint.sh"]
 
 # ========================================
 # Build & Size Optimization Notes

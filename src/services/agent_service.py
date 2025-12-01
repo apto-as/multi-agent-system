@@ -172,7 +172,7 @@ class AgentService:
             if conditions:
                 query = query.where(and_(*conditions))
 
-            query = query.order_by(Agent.last_activity.desc()).limit(limit).offset(offset)
+            query = query.order_by(Agent.last_active_at.desc()).limit(limit).offset(offset)
 
             result = await self.session.execute(query)
             return list(result.scalars().all())
@@ -430,7 +430,7 @@ class AgentService:
                 "completed_tasks": completed_tasks,
                 "success_rate": success_rate,
                 "average_quality_score": float(avg_quality),
-                "last_activity": agent.last_activity.isoformat() if agent.last_activity else None,
+                "last_activity": agent.last_active_at.isoformat() if agent.last_active_at else None,
                 "created_at": agent.created_at.isoformat(),
                 "updated_at": agent.updated_at.isoformat(),
             }

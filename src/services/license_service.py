@@ -1,8 +1,9 @@
 """
-License Service - TMWS License Key Management and Validation
+License Service - TMWS License Key Validation
 
-This service provides license key generation, validation, and tier-based
-feature enforcement for the TMWS system.
+This service provides license key validation and tier-based feature enforcement
+for the TMWS system. License key GENERATION is handled by separate CLI tools
+that are NOT included in Docker images for security.
 
 Security (Phase 2E-2: Signature-Only Validation + Phase 2E-1: Ed25519):
 - Database-independent validation (tampering has zero effect)
@@ -12,6 +13,7 @@ Security (Phase 2E-2: Signature-Only Validation + Phase 2E-1: Ed25519):
 - Expiry date embedded in license key (not fetched from database)
 - Offline-first validation (no network or database dependency)
 - Usage tracking is optional (best-effort, does not affect validation)
+- License GENERATION removed from runtime (CLI tools only)
 
 License Key Format (Version 3 - Ed25519):
     TMWS-{TIER}-{UUID}-{EXPIRY}-{ED25519_SIGNATURE_B64}
@@ -40,20 +42,26 @@ Security Properties:
 - Database tampering has ZERO effect on validation
 - Docker image contains only PUBLIC KEY (safe to distribute)
 - Performance: <5ms P95 (pure crypto, no I/O)
+- License generation CLI tools are excluded from Docker image
+
+License Key Generation:
+- Use scripts/license/generate_keys.py to create Ed25519 key pair
+- Use scripts/license/sign_license.py to generate license keys
+- Private key MUST be kept secure and NEVER distributed
 
 Author: Artemis (Technical Perfectionist)
 Created: 2025-11-14
-Updated: 2025-11-27 (Phase 2E-1: Ed25519 Public Key Verification)
-Version: 3.0.0
+Updated: 2025-11-29 (Phase 2E-1: Removed HMAC generation, CLI-only)
+Version: 3.1.0
 """
 
 import base64
 import hashlib
 import hmac
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from enum import Enum
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -392,116 +400,12 @@ class LicenseService:
         # 64 bytes = 86 Base64 chars (without padding) or 88 chars (with padding)
         return len(signature) >= 80
 
-    async def generate_license_key(
-        self,
-        agent_id: UUID,
-        tier: TierEnum,
-        expires_days: int | None = None,
-        license_id: UUID | None = None,
-    ) -> str:
-        """
-        Generate a new license key with HMAC-SHA256 signature and save to database.
-
-        Args:
-            agent_id: Agent UUID to associate license with
-            tier: License tier (FREE, PRO, ENTERPRISE)
-            expires_days: Days until expiration (None = perpetual)
-            license_id: Optional UUID (auto-generated if not provided)
-
-        Returns:
-            License key in format: TMWS-{TIER}-{UUID}-{EXPIRY}-{SIGNATURE}
-
-        Raises:
-            ValidationError: If database session is not available or agent not found
-
-        Example:
-            >>> service = LicenseService(db_session)
-            >>> key = await service.generate_license_key(
-            ...     agent_id=UUID("..."),
-            ...     tier=TierEnum.PRO,
-            ...     expires_days=365
-            ... )
-            >>> print(key)
-            TMWS-PRO-550e8400-e29b-41d4-a716-446655440000-20261117-a7f3b9c2d1e4f5a6
-        """
-        # Require database session for license generation
-        if not self.db_session:
-            log_and_raise(
-                ValidationError,
-                "Database session required for license key generation",
-                details={"agent_id": str(agent_id), "tier": tier.value},
-            )
-
-        # Verify agent exists
-        # Note: Agent.id is stored as string, so convert UUID to string for query
-        stmt = select(Agent).where(Agent.id == str(agent_id))
-        result = await self.db_session.execute(stmt)
-        agent = result.scalar_one_or_none()
-
-        if agent is None:
-            log_and_raise(
-                ValidationError,
-                f"Agent not found: {agent_id}",
-                details={"agent_id": str(agent_id)},
-            )
-
-        # Generate or use provided UUID
-        if license_id is None:
-            license_id = uuid4()
-
-        # Calculate expiration date (None for perpetual)
-        now = datetime.now(timezone.utc)
-        if expires_days is None:
-            expiry_date = None
-            expiry_str = "PERPETUAL"
-        else:
-            expiry_date = now + timedelta(days=expires_days)
-            expiry_str = expiry_date.strftime("%Y%m%d")  # YYYYMMDD format
-
-        # Create signature data: {tier}:{uuid}:{expiry}
-        signature_data = f"{tier.value}:{license_id}:{expiry_str}"
-
-        # Generate HMAC-SHA256 signature
-        signature = hmac.new(
-            self.secret_key.encode(), signature_data.encode(), hashlib.sha256
-        ).hexdigest()
-
-        # Take first 16 characters of signature
-        signature_hex = signature[:16]
-
-        # Assemble license key with embedded expiry
-        license_key = f"TMWS-{tier.value}-{license_id}-{expiry_str}-{signature_hex}"
-
-        # Store license key in database
-        try:
-            db_license = LicenseKey(
-                id=license_id,
-                agent_id=agent_id,
-                tier=tier,
-                license_key_hash=hashlib.sha256(license_key.encode()).hexdigest(),
-                issued_at=now,
-                expires_at=expiry_date,
-                is_active=True,
-            )
-            self.db_session.add(db_license)
-            agent.tier = tier.value
-            await self.db_session.commit()
-            await self.db_session.refresh(db_license)
-
-        except Exception as e:
-            await self.db_session.rollback()
-            log_and_raise(
-                ValidationError,
-                f"Failed to create license key in database: {e!s}",
-                original_exception=e,
-                details={
-                    "agent_id": str(agent_id),
-                    "tier": tier.value,
-                    "license_id": str(license_id),
-                },
-            )
-
-        return license_key
+    # NOTE: License key generation has been removed from runtime for security.
+    # Use the CLI tools instead:
+    #   - scripts/license/generate_keys.py (create Ed25519 key pair)
+    #   - scripts/license/sign_license.py (generate signed license keys)
+    #
+    # This ensures the private key never exists in Docker images.
 
     async def validate_license_key(
         self, key: str, feature_accessed: str | None = None
@@ -759,50 +663,10 @@ class LicenseService:
         tier = await self.get_agent_tier(agent_id)
         return self.is_feature_enabled(tier, feature)
 
-    async def generate_trial_key(
-        self, agent_id: UUID, tier: TierEnum = TierEnum.PRO
-    ) -> str:
-        """
-        Generate a 30-day trial license key and save to database.
-
-        Args:
-            agent_id: Agent UUID to associate license with
-            tier: Trial tier (default: PRO)
-
-        Returns:
-            30-day trial license key
-
-        Raises:
-            ValidationError: If database session is not available or agent not found
-
-        Example:
-            >>> trial_key = await service.generate_trial_key(UUID("..."), TierEnum.PRO)
-            >>> print(f"Your 30-day trial: {trial_key}")
-        """
-        return await self.generate_license_key(agent_id, tier, expires_days=30)
-
-    async def generate_perpetual_key(self, agent_id: UUID, tier: TierEnum) -> str:
-        """
-        Generate a perpetual (never expires) license key and save to database.
-
-        Args:
-            agent_id: Agent UUID to associate license with
-            tier: License tier
-
-        Returns:
-            Perpetual license key
-
-        Raises:
-            ValidationError: If database session is not available or agent not found
-
-        Example:
-            >>> perpetual_key = await service.generate_perpetual_key(
-            ...     UUID("..."),
-            ...     TierEnum.ENTERPRISE
-            ... )
-            >>> print(f"Perpetual license: {perpetual_key}")
-        """
-        return await self.generate_license_key(agent_id, tier, expires_days=None)
+    # NOTE: generate_trial_key() and generate_perpetual_key() have been removed.
+    # Use CLI tools instead:
+    #   python scripts/license/sign_license.py --tier PRO --expiry 30
+    #   python scripts/license/sign_license.py --tier ENTERPRISE --perpetual
 
     async def revoke_license_key(
         self, license_id: UUID, reason: str | None = None

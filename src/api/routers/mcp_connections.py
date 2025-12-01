@@ -28,11 +28,13 @@ from src.api.dependencies import (
     check_rate_limit_mcp_disconnect,
     check_rate_limit_mcp_discover,
     check_rate_limit_mcp_execute,
+    check_rate_limit_mcp_tools_summary,
     get_connect_use_case,
     get_current_user,
     get_disconnect_use_case,
     get_discover_tools_use_case,
     get_execute_tool_use_case,
+    get_tools_summary_use_case,
 )
 from src.application.dtos.request_dtos import (
     CreateConnectionRequest,
@@ -48,6 +50,7 @@ from src.application.use_cases.disconnect_mcp_server_use_case import (
 )
 from src.application.use_cases.discover_tools_use_case import DiscoverToolsUseCase
 from src.application.use_cases.execute_tool_use_case import ExecuteToolUseCase
+from src.application.use_cases.get_tools_summary_use_case import GetToolsSummaryUseCase
 
 router = APIRouter(prefix="/api/v1/mcp", tags=["MCP Connections"])
 
@@ -243,3 +246,74 @@ async def execute_tool(
 
     # Return execution result
     return result_dto.to_dict()
+
+
+# ============================================================================
+# GET /api/v1/mcp/tools/summary - Tools Summary (defer_loading pattern)
+# ============================================================================
+
+
+@router.get("/tools/summary", status_code=status.HTTP_200_OK)
+async def get_tools_summary(
+    current_user: Annotated[User, Depends(get_current_user)],
+    use_case: Annotated[GetToolsSummaryUseCase, Depends(get_tools_summary_use_case)],
+    _rate_limit: Annotated[None, Depends(check_rate_limit_mcp_tools_summary)],
+    limit: int = 5,
+) -> dict:
+    """Get MCP tools summary for context injection (defer_loading pattern)
+
+    This endpoint implements Anthropic's defer_loading pattern for efficient
+    token usage. Instead of returning full tool definitions (~17,000 tokens),
+    it returns a summary with frequently used tools (~2,000 tokens).
+
+    Use Cases:
+    - Push-type context injection (Hooks/Plugins)
+    - SessionStart event: Inject tools summary into AI context
+    - PreCompact event: Include minimal tools reference
+
+    Security:
+    - Requires JWT authentication
+    - Namespace verified from database (P0-1 compliant)
+    - V-TOOL-1: Tool listing filtered by namespace
+
+    Args:
+        current_user: Authenticated user (namespace verified from DB)
+        use_case: Injected use case for tools summary
+        limit: Maximum number of frequently used tools to return (default: 5)
+
+    Returns:
+        Dict with tools summary:
+        - total_count: Total number of available tools
+        - frequently_used: List of top N tools with server, name, description
+        - servers: List of connected server names
+        - token_estimate: Estimated token count for this summary
+
+    Example Response:
+        {
+            "total_count": 45,
+            "frequently_used": [
+                {"server": "filesystem", "tool": "read_file", "description": "...", "usage_count": 0},
+                {"server": "github", "tool": "search_repos", "description": "...", "usage_count": 0}
+            ],
+            "servers": ["filesystem", "github", "postgres"],
+            "token_estimate": 450,
+            "error": null
+        }
+
+    Reference:
+        https://www.anthropic.com/engineering/advanced-tool-use
+    """
+    from src.application.dtos.tools_summary_dtos import GetToolsSummaryRequest
+
+    # Build request DTO with verified namespace (P0-1)
+    request = GetToolsSummaryRequest(
+        namespace=current_user.namespace,  # ✅ Verified from DB
+        agent_id=current_user.agent_id,
+        limit=limit,
+    )
+
+    # Execute use case
+    response = await use_case.execute(request)
+
+    # Return summary
+    return response.to_dict()
