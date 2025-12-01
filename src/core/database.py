@@ -70,9 +70,11 @@ def get_engine():
         # This allows the database file to be created on first connection
         from sqlalchemy.pool import NullPool
 
+        # MCP STDIO mode: echo_pool must be False to keep stdout clean for JSON-RPC
+        # Pool debug logs would corrupt the MCP protocol communication
         engine_config = {
             "poolclass": NullPool,
-            "echo_pool": settings.environment == "development",  # Pool debug logs in dev only
+            "echo_pool": False,  # Disabled for MCP STDIO compatibility (was: dev only)
         }
 
         _engine = create_async_engine(settings.database_url_async, **engine_config)

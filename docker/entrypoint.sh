@@ -20,6 +20,10 @@
 
 set -e  # Exit on error
 
+# All output goes to stderr to keep stdout clean for MCP STDIO protocol
+exec 3>&1  # Save stdout
+exec 1>&2  # Redirect stdout to stderr
+
 echo "========================================="
 echo "TMWS Entrypoint - Starting..."
 echo "========================================="
@@ -47,6 +51,54 @@ if [[ "${TMWS_DATABASE_URL}" == sqlite* ]]; then
 fi
 
 # ========================================
+# Phase 1.5: Database Schema Initialization
+# ========================================
+echo "[1.5/3] Initializing database schema..."
+
+python3 << 'INIT_SCHEMA'
+import asyncio
+import logging
+import sys
+
+# Configure logging to stderr to keep stdout clean for MCP STDIO protocol
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s", stream=sys.stderr)
+logging.getLogger("sqlalchemy").handlers = []
+logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+logger = logging.getLogger(__name__)
+
+async def init_schema():
+    """Initialize database schema (create tables if not exist)."""
+    try:
+        from src.core.database import get_engine
+        from src.models import TMWSBase
+
+        engine = get_engine()
+        async with engine.begin() as conn:
+            await conn.run_sync(TMWSBase.metadata.create_all)
+        await engine.dispose()
+
+        # Clear engine cache to avoid event loop conflicts
+        import src.core.database as db_module
+        db_module._engine = None
+
+        logger.info("Database schema initialized successfully")
+        return True
+    except Exception as e:
+        logger.error(f"Schema initialization failed: {e}")
+        return False
+
+if __name__ == "__main__":
+    success = asyncio.run(init_schema())
+    sys.exit(0 if success else 1)
+INIT_SCHEMA
+
+if [ $? -eq 0 ]; then
+    echo "Database schema initialized"
+else
+    echo "Warning: Schema initialization failed (non-fatal)"
+fi
+
+# ========================================
 # Phase 2: Trinitas Agent Registration
 # ========================================
 if [ "${TMWS_AUTO_REGISTER_AGENTS:-true}" = "true" ]; then
@@ -59,10 +111,14 @@ import asyncio
 import logging
 import sys
 
+# Configure logging to stderr to keep stdout clean for MCP STDIO protocol
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    stream=sys.stderr
 )
+logging.getLogger("sqlalchemy").handlers = []
+logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 # Trinitas agents configuration (6 core + 3 support)
@@ -291,6 +347,9 @@ fi
 # ========================================
 echo "[3/3] Starting MCP server..."
 echo "========================================="
+
+# Restore stdout for MCP STDIO protocol (MCP server needs clean stdout)
+exec 1>&3 3>&-
 
 # Execute MCP server (replace shell process)
 exec tmws-mcp-server "$@"
