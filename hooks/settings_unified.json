@@ -1,0 +1,39 @@
+{
+  "$schema": "https://raw.githubusercontent.com/anthropics/claude-code/main/schemas/settings.json",
+  "description": "Claude Code Hooks settings with TMWS Unified Push Architecture integration",
+  "version": "2.5.0",
+
+  "hooks": {
+    "SessionStart": [
+      {
+        "type": "python",
+        "path": "hooks/core/unified_injector.py",
+        "function": "sync_session_start",
+        "description": "Inject Level 1-2 context + MCP tools summary (defer_loading)"
+      }
+    ],
+    "PreCompact": [
+      {
+        "type": "python",
+        "path": "hooks/core/unified_injector.py",
+        "function": "sync_pre_compact",
+        "description": "Inject Level 3 compressed summary when approaching token limit"
+      }
+    ]
+  },
+
+  "environment": {
+    "TMWS_API_URL": "http://localhost:8000",
+    "TMWS_NAMESPACE": "${TMWS_NAMESPACE:-default}",
+    "TMWS_AGENT_ID": "${TMWS_AGENT_ID:-athena-conductor}",
+    "TMWS_JWT_TOKEN": "${TMWS_JWT_TOKEN:-}",
+    "TRINITAS_VERBOSE": "0"
+  },
+
+  "notes": {
+    "defer_loading": "Uses Anthropic's defer_loading pattern for 88% token reduction",
+    "security": "SEC-PUSH-1 (MD sanitization), SEC-PUSH-2 (namespace isolation)",
+    "fallback": "If TMWS API unavailable, basic context is still injected",
+    "reference": "https://www.anthropic.com/engineering/advanced-tool-use"
+  }
+}
