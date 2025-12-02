@@ -500,6 +500,24 @@ class HybridMCPServer:
             await agent_tools.register_tools(self.mcp, get_session)
             logger.info("Agent tools registered (9 MCP tools for agent management)")
 
+            # Register routing tools (v2.4.8+ Orchestration Layer)
+            from src.tools.routing_tools import RoutingTools
+            routing_tools = RoutingTools()
+            await routing_tools.register_tools(self.mcp)
+            logger.info("Routing tools registered (5 MCP tools for intelligent task routing)")
+
+            # Register communication tools (v2.4.8+ Orchestration Layer)
+            from src.tools.communication_tools import CommunicationTools
+            communication_tools = CommunicationTools()
+            await communication_tools.register_tools(self.mcp)
+            logger.info("Communication tools registered (8 MCP tools for inter-agent messaging)")
+
+            # Register orchestration tools (v2.4.8+ Orchestration Layer)
+            from src.tools.orchestration_tools import OrchestrationTools
+            orchestration_tools = OrchestrationTools()
+            await orchestration_tools.register_tools(self.mcp)
+            logger.info("Orchestration tools registered (7 MCP tools for phase-based execution)")
+
             # Phase 3: Trinitas Agent File Loading (v2.4.0+, license-gated, OPTIONAL)
             # This phase generates agent markdown files for Claude Desktop
             # Failure here is non-critical and doesn't block Phase 4
