@@ -1,12 +1,12 @@
 #!/bin/bash
 # =============================================================================
 # Trinitas Multi-Agent System Installer v2.4.12
-# For Claude Code on Linux/macOS/WSL
+# For OpenCode on Linux/macOS/WSL
 # =============================================================================
 #
 # This installer sets up:
 #   1. TMWS (Trinitas Memory & Workflow System) via Docker
-#   2. Trinitas agents, hooks, and configuration for Claude Code
+#   2. Trinitas agents, plugins, and configuration for OpenCode
 #   3. License key activation (90-day ENTERPRISE trial included)
 #
 # Features:
@@ -17,9 +17,9 @@
 # Supported platforms: Ubuntu 20.04+, Debian 11+, macOS 12+, WSL2
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/apto-as/multi-agent-system/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/apto-as/multi-agent-system/main/install-opencode.sh | bash
 #   # or
-#   ./install.sh
+#   ./install-opencode.sh
 #
 # =============================================================================
 
@@ -28,7 +28,7 @@ set -euo pipefail
 # Version
 INSTALLER_VERSION="2.4.12"
 TMWS_VERSION="2.4.12"
-INSTALLER_TYPE="claude-code"
+INSTALLER_TYPE="opencode"
 
 # Colors
 RED='\033[0;31m'
@@ -42,7 +42,7 @@ NC='\033[0m' # No Color
 # Configuration
 TMWS_IMAGE="ghcr.io/apto-as/tmws:${TMWS_VERSION}"
 TRINITAS_CONFIG_DIR="${HOME}/.trinitas"
-CLAUDE_CONFIG_DIR="${HOME}/.claude"
+OPENCODE_CONFIG_DIR="${HOME}/.config/opencode"
 BACKUP_DIR="${HOME}/.trinitas-backup"
 
 # 90-day ENTERPRISE trial license (expires 2026-03-03)
@@ -69,7 +69,7 @@ show_banner() {
 ║      ╚═╝   ╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝╚═╝   ╚═╝   ╚═╝  ╚═╝╚══════╝         ║
 ║                                                                       ║
 ║            Multi-Agent System Installer v2.4.12                       ║
-║            For Claude Code - 90-Day ENTERPRISE Trial                  ║
+║            For OpenCode - 90-Day ENTERPRISE Trial                     ║
 ║                                                                       ║
 ╚═══════════════════════════════════════════════════════════════════════╝
 EOF
@@ -117,9 +117,9 @@ check_existing_installation() {
         existing_items+=("~/.trinitas/")
     fi
 
-    if [ -d "${CLAUDE_CONFIG_DIR}" ] && [ -f "${CLAUDE_CONFIG_DIR}/CLAUDE.md" ]; then
+    if [ -d "${OPENCODE_CONFIG_DIR}" ] && [ -f "${OPENCODE_CONFIG_DIR}/opencode.md" ]; then
         existing=true
-        existing_items+=("~/.claude/ (Trinitas config)")
+        existing_items+=("~/.config/opencode/ (Trinitas config)")
     fi
 
     if [ -d "${HOME}/.tmws" ]; then
@@ -160,32 +160,31 @@ create_backup() {
         log_success "Backed up ~/.trinitas/"
     fi
 
-    # Backup ~/.claude (Trinitas-related files only)
-    if [ -d "${CLAUDE_CONFIG_DIR}" ]; then
-        mkdir -p "${backup_path}/claude"
+    # Backup ~/.config/opencode (Trinitas-related files only)
+    if [ -d "${OPENCODE_CONFIG_DIR}" ]; then
+        mkdir -p "${backup_path}/opencode"
 
         # Core config files
-        for file in CLAUDE.md AGENTS.md settings.json .mcp.json; do
-            if [ -f "${CLAUDE_CONFIG_DIR}/${file}" ]; then
-                cp "${CLAUDE_CONFIG_DIR}/${file}" "${backup_path}/claude/"
+        for file in opencode.md opencode.json AGENTS.md; do
+            if [ -f "${OPENCODE_CONFIG_DIR}/${file}" ]; then
+                cp "${OPENCODE_CONFIG_DIR}/${file}" "${backup_path}/opencode/"
             fi
         done
 
         # Directories
-        for dir in agents commands hooks; do
-            if [ -d "${CLAUDE_CONFIG_DIR}/${dir}" ]; then
-                cp -r "${CLAUDE_CONFIG_DIR}/${dir}" "${backup_path}/claude/"
+        for dir in agent plugin command; do
+            if [ -d "${OPENCODE_CONFIG_DIR}/${dir}" ]; then
+                cp -r "${OPENCODE_CONFIG_DIR}/${dir}" "${backup_path}/opencode/"
             fi
         done
 
-        log_success "Backed up ~/.claude/ (Trinitas config)"
+        log_success "Backed up ~/.config/opencode/ (Trinitas config)"
     fi
 
     # Backup ~/.tmws (metadata only, not large DB files)
     if [ -d "${HOME}/.tmws" ]; then
         mkdir -p "${backup_path}/tmws"
 
-        # Copy small config files, skip large DB/vector files
         find "${HOME}/.tmws" -maxdepth 2 -type f \( -name "*.json" -o -name "*.yaml" -o -name "*.yml" -o -name "*.env" \) \
             -exec cp {} "${backup_path}/tmws/" \; 2>/dev/null || true
 
@@ -194,8 +193,8 @@ create_backup() {
 
     # Record backup info
     cat > "${backup_path}/backup-info.txt" << EOF
-Trinitas Backup
-===============
+Trinitas Backup (OpenCode)
+==========================
 Date: $(date -Iseconds)
 Previous Version: $(cat "${TRINITAS_CONFIG_DIR}/.version" 2>/dev/null || echo "unknown")
 New Version: ${TMWS_VERSION}
@@ -241,17 +240,14 @@ check_prerequisites() {
 
     local missing=()
 
-    # Check curl
     if ! command -v curl &> /dev/null; then
         missing+=("curl")
     fi
 
-    # Check git
     if ! command -v git &> /dev/null; then
         missing+=("git")
     fi
 
-    # Check Docker
     if ! command -v docker &> /dev/null; then
         missing+=("docker")
     fi
@@ -268,7 +264,6 @@ check_prerequisites() {
                     echo "For Docker on Ubuntu/Debian:"
                     echo "  curl -fsSL https://get.docker.com | sudo sh"
                     echo "  sudo usermod -aG docker \$USER"
-                    echo "  # Log out and back in for group changes"
                 fi
                 ;;
             brew)
@@ -277,7 +272,6 @@ check_prerequisites() {
                     echo ""
                     echo "For Docker on macOS:"
                     echo "  brew install --cask docker"
-                    echo "  # Then open Docker Desktop"
                 fi
                 ;;
             *)
@@ -287,20 +281,8 @@ check_prerequisites() {
         exit 1
     fi
 
-    # Check Docker daemon
     if ! docker info &> /dev/null; then
         log_error "Docker daemon is not running"
-        echo ""
-        case "$PLATFORM" in
-            macOS)
-                echo "Please start Docker Desktop:"
-                echo "  open -a Docker"
-                ;;
-            Linux|WSL)
-                echo "Please start Docker:"
-                echo "  sudo systemctl start docker"
-                ;;
-        esac
         exit 1
     fi
 
@@ -312,14 +294,13 @@ create_directories() {
     log_step "Creating directory structure..."
 
     mkdir -p "${TRINITAS_CONFIG_DIR}"
-    mkdir -p "${CLAUDE_CONFIG_DIR}/agents"
-    mkdir -p "${CLAUDE_CONFIG_DIR}/commands"
-    mkdir -p "${CLAUDE_CONFIG_DIR}/hooks/core"
+    mkdir -p "${OPENCODE_CONFIG_DIR}/agent"
+    mkdir -p "${OPENCODE_CONFIG_DIR}/plugin"
+    mkdir -p "${OPENCODE_CONFIG_DIR}/command"
     mkdir -p "${HOME}/.tmws/db"
     mkdir -p "${HOME}/.tmws/logs"
     mkdir -p "${HOME}/.tmws/vector_store"
 
-    # Record version
     echo "${TMWS_VERSION}" > "${TRINITAS_CONFIG_DIR}/.version"
 
     log_success "Directories created"
@@ -342,7 +323,6 @@ generate_secret_key() {
     if command -v openssl &> /dev/null; then
         openssl rand -hex 32
     else
-        # Fallback: use /dev/urandom
         head -c 32 /dev/urandom | xxd -p | tr -d '\n'
     fi
 }
@@ -353,7 +333,6 @@ setup_tmws_config() {
 
     local env_file="${TRINITAS_CONFIG_DIR}/.env"
 
-    # Preserve existing secret key if available
     local existing_secret=""
     if [ -f "${env_file}" ]; then
         existing_secret=$(grep "^TMWS_SECRET_KEY=" "${env_file}" 2>/dev/null | cut -d'=' -f2 || echo "")
@@ -403,8 +382,8 @@ services:
     container_name: tmws-app
     restart: unless-stopped
     ports:
-      - "8892:8892"  # MCP Server
-      - "8000:8000"  # REST API
+      - "8892:8892"
+      - "8000:8000"
     volumes:
       - ${HOME}/.tmws/db:/root/.tmws/db
       - ${HOME}/.tmws/logs:/root/.tmws/logs
@@ -424,77 +403,113 @@ EOF
     log_success "Docker Compose configuration created"
 }
 
-# Install Trinitas agent configuration for Claude Code
-install_claude_config() {
-    log_step "Installing Trinitas configuration for Claude Code..."
+# Install OpenCode configuration
+install_opencode_config() {
+    log_step "Installing Trinitas configuration for OpenCode..."
 
-    # Check if we're running from the git repo
     local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-    # Copy CLAUDE.md
-    if [ -f "${script_dir}/CLAUDE.md" ]; then
-        cp "${script_dir}/CLAUDE.md" "${CLAUDE_CONFIG_DIR}/"
-        log_success "Copied CLAUDE.md"
-    else
-        log_info "Downloading CLAUDE.md from GitHub..."
-        curl -fsSL "https://raw.githubusercontent.com/apto-as/multi-agent-system/main/CLAUDE.md" \
-            -o "${CLAUDE_CONFIG_DIR}/CLAUDE.md" 2>/dev/null || log_warn "Could not download CLAUDE.md"
-    fi
+    # Create opencode.md (system instructions)
+    cat > "${OPENCODE_CONFIG_DIR}/opencode.md" << 'EOF'
+# TRINITAS-CORE SYSTEM v2.4.12
+## Unified Intelligence Protocol for OpenCode
 
-    # Copy AGENTS.md
+---
+system: "trinitas-core"
+version: "2.4.12"
+status: "Fully Operational"
+platforms: ["opencode"]
+---
+
+## System Overview
+
+Trinitasシステムは**9つの専門化されたAIペルソナ**で構成されています。
+TMWS (Trinitas Memory & Workflow System) v2.4.12と完全統合されており、
+42のMCPツールを通じてメモリ管理、ワークフロー調整、セマンティック検索機能を提供します。
+
+## Available AI Personas
+
+### Core 6 Agents
+1. **Athena** 🏛️ - Harmonious Conductor (orchestration, workflow)
+2. **Artemis** 🏹 - Technical Perfectionist (optimization, performance)
+3. **Hestia** 🔥 - Security Guardian (security, audit)
+4. **Eris** ⚔️ - Tactical Coordinator (coordinate, tactical)
+5. **Hera** 🎭 - Strategic Commander (strategy, planning)
+6. **Muses** 📚 - Knowledge Architect (documentation, knowledge)
+
+### Support 3 Agents
+7. **Aphrodite** 🌸 - UI/UX Designer (design, ui, ux)
+8. **Metis** 🔧 - Development Assistant (implement, code, test)
+9. **Aurora** 🌅 - Research Assistant (search, research, context)
+
+## Usage
+Use `/trinitas` command to interact with agents.
+EOF
+
+    log_success "Created opencode.md"
+
+    # Create AGENTS.md
     if [ -f "${script_dir}/AGENTS.md" ]; then
-        cp "${script_dir}/AGENTS.md" "${CLAUDE_CONFIG_DIR}/"
+        cp "${script_dir}/AGENTS.md" "${OPENCODE_CONFIG_DIR}/"
         log_success "Copied AGENTS.md"
-    else
-        curl -fsSL "https://raw.githubusercontent.com/apto-as/multi-agent-system/main/AGENTS.md" \
-            -o "${CLAUDE_CONFIG_DIR}/AGENTS.md" 2>/dev/null || log_warn "Could not download AGENTS.md"
     fi
 
-    # Copy agents directory
+    # Copy agent definitions if available
     if [ -d "${script_dir}/agents" ]; then
-        rm -rf "${CLAUDE_CONFIG_DIR}/agents"
-        cp -r "${script_dir}/agents" "${CLAUDE_CONFIG_DIR}/"
-        log_success "Copied agents/"
+        rm -rf "${OPENCODE_CONFIG_DIR}/agent"
+        mkdir -p "${OPENCODE_CONFIG_DIR}/agent"
+        cp -r "${script_dir}/agents"/* "${OPENCODE_CONFIG_DIR}/agent/" 2>/dev/null || true
+        log_success "Copied agent definitions"
     fi
 
-    # Copy commands directory
-    if [ -d "${script_dir}/commands" ]; then
-        rm -rf "${CLAUDE_CONFIG_DIR}/commands"
-        cp -r "${script_dir}/commands" "${CLAUDE_CONFIG_DIR}/"
-        log_success "Copied commands/"
-    fi
+    # Create trinitas command
+    mkdir -p "${OPENCODE_CONFIG_DIR}/command"
+    cat > "${OPENCODE_CONFIG_DIR}/command/trinitas.md" << 'EOF'
+# Trinitas Command
 
-    # Copy hooks directory
-    if [ -d "${script_dir}/hooks" ]; then
-        rm -rf "${CLAUDE_CONFIG_DIR}/hooks"
-        cp -r "${script_dir}/hooks" "${CLAUDE_CONFIG_DIR}/"
-        chmod +x "${CLAUDE_CONFIG_DIR}"/hooks/**/*.py 2>/dev/null || true
-        log_success "Copied hooks/"
-    fi
+Execute Trinitas multi-agent operations.
+
+## Usage
+```
+/trinitas <operation> [args]
+```
+
+## Operations
+- `execute <agent> "<task>"` - Execute specific agent
+- `analyze "<task>" --personas <list>` - Multi-agent analysis
+- `remember <key> "<content>"` - Store in memory
+- `recall "<query>"` - Search memories
+- `status` - System status
+EOF
+
+    log_success "Created trinitas command"
 }
 
-# Configure Claude Code MCP settings
-configure_mcp_settings() {
-    log_step "Configuring Claude Code MCP settings..."
+# Configure OpenCode settings
+configure_opencode_settings() {
+    log_step "Configuring OpenCode MCP settings..."
 
-    local mcp_config="${CLAUDE_CONFIG_DIR}/.mcp.json"
-
-    cat > "${mcp_config}" << 'EOF'
+    cat > "${OPENCODE_CONFIG_DIR}/opencode.json" << 'EOF'
 {
   "mcpServers": {
     "tmws": {
       "command": "docker",
-      "args": [
-        "exec", "-i", "tmws-app",
-        "python", "-m", "src.mcp_server"
-      ],
+      "args": ["exec", "-i", "tmws-app", "python", "-m", "src.mcp_server"],
       "env": {}
     }
+  },
+  "plugins": {
+    "enabled": true,
+    "directory": "plugin"
+  },
+  "commands": {
+    "enabled": true,
+    "directory": "command"
   }
 }
 EOF
 
-    log_success "MCP configuration created"
+    log_success "OpenCode configuration created"
 }
 
 # Start TMWS
@@ -503,14 +518,12 @@ start_tmws() {
 
     cd "${TRINITAS_CONFIG_DIR}"
 
-    # Start with docker-compose
     if command -v docker-compose &> /dev/null; then
         docker-compose up -d
     else
         docker compose up -d
     fi
 
-    # Wait for health check
     log_info "Waiting for TMWS to start..."
     local max_attempts=30
     local attempt=0
@@ -536,12 +549,7 @@ verify_license() {
 
     if echo "$response" | grep -q '"tier"'; then
         local tier=$(echo "$response" | grep -o '"tier":"[^"]*"' | cut -d'"' -f4)
-        local expires=$(echo "$response" | grep -o '"expires_at":"[^"]*"' | cut -d'"' -f4)
-
         log_success "License verified: ${tier}"
-        if [ -n "$expires" ]; then
-            log_info "Expires: ${expires}"
-        fi
     else
         log_warn "Could not verify license (TMWS may still be starting)"
     fi
@@ -554,37 +562,20 @@ check_ollama() {
     if command -v ollama &> /dev/null; then
         log_success "Ollama is installed"
 
-        # Check if running
         if curl -sf http://localhost:11434/api/tags > /dev/null 2>&1; then
             log_success "Ollama is running"
 
-            # Check for required model
             if ollama list 2>/dev/null | grep -q "multilingual-e5-large"; then
-                log_success "Required model (multilingual-e5-large) is available"
+                log_success "Required model available"
             else
-                log_warn "Required model not found. Installing..."
-                ollama pull zylonai/multilingual-e5-large || log_warn "Could not pull model automatically"
+                log_warn "Required model not found. Run: ollama pull zylonai/multilingual-e5-large"
             fi
         else
             log_warn "Ollama is not running. Start with: ollama serve"
         fi
     else
         log_warn "Ollama is not installed"
-        echo ""
-        echo "Ollama is required for semantic search functionality."
-        echo "Install Ollama:"
-        case "$PLATFORM" in
-            macOS)
-                echo "  brew install ollama"
-                ;;
-            Linux|WSL)
-                echo "  curl -fsSL https://ollama.ai/install.sh | sh"
-                ;;
-        esac
-        echo ""
-        echo "Then run:"
-        echo "  ollama serve"
-        echo "  ollama pull zylonai/multilingual-e5-large"
+        echo "Install: curl -fsSL https://ollama.ai/install.sh | sh"
     fi
 }
 
@@ -592,53 +583,39 @@ check_ollama() {
 show_completion() {
     echo ""
     echo -e "${GREEN}╔═══════════════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${GREEN}║           Installation Complete! (Claude Code)                        ║${NC}"
+    echo -e "${GREEN}║           Installation Complete! (OpenCode)                           ║${NC}"
     echo -e "${GREEN}╚═══════════════════════════════════════════════════════════════════════╝${NC}"
     echo ""
     echo -e "${CYAN}What was installed:${NC}"
     echo "  - TMWS Docker container (ghcr.io/apto-as/tmws:${TMWS_VERSION})"
-    echo "  - Trinitas 9-agent configuration for Claude Code"
+    echo "  - Trinitas 9-agent configuration for OpenCode"
     echo "  - 90-day ENTERPRISE trial license"
     echo ""
     echo -e "${CYAN}Configuration locations:${NC}"
     echo "  - TMWS config:     ${TRINITAS_CONFIG_DIR}/"
-    echo "  - Claude Code:     ${CLAUDE_CONFIG_DIR}/"
+    echo "  - OpenCode:        ${OPENCODE_CONFIG_DIR}/"
     echo "  - Data storage:    ${HOME}/.tmws/"
     if [ -d "${BACKUP_DIR}" ]; then
         echo "  - Backups:         ${BACKUP_DIR}/"
     fi
     echo ""
-    echo -e "${CYAN}Services:${NC}"
-    echo "  - MCP Server:      localhost:8892"
-    echo "  - REST API:        localhost:8000"
-    echo "  - Health check:    http://localhost:8000/health"
-    echo ""
     echo -e "${CYAN}Quick start:${NC}"
     echo "  1. Ensure Ollama is running: ollama serve"
-    echo "  2. Start Claude Code in your project directory"
+    echo "  2. Start OpenCode in your project directory"
     echo "  3. Use /trinitas command to interact with agents"
     echo ""
-    echo -e "${CYAN}Useful commands:${NC}"
-    echo "  - View logs:       docker logs -f tmws-app"
-    echo "  - Restart TMWS:    cd ~/.trinitas && docker compose restart"
-    echo "  - Stop TMWS:       docker stop tmws-app"
-    echo ""
-    echo -e "${YELLOW}License Information:${NC}"
-    echo "  - Tier: ENTERPRISE (Trial)"
-    echo "  - Expires: 2026-03-03 (90 days)"
-    echo "  - Contact apto-as for extended license"
+    echo -e "${YELLOW}License: ENTERPRISE Trial (expires 2026-03-03)${NC}"
     echo ""
     echo -e "${GREEN}Enjoy Trinitas Multi-Agent System!${NC}"
     echo ""
 }
 
-# Main installation flow
+# Main
 main() {
     show_banner
     detect_platform
     check_prerequisites
 
-    # Handle existing installation
     if check_existing_installation; then
         echo ""
         read -p "Do you want to upgrade? (existing data will be backed up) [Y/n] " -n 1 -r
@@ -656,13 +633,12 @@ main() {
     pull_tmws_image
     setup_tmws_config
     create_docker_compose
-    install_claude_config
-    configure_mcp_settings
+    install_opencode_config
+    configure_opencode_settings
     start_tmws
     verify_license
     check_ollama
     show_completion
 }
 
-# Run main
 main "$@"
