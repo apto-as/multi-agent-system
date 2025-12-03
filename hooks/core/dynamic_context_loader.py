@@ -10,10 +10,16 @@ This hook analyzes user prompts to automatically detect relevant Trinitas person
 Injects minimal @reference pointers for dynamic loading rather than full content
 to minimize latency impact.
 
+NEW in v2.4.11: Trinitas Full Mode Detection & SubAgent Enforcement
+    - Detects "Trinitasフルモード" or "Trinitas Full Mode" patterns
+    - Injects MANDATORY Task tool invocation instructions
+    - Validates SubAgent invocation for protocol compliance
+
 Performance Characteristics:
     - Persona detection: ~0.5ms (compiled regex patterns)
     - Context detection: ~0.2ms (keyword matching)
     - Context building: ~0.1ms (minimal payload)
+    - Full Mode detection: ~0.1ms (regex patterns)
     - Total latency: <1ms typical
 
 Security Compliance:
@@ -28,8 +34,9 @@ Integration:
     - Output: JSON via stdout (addedContext with @references)
     - Error handling: Fail gracefully, never block user interaction
 
-Version: 2.0.0
+Version: 2.4.11
 Refactored: 2025-10-15 to use unified utilities (Phase 1 Day 3)
+Updated: 2025-12-03 to add Trinitas Full Mode enforcement (v2.4.11)
 
 Example:
     >>> # Hook receives stdin: {"prompt": {"text": "optimize this code"}}
@@ -127,6 +134,15 @@ class DynamicContextLoader:
     ALLOWED_ROOTS = [
         os.path.expanduser("~/.claude"),
         str(_detect_project_root()),  # Dynamically detect project root
+    ]
+
+    # Trinitas Full Mode detection patterns (v2.4.11)
+    FULL_MODE_PATTERNS = [
+        re.compile(r"Trinitas\s*フル\s*モード", re.IGNORECASE),
+        re.compile(r"Trinitas\s+Full\s+Mode", re.IGNORECASE),
+        re.compile(r"フル\s*モード\s*で\s*作業", re.IGNORECASE),
+        re.compile(r"full\s+mode\s+execution", re.IGNORECASE),
+        re.compile(r"/trinitas\s+analyze.*--personas", re.IGNORECASE),
     ]
 
     # Persona trigger patterns (compiled once for performance)
@@ -234,6 +250,100 @@ class DynamicContextLoader:
             base_path=self.base_path,
             silent=True  # Suppress error messages (returns None on error)
         )
+
+    def detect_full_mode(self, prompt: str) -> bool:
+        """Detect if Trinitas Full Mode is requested (~0.1ms).
+
+        Analyzes user prompt to identify Trinitas Full Mode activation patterns.
+        When Full Mode is detected, SubAgent invocation via Task tool is MANDATORY.
+
+        Args:
+            prompt: User's prompt text to analyze.
+
+        Returns:
+            True if Full Mode pattern is detected, False otherwise.
+
+        Full Mode Patterns:
+            - "Trinitasフルモード" (Japanese)
+            - "Trinitas Full Mode" (English)
+            - "フルモードで作業" (Japanese)
+            - "full mode execution" (English)
+            - "/trinitas analyze --personas" (command)
+
+        Example:
+            >>> loader = DynamicContextLoader()
+            >>> print(loader.detect_full_mode("Trinitasフルモードで作業"))
+            True
+            >>> print(loader.detect_full_mode("optimize this code"))
+            False
+        """
+        for pattern in self.FULL_MODE_PATTERNS:
+            if pattern.search(prompt):
+                return True
+        return False
+
+    def build_full_mode_enforcement(self, task_description: str) -> str:
+        """Build enforcement message for Trinitas Full Mode (~0.1ms).
+
+        Generates MANDATORY Task tool invocation instructions when Full Mode
+        is detected. This enforcement message guides the AI to invoke SubAgents
+        via Task tool instead of performing analysis itself.
+
+        Args:
+            task_description: The user's task description for context.
+
+        Returns:
+            Markdown-formatted enforcement instructions with explicit Task tool
+            invocation examples.
+
+        Example:
+            >>> loader = DynamicContextLoader()
+            >>> msg = loader.build_full_mode_enforcement("analyze architecture")
+            >>> print("MANDATORY" in msg)
+            True
+            >>> print("hera-strategist" in msg)
+            True
+        """
+        # Sanitize task description to prevent injection
+        safe_task = task_description.replace('"', "'").replace("\\", "")[:500]
+
+        return f'''
+## ⚠️ MANDATORY: Trinitas Full Mode Activated
+
+**CRITICAL ENFORCEMENT NOTICE**
+
+You have detected a Trinitas Full Mode request. You MUST now invoke SubAgents
+using the Task tool. This is NOT optional.
+
+### Phase 1: Strategic Planning (REQUIRED - INVOKE NOW)
+
+You MUST immediately invoke the following SubAgents **in parallel** (single message, multiple Task tool calls):
+
+```
+Task(subagent_type="hera-strategist", prompt="Strategic analysis for: {safe_task}")
+Task(subagent_type="athena-conductor", prompt="Resource coordination for: {safe_task}")
+```
+
+### ❌ PROHIBITED Actions
+
+1. DO NOT proceed with analysis yourself without invoking SubAgents
+2. DO NOT say "Hera + Athena による戦略分析" without actually using Task tool
+3. DO NOT skip Phase 1 and proceed directly to implementation
+
+### ✅ REQUIRED Actions
+
+1. Invoke `hera-strategist` SubAgent via Task tool
+2. Invoke `athena-conductor` SubAgent via Task tool
+3. Wait for their results before proceeding
+4. Only after Phase 1 approval, proceed to Phase 2
+
+### Reference
+
+Full protocol details: @SUBAGENT_EXECUTION_RULES.md
+
+---
+**This enforcement notice was injected by dynamic_context_loader.py v2.4.11**
+'''
 
     def detect_personas(self, prompt: str) -> list[str]:
         """Detect triggered personas using compiled regex patterns (~0.5ms).
@@ -548,6 +658,16 @@ class DynamicContextLoader:
 
             if not prompt_text:
                 return {"addedContext": []}
+
+            # v2.4.11: Check for Trinitas Full Mode FIRST (highest priority)
+            if self.detect_full_mode(prompt_text):
+                # Full Mode detected - inject enforcement instructions
+                enforcement = self.build_full_mode_enforcement(prompt_text)
+                return {
+                    "addedContext": [
+                        {"type": "text", "text": enforcement}
+                    ]
+                }
 
             # Fast detection (<1ms typical)
             personas = self.detect_personas(prompt_text)

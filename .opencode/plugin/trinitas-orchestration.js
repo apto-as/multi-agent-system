@@ -2,16 +2,16 @@
  * Trinitas Orchestration Plugin for OpenCode
  *
  * Provides phase-based workflow orchestration with agent coordination
- * through TMWS MCP integration.
+ * through TMWS MCP integration. Now includes invoke_persona support.
  *
- * Features:
- * - Automatic phase tracking
- * - Agent coordination notifications
- * - Quality checkpoints
- * - Progress monitoring
+ * NEW in v2.4.11: Full Mode Detection & SubAgent Enforcement
+ *   - Detects "Trinitasフルモード" or "Trinitas Full Mode" patterns
+ *   - Injects MANDATORY Task tool invocation instructions
+ *   - Validates SubAgent invocation for protocol compliance
  *
- * @version 2.4.8
+ * @version 2.4.11
  * @author TMWS Team
+ * @see https://opencode.ai/docs/plugins/
  */
 
 /**
@@ -28,7 +28,7 @@ const PHASES = {
   IMPLEMENTATION: {
     id: "phase_2_implementation",
     name: "Implementation",
-    agents: [], // Dynamically assigned
+    agents: ["artemis-optimizer", "metis-developer"],
     approvalGate: "tests_pass",
     requiredOutputs: ["implementation_summary", "test_results"],
   },
@@ -55,6 +55,21 @@ const AGENT_TIERS = {
   STRATEGIC: ["athena-conductor", "hera-strategist"],
   SPECIALIST: ["artemis-optimizer", "hestia-auditor", "eris-coordinator", "muses-documenter"],
   SUPPORT: ["aphrodite-designer", "metis-developer", "aurora-researcher"],
+};
+
+/**
+ * Short name to full ID mapping
+ */
+const SHORT_NAME_MAP = {
+  athena: "athena-conductor",
+  artemis: "artemis-optimizer",
+  hestia: "hestia-auditor",
+  eris: "eris-coordinator",
+  hera: "hera-strategist",
+  muses: "muses-documenter",
+  aphrodite: "aphrodite-designer",
+  metis: "metis-developer",
+  aurora: "aurora-researcher",
 };
 
 /**
@@ -91,114 +106,259 @@ const COLLABORATION_MATRIX = {
     support: ["athena-conductor"],
     review: "hera-strategist",
   },
+  optimization: {
+    primary: "artemis-optimizer",
+    support: ["aurora-researcher"],
+    review: "hestia-auditor",
+  },
+  research: {
+    primary: "aurora-researcher",
+    support: ["muses-documenter"],
+    review: "athena-conductor",
+  },
 };
 
 /**
- * Pattern matchers for task type detection
+ * Module-level state for orchestration tracking
  */
-const TASK_PATTERNS = {
-  architecture: /\b(architect|design|structure|system|component)\b/i,
-  implementation: /\b(implement|develop|build|code|fix|create)\b/i,
-  security: /\b(security|audit|vulnerab|threat|risk|compliance)\b/i,
-  documentation: /\b(document|guide|manual|readme|spec|api doc)\b/i,
-  design: /\b(ui|ux|interface|visual|layout|style)\b/i,
-  optimization: /\b(optimi|perform|speed|effici|cache)\b/i,
-  testing: /\b(test|coverage|quality|assert)\b/i,
+let _currentOrchestration = null;
+let _currentPhase = null;
+let _activePersona = null;
+let _fullModeActive = false;
+let _subAgentsInvoked = false;
+
+/**
+ * Full Mode detection patterns (v2.4.11)
+ */
+const FULL_MODE_PATTERNS = [
+  /Trinitas\s*フル\s*モード/i,
+  /Trinitas\s+Full\s+Mode/i,
+  /フル\s*モード\s*で\s*作業/i,
+  /full\s+mode\s+execution/i,
+  /\/trinitas\s+analyze.*--personas/i,
+];
+
+/**
+ * Detect if Trinitas Full Mode is requested
+ * @param {string} text - Text to check
+ * @returns {boolean} True if Full Mode detected
+ */
+const detectFullMode = (text) => {
+  if (!text || typeof text !== "string") return false;
+  return FULL_MODE_PATTERNS.some((pattern) => pattern.test(text));
 };
 
 /**
- * Detect task type from content
- * @param {string} content - Task description
- * @returns {string} Detected task type
+ * Build enforcement message for Full Mode
+ * @param {string} taskDescription - Task description
+ * @returns {string} Enforcement message
  */
-function detectTaskType(content) {
-  for (const [type, pattern] of Object.entries(TASK_PATTERNS)) {
-    if (pattern.test(content)) {
-      return type;
-    }
-  }
-  return "implementation"; // Default
-}
+const buildFullModeEnforcement = (taskDescription) => {
+  const safeTask = (taskDescription || "").replace(/"/g, "'").substring(0, 500);
+  return `
+## ⚠️ MANDATORY: Trinitas Full Mode Activated
+
+**CRITICAL ENFORCEMENT NOTICE**
+
+You have detected a Trinitas Full Mode request. You MUST now invoke SubAgents
+using the Task tool. This is NOT optional.
+
+### Phase 1: Strategic Planning (REQUIRED - INVOKE NOW)
+
+You MUST immediately invoke the following SubAgents **in parallel** (single message, multiple Task tool calls):
+
+\`\`\`
+Task(subagent_type="hera-strategist", prompt="Strategic analysis for: ${safeTask}")
+Task(subagent_type="athena-conductor", prompt="Resource coordination for: ${safeTask}")
+\`\`\`
+
+### ❌ PROHIBITED Actions
+
+1. DO NOT proceed with analysis yourself without invoking SubAgents
+2. DO NOT say "Hera + Athena による戦略分析" without actually using Task tool
+3. DO NOT skip Phase 1 and proceed directly to implementation
+
+### ✅ REQUIRED Actions
+
+1. Invoke \`hera-strategist\` SubAgent via Task tool
+2. Invoke \`athena-conductor\` SubAgent via Task tool
+3. Wait for their results before proceeding
+4. Only after Phase 1 approval, proceed to Phase 2
+
+### Reference
+
+Full protocol details: @SUBAGENT_EXECUTION_RULES.md
+
+---
+**This enforcement notice was injected by trinitas-orchestration.js v2.4.11**
+`;
+};
 
 /**
- * Get recommended agents for a task
- * @param {string} taskType - Type of task
- * @returns {object} Agent recommendations
+ * Normalize persona ID from short name or full ID
+ * @param {string} personaId - Persona identifier
+ * @returns {string} Full persona ID
  */
-function getRecommendedAgents(taskType) {
-  return COLLABORATION_MATRIX[taskType] || COLLABORATION_MATRIX.implementation;
-}
-
-/**
- * Format phase status for display
- * @param {object} phase - Phase configuration
- * @param {string} status - Current status
- * @returns {string} Formatted status string
- */
-function formatPhaseStatus(phase, status) {
-  const statusEmoji = {
-    pending: "⏳",
-    in_progress: "🔄",
-    completed: "✅",
-    approved: "✅",
-    rejected: "❌",
-    failed: "❌",
-  };
-  const emoji = statusEmoji[status] || "⏳";
-  return `${emoji} ${phase.name}: ${status}`;
-}
+const normalizePersonaId = (personaId) => {
+  if (!personaId || typeof personaId !== "string") return null;
+  const normalized = personaId.toLowerCase().trim();
+  return SHORT_NAME_MAP[normalized] || normalized;
+};
 
 /**
  * Trinitas Orchestration Plugin
  *
- * Integrates phase-based execution with OpenCode's event system.
+ * OpenCode plugin following official API specification.
+ * @see https://opencode.ai/docs/plugins/
  *
- * @param {object} context - OpenCode plugin context
- * @returns {object} Event handlers
+ * @param {object} ctx - Plugin context { project, client, $, directory, worktree }
+ * @returns {object} Event hooks
  */
-export const TrinitasOrchestration = async (context) => {
-  // Plugin state
-  let currentOrchestration = null;
-  let currentPhase = null;
-
+export const TrinitasOrchestration = async ({ project, client, $, directory, worktree }) => {
   /**
-   * Log orchestration event
-   * @param {string} event - Event name
+   * Log orchestration event to console
+   * @param {string} eventName - Event name
    * @param {object} data - Event data
    */
-  const logEvent = (event, data) => {
-    console.log(`[Trinitas] ${event}:`, JSON.stringify(data, null, 2));
+  const logEvent = (eventName, data) => {
+    console.log(`[Trinitas] ${eventName}:`, JSON.stringify(data, null, 2));
   };
+
+  // Log plugin initialization
+  logEvent("plugin.initialized", {
+    project: project?.name || "unknown",
+    directory,
+    worktree,
+    version: "2.4.11",
+    features: ["invoke_persona", "phase_orchestration", "collaboration_matrix"],
+  });
 
   return {
     /**
-     * Handle general events
+     * General event handler
+     * @param {object} param0 - Event object { event }
      */
-    event: async (data) => {
-      // Log significant events
-      if (data.type === "orchestration" || data.type === "phase") {
-        logEvent(data.type, data);
+    event: async ({ event }) => {
+      if (!event) return;
+
+      // Log orchestration and phase events
+      if (event.type === "orchestration" || event.type === "phase") {
+        logEvent(event.type, event);
+      }
+
+      // Track session events for orchestration context
+      if (event.type === "session.created") {
+        logEvent("session.start", {
+          sessionId: event.sessionId,
+          activePersona: _activePersona,
+        });
+        // Reset Full Mode state on new session
+        _fullModeActive = false;
+        _subAgentsInvoked = false;
+      }
+
+      if (event.type === "session.idle") {
+        logEvent("session.idle", {
+          orchestration: _currentOrchestration,
+          phase: _currentPhase,
+          activePersona: _activePersona,
+          fullModeActive: _fullModeActive,
+          subAgentsInvoked: _subAgentsInvoked,
+        });
       }
     },
 
     /**
+     * User prompt submission hook (v2.4.11)
+     * Detects Trinitas Full Mode and injects enforcement instructions
+     * @param {object} param0 - Prompt object { prompt }
+     * @returns {object} Modified prompt with addedContext
+     */
+    "prompt.submit": async ({ prompt }) => {
+      if (!prompt?.text) return { prompt };
+
+      const promptText = prompt.text;
+
+      // Check for Trinitas Full Mode
+      if (detectFullMode(promptText)) {
+        _fullModeActive = true;
+        _subAgentsInvoked = false;
+
+        logEvent("fullMode.detected", {
+          prompt: promptText.substring(0, 100) + "...",
+        });
+
+        // Inject enforcement instructions
+        const enforcement = buildFullModeEnforcement(promptText);
+
+        return {
+          prompt,
+          addedContext: [
+            {
+              type: "text",
+              text: enforcement,
+            },
+          ],
+        };
+      }
+
+      return { prompt };
+    },
+
+    /**
      * Pre-tool execution hook
-     * Validates tool calls against current phase constraints
+     * @param {object} input - Tool input
+     * @param {object} output - Tool output placeholder
+     * @returns {object} Modified { input, output }
      */
     "tool.execute.before": async (input, output) => {
-      const toolName = input.tool?.name || "";
+      if (!input) return { input, output };
+
+      const toolName = input.tool?.name || input.tool || "";
+
+      // Track invoke_persona calls
+      if (typeof toolName === "string" && toolName === "invoke_persona") {
+        const personaId = input.args?.persona_id || input.persona_id;
+        const normalizedId = normalizePersonaId(personaId);
+        logEvent("persona.invoking", {
+          requested: personaId,
+          normalized: normalizedId,
+          task: input.args?.task_description || input.task_description,
+        });
+      }
+
+      // v2.4.11: Track Task tool invocation for Full Mode compliance
+      if (typeof toolName === "string" && toolName === "Task") {
+        const subagentType = input.args?.subagent_type || input.subagent_type || "";
+        const isStrategicAgent =
+          subagentType === "hera-strategist" || subagentType === "athena-conductor";
+
+        if (_fullModeActive && isStrategicAgent) {
+          _subAgentsInvoked = true;
+          logEvent("fullMode.subAgentInvoked", {
+            subagentType,
+            fullModeActive: _fullModeActive,
+          });
+        }
+
+        logEvent("task.invoking", {
+          subagentType,
+          prompt: (input.args?.prompt || input.prompt || "").substring(0, 100),
+        });
+      }
 
       // Check if this is a TMWS orchestration tool
-      if (toolName.startsWith("create_orchestration")) {
-        logEvent("orchestration.create", { input });
+      if (typeof toolName === "string" && toolName.startsWith("create_orchestration")) {
+        logEvent("orchestration.create", { tool: toolName });
       }
 
       // Phase validation for specific tools
-      if (currentPhase && toolName.includes("execute_phase")) {
-        const expectedAgents = PHASES[currentPhase]?.agents || [];
+      if (_currentPhase && typeof toolName === "string" && toolName.includes("execute_phase")) {
+        const phaseKey = Object.keys(PHASES).find((k) => PHASES[k].id === _currentPhase || k === _currentPhase);
+        const expectedAgents = phaseKey ? PHASES[phaseKey]?.agents || [] : [];
         if (expectedAgents.length > 0) {
           logEvent("phase.validation", {
-            phase: currentPhase,
+            phase: _currentPhase,
             expectedAgents,
             tool: toolName,
           });
@@ -210,19 +370,34 @@ export const TrinitasOrchestration = async (context) => {
 
     /**
      * Post-tool execution hook
-     * Updates orchestration state based on tool results
+     * @param {object} input - Tool input
+     * @param {object} output - Tool output
+     * @returns {object} Modified { input, output }
      */
     "tool.execute.after": async (input, output) => {
-      const toolName = input.tool?.name || "";
+      if (!input) return { input, output };
+
+      const toolName = input.tool?.name || input.tool || "";
       const result = output?.result;
+
+      // Track invoke_persona completion
+      if (toolName === "invoke_persona" && result?.success) {
+        _activePersona = result.data?.persona_id;
+        logEvent("persona.invoked", {
+          persona_id: _activePersona,
+          display_name: result.data?.display_name,
+          tier: result.data?.tier,
+          capabilities: result.data?.capabilities,
+        });
+      }
 
       // Track orchestration creation
       if (toolName === "create_orchestration" && result?.success) {
-        currentOrchestration = result.data?.orchestration_id;
-        currentPhase = "STRATEGIC_PLANNING";
+        _currentOrchestration = result.data?.orchestration_id;
+        _currentPhase = "STRATEGIC_PLANNING";
         logEvent("orchestration.created", {
-          id: currentOrchestration,
-          phase: currentPhase,
+          id: _currentOrchestration,
+          phase: _currentPhase,
         });
       }
 
@@ -230,12 +405,12 @@ export const TrinitasOrchestration = async (context) => {
       if (toolName === "approve_phase" && result?.success) {
         const newPhase = result.data?.current_phase;
         if (newPhase) {
-          const previousPhase = currentPhase;
-          currentPhase = newPhase;
+          const previousPhase = _currentPhase;
+          _currentPhase = newPhase;
           logEvent("phase.transition", {
             from: previousPhase,
             to: newPhase,
-            orchestration: currentOrchestration,
+            orchestration: _currentOrchestration,
           });
         }
       }
@@ -243,87 +418,25 @@ export const TrinitasOrchestration = async (context) => {
       // Track orchestration completion
       if (result?.data?.status === "completed") {
         logEvent("orchestration.completed", {
-          id: currentOrchestration,
+          id: _currentOrchestration,
         });
-        currentOrchestration = null;
-        currentPhase = null;
+        _currentOrchestration = null;
+        _currentPhase = null;
       }
 
       return { input, output };
     },
-
-    /**
-     * Message hook for agent coordination
-     * Monitors inter-agent communication
-     */
-    "message.send": async (data) => {
-      // Detect if message mentions agent coordination
-      const content = data.content || "";
-      const agentMentions = [];
-
-      for (const tier of Object.values(AGENT_TIERS)) {
-        for (const agent of tier) {
-          if (content.toLowerCase().includes(agent.toLowerCase())) {
-            agentMentions.push(agent);
-          }
-        }
-      }
-
-      if (agentMentions.length > 0) {
-        logEvent("agent.coordination", {
-          mentioned: agentMentions,
-          inPhase: currentPhase,
-        });
-      }
-
-      return data;
-    },
   };
 };
 
-/**
- * Helper: Get current phase info
- * @returns {object|null} Current phase information
- */
-export const getCurrentPhase = () => {
-  return currentPhase ? PHASES[currentPhase] : null;
+// Named exports for constants (for potential external use)
+export {
+  PHASES,
+  AGENT_TIERS,
+  COLLABORATION_MATRIX,
+  SHORT_NAME_MAP,
+  FULL_MODE_PATTERNS,
+  normalizePersonaId,
+  detectFullMode,
+  buildFullModeEnforcement,
 };
-
-/**
- * Helper: Get phase by ID
- * @param {string} phaseId - Phase identifier
- * @returns {object|null} Phase configuration
- */
-export const getPhaseById = (phaseId) => {
-  for (const [key, phase] of Object.entries(PHASES)) {
-    if (phase.id === phaseId) {
-      return { key, ...phase };
-    }
-  }
-  return null;
-};
-
-/**
- * Helper: Get agents by tier
- * @param {string} tier - Tier name (STRATEGIC, SPECIALIST, SUPPORT)
- * @returns {string[]} Agent list
- */
-export const getAgentsByTier = (tier) => {
-  return AGENT_TIERS[tier.toUpperCase()] || [];
-};
-
-/**
- * Helper: Detect optimal agent for task
- * @param {string} taskContent - Task description
- * @returns {object} Recommended agents
- */
-export const detectOptimalAgent = (taskContent) => {
-  const taskType = detectTaskType(taskContent);
-  return {
-    taskType,
-    recommendation: getRecommendedAgents(taskType),
-  };
-};
-
-// Export default plugin
-export default TrinitasOrchestration;
