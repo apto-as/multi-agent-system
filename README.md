@@ -6,7 +6,7 @@
   <img src="https://img.shields.io/badge/Platform-Ubuntu%20%7C%20macOS%20%7C%20WSL2-lightgrey.svg" alt="Platform">
 </p>
 
-**Trinitas** is a sophisticated multi-agent AI system that enhances Claude Code with 9 specialized AI personas, persistent memory, and advanced workflow orchestration.
+**Trinitas** is a sophisticated multi-agent AI system that enhances Claude Code and OpenCode with 9 specialized AI personas, persistent memory, and advanced workflow orchestration.
 
 ## Features
 
@@ -15,33 +15,54 @@
 - **Phase-Based Execution**: Strategic planning with approval gates ensures quality
 - **42 MCP Tools**: Memory management, verification, skills, agent coordination
 - **90-Day ENTERPRISE Trial**: Full functionality included
+- **Upgrade Support**: Automatic backup and seamless upgrade from previous versions
 
 ## Quick Start
 
-### One-Line Installation
+### For Claude Code (macOS/Linux)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/apto-as/multi-agent-system/main/install.sh | bash
 ```
 
-### Manual Installation
+### For OpenCode (macOS/Linux)
 
 ```bash
-git clone https://github.com/apto-as/multi-agent-system.git
-cd multi-agent-system
-./install.sh
+curl -fsSL https://raw.githubusercontent.com/apto-as/multi-agent-system/main/install-opencode.sh | bash
+```
+
+### For Windows (WSL2)
+
+```powershell
+# Run in PowerShell as Administrator
+Set-ExecutionPolicy Bypass -Scope Process -Force
+irm https://raw.githubusercontent.com/apto-as/multi-agent-system/main/install-wsl.ps1 | iex
+```
+
+Or download and run manually:
+
+```powershell
+# Download installer
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/apto-as/multi-agent-system/main/install-wsl.ps1" -OutFile "install-wsl.ps1"
+
+# Run with options
+.\install-wsl.ps1                    # For Claude Code (default)
+.\install-wsl.ps1 -TargetIDE opencode  # For OpenCode
+.\install-wsl.ps1 -Force             # Skip confirmation prompts
+.\install-wsl.ps1 -SkipBackup        # Skip backup on upgrade
 ```
 
 ## Prerequisites
 
-| Requirement | Version | Notes |
-|-------------|---------|-------|
-| Docker | 20.10+ | Required for TMWS |
-| Git | 2.0+ | For repository management |
-| Ollama | Latest | For embedding generation |
-| Claude Code | Latest | Anthropic's CLI |
+| Requirement | Version | Claude Code | OpenCode | Notes |
+|-------------|---------|-------------|----------|-------|
+| Docker | 20.10+ | Required | Required | For TMWS |
+| Git | 2.0+ | Required | Required | For repository management |
+| Ollama | Latest | Required | Required | For embedding generation |
+| Claude Code | Latest | Required | - | Anthropic's CLI |
+| OpenCode | Latest | - | Required | Open-source AI CLI |
 
-### Installing Prerequisites
+### Platform-Specific Requirements
 
 **Ubuntu/Debian:**
 ```bash
@@ -66,20 +87,53 @@ ollama serve &
 ollama pull zylonai/multilingual-e5-large
 ```
 
+**Windows (WSL2):**
+- Windows 10 version 2004+ or Windows 11
+- WSL2 enabled (`wsl --install`)
+- Docker Desktop with WSL2 backend
+- Ubuntu or Debian distro in WSL2
+
 ## What Gets Installed
+
+### Claude Code Installation
 
 | Location | Purpose |
 |----------|---------|
 | `~/.trinitas/` | TMWS configuration and Docker Compose |
-| `~/.claude/` | Claude Code agent configurations |
+| `~/.claude/` | Agent configurations and MCP settings |
 | `~/.tmws/` | Database, logs, and vector storage |
+
+### OpenCode Installation
+
+| Location | Purpose |
+|----------|---------|
+| `~/.trinitas/` | TMWS configuration and Docker Compose |
+| `~/.config/opencode/` | Agent configs, plugins, and commands |
+| `~/.tmws/` | Database, logs, and vector storage |
+
+## Upgrade Support
+
+All installers support seamless upgrades from previous versions:
+
+1. **Automatic Detection**: Detects existing Trinitas/TMWS installations
+2. **Backup Creation**: Creates timestamped backup to `~/.trinitas-backup/`
+3. **Container Management**: Stops and removes old TMWS containers
+4. **Configuration Migration**: Preserves existing settings and data
+
+To force upgrade without prompts:
+```bash
+./install.sh --force          # Claude Code
+./install-opencode.sh --force  # OpenCode
+.\install-wsl.ps1 -Force       # Windows WSL
+```
 
 ## Usage
 
-After installation, start Claude Code in any project:
+After installation, start your AI CLI in any project:
 
 ```bash
-claude
+claude     # For Claude Code
+opencode   # For OpenCode
 ```
 
 ### Basic Commands
@@ -186,6 +240,19 @@ ollama pull zylonai/multilingual-e5-large
 curl http://localhost:8000/api/v1/license/status
 ```
 
+### WSL2 Issues (Windows)
+
+```powershell
+# Check WSL2 status
+wsl --status
+
+# List installed distributions
+wsl -l -v
+
+# Ensure Docker Desktop uses WSL2 backend
+# Settings > General > Use WSL 2 based engine
+```
+
 ## Uninstallation
 
 ```bash
@@ -194,14 +261,19 @@ docker stop tmws-app && docker rm tmws-app
 
 # Remove configurations (optional)
 rm -rf ~/.trinitas ~/.tmws
+
+# For Claude Code
 # Note: Keep ~/.claude if using Claude Code for other projects
+
+# For OpenCode
+# Note: Keep ~/.config/opencode if using OpenCode for other purposes
 ```
 
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    Claude Code                           │
+│              Claude Code / OpenCode                      │
 │                   (AI Interface)                         │
 └─────────────────────┬───────────────────────────────────┘
                       │ MCP Protocol
@@ -230,7 +302,7 @@ This is a proprietary system. For bug reports and feature requests, please conta
 
 ## Version History
 
-- **v2.4.12** (2025-12-03): Option B distribution, 90-day ENTERPRISE trial
+- **v2.4.12** (2025-12-03): Option B distribution, OpenCode support, WSL installer, upgrade support
 - **v2.4.8** (2025-12-01): Orchestration layer, 128 tests
 - **v2.4.0** (2025-11-24): Memory management API
 - **v2.3.0** (2025-11-11): Verification-Trust integration
