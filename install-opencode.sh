@@ -418,8 +418,8 @@ install_opencode_config() {
     fi
 
     # Copy AGENTS.md
-    if [ -f "${script_dir}/AGENTS.md" ]; then
-        cp "${script_dir}/AGENTS.md" "${OPENCODE_CONFIG_DIR}/"
+    if [ -f "${script_dir}/opencode/AGENTS.md" ]; then
+        cp "${script_dir}/opencode/AGENTS.md" "${OPENCODE_CONFIG_DIR}/"
         log_success "Copied AGENTS.md"
     fi
 
