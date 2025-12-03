@@ -1,151 +1,507 @@
 #!/bin/bash
+# =============================================================================
+# Trinitas Multi-Agent System Installer v2.4.12
+# =============================================================================
+#
+# This installer sets up:
+#   1. TMWS (Trinitas Memory & Workflow System) via Docker
+#   2. Trinitas agents, hooks, and configuration for Claude Code
+#   3. License key activation (90-day ENTERPRISE trial included)
+#
+# Supported platforms: Ubuntu 20.04+, Debian 11+, macOS 12+, WSL2
+#
+# Usage:
+#   curl -fsSL https://raw.githubusercontent.com/apto-as/multi-agent-system/main/install.sh | bash
+#   # or
+#   ./install.sh
+#
+# =============================================================================
 
-# Trinitas System Installer for Linux/WSL/macOS v2.2.4
-# Usage: bash install.sh
-# This installer copies Trinitas agents, hooks, and configuration to ~/.claude/
+set -euo pipefail
 
-# Colors for output
+# Version
+INSTALLER_VERSION="2.4.12"
+TMWS_VERSION="2.4.12"
+
+# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 CYAN='\033[0;36m'
+MAGENTA='\033[0;35m'
 NC='\033[0m' # No Color
 
-echo -e "${CYAN}========================================${NC}"
-echo -e "${CYAN}Trinitas System Installer v2.2.4${NC}"
-echo -e "${CYAN}Linux/WSL/macOS${NC}"
-echo -e "${CYAN}========================================${NC}"
-echo
+# Configuration
+TMWS_IMAGE="ghcr.io/apto-as/tmws:${TMWS_VERSION}"
+TRINITAS_CONFIG_DIR="${HOME}/.trinitas"
+CLAUDE_CONFIG_DIR="${HOME}/.claude"
 
-# Determine target directory
-if [ -n "$CLAUDE_HOME" ]; then
-    TARGET_DIR="$CLAUDE_HOME"
-else
-    TARGET_DIR="$HOME/.claude"
-fi
+# 90-day ENTERPRISE trial license (expires 2026-03-03)
+DEFAULT_LICENSE_KEY="TMWS-ENTERPRISE-020d8e77-de36-48a1-b585-7f66aef78c06-20260303-Tp9UYRt6ucUB21hPF9lqZoH.FjSslvfr~if1ThD75L.ro~Kx5glyVyGPm0n4xuziJ~Qmc87PZipJWCefj2HEAA"
 
-echo -e "${YELLOW}Target directory: $TARGET_DIR${NC}"
-echo
+# Logging functions
+log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
+log_success() { echo -e "${GREEN}[OK]${NC} $1"; }
+log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+log_step() { echo -e "${MAGENTA}[STEP]${NC} $1"; }
 
-# Create .claude directory if it doesn't exist
-if [ ! -d "$TARGET_DIR" ]; then
-    echo -e "${NC}Creating .claude directory...${NC}"
-    mkdir -p "$TARGET_DIR"
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}Directory created successfully.${NC}"
-    else
-        echo -e "${RED}Error: Failed to create .claude directory${NC}"
+# Banner
+show_banner() {
+    echo -e "${CYAN}"
+    cat << 'EOF'
+╔═══════════════════════════════════════════════════════════════════════╗
+║                                                                       ║
+║   ████████╗██████╗ ██╗███╗   ██╗██╗████████╗ █████╗ ███████╗         ║
+║   ╚══██╔══╝██╔══██╗██║████╗  ██║██║╚══██╔══╝██╔══██╗██╔════╝         ║
+║      ██║   ██████╔╝██║██╔██╗ ██║██║   ██║   ███████║███████╗         ║
+║      ██║   ██╔══██╗██║██║╚██╗██║██║   ██║   ██╔══██║╚════██║         ║
+║      ██║   ██║  ██║██║██║ ╚████║██║   ██║   ██║  ██║███████║         ║
+║      ╚═╝   ╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝╚═╝   ╚═╝   ╚═╝  ╚═╝╚══════╝         ║
+║                                                                       ║
+║            Multi-Agent System Installer v2.4.12                       ║
+║            90-Day ENTERPRISE Trial License Included                   ║
+║                                                                       ║
+╚═══════════════════════════════════════════════════════════════════════╝
+EOF
+    echo -e "${NC}"
+}
+
+# Platform detection
+detect_platform() {
+    case "$(uname -s)" in
+        Darwin*)
+            PLATFORM="macOS"
+            PACKAGE_MANAGER="brew"
+            ;;
+        Linux*)
+            PLATFORM="Linux"
+            if [ -f /etc/debian_version ]; then
+                PACKAGE_MANAGER="apt"
+            elif [ -f /etc/redhat-release ]; then
+                PACKAGE_MANAGER="yum"
+            else
+                PACKAGE_MANAGER="unknown"
+            fi
+            # WSL detection
+            if grep -qi microsoft /proc/version 2>/dev/null; then
+                PLATFORM="WSL"
+            fi
+            ;;
+        *)
+            PLATFORM="Unknown"
+            PACKAGE_MANAGER="unknown"
+            ;;
+    esac
+    log_info "Detected platform: ${PLATFORM} (${PACKAGE_MANAGER})"
+}
+
+# Check prerequisites
+check_prerequisites() {
+    log_step "Checking prerequisites..."
+
+    local missing=()
+
+    # Check curl
+    if ! command -v curl &> /dev/null; then
+        missing+=("curl")
+    fi
+
+    # Check git
+    if ! command -v git &> /dev/null; then
+        missing+=("git")
+    fi
+
+    # Check Docker
+    if ! command -v docker &> /dev/null; then
+        missing+=("docker")
+    fi
+
+    if [ ${#missing[@]} -gt 0 ]; then
+        log_error "Missing prerequisites: ${missing[*]}"
+        echo ""
+        echo "Please install the missing packages:"
+        case "$PACKAGE_MANAGER" in
+            apt)
+                echo "  sudo apt update && sudo apt install -y ${missing[*]}"
+                if [[ " ${missing[*]} " =~ " docker " ]]; then
+                    echo ""
+                    echo "For Docker on Ubuntu/Debian:"
+                    echo "  curl -fsSL https://get.docker.com | sudo sh"
+                    echo "  sudo usermod -aG docker \$USER"
+                    echo "  # Log out and back in for group changes"
+                fi
+                ;;
+            brew)
+                echo "  brew install ${missing[*]}"
+                if [[ " ${missing[*]} " =~ " docker " ]]; then
+                    echo ""
+                    echo "For Docker on macOS:"
+                    echo "  brew install --cask docker"
+                    echo "  # Then open Docker Desktop"
+                fi
+                ;;
+            *)
+                echo "  Please install: ${missing[*]}"
+                ;;
+        esac
         exit 1
     fi
-else
-    echo -e "${NC}.claude directory already exists.${NC}"
-fi
 
-echo
-echo -e "${YELLOW}Copying files...${NC}"
-echo
+    # Check Docker daemon
+    if ! docker info &> /dev/null; then
+        log_error "Docker daemon is not running"
+        echo ""
+        case "$PLATFORM" in
+            macOS)
+                echo "Please start Docker Desktop:"
+                echo "  open -a Docker"
+                ;;
+            Linux|WSL)
+                echo "Please start Docker:"
+                echo "  sudo systemctl start docker"
+                ;;
+        esac
+        exit 1
+    fi
 
-# Files to copy
-FILES=(
-    "CLAUDE.md"
-    "AGENTS.md"
-    "TRINITAS-CORE-PROTOCOL.md"
-    "settings.json"
-)
+    log_success "All prerequisites satisfied"
+}
 
-# Copy files
-for file in "${FILES[@]}"; do
-    if [ -f "$file" ]; then
-        printf "Copying %-30s" "$file..."
-        cp "$file" "$TARGET_DIR/" 2>/dev/null
-        if [ $? -eq 0 ]; then
-            echo -e "${GREEN}[OK]${NC}"
-        else
-            echo -e "${RED}[ERROR]${NC}"
-            echo -e "${RED}  Error: Failed to copy $file${NC}"
-            exit 1
+# Create directory structure
+create_directories() {
+    log_step "Creating directory structure..."
+
+    mkdir -p "${TRINITAS_CONFIG_DIR}"
+    mkdir -p "${CLAUDE_CONFIG_DIR}/agents"
+    mkdir -p "${CLAUDE_CONFIG_DIR}/commands"
+    mkdir -p "${CLAUDE_CONFIG_DIR}/hooks/core"
+    mkdir -p "${HOME}/.tmws/db"
+    mkdir -p "${HOME}/.tmws/logs"
+    mkdir -p "${HOME}/.tmws/vector_store"
+
+    log_success "Directories created"
+}
+
+# Pull TMWS Docker image
+pull_tmws_image() {
+    log_step "Pulling TMWS Docker image (${TMWS_IMAGE})..."
+
+    if docker pull "${TMWS_IMAGE}"; then
+        log_success "TMWS image pulled successfully"
+    else
+        log_error "Failed to pull TMWS image"
+        exit 1
+    fi
+}
+
+# Generate secret key
+generate_secret_key() {
+    if command -v openssl &> /dev/null; then
+        openssl rand -hex 32
+    else
+        # Fallback: use /dev/urandom
+        head -c 32 /dev/urandom | xxd -p | tr -d '\n'
+    fi
+}
+
+# Setup TMWS configuration
+setup_tmws_config() {
+    log_step "Setting up TMWS configuration..."
+
+    local env_file="${TRINITAS_CONFIG_DIR}/.env"
+
+    # Generate secret key if not exists
+    if [ -f "${env_file}" ] && grep -q "TMWS_SECRET_KEY" "${env_file}"; then
+        log_info "Using existing TMWS configuration"
+    else
+        local secret_key=$(generate_secret_key)
+
+        cat > "${env_file}" << EOF
+# TMWS Configuration - Generated by Trinitas Installer
+# Version: ${TMWS_VERSION}
+# Generated: $(date -Iseconds)
+
+# Environment
+TMWS_ENVIRONMENT=production
+TMWS_LOG_LEVEL=INFO
+
+# Security (Auto-generated - DO NOT SHARE)
+TMWS_SECRET_KEY=${secret_key}
+
+# License Key (90-day ENTERPRISE trial)
+TMWS_LICENSE_KEY="${DEFAULT_LICENSE_KEY}"
+
+# Database (SQLite - stored in ~/.tmws/db/)
+TMWS_DATABASE_URL=sqlite+aiosqlite:////root/.tmws/db/tmws.db
+
+# Embedding Service (Ollama required)
+OLLAMA_BASE_URL=http://host.docker.internal:11434
+EOF
+
+        chmod 600 "${env_file}"
+        log_success "TMWS configuration created"
+    fi
+}
+
+# Create Docker Compose file
+create_docker_compose() {
+    log_step "Creating Docker Compose configuration..."
+
+    cat > "${TRINITAS_CONFIG_DIR}/docker-compose.yml" << EOF
+# Trinitas TMWS Docker Compose
+# Version: ${TMWS_VERSION}
+
+services:
+  tmws:
+    image: ${TMWS_IMAGE}
+    container_name: tmws-app
+    restart: unless-stopped
+    ports:
+      - "8892:8892"  # MCP Server
+      - "8000:8000"  # REST API
+    volumes:
+      - ${HOME}/.tmws/db:/root/.tmws/db
+      - ${HOME}/.tmws/logs:/root/.tmws/logs
+      - ${HOME}/.tmws/vector_store:/root/.tmws/vector_store
+    env_file:
+      - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+EOF
+
+    log_success "Docker Compose configuration created"
+}
+
+# Install Trinitas agent configuration for Claude Code
+install_claude_config() {
+    log_step "Installing Trinitas configuration for Claude Code..."
+
+    # Check if we're running from the git repo
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+    # Copy CLAUDE.md
+    if [ -f "${script_dir}/CLAUDE.md" ]; then
+        cp "${script_dir}/CLAUDE.md" "${CLAUDE_CONFIG_DIR}/"
+        log_success "Copied CLAUDE.md"
+    else
+        log_warn "CLAUDE.md not found, downloading from GitHub..."
+        curl -fsSL "https://raw.githubusercontent.com/apto-as/multi-agent-system/main/CLAUDE.md" \
+            -o "${CLAUDE_CONFIG_DIR}/CLAUDE.md" 2>/dev/null || log_warn "Could not download CLAUDE.md"
+    fi
+
+    # Copy AGENTS.md
+    if [ -f "${script_dir}/AGENTS.md" ]; then
+        cp "${script_dir}/AGENTS.md" "${CLAUDE_CONFIG_DIR}/"
+        log_success "Copied AGENTS.md"
+    else
+        curl -fsSL "https://raw.githubusercontent.com/apto-as/multi-agent-system/main/AGENTS.md" \
+            -o "${CLAUDE_CONFIG_DIR}/AGENTS.md" 2>/dev/null || log_warn "Could not download AGENTS.md"
+    fi
+
+    # Copy agents directory
+    if [ -d "${script_dir}/agents" ]; then
+        cp -r "${script_dir}/agents" "${CLAUDE_CONFIG_DIR}/"
+        log_success "Copied agents/"
+    fi
+
+    # Copy commands directory
+    if [ -d "${script_dir}/commands" ]; then
+        cp -r "${script_dir}/commands" "${CLAUDE_CONFIG_DIR}/"
+        log_success "Copied commands/"
+    fi
+
+    # Copy hooks directory
+    if [ -d "${script_dir}/hooks" ]; then
+        cp -r "${script_dir}/hooks" "${CLAUDE_CONFIG_DIR}/"
+        chmod +x "${CLAUDE_CONFIG_DIR}"/hooks/**/*.py 2>/dev/null || true
+        log_success "Copied hooks/"
+    fi
+}
+
+# Configure Claude Code MCP settings
+configure_mcp_settings() {
+    log_step "Configuring Claude Code MCP settings..."
+
+    local mcp_config="${CLAUDE_CONFIG_DIR}/.mcp.json"
+
+    cat > "${mcp_config}" << 'EOF'
+{
+  "mcpServers": {
+    "tmws": {
+      "command": "docker",
+      "args": [
+        "exec", "-i", "tmws-app",
+        "python", "-m", "src.mcp_server"
+      ],
+      "env": {}
+    }
+  }
+}
+EOF
+
+    log_success "MCP configuration created"
+}
+
+# Start TMWS
+start_tmws() {
+    log_step "Starting TMWS..."
+
+    cd "${TRINITAS_CONFIG_DIR}"
+
+    # Stop existing container if running
+    docker stop tmws-app 2>/dev/null || true
+    docker rm tmws-app 2>/dev/null || true
+
+    # Start with docker-compose
+    if command -v docker-compose &> /dev/null; then
+        docker-compose up -d
+    else
+        docker compose up -d
+    fi
+
+    # Wait for health check
+    log_info "Waiting for TMWS to start..."
+    local max_attempts=30
+    local attempt=0
+
+    while [ $attempt -lt $max_attempts ]; do
+        if curl -sf http://localhost:8000/health > /dev/null 2>&1; then
+            log_success "TMWS is running and healthy"
+            return 0
+        fi
+        attempt=$((attempt + 1))
+        sleep 2
+    done
+
+    log_warn "TMWS health check timed out (may still be starting)"
+}
+
+# Verify license
+verify_license() {
+    log_step "Verifying license..."
+
+    local response
+    response=$(curl -sf http://localhost:8000/api/v1/license/status 2>/dev/null || echo '{"error": "connection failed"}')
+
+    if echo "$response" | grep -q '"tier"'; then
+        local tier=$(echo "$response" | grep -o '"tier":"[^"]*"' | cut -d'"' -f4)
+        local expires=$(echo "$response" | grep -o '"expires_at":"[^"]*"' | cut -d'"' -f4)
+
+        log_success "License verified: ${tier}"
+        if [ -n "$expires" ]; then
+            log_info "Expires: ${expires}"
         fi
     else
-        printf "%-30s" "$file"
-        echo -e "${YELLOW}[SKIP] (not found)${NC}"
+        log_warn "Could not verify license (TMWS may still be starting)"
     fi
-done
+}
 
-echo
-echo -e "${YELLOW}Copying directories...${NC}"
-echo
+# Check Ollama
+check_ollama() {
+    log_step "Checking Ollama installation..."
 
-# Directories to copy
-DIRECTORIES=(
-    "agents"
-    "commands"
-    "hooks"
-    "config"
-    "contexts"
-    "shared"
-)
+    if command -v ollama &> /dev/null; then
+        log_success "Ollama is installed"
 
-# Copy directories
-for dir in "${DIRECTORIES[@]}"; do
-    if [ -d "$dir" ]; then
-        printf "Copying %-30s" "$dir/ ..."
-        # Remove target directory if it exists
-        if [ -d "$TARGET_DIR/$dir" ]; then
-            rm -rf "$TARGET_DIR/$dir"
-        fi
-        # Copy directory
-        cp -r "$dir" "$TARGET_DIR/" 2>/dev/null
-        if [ $? -eq 0 ]; then
-            echo -e "${GREEN}[OK]${NC}"
+        # Check if running
+        if curl -sf http://localhost:11434/api/tags > /dev/null 2>&1; then
+            log_success "Ollama is running"
+
+            # Check for required model
+            if ollama list 2>/dev/null | grep -q "multilingual-e5-large"; then
+                log_success "Required model (multilingual-e5-large) is available"
+            else
+                log_warn "Required model not found. Installing..."
+                ollama pull zylonai/multilingual-e5-large
+            fi
         else
-            echo -e "${RED}[ERROR]${NC}"
-            echo -e "${RED}  Error: Failed to copy $dir directory${NC}"
-            exit 1
+            log_warn "Ollama is not running. Start with: ollama serve"
         fi
     else
-        printf "%-30s" "$dir/"
-        echo -e "${YELLOW}[SKIP] (not found)${NC}"
+        log_warn "Ollama is not installed"
+        echo ""
+        echo "Ollama is required for semantic search functionality."
+        echo "Install Ollama:"
+        case "$PLATFORM" in
+            macOS)
+                echo "  brew install ollama"
+                ;;
+            Linux|WSL)
+                echo "  curl -fsSL https://ollama.ai/install.sh | sh"
+                ;;
+        esac
+        echo ""
+        echo "Then run:"
+        echo "  ollama serve"
+        echo "  ollama pull zylonai/multilingual-e5-large"
     fi
-done
+}
 
-# Set permissions for hooks if they exist
-if [ -d "$TARGET_DIR/hooks" ]; then
-    echo
-    echo -e "${YELLOW}Setting permissions...${NC}"
-    find "$TARGET_DIR/hooks" -name "*.py" -exec chmod +x {} \; 2>/dev/null
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}Permissions set for Python hooks.${NC}"
-    fi
-fi
+# Show completion message
+show_completion() {
+    echo ""
+    echo -e "${GREEN}╔═══════════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${GREEN}║           Installation Complete!                                      ║${NC}"
+    echo -e "${GREEN}╚═══════════════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    echo -e "${CYAN}What was installed:${NC}"
+    echo "  - TMWS Docker container (ghcr.io/apto-as/tmws:${TMWS_VERSION})"
+    echo "  - Trinitas 9-agent configuration for Claude Code"
+    echo "  - 90-day ENTERPRISE trial license"
+    echo ""
+    echo -e "${CYAN}Configuration locations:${NC}"
+    echo "  - TMWS config:     ${TRINITAS_CONFIG_DIR}/"
+    echo "  - Claude Code:     ${CLAUDE_CONFIG_DIR}/"
+    echo "  - Data storage:    ${HOME}/.tmws/"
+    echo ""
+    echo -e "${CYAN}Services:${NC}"
+    echo "  - MCP Server:      localhost:8892"
+    echo "  - REST API:        localhost:8000"
+    echo "  - Health check:    http://localhost:8000/health"
+    echo ""
+    echo -e "${CYAN}Quick start:${NC}"
+    echo "  1. Ensure Ollama is running: ollama serve"
+    echo "  2. Start Claude Code in your project directory"
+    echo "  3. Use /trinitas command to interact with agents"
+    echo ""
+    echo -e "${CYAN}Useful commands:${NC}"
+    echo "  - View logs:       docker logs -f tmws-app"
+    echo "  - Restart TMWS:    cd ~/.trinitas && docker compose restart"
+    echo "  - Stop TMWS:       docker stop tmws-app"
+    echo ""
+    echo -e "${YELLOW}License Information:${NC}"
+    echo "  - Tier: ENTERPRISE (Trial)"
+    echo "  - Expires: 2026-03-03 (90 days)"
+    echo "  - Contact apto-as for extended license"
+    echo ""
+    echo -e "${GREEN}Enjoy Trinitas Multi-Agent System!${NC}"
+    echo ""
+}
 
-echo
-echo -e "${CYAN}========================================${NC}"
-echo -e "${GREEN}Installation completed successfully!${NC}"
-echo -e "${CYAN}========================================${NC}"
-echo
-echo -e "${YELLOW}Files have been copied to:${NC}"
-echo -e "  ${NC}$TARGET_DIR${NC}"
-echo
-echo -e "${NC}To verify the installation, run:${NC}"
-echo -e "  ${NC}ls -la \"$TARGET_DIR\"${NC}"
-echo
+# Main installation flow
+main() {
+    show_banner
+    detect_platform
+    check_prerequisites
+    create_directories
+    pull_tmws_image
+    setup_tmws_config
+    create_docker_compose
+    install_claude_config
+    configure_mcp_settings
+    start_tmws
+    verify_license
+    check_ollama
+    show_completion
+}
 
-# WSL-specific information
-if grep -qi microsoft /proc/version 2>/dev/null; then
-    echo -e "${CYAN}WSL Detected!${NC}"
-    echo -e "${YELLOW}Note for WSL users:${NC}"
-    echo -e "  - Claude Desktop runs on Windows, not in WSL"
-    echo -e "  - You may also want to run the Windows installer (install.ps1)"
-    echo -e "  - Files in WSL can be accessed from Windows at:"
-    echo -e "    ${NC}\\\\wsl$\\$(lsb_release -i -s 2>/dev/null || echo "Ubuntu")$TARGET_DIR${NC}"
-    echo
-fi
-
-# Check if running in a container
-if [ -f /.dockerenv ] || [ -n "$CONTAINER" ]; then
-    echo -e "${CYAN}Container environment detected!${NC}"
-    echo -e "${YELLOW}Note:${NC} Make sure to mount this directory when running Claude Desktop."
-    echo
-fi
-
-echo -e "${GREEN}Installation complete!${NC}"
+# Run main
+main "$@"
