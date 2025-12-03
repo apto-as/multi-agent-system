@@ -428,46 +428,47 @@ EOF
 install_claude_config() {
     log_step "Installing Trinitas configuration for Claude Code..."
 
-    # Check if we're running from the git repo
     local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local config_src="${script_dir}/claudecode"
 
     # Copy CLAUDE.md
-    if [ -f "${script_dir}/CLAUDE.md" ]; then
-        cp "${script_dir}/CLAUDE.md" "${CLAUDE_CONFIG_DIR}/"
+    if [ -f "${config_src}/CLAUDE.md" ]; then
+        cp "${config_src}/CLAUDE.md" "${CLAUDE_CONFIG_DIR}/"
         log_success "Copied CLAUDE.md"
     else
-        log_info "Downloading CLAUDE.md from GitHub..."
-        curl -fsSL "https://raw.githubusercontent.com/apto-as/multi-agent-system/main/CLAUDE.md" \
-            -o "${CLAUDE_CONFIG_DIR}/CLAUDE.md" 2>/dev/null || log_warn "Could not download CLAUDE.md"
+        log_warn "CLAUDE.md not found in distribution"
     fi
 
     # Copy AGENTS.md
-    if [ -f "${script_dir}/AGENTS.md" ]; then
-        cp "${script_dir}/AGENTS.md" "${CLAUDE_CONFIG_DIR}/"
+    if [ -f "${config_src}/AGENTS.md" ]; then
+        cp "${config_src}/AGENTS.md" "${CLAUDE_CONFIG_DIR}/"
         log_success "Copied AGENTS.md"
-    else
-        curl -fsSL "https://raw.githubusercontent.com/apto-as/multi-agent-system/main/AGENTS.md" \
-            -o "${CLAUDE_CONFIG_DIR}/AGENTS.md" 2>/dev/null || log_warn "Could not download AGENTS.md"
+    fi
+
+    # Copy SUBAGENT_EXECUTION_RULES.md
+    if [ -f "${config_src}/SUBAGENT_EXECUTION_RULES.md" ]; then
+        cp "${config_src}/SUBAGENT_EXECUTION_RULES.md" "${CLAUDE_CONFIG_DIR}/"
+        log_success "Copied SUBAGENT_EXECUTION_RULES.md"
     fi
 
     # Copy agents directory
-    if [ -d "${script_dir}/agents" ]; then
+    if [ -d "${config_src}/agents" ]; then
         rm -rf "${CLAUDE_CONFIG_DIR}/agents"
-        cp -r "${script_dir}/agents" "${CLAUDE_CONFIG_DIR}/"
-        log_success "Copied agents/"
+        cp -r "${config_src}/agents" "${CLAUDE_CONFIG_DIR}/"
+        log_success "Copied agents/ (9 agent definitions)"
     fi
 
     # Copy commands directory
-    if [ -d "${script_dir}/commands" ]; then
+    if [ -d "${config_src}/commands" ]; then
         rm -rf "${CLAUDE_CONFIG_DIR}/commands"
-        cp -r "${script_dir}/commands" "${CLAUDE_CONFIG_DIR}/"
+        cp -r "${config_src}/commands" "${CLAUDE_CONFIG_DIR}/"
         log_success "Copied commands/"
     fi
 
     # Copy hooks directory
-    if [ -d "${script_dir}/hooks" ]; then
+    if [ -d "${config_src}/hooks" ]; then
         rm -rf "${CLAUDE_CONFIG_DIR}/hooks"
-        cp -r "${script_dir}/hooks" "${CLAUDE_CONFIG_DIR}/"
+        cp -r "${config_src}/hooks" "${CLAUDE_CONFIG_DIR}/"
         chmod +x "${CLAUDE_CONFIG_DIR}"/hooks/**/*.py 2>/dev/null || true
         log_success "Copied hooks/"
     fi
