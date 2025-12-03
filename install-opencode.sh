@@ -7,7 +7,7 @@
 # This installer sets up:
 #   1. TMWS (Trinitas Memory & Workflow System) via Docker
 #   2. Trinitas agents, plugins, and configuration for OpenCode
-#   3. License key activation (90-day ENTERPRISE trial included)
+#   3. Pre-activated ENTERPRISE license
 #
 # Features:
 #   - Automatic backup of existing installations
@@ -45,7 +45,7 @@ TRINITAS_CONFIG_DIR="${HOME}/.trinitas"
 OPENCODE_CONFIG_DIR="${HOME}/.config/opencode"
 BACKUP_DIR="${HOME}/.trinitas-backup"
 
-# License key (ENTERPRISE trial)
+# Pre-activated ENTERPRISE license
 DEFAULT_LICENSE_KEY="TMWS-ENTERPRISE-020d8e77-de36-48a1-b585-7f66aef78c06-20260303-Tp9UYRt6ucUB21hPF9lqZoH.FjSslvfr~if1ThD75L.ro~Kx5glyVyGPm0n4xuziJ~Qmc87PZipJWCefj2HEAA"
 
 # Logging functions
@@ -69,7 +69,7 @@ show_banner() {
 ║      ╚═╝   ╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝╚═╝   ╚═╝   ╚═╝  ╚═╝╚══════╝         ║
 ║                                                                       ║
 ║            Multi-Agent System Installer v2.4.12                       ║
-║            For OpenCode - 90-Day ENTERPRISE Trial                     ║
+║            For OpenCode                                               ║
 ║                                                                       ║
 ╚═══════════════════════════════════════════════════════════════════════╝
 EOF
@@ -353,7 +353,7 @@ TMWS_LOG_LEVEL=INFO
 # Security (Auto-generated - DO NOT SHARE)
 TMWS_SECRET_KEY=${secret_key}
 
-# License Key (90-day ENTERPRISE trial)
+# Pre-activated ENTERPRISE license
 TMWS_LICENSE_KEY="${DEFAULT_LICENSE_KEY}"
 
 # Database (SQLite - stored in ~/.tmws/db/)
@@ -407,44 +407,82 @@ EOF
 install_opencode_config() {
     log_step "Installing Trinitas configuration for OpenCode..."
 
-    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd 2>/dev/null || echo "")"
+    local config_src="${script_dir}/opencode"
+    local github_base="https://raw.githubusercontent.com/apto-as/multi-agent-system/main"
+    local use_github=false
+
+    # Check if running via curl | bash (script_dir will be empty or invalid)
+    if [ -z "${script_dir}" ] || [ ! -d "${config_src}" ]; then
+        log_info "Downloading configuration from GitHub..."
+        use_github=true
+        config_src=$(mktemp -d -t trinitas-install.XXXXXXXX)
+        trap 'rm -rf "${config_src}" 2>/dev/null || true' EXIT
+
+        # Download opencode directory contents
+        mkdir -p "${config_src}/agent" "${config_src}/command" "${config_src}/plugin"
+
+        # Download main config files
+        curl -fsSL "${github_base}/opencode/opencode.md" -o "${config_src}/opencode.md" 2>/dev/null || true
+        curl -fsSL "${github_base}/opencode/opencode.json" -o "${config_src}/opencode.json" 2>/dev/null || true
+        curl -fsSL "${github_base}/opencode/AGENTS.md" -o "${config_src}/AGENTS.md" 2>/dev/null || true
+
+        # Download agents (OpenCode uses different naming without -conductor etc suffixes)
+        for agent in athena artemis hestia eris hera muses aphrodite metis aurora; do
+            curl -fsSL "${github_base}/opencode/agent/${agent}.md" -o "${config_src}/agent/${agent}.md" 2>/dev/null || true
+        done
+
+        # Download commands
+        curl -fsSL "${github_base}/opencode/command/trinitas.md" -o "${config_src}/command/trinitas.md" 2>/dev/null || true
+
+        # Download plugins
+        curl -fsSL "${github_base}/opencode/plugin/trinitas-orchestration.js" -o "${config_src}/plugin/trinitas-orchestration.js" 2>/dev/null || true
+        curl -fsSL "${github_base}/opencode/plugin/trinitas-trigger-processor.js" -o "${config_src}/plugin/trinitas-trigger-processor.js" 2>/dev/null || true
+    fi
 
     # Copy opencode.md from distribution
-    if [ -f "${script_dir}/opencode/opencode.md" ]; then
-        cp "${script_dir}/opencode/opencode.md" "${OPENCODE_CONFIG_DIR}/"
+    if [ -f "${config_src}/opencode.md" ]; then
+        cp "${config_src}/opencode.md" "${OPENCODE_CONFIG_DIR}/"
         log_success "Copied opencode.md"
     else
-        log_warn "opencode.md not found in distribution"
+        log_error "opencode.md not found - this is required for Trinitas to function"
     fi
 
     # Copy AGENTS.md
-    if [ -f "${script_dir}/opencode/AGENTS.md" ]; then
-        cp "${script_dir}/opencode/AGENTS.md" "${OPENCODE_CONFIG_DIR}/"
+    if [ -f "${config_src}/AGENTS.md" ]; then
+        cp "${config_src}/AGENTS.md" "${OPENCODE_CONFIG_DIR}/"
         log_success "Copied AGENTS.md"
+    else
+        log_warn "AGENTS.md not found"
     fi
 
     # Copy agent definitions (OpenCode uses different naming)
-    if [ -d "${script_dir}/opencode/agent" ]; then
+    if [ -d "${config_src}/agent" ] && [ "$(ls -A ${config_src}/agent 2>/dev/null)" ]; then
         rm -rf "${OPENCODE_CONFIG_DIR}/agent"
         mkdir -p "${OPENCODE_CONFIG_DIR}/agent"
-        cp -r "${script_dir}/opencode/agent"/* "${OPENCODE_CONFIG_DIR}/agent/"
+        cp -r "${config_src}/agent"/* "${OPENCODE_CONFIG_DIR}/agent/"
         log_success "Copied agent definitions (9 agents)"
     fi
 
     # Copy commands
-    if [ -d "${script_dir}/opencode/command" ]; then
+    if [ -d "${config_src}/command" ] && [ "$(ls -A ${config_src}/command 2>/dev/null)" ]; then
         rm -rf "${OPENCODE_CONFIG_DIR}/command"
         mkdir -p "${OPENCODE_CONFIG_DIR}/command"
-        cp -r "${script_dir}/opencode/command"/* "${OPENCODE_CONFIG_DIR}/command/"
+        cp -r "${config_src}/command"/* "${OPENCODE_CONFIG_DIR}/command/"
         log_success "Copied command definitions"
     fi
 
     # Copy plugins
-    if [ -d "${script_dir}/opencode/plugin" ]; then
+    if [ -d "${config_src}/plugin" ] && [ "$(ls -A ${config_src}/plugin 2>/dev/null)" ]; then
         rm -rf "${OPENCODE_CONFIG_DIR}/plugin"
         mkdir -p "${OPENCODE_CONFIG_DIR}/plugin"
-        cp -r "${script_dir}/opencode/plugin"/* "${OPENCODE_CONFIG_DIR}/plugin/"
+        cp -r "${config_src}/plugin"/* "${OPENCODE_CONFIG_DIR}/plugin/"
         log_success "Copied plugins (orchestration, trigger-processor)"
+    fi
+
+    # Cleanup temp directory if used
+    if [ "${use_github}" = true ] && [ -d "${config_src}" ]; then
+        rm -rf "${config_src}"
     fi
 }
 
@@ -560,7 +598,7 @@ show_completion() {
     echo -e "${CYAN}What was installed:${NC}"
     echo "  - TMWS Docker container (ghcr.io/apto-as/tmws:${TMWS_VERSION})"
     echo "  - Trinitas 9-agent configuration for OpenCode"
-    echo "  - 90-day ENTERPRISE trial license"
+    echo "  - Pre-activated ENTERPRISE license"
     echo ""
     echo -e "${CYAN}Configuration locations:${NC}"
     echo "  - TMWS config:     ${TRINITAS_CONFIG_DIR}/"
@@ -575,7 +613,7 @@ show_completion() {
     echo "  2. Start OpenCode in your project directory"
     echo "  3. Use /trinitas command to interact with agents"
     echo ""
-    echo -e "${YELLOW}License: ENTERPRISE Trial${NC}"
+    echo -e "${GREEN}License: ENTERPRISE${NC}"
     echo ""
     echo -e "${GREEN}Enjoy Trinitas Multi-Agent System!${NC}"
     echo ""

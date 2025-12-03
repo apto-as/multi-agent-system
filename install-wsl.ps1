@@ -7,7 +7,7 @@
 #   1. WSL2 environment with Docker
 #   2. TMWS (Trinitas Memory & Workflow System) via Docker
 #   3. Trinitas agents and configuration for Claude Code
-#   4. License key activation (90-day ENTERPRISE trial included)
+#   4. Pre-activated ENTERPRISE license
 #
 # Features:
 #   - Automatic backup of existing installations
@@ -61,7 +61,7 @@ function Show-Banner {
     Write-Host "=======================================================================" -ForegroundColor Cyan
     Write-Host "                                                                       " -ForegroundColor Cyan
     Write-Host "   TRINITAS Multi-Agent System Installer v$INSTALLER_VERSION           " -ForegroundColor Cyan
-    Write-Host "   For Windows (WSL2) - 90-Day ENTERPRISE Trial                        " -ForegroundColor Cyan
+    Write-Host "   For Windows (WSL2)                                                   " -ForegroundColor Cyan
     Write-Host "                                                                       " -ForegroundColor Cyan
     Write-Host "=======================================================================" -ForegroundColor Cyan
     Write-Host ""
@@ -325,7 +325,7 @@ function Show-Completion {
     Write-Host "What was installed:" -ForegroundColor Cyan
     Write-Host "  - TMWS Docker container (ghcr.io/apto-as/tmws:$TMWS_VERSION)"
     Write-Host "  - Trinitas 9-agent configuration for $TargetIDE"
-    Write-Host "  - 90-day ENTERPRISE trial license"
+    Write-Host "  - Pre-activated ENTERPRISE license"
     Write-Host ""
     Write-Host "WSL Distribution: $distro" -ForegroundColor Cyan
     Write-Host ""
@@ -344,7 +344,7 @@ function Show-Completion {
     Write-Host "  - Restart TMWS:    docker restart tmws-app"
     Write-Host "  - WSL shell:       wsl -d $distro"
     Write-Host ""
-    Write-Host "License: ENTERPRISE Trial" -ForegroundColor Yellow
+    Write-Host "License: ENTERPRISE" -ForegroundColor Green
     Write-Host ""
     Write-Host "Enjoy Trinitas Multi-Agent System!" -ForegroundColor Green
     Write-Host ""
