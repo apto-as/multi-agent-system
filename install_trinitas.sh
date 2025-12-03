@@ -43,7 +43,7 @@ CLAUDE_AGENTS_SRC="${SCRIPT_DIR}/src/trinitas/agents"
 # OpenCode paths
 OPENCODE_CONFIG_DIR="${HOME}/.config/opencode"
 OPENCODE_BACKUP_DIR="${HOME}/.config/opencode.backup.${TIMESTAMP}"
-OPENCODE_AGENTS_SRC="${SCRIPT_DIR}/.opencode/agent"
+OPENCODE_AGENTS_SRC="${SCRIPT_DIR}/src/trinitas/agents"
 
 # Hooks and shared paths (TMWS structure)
 HOOKS_SRC="${SCRIPT_DIR}/hooks"
@@ -371,9 +371,17 @@ install_opencode() {
 
     # Create directories
     mkdir -p "${OPENCODE_CONFIG_DIR}/agent"
+    mkdir -p "${OPENCODE_CONFIG_DIR}/plugin"
+    mkdir -p "${OPENCODE_CONFIG_DIR}/command"
 
     # Install agents (ALL 9)
     install_opencode_agents
+
+    # Install plugins
+    install_opencode_plugins
+
+    # Install commands
+    install_opencode_commands
 
     # Install system instructions
     install_opencode_system_instructions
@@ -396,21 +404,66 @@ install_opencode_agents() {
 
     local installed_count=0
 
+    # Map short names to full canonical names in src/trinitas/agents/
+    # OpenCode uses: athena.md → src uses: athena-conductor.md
+    declare -A agent_map=(
+        ["athena"]="athena-conductor"
+        ["artemis"]="artemis-optimizer"
+        ["hestia"]="hestia-auditor"
+        ["eris"]="eris-coordinator"
+        ["hera"]="hera-strategist"
+        ["muses"]="muses-documenter"
+        ["aphrodite"]="aphrodite-designer"
+        ["metis"]="metis-developer"
+        ["aurora"]="aurora-researcher"
+    )
+
     for agent in "${ALL_AGENTS[@]}"; do
-        local src_file="${OPENCODE_AGENTS_SRC}/${agent}.md"
+        local full_name="${agent_map[$agent]}"
+        local src_file="${OPENCODE_AGENTS_SRC}/${full_name}.md"
         local dst_file="${OPENCODE_CONFIG_DIR}/agent/${agent}.md"
 
         if [ -f "$src_file" ]; then
             cp "$src_file" "$dst_file"
-            print_success "Installed: ${agent}"
+            print_success "Installed: ${agent} (from ${full_name})"
             ((installed_count++))
         else
-            print_warning "Not found: ${agent} (skipped)"
+            print_warning "Not found: ${full_name} (skipped)"
         fi
     done
 
     echo ""
     print_info "Agents installed: ${installed_count}/9"
+    echo ""
+}
+
+install_opencode_plugins() {
+    print_info "Installing OpenCode plugins..."
+
+    local OPENCODE_SRC="${SCRIPT_DIR}/.opencode"
+
+    # Install Trinitas orchestration plugin
+    if [ -f "${OPENCODE_SRC}/plugin/trinitas-orchestration.js" ]; then
+        cp "${OPENCODE_SRC}/plugin/trinitas-orchestration.js" "${OPENCODE_CONFIG_DIR}/plugin/"
+        print_success "Installed: trinitas-orchestration.js"
+    else
+        print_warning "Plugin not found: trinitas-orchestration.js (skipped)"
+    fi
+    echo ""
+}
+
+install_opencode_commands() {
+    print_info "Installing OpenCode commands..."
+
+    local OPENCODE_SRC="${SCRIPT_DIR}/.opencode"
+
+    # Install trinitas command
+    if [ -f "${OPENCODE_SRC}/command/trinitas.md" ]; then
+        cp "${OPENCODE_SRC}/command/trinitas.md" "${OPENCODE_CONFIG_DIR}/command/"
+        print_success "Installed: trinitas.md"
+    else
+        print_warning "Command not found: trinitas.md (skipped)"
+    fi
     echo ""
 }
 
@@ -423,6 +476,12 @@ install_opencode_system_instructions() {
     if [ -f "${OPENCODE_SRC}/AGENTS.md" ]; then
         cp "${OPENCODE_SRC}/AGENTS.md" "${OPENCODE_CONFIG_DIR}/"
         print_success "Installed: AGENTS.md"
+    fi
+
+    # Install opencode.md (system instructions)
+    if [ -f "${OPENCODE_SRC}/opencode.md" ]; then
+        cp "${OPENCODE_SRC}/opencode.md" "${OPENCODE_CONFIG_DIR}/"
+        print_success "Installed: opencode.md"
     fi
 
     # Copy documentation (optional)
