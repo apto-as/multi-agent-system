@@ -1,4 +1,12 @@
 """Database configuration and session management for TMWS.
+
+Version: 2.4.12
+Updated: 2025-12-03 - Added optional SQLCipher encryption support (AES-256-GCM)
+
+When db_encryption_enabled=True:
+- Requires pysqlcipher3 package: pip install pysqlcipher3
+- Encryption key auto-generated on first run (stored in ~/.tmws/secrets/)
+- Uses SQLCipher AES-256-GCM with PBKDF2 key derivation
 """
 
 import logging
@@ -59,25 +67,29 @@ def _setup_connection_events(engine) -> None:
 
 
 def get_engine():
-    """Get database engine singleton with optimized pooling."""
+    """Get database engine singleton with optimized pooling.
+
+    v2.4.12: Supports optional SQLCipher encryption when db_encryption_enabled=True.
+
+    Encryption Mode:
+    - Requires pysqlcipher3 package
+    - Uses AES-256-GCM cipher with PBKDF2 (256,000 iterations)
+    - Encryption key auto-generated and stored in ~/.tmws/secrets/
+
+    Standard Mode (default):
+    - Uses standard SQLite with NullPool
+    - No encryption overhead
+    """
     global _engine
 
     if _engine is None:
         settings = get_settings()
 
-        # SQLite engine configuration (v2.2.6: SQLite-only architecture)
-        # SQLite uses NullPool - creates connections on-demand without pooling
-        # This allows the database file to be created on first connection
-        from sqlalchemy.pool import NullPool
-
-        # MCP STDIO mode: echo_pool must be False to keep stdout clean for JSON-RPC
-        # Pool debug logs would corrupt the MCP protocol communication
-        engine_config = {
-            "poolclass": NullPool,
-            "echo_pool": False,  # Disabled for MCP STDIO compatibility (was: dev only)
-        }
-
-        _engine = create_async_engine(settings.database_url_async, **engine_config)
+        # Check if encryption is enabled (v2.4.12)
+        if settings.db_encryption_enabled:
+            _engine = _create_encrypted_engine(settings)
+        else:
+            _engine = _create_standard_engine(settings)
 
         # Setup connection monitoring
         _setup_connection_events(_engine)
@@ -85,6 +97,106 @@ def get_engine():
         logger.info(f"Database engine created for {settings.environment} environment")
 
     return _engine
+
+
+def _create_standard_engine(settings):
+    """Create standard SQLite engine (no encryption).
+
+    SQLite uses NullPool - creates connections on-demand without pooling.
+    This allows the database file to be created on first connection.
+    """
+    from sqlalchemy.pool import NullPool
+
+    # MCP STDIO mode: echo_pool must be False to keep stdout clean for JSON-RPC
+    # Pool debug logs would corrupt the MCP protocol communication
+    engine_config = {
+        "poolclass": NullPool,
+        "echo_pool": False,  # Disabled for MCP STDIO compatibility (was: dev only)
+    }
+
+    engine = create_async_engine(settings.database_url_async, **engine_config)
+    logger.info("Standard SQLite engine created (no encryption)")
+
+    return engine
+
+
+def _create_encrypted_engine(settings):
+    """Create encrypted SQLite engine using SQLCipher.
+
+    v2.4.12: AES-256-GCM encryption with PBKDF2 key derivation.
+
+    Note: This function handles the async encryption service synchronously
+    since get_engine() must remain sync for backward compatibility.
+    The encryption service's create_encrypted_engine() is async, but we
+    use a sync approach for the connection URL configuration.
+    """
+    from sqlalchemy.pool import NullPool
+
+    # Import encryption service
+    try:
+        from src.security.db_encryption import get_encryption_service
+    except ImportError as e:
+        logger.error(
+            "db_encryption_enabled=True but cannot import DatabaseEncryptionService. "
+            "Ensure src/security/db_encryption.py exists."
+        )
+        raise ImportError(
+            "Database encryption enabled but encryption service unavailable"
+        ) from e
+
+    encryption_service = get_encryption_service()
+    key_name = settings.db_encryption_key_name
+
+    # Auto-generate key if not exists (first-run experience)
+    if not encryption_service.key_exists(key_name):
+        logger.warning(
+            "⚠️ Database encryption enabled but no key found. "
+            f"Generating new encryption key: ~/.tmws/secrets/{key_name}"
+        )
+        new_key = encryption_service.generate_encryption_key()
+        encryption_service.save_encryption_key(new_key, key_name)
+        logger.warning(
+            "⚠️ CRITICAL: Backup ~/.tmws/secrets/ directory immediately! "
+            "Lost encryption key = lost data."
+        )
+
+    # Load encryption key
+    encryption_key = encryption_service.load_encryption_key(key_name)
+
+    # Extract database path from URL
+    # Format: sqlite+aiosqlite:///./data/tmws.db -> ./data/tmws.db
+    db_url = settings.database_url_async
+    if ":///" in db_url:
+        db_path = db_url.split(":///")[1]
+    else:
+        db_path = db_url.replace("sqlite+aiosqlite://", "")
+
+    # SQLCipher connection URL
+    # pysqlcipher3 uses sqlite+pysqlcipher:// scheme
+    encrypted_url = f"sqlite+pysqlcipher:///{db_path}"
+
+    # Connection arguments for SQLCipher
+    connect_args = {
+        "check_same_thread": False,  # Required for async usage
+        "key": encryption_key,  # Encryption key (raw hex string)
+        "cipher": encryption_service.CIPHER,  # AES-256-GCM
+        "kdf_iter": 256000,  # PBKDF2 iterations (SQLCipher 4 default)
+    }
+
+    # Create async engine with encryption
+    engine = create_async_engine(
+        encrypted_url,
+        connect_args=connect_args,
+        poolclass=NullPool,
+        echo_pool=False,  # MCP STDIO compatibility
+    )
+
+    logger.info(
+        f"Encrypted SQLite engine created (SQLCipher AES-256-GCM, "
+        f"key: ~/.tmws/secrets/{key_name})"
+    )
+
+    return engine
 
 
 def get_session_maker():

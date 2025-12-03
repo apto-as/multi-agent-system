@@ -1,0 +1,230 @@
+{
+  "$schema": "https://tmws.dev/schemas/trigger-registry.v1.json",
+  "$comment": "Trinitas Shared Trigger Registry v2.4.12 - Platform-agnostic agent detection rules",
+  "version": "2.4.12",
+  "created_at": "2025-12-03",
+
+  "settings": {
+    "enabled": true,
+    "confidence_threshold": 0.85,
+    "max_parallel_agents": 3,
+    "hot_reload": true,
+    "fallback_agent": "athena",
+    "full_mode_detection": true
+  },
+
+  "security": {
+    "max_keyword_length": 50,
+    "max_pattern_length": 200,
+    "max_patterns_per_agent": 20,
+    "regex_timeout_ms": 100,
+    "disallowed_patterns": [".*", ".+", "[\\s\\S]*", "(?:.*)*"]
+  },
+
+  "agents": {
+    "athena": {
+      "id": "athena-conductor",
+      "tier": 1,
+      "display_name": "Athena - Harmonious Conductor",
+      "emoji": "🏛️",
+      "keywords": [
+        "orchestration", "workflow", "automation", "parallel",
+        "coordination", "harmony", "system", "integrate"
+      ],
+      "patterns": [
+        "(?i)\\b(orchestrat|coordinat|automat)\\w{0,10}\\b",
+        "(?i)\\bworkflow\\s+\\w{1,30}\\b",
+        "(?i)\\bparallel\\s+(execution|task|process)"
+      ],
+      "contexts": ["architecture", "planning", "integration"],
+      "priority": 100
+    },
+
+    "hera": {
+      "id": "hera-strategist",
+      "tier": 1,
+      "display_name": "Hera - Strategic Commander",
+      "emoji": "🎭",
+      "keywords": [
+        "strategy", "planning", "architecture", "vision",
+        "roadmap", "design", "structure", "long-term"
+      ],
+      "patterns": [
+        "(?i)\\bstrateg(y|ic|ize)\\b",
+        "(?i)\\barchitect(ure)?\\b",
+        "(?i)\\b(roadmap|vision|plan)\\s+\\w{1,30}"
+      ],
+      "contexts": ["business", "architecture", "planning"],
+      "priority": 95
+    },
+
+    "artemis": {
+      "id": "artemis-optimizer",
+      "tier": 2,
+      "display_name": "Artemis - Technical Perfectionist",
+      "emoji": "🏹",
+      "keywords": [
+        "optimization", "performance", "quality", "technical",
+        "efficiency", "speed", "improve", "refactor", "benchmark"
+      ],
+      "patterns": [
+        "(?i)\\b(optimiz|improv|enhanc|refactor)\\w{0,10}\\b",
+        "(?i)\\bperformance\\s+\\w{1,30}\\b",
+        "(?i)\\b(faster|slower|speed|latency)\\b"
+      ],
+      "contexts": ["code", "performance", "optimization"],
+      "priority": 90
+    },
+
+    "hestia": {
+      "id": "hestia-auditor",
+      "tier": 2,
+      "display_name": "Hestia - Security Guardian",
+      "emoji": "🔥",
+      "keywords": [
+        "security", "audit", "risk", "vulnerability", "threat",
+        "compliance", "safety", "protection", "secure"
+      ],
+      "patterns": [
+        "(?i)\\b(security|audit|vulnerabil|threat)\\w{0,10}\\b",
+        "(?i)\\brisk\\s+(assess|analyz|evaluat)\\w{0,10}\\b",
+        "(?i)\\b(CVE|CVSS|OWASP)\\b"
+      ],
+      "contexts": ["security", "compliance", "audit"],
+      "priority": 92
+    },
+
+    "eris": {
+      "id": "eris-coordinator",
+      "tier": 2,
+      "display_name": "Eris - Tactical Coordinator",
+      "emoji": "⚔️",
+      "keywords": [
+        "coordinate", "tactical", "team", "collaboration",
+        "conflict", "balance", "mediate", "resolve"
+      ],
+      "patterns": [
+        "(?i)\\b(coordinat|collaborat|mediat)\\w{0,10}\\b",
+        "(?i)\\b(conflict|resolv)\\s+\\w{1,30}\\b",
+        "(?i)\\bteam\\s+(work|effort|coordinat)"
+      ],
+      "contexts": ["coordination", "team", "conflict"],
+      "priority": 85
+    },
+
+    "muses": {
+      "id": "muses-documenter",
+      "tier": 2,
+      "display_name": "Muses - Knowledge Architect",
+      "emoji": "📚",
+      "keywords": [
+        "documentation", "knowledge", "record", "guide",
+        "archive", "specification", "api", "document"
+      ],
+      "patterns": [
+        "(?i)\\b(document|spec|guid|record)\\w{0,10}\\b",
+        "(?i)\\bapi\\s+(doc|reference|spec)\\w{0,10}\\b",
+        "(?i)\\bknowledge\\s+(base|management)"
+      ],
+      "contexts": ["documentation", "knowledge", "api"],
+      "priority": 80
+    },
+
+    "aphrodite": {
+      "id": "aphrodite-designer",
+      "tier": 3,
+      "display_name": "Aphrodite - UI/UX Designer",
+      "emoji": "🌸",
+      "keywords": [
+        "design", "ui", "ux", "interface", "visual",
+        "layout", "usability", "accessibility", "style"
+      ],
+      "patterns": [
+        "(?i)\\b(ui|ux|design|interface)\\b",
+        "(?i)\\b(visual|layout|style|theme)\\s+\\w{1,30}\\b",
+        "(?i)\\b(accessib|usabil)\\w{0,10}\\b"
+      ],
+      "contexts": ["design", "ui", "accessibility"],
+      "priority": 75
+    },
+
+    "metis": {
+      "id": "metis-developer",
+      "tier": 3,
+      "display_name": "Metis - Development Assistant",
+      "emoji": "🔧",
+      "keywords": [
+        "implement", "code", "develop", "build", "test",
+        "debug", "fix", "feature", "bug", "write"
+      ],
+      "patterns": [
+        "(?i)\\b(implement|develop|build|code)\\s+\\w{1,30}\\b",
+        "(?i)\\b(fix|debug|test)\\s+(this|the|a)\\b",
+        "(?i)\\b(bug|feature|issue)\\s+\\w{1,30}"
+      ],
+      "contexts": ["development", "testing", "implementation"],
+      "priority": 70
+    },
+
+    "aurora": {
+      "id": "aurora-researcher",
+      "tier": 3,
+      "display_name": "Aurora - Research Assistant",
+      "emoji": "🌅",
+      "keywords": [
+        "search", "find", "lookup", "research", "context",
+        "retrieve", "history", "discover", "investigate"
+      ],
+      "patterns": [
+        "(?i)\\b(search|find|lookup|retriev)\\s+\\w{1,30}\\b",
+        "(?i)\\bresearch\\s+(this|the|about)\\b",
+        "(?i)\\b(context|history|background)\\s+\\w{1,30}"
+      ],
+      "contexts": ["research", "search", "context"],
+      "priority": 65
+    }
+  },
+
+  "full_mode": {
+    "triggers": [
+      "(?i)trinitas\\s{0,5}(full|mode|フル)",
+      "(?i)(full|complete)\\s+analysis",
+      "(?i)all\\s+agents",
+      "(?i)comprehensive\\s+(review|analysis|audit)",
+      "(?i)フルモード"
+    ],
+    "phases": [
+      {
+        "name": "Strategic Planning",
+        "agents": ["athena", "hera"],
+        "parallel": true
+      },
+      {
+        "name": "Implementation",
+        "agents": ["artemis", "metis"],
+        "parallel": true
+      },
+      {
+        "name": "Verification",
+        "agents": ["hestia", "aurora"],
+        "parallel": true
+      },
+      {
+        "name": "Documentation",
+        "agents": ["muses", "aphrodite"],
+        "parallel": true
+      }
+    ]
+  },
+
+  "collaboration_matrix": {
+    "architecture": ["athena", "hera", "aurora"],
+    "implementation": ["artemis", "metis", "hestia"],
+    "security_audit": ["hestia", "aurora", "artemis"],
+    "ui_design": ["aphrodite", "aurora", "athena"],
+    "documentation": ["muses", "aurora", "athena"],
+    "debugging": ["metis", "aurora", "artemis"],
+    "research": ["aurora", "muses", "athena"],
+    "coordination": ["eris", "athena", "hera"]
+  }
+}

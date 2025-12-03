@@ -227,6 +227,19 @@ class Settings(BaseSettings):
     # ==== PERFORMANCE & CACHING ====
     cache_ttl: int = Field(default=3600, ge=1, le=86400)
 
+    # ==== DATABASE ENCRYPTION (v2.4.12 - SQLCipher AES-256-GCM) ====
+    # ⚠️ SECURITY: Database encryption at rest using SQLCipher
+    # When enabled, requires pysqlcipher3 package and encryption key
+    # Keys are stored in ~/.tmws/secrets/db_encryption.key (auto-generated)
+    db_encryption_enabled: bool = Field(
+        default=False,
+        description="Enable SQLite database encryption using SQLCipher AES-256-GCM",
+    )
+    db_encryption_key_name: str = Field(
+        default="db_encryption.key",
+        description="Filename for encryption key in ~/.tmws/secrets/",
+    )
+
     # ==== SKILLS API CONFIGURATION (Phase 6A) ====
     # Content validation limits
     skills_max_field_length: int = Field(
