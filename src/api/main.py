@@ -26,7 +26,7 @@ from src.api.exception_handlers import (
     pydantic_validation_error_handler,
     validation_error_handler,
 )
-from src.api.routers import mcp_connections, memory, skills, verification
+from src.api.routers import health, mcp_connections, memory, skills, verification
 from src.application.exceptions import (
     ApplicationError,
     AuthorizationError,
@@ -90,6 +90,7 @@ app.add_exception_handler(Exception, generic_exception_handler)
 # API Routers
 # ============================================================================
 
+app.include_router(health.router)
 app.include_router(mcp_connections.router)
 app.include_router(memory.router)
 app.include_router(skills.router)

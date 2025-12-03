@@ -31,6 +31,9 @@ from .workflow_history import (
     WorkflowStepExecution,
 )
 
+# Autonomous Learning System (v2.5.0)
+from .execution_trace import DetectedPattern, ExecutionTrace, SkillSuggestion
+
 __all__ = [
     # Base classes
     "TMWSBase",
@@ -74,4 +77,8 @@ __all__ = [
     "ToolDependency",
     "ToolInstance",
     "ToolVerificationHistory",
+    # Autonomous Learning System (v2.5.0)
+    "ExecutionTrace",
+    "DetectedPattern",
+    "SkillSuggestion",
 ]

@@ -6,37 +6,46 @@ Claude Code's UserPromptSubmit event. Optimized for sub-millisecond latency (<1m
 and maximum efficiency through LRU caching and compiled regex patterns.
 
 This hook analyzes user prompts to automatically detect relevant Trinitas personas
-(Athena, Artemis, Hestia, Eris, Hera, Muses) and required context documentation.
-Injects minimal @reference pointers for dynamic loading rather than full content
-to minimize latency impact.
+(Athena, Artemis, Hestia, Eris, Hera, Muses, Aphrodite, Metis, Aurora) and required
+context documentation. Injects minimal @reference pointers for dynamic loading
+rather than full content to minimize latency impact.
+
+NEW in v2.4.12: External Trigger Registry Support
+    - Loads trigger rules from ~/.trinitas/trigger-registry.json
+    - Shared configuration between Claude Code and OpenCode
+    - Hot-reload capability via file watcher (optional)
+    - Environment variable support via ~/.trinitas/.env
 
 NEW in v2.4.11: Trinitas Full Mode Detection & SubAgent Enforcement
     - Detects "Trinitasフルモード" or "Trinitas Full Mode" patterns
-    - Injects MANDATORY Task tool invocation instructions
+    - Injects MANDATORY invoke_persona MCP tool invocation instructions
     - Validates SubAgent invocation for protocol compliance
 
 Performance Characteristics:
-    - Persona detection: ~0.5ms (compiled regex patterns)
+    - Persona detection: ~0.5ms (compiled regex patterns from registry)
     - Context detection: ~0.2ms (keyword matching)
     - Context building: ~0.1ms (minimal payload)
     - Full Mode detection: ~0.1ms (regex patterns)
-    - Total latency: <1ms typical
+    - Registry loading: ~2ms (cached after first load)
+    - Total latency: <3ms first call, <1ms subsequent
 
 Security Compliance:
     - CWE-22 (Path Traversal): Mitigated via SecureFileLoader
     - CWE-73 (External Control): Validated allowed roots and extensions
-    - Whitelisted directories: ~/.claude, trinitas-agents repo
-    - Allowed file types: .md only
+    - Whitelisted directories: ~/.claude, ~/.trinitas, trinitas-agents repo
+    - Allowed file types: .md, .json only
 
 Integration:
     - Called by: Claude Code UserPromptSubmit hook system
     - Input: JSON via stdin (prompt text and metadata)
     - Output: JSON via stdout (addedContext with @references)
+    - Config: ~/.trinitas/trigger-registry.json (shared with OpenCode)
     - Error handling: Fail gracefully, never block user interaction
 
-Version: 2.4.11
+Version: 2.4.12
 Refactored: 2025-10-15 to use unified utilities (Phase 1 Day 3)
-Updated: 2025-12-03 to add Trinitas Full Mode enforcement (v2.4.11)
+Updated: 2025-12-03 to support external trigger-registry.json (v2.4.12)
+Note: Claude Code does NOT have Task tool. Use invoke_persona MCP tool instead.
 
 Example:
     >>> # Hook receives stdin: {"prompt": {"text": "optimize this code"}}
@@ -61,6 +70,35 @@ except ImportError:
     # Fallback for standalone execution
     sys.path.insert(0, str(Path(__file__).parent.parent.parent))
     from shared.utils import JSONLoader, SecureFileLoader
+
+# Import input sanitizer for ReDoS prevention (V-REDOS-1/2)
+try:
+    from src.security.input_sanitizer import validate_regex_pattern, sanitize_regex_input
+except ImportError:
+    # Fallback: Define minimal validation if sanitizer not available
+    def validate_regex_pattern(  # noqa: ARG001
+        pattern: str,
+        max_length: int = 200,
+        allow_unbounded: bool = False,  # noqa: ARG001 - Keep for API compatibility
+    ) -> tuple[bool, str | None]:
+        """Minimal fallback validation for regex patterns."""
+        if len(pattern) > max_length:
+            return False, f"Pattern too long ({len(pattern)} > {max_length})"
+        # Block known dangerous patterns
+        dangerous = [".*", ".+", r"[\s\S]*", r"[\s\S]+", "(?:.*)*", "(?:.+)+"]
+        if pattern in dangerous:
+            return False, f"Dangerous pattern: {pattern}"
+        return True, None
+
+    def sanitize_regex_input(pattern: str, max_length: int = 200) -> str:
+        """Minimal fallback sanitization for regex patterns."""
+        if len(pattern) > max_length:
+            pattern = pattern[:max_length]
+        # Replace unbounded quantifiers with bounded versions
+        import re
+        pattern = re.sub(r'(?<!\\)\.\*(?!\?)', '.{0,100}', pattern)
+        pattern = re.sub(r'(?<!\\)\.\+(?!\?)', '.{1,100}', pattern)
+        return pattern
 
 
 def _detect_project_root() -> Path:
@@ -133,8 +171,14 @@ class DynamicContextLoader:
     # Security: Allowed directories for context files
     ALLOWED_ROOTS = [
         os.path.expanduser("~/.claude"),
+        os.path.expanduser("~/.trinitas"),  # Shared config directory (v2.4.12+)
         str(_detect_project_root()),  # Dynamically detect project root
     ]
+
+    # Trinitas shared configuration paths (v2.4.12+)
+    TRINITAS_CONFIG_DIR = os.path.expanduser("~/.trinitas")
+    TRIGGER_REGISTRY_PATH = os.path.join(TRINITAS_CONFIG_DIR, "trigger-registry.json")
+    ENV_FILE_PATH = os.path.join(TRINITAS_CONFIG_DIR, ".env")
 
     # Trinitas Full Mode detection patterns (v2.4.11)
     FULL_MODE_PATTERNS = [
@@ -145,8 +189,9 @@ class DynamicContextLoader:
         re.compile(r"/trinitas\s+analyze.*--personas", re.IGNORECASE),
     ]
 
-    # Persona trigger patterns (compiled once for performance)
-    PERSONA_PATTERNS = {
+    # Default Persona trigger patterns (used if registry not available)
+    # These are overridden by trigger-registry.json when available
+    DEFAULT_PERSONA_PATTERNS = {
         "athena": re.compile(
             r"\b(orchestr|workflow|automat|parallel|coordin|harmoniz)\w*", re.IGNORECASE
         ),
@@ -163,7 +208,19 @@ class DynamicContextLoader:
         "muses": re.compile(
             r"\b(document|knowledge|record|guide|archive|structur)\w*", re.IGNORECASE
         ),
+        "aphrodite": re.compile(
+            r"\b(design|ui|ux|interface|visual|layout|usability)\w*", re.IGNORECASE
+        ),
+        "metis": re.compile(
+            r"\b(implement|code|develop|build|test|debug|fix)\w*", re.IGNORECASE
+        ),
+        "aurora": re.compile(
+            r"\b(search|find|lookup|research|context|retrieve|history)\w*", re.IGNORECASE
+        ),
     }
+
+    # Active persona patterns (loaded from registry or defaults)
+    PERSONA_PATTERNS = DEFAULT_PERSONA_PATTERNS.copy()
 
     # Context file mappings (relative to base_path)
     CONTEXT_FILES = {
@@ -180,6 +237,9 @@ class DynamicContextLoader:
         Sets up the loader with base directory for context files, initializes
         in-memory cache, and creates SecureFileLoader with whitelisted directories
         and file extensions for CWE-22/CWE-73 compliance.
+
+        NEW in v2.4.12: Loads trigger rules from ~/.trinitas/trigger-registry.json
+        if available, otherwise falls back to hardcoded default patterns.
 
         Args:
             base_path: Optional base directory for resolving relative context file
@@ -202,12 +262,317 @@ class DynamicContextLoader:
             base_path = _detect_project_root()  # Dynamically detect project root
         self.base_path = base_path
         self._cache = {}  # Simple memory cache
+        self._trigger_registry = None  # Loaded on first use
+        self._registry_mtime = 0  # For hot-reload detection
+        self._env_settings = None  # Environment settings cache (v2.4.12+)
 
         # Initialize secure file loader with allowed roots and extensions
         self._file_loader = SecureFileLoader(
             allowed_roots=self.ALLOWED_ROOTS,
-            allowed_extensions=[".md"]
+            allowed_extensions=[".md", ".json"]  # Added .json for registry
         )
+
+        # Load environment settings from shared config (v2.4.12+)
+        self._load_env_settings()
+
+        # Load trigger registry from shared config (v2.4.12+)
+        self._load_trigger_registry()
+
+    def _load_env_settings(self) -> None:
+        """Load environment settings from ~/.trinitas/.env file.
+
+        Parses the .env file and extracts relevant Trinitas settings.
+        Settings are cached for performance.
+
+        Extracted settings:
+            - enabled: TRINITAS_TRIGGER_RULES_ENABLED
+            - auto_routing: TRINITAS_AUTO_ROUTING_ENABLED
+            - confidence_threshold: TRINITAS_CONFIDENCE_THRESHOLD
+            - learning_enabled: TRINITAS_LEARNING_ENABLED
+        """
+        try:
+            env_path = Path(self.ENV_FILE_PATH)
+            if not env_path.exists():
+                self._env_settings = {
+                    "enabled": True,
+                    "auto_routing": True,
+                    "confidence_threshold": 0.85,
+                    "learning_enabled": False,
+                }
+                return
+
+            settings = {}
+            with env_path.open("r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+
+                    if "=" not in line:
+                        continue
+
+                    key, _, value = line.partition("=")
+                    key = key.strip()
+                    value = value.strip()
+
+                    # Parse known settings
+                    if key == "TRINITAS_TRIGGER_RULES_ENABLED":
+                        settings["enabled"] = value.lower() == "true"
+                    elif key == "TRINITAS_AUTO_ROUTING_ENABLED":
+                        settings["auto_routing"] = value.lower() == "true"
+                    elif key == "TRINITAS_CONFIDENCE_THRESHOLD":
+                        try:
+                            settings["confidence_threshold"] = float(value)
+                        except ValueError:
+                            settings["confidence_threshold"] = 0.85
+                    elif key == "TRINITAS_LEARNING_ENABLED":
+                        settings["learning_enabled"] = value.lower() == "true"
+
+            # Set defaults for missing values
+            self._env_settings = {
+                "enabled": settings.get("enabled", True),
+                "auto_routing": settings.get("auto_routing", True),
+                "confidence_threshold": settings.get("confidence_threshold", 0.85),
+                "learning_enabled": settings.get("learning_enabled", False),
+            }
+
+        except Exception as e:
+            print(f"Warning: Failed to load .env settings: {e}", file=sys.stderr)
+            self._env_settings = {
+                "enabled": True,
+                "auto_routing": True,
+                "confidence_threshold": 0.85,
+                "learning_enabled": False,
+            }
+
+    def _load_trigger_registry(self) -> None:
+        """Load trigger registry from ~/.trinitas/trigger-registry.json.
+
+        Loads and compiles regex patterns from the shared trigger registry file.
+        Falls back to default patterns if registry is not available.
+        Supports hot-reload by checking file modification time.
+
+        Performance: ~2ms for initial load (cached thereafter)
+        """
+        try:
+            registry_path = Path(self.TRIGGER_REGISTRY_PATH)
+
+            # Check if registry exists
+            if not registry_path.exists():
+                # Use defaults - no registry available
+                self.PERSONA_PATTERNS = self.DEFAULT_PERSONA_PATTERNS.copy()
+                return
+
+            # Check for hot-reload (file changed since last load)
+            current_mtime = registry_path.stat().st_mtime
+            if self._trigger_registry is not None and current_mtime == self._registry_mtime:
+                return  # Already loaded and unchanged
+
+            # Load registry JSON
+            with registry_path.open("r", encoding="utf-8") as f:
+                self._trigger_registry = json.load(f)
+
+            self._registry_mtime = current_mtime
+
+            # Check if trigger rules are enabled
+            settings = self._trigger_registry.get("settings", {})
+            if not settings.get("enabled", True):
+                # Trigger rules disabled - use empty patterns
+                self.PERSONA_PATTERNS = {}
+                return
+
+            # Compile patterns from registry
+            self._compile_registry_patterns()
+
+            # Load Full Mode patterns from registry
+            self._load_full_mode_patterns()
+
+        except Exception as e:
+            # Fail gracefully - use defaults
+            print(f"Warning: Failed to load trigger registry: {e}", file=sys.stderr)
+            self.PERSONA_PATTERNS = self.DEFAULT_PERSONA_PATTERNS.copy()
+
+    def _compile_registry_patterns(self) -> None:
+        """Compile regex patterns from trigger registry into PERSONA_PATTERNS.
+
+        Extracts trigger rules from registry and compiles regex patterns
+        for efficient matching. Handles both keyword-based and regex patterns.
+
+        Security (V-REDOS-1/2):
+            - All patterns are validated before compilation
+            - Dangerous patterns are rejected or sanitized
+            - Maximum pattern length enforced (200 chars)
+        """
+        if not self._trigger_registry:
+            return
+
+        # Get security settings from registry (v2.4.12+)
+        security = self._trigger_registry.get("security", {})
+        max_pattern_length = security.get("max_pattern_length", 200)
+        disallowed = set(security.get("disallowed_patterns", []))
+
+        # v2.4.12: Support new "agents" format from trigger-registry.json
+        agents = self._trigger_registry.get("agents", {})
+        trigger_rules = self._trigger_registry.get("trigger_rules", {})
+
+        # Use "agents" format if available, otherwise fall back to "trigger_rules"
+        source_config = agents if agents else trigger_rules
+        compiled_patterns = {}
+
+        for agent_id, agent_config in source_config.items():
+            # Extract short name (e.g., "athena" from "athena-conductor" or just "athena")
+            short_name = agent_id.split("-")[0]
+
+            # v2.4.12: Support both formats
+            triggers = agent_config.get("triggers", {})
+            keywords = triggers.get("keywords", agent_config.get("keywords", []))
+            patterns = triggers.get("patterns", agent_config.get("patterns", []))
+
+            # Build combined pattern from keywords
+            if keywords:
+                # Create alternation pattern from keywords
+                # Escape special regex chars and join with |
+                escaped_keywords = [re.escape(kw) for kw in keywords]
+                keyword_pattern = r"\b(" + "|".join(escaped_keywords) + r")\b"
+
+                # V-REDOS-1: Validate pattern before compilation
+                is_valid, error = validate_regex_pattern(keyword_pattern, max_length=max_pattern_length)
+                if is_valid:
+                    compiled_patterns[short_name] = re.compile(
+                        keyword_pattern, re.IGNORECASE
+                    )
+                else:
+                    print(f"Warning: Skipping invalid keyword pattern for {agent_id}: {error}", file=sys.stderr)
+
+            # v2.4.12: Also compile explicit regex patterns from registry
+            for pattern in patterns:
+                # V-REDOS-1: Check against disallowed patterns
+                if pattern in disallowed:
+                    print(f"Warning: Skipping disallowed pattern for {agent_id}: {pattern}", file=sys.stderr)
+                    continue
+
+                # V-REDOS-2: Validate and sanitize pattern
+                is_valid, error = validate_regex_pattern(pattern, max_length=max_pattern_length)
+                if not is_valid:
+                    # Try sanitizing the pattern
+                    sanitized = sanitize_regex_input(pattern, max_length=max_pattern_length)
+                    is_valid, error = validate_regex_pattern(sanitized, max_length=max_pattern_length)
+                    if is_valid:
+                        pattern = sanitized
+                        print(f"Info: Sanitized pattern for {agent_id}", file=sys.stderr)
+                    else:
+                        print(f"Warning: Skipping invalid pattern for {agent_id}: {error}", file=sys.stderr)
+                        continue
+
+                try:
+                    compiled = re.compile(pattern, re.IGNORECASE)
+                    # If we already have a pattern for this agent, we can't simply overwrite
+                    # Store additional patterns in a list (future enhancement)
+                    if short_name not in compiled_patterns:
+                        compiled_patterns[short_name] = compiled
+                except re.error as e:
+                    print(f"Warning: Failed to compile pattern for {agent_id}: {e}", file=sys.stderr)
+
+        # Update class patterns
+        if compiled_patterns:
+            self.PERSONA_PATTERNS = compiled_patterns
+
+    def _load_full_mode_patterns(self) -> None:
+        """Load Full Mode detection patterns from registry.
+
+        Extracts explicit keywords and regex patterns for Full Mode detection
+        from the trigger registry file.
+
+        Security (V-REDOS-1/2):
+            - All patterns validated before compilation
+            - Dangerous patterns are rejected
+            - Maximum pattern length enforced
+        """
+        if not self._trigger_registry:
+            return
+
+        # Get security settings from registry (v2.4.12+)
+        security = self._trigger_registry.get("security", {})
+        max_pattern_length = security.get("max_pattern_length", 200)
+        disallowed = set(security.get("disallowed_patterns", []))
+
+        # v2.4.12: Support new "full_mode" format from trigger-registry.json
+        full_mode = self._trigger_registry.get("full_mode", self._trigger_registry.get("full_mode_triggers", {}))
+
+        # Add explicit keywords as patterns
+        explicit_keywords = full_mode.get("explicit_keywords", [])
+        for keyword in explicit_keywords:
+            escaped = re.escape(keyword)
+            # Keywords are safe (escaped), but still check length
+            if len(escaped) <= max_pattern_length:
+                pattern = re.compile(escaped, re.IGNORECASE)
+                if pattern not in self.FULL_MODE_PATTERNS:
+                    self.FULL_MODE_PATTERNS.append(pattern)
+
+        # v2.4.12: Support "triggers" list format
+        triggers = full_mode.get("triggers", full_mode.get("patterns", []))
+
+        # Add regex patterns from registry
+        for pattern_item in triggers:
+            # Handle both string patterns and dict patterns
+            if isinstance(pattern_item, dict):
+                regex = pattern_item.get("regex", "")
+            else:
+                regex = pattern_item
+
+            if not regex:
+                continue
+
+            # V-REDOS-1: Check against disallowed patterns
+            if regex in disallowed:
+                print(f"Warning: Skipping disallowed full_mode pattern: {regex}", file=sys.stderr)
+                continue
+
+            # V-REDOS-2: Validate pattern before compilation
+            is_valid, error = validate_regex_pattern(regex, max_length=max_pattern_length)
+            if not is_valid:
+                # Try sanitizing
+                sanitized = sanitize_regex_input(regex, max_length=max_pattern_length)
+                is_valid, error = validate_regex_pattern(sanitized, max_length=max_pattern_length)
+                if is_valid:
+                    regex = sanitized
+                    print("Info: Sanitized full_mode pattern", file=sys.stderr)
+                else:
+                    print(f"Warning: Skipping invalid full_mode pattern: {error}", file=sys.stderr)
+                    continue
+
+            try:
+                compiled = re.compile(regex, re.IGNORECASE)
+                if compiled not in self.FULL_MODE_PATTERNS:
+                    self.FULL_MODE_PATTERNS.append(compiled)
+            except re.error as e:
+                print(f"Warning: Failed to compile full_mode pattern: {e}", file=sys.stderr)
+
+    def get_agent_metadata(self, short_name: str) -> dict:
+        """Get agent metadata from trigger registry.
+
+        Args:
+            short_name: Short agent name (e.g., "athena", "artemis")
+
+        Returns:
+            Dict with agent metadata (display_name, emoji, tier, mcp_tools)
+            or empty dict if not found.
+        """
+        if not self._trigger_registry:
+            return {}
+
+        # Map short name to full agent_id
+        for agent_id, config in self._trigger_registry.get("trigger_rules", {}).items():
+            if agent_id.startswith(short_name):
+                return {
+                    "agent_id": agent_id,
+                    "display_name": config.get("display_name", short_name.capitalize()),
+                    "emoji": config.get("emoji", ""),
+                    "tier": config.get("tier", ""),
+                    "mcp_tools": config.get("mcp_tools", []),
+                }
+
+        return {}
 
     @lru_cache(maxsize=8)
     def _load_file(self, file_path: str) -> str | None:
@@ -282,26 +647,72 @@ class DynamicContextLoader:
                 return True
         return False
 
+    def _is_auto_routing_enabled(self) -> bool:
+        """Check if auto-routing is enabled via environment settings.
+
+        Reads from ~/.trinitas/.env or environment variable.
+
+        Returns:
+            True if TRINITAS_AUTO_ROUTING_ENABLED is set to "true", False otherwise.
+        """
+        # Check environment first
+        env_value = os.environ.get("TRINITAS_AUTO_ROUTING_ENABLED")
+        if env_value is not None:
+            return env_value.lower() == "true"
+
+        # Check .env file settings (cached in _env_settings)
+        if self._env_settings:
+            return self._env_settings.get("auto_routing", True)
+
+        return True  # Default enabled
+
+    def _get_full_persona_id(self, short_name: str) -> str:
+        """Get full persona ID from short name.
+
+        Maps short names (athena, artemis, etc.) to full IDs (athena-conductor, etc.).
+
+        Args:
+            short_name: Short persona name (e.g., "athena", "artemis")
+
+        Returns:
+            Full persona ID (e.g., "athena-conductor", "artemis-optimizer")
+        """
+        short_to_full = {
+            "athena": "athena-conductor",
+            "artemis": "artemis-optimizer",
+            "hestia": "hestia-auditor",
+            "eris": "eris-coordinator",
+            "hera": "hera-strategist",
+            "muses": "muses-documenter",
+            "aphrodite": "aphrodite-designer",
+            "metis": "metis-developer",
+            "aurora": "aurora-researcher",
+        }
+        return short_to_full.get(short_name.lower(), short_name)
+
     def build_full_mode_enforcement(self, task_description: str) -> str:
         """Build enforcement message for Trinitas Full Mode (~0.1ms).
 
-        Generates MANDATORY Task tool invocation instructions when Full Mode
-        is detected. This enforcement message guides the AI to invoke SubAgents
-        via Task tool instead of performing analysis itself.
+        Generates MANDATORY invoke_persona MCP tool invocation instructions when Full Mode
+        is detected. This enforcement message guides the AI to invoke personas
+        via the MCP tool instead of performing analysis itself.
+
+        NOTE: Claude Code does NOT have a "Task" tool. SubAgent invocation must use
+        the `invoke_persona` MCP tool (mcp__tmws__invoke_persona) instead.
 
         Args:
             task_description: The user's task description for context.
 
         Returns:
-            Markdown-formatted enforcement instructions with explicit Task tool
-            invocation examples.
+            Markdown-formatted enforcement instructions with explicit invoke_persona
+            MCP tool examples.
 
         Example:
             >>> loader = DynamicContextLoader()
             >>> msg = loader.build_full_mode_enforcement("analyze architecture")
             >>> print("MANDATORY" in msg)
             True
-            >>> print("hera-strategist" in msg)
+            >>> print("invoke_persona" in msg)
             True
         """
         # Sanitize task description to prevent injection
@@ -312,37 +723,52 @@ class DynamicContextLoader:
 
 **CRITICAL ENFORCEMENT NOTICE**
 
-You have detected a Trinitas Full Mode request. You MUST now invoke SubAgents
-using the Task tool. This is NOT optional.
+You have detected a Trinitas Full Mode request. You MUST now invoke Trinitas personas
+using the `invoke_persona` MCP tool. This is NOT optional.
 
 ### Phase 1: Strategic Planning (REQUIRED - INVOKE NOW)
 
-You MUST immediately invoke the following SubAgents **in parallel** (single message, multiple Task tool calls):
+You MUST immediately invoke the following personas using the **invoke_persona** MCP tool:
 
+**Step 1**: Invoke Hera for strategic analysis:
 ```
-Task(subagent_type="hera-strategist", prompt="Strategic analysis for: {safe_task}")
-Task(subagent_type="athena-conductor", prompt="Resource coordination for: {safe_task}")
+mcp__tmws__invoke_persona(persona_id="hera-strategist", task_description="Strategic analysis for: {safe_task}")
+```
+
+**Step 2**: Invoke Athena for resource coordination:
+```
+mcp__tmws__invoke_persona(persona_id="athena-conductor", task_description="Resource coordination for: {safe_task}")
 ```
 
 ### ❌ PROHIBITED Actions
 
-1. DO NOT proceed with analysis yourself without invoking SubAgents
-2. DO NOT say "Hera + Athena による戦略分析" without actually using Task tool
+1. DO NOT proceed with analysis yourself without calling invoke_persona
+2. DO NOT say "Hera + Athena による戦略分析" without actually using invoke_persona tool
 3. DO NOT skip Phase 1 and proceed directly to implementation
+4. DO NOT use "Task(subagent_type=...)" syntax - this does NOT exist in Claude Code
 
 ### ✅ REQUIRED Actions
 
-1. Invoke `hera-strategist` SubAgent via Task tool
-2. Invoke `athena-conductor` SubAgent via Task tool
-3. Wait for their results before proceeding
-4. Only after Phase 1 approval, proceed to Phase 2
+1. Call `mcp__tmws__invoke_persona` with persona_id="hera-strategist"
+2. Call `mcp__tmws__invoke_persona` with persona_id="athena-conductor"
+3. Use the returned system_prompt and invocation_instructions to embody each persona
+4. Perform analysis AS the persona (adopt their voice and approach)
+5. Only after Phase 1 strategic consensus, proceed to Phase 2
 
-### Reference
+### Available invoke_persona Parameters
 
-Full protocol details: @SUBAGENT_EXECUTION_RULES.md
+- `persona_id`: "athena-conductor", "artemis-optimizer", "hestia-auditor", "eris-coordinator", "hera-strategist", "muses-documenter", "aphrodite-designer", "metis-developer", "aurora-researcher"
+- `task_description`: Description of the task to execute
+- `include_system_prompt`: Whether to include full system prompt (default: True)
+
+### Phase 2-4 (After Phase 1 Approval)
+
+- **Phase 2 (Implementation)**: invoke_persona("artemis-optimizer", ...) + invoke_persona("metis-developer", ...)
+- **Phase 3 (Verification)**: invoke_persona("hestia-auditor", ...)
+- **Phase 4 (Documentation)**: invoke_persona("muses-documenter", ...)
 
 ---
-**This enforcement notice was injected by dynamic_context_loader.py v2.4.11**
+**This enforcement notice was injected by dynamic_context_loader.py v2.4.12**
 '''
 
     def detect_personas(self, prompt: str) -> list[str]:
@@ -570,8 +996,36 @@ Full protocol details: @SUBAGENT_EXECUTION_RULES.md
         if personas:
             sections.append("## 🎯 Active Personas for This Task")
             for persona in personas[:2]:  # Limit to 2 most relevant
+                # Get metadata from registry if available
+                metadata = self.get_agent_metadata(persona)
+                if metadata:
+                    emoji = metadata.get("emoji", "")
+                    display_name = metadata.get("display_name", persona.capitalize())
+                    tier = metadata.get("tier", "")
+                    mcp_tools = metadata.get("mcp_tools", [])
+
+                    sections.append(
+                        f"- **{emoji} {display_name}** ({tier}): Optimized for this task type"
+                    )
+                    if mcp_tools:
+                        tools_str = ", ".join(mcp_tools[:3])  # Limit to 3 tools
+                        sections.append(f"  - Suggested tools: `{tools_str}`")
+                else:
+                    sections.append(
+                        f"- **{persona.capitalize()}**: Optimized for this task type"
+                    )
+
+            # v2.4.12: Add invoke_persona suggestion for auto-routing
+            if self._is_auto_routing_enabled():
+                primary_persona = personas[0]
+                full_persona_id = self._get_full_persona_id(primary_persona)
+                sections.append("\n### Suggested Invocation")
                 sections.append(
-                    f"- **{persona.capitalize()}**: Optimized for this task type"
+                    f"To invoke the recommended persona, use:\n"
+                    f"```\n"
+                    f"mcp__tmws__invoke_persona(persona_id=\"{full_persona_id}\", "
+                    f'task_description="[describe your task]")\n'
+                    f"```"
                 )
 
         # Add actual context file contents (not @references - they don't work in hooks)

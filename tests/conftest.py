@@ -36,10 +36,12 @@ except ImportError:
 
 # Import all models to ensure Base.metadata discovers them
 from src.models.agent import Agent  # noqa: E402
+from src.models.execution_trace import SkillSuggestion  # noqa: E402
 from src.models.learning_pattern import LearningPattern, PatternUsageHistory  # noqa: E402
 from src.models.license_key import LicenseKey, LicenseKeyUsage  # noqa: E402
 from src.models.mcp_connection import MCPConnectionModel  # noqa: E402
 from src.models.memory import Memory  # noqa: E402
+from src.models.skill import Skill, SkillVersion  # noqa: E402
 from src.models.task import Task  # noqa: E402
 from src.models.user import User, UserRole  # noqa: E402
 from src.models.verification import TrustScoreHistory, VerificationRecord  # noqa: E402

@@ -518,6 +518,18 @@ class HybridMCPServer:
             await orchestration_tools.register_tools(self.mcp)
             logger.info("Orchestration tools registered (7 MCP tools for phase-based execution)")
 
+            # Register learning tools (v2.4.12+ Autonomous Learning System)
+            from src.tools.learning_tools import LearningTools
+            learning_tools = LearningTools()
+            await learning_tools.register_tools(self.mcp)
+            logger.info("Learning tools registered (6 MCP tools for pattern learning, evolution & chain execution)")
+
+            # Register pattern-skill tools (v2.4.12+ Pattern to Skill Auto-Generation)
+            from src.tools.pattern_skill_tools import PatternSkillTools
+            pattern_skill_tools = PatternSkillTools()
+            await pattern_skill_tools.register_tools(self.mcp, get_session)
+            logger.info("Pattern-skill tools registered (4 MCP tools for pattern-to-skill promotion)")
+
             # Phase 3: Trinitas Agent File Loading (v2.4.0+, license-gated, OPTIONAL)
             # This phase generates agent markdown files for Claude Desktop
             # Failure here is non-critical and doesn't block Phase 4

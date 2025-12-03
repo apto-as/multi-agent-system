@@ -18,8 +18,8 @@
 set -e
 
 # Version
-VERSION="2.4.8"
-TRINITAS_VERSION="2.4.8"
+VERSION="2.4.12"
+TRINITAS_VERSION="2.4.12"
 
 # Color definitions
 RED='\033[0;31m'
@@ -48,6 +48,10 @@ OPENCODE_AGENTS_SRC="${SCRIPT_DIR}/src/trinitas/agents"
 # Hooks and shared paths (TMWS structure)
 HOOKS_SRC="${SCRIPT_DIR}/hooks"
 SHARED_SRC="${SCRIPT_DIR}/shared"
+
+# Trinitas shared configuration paths (v2.4.12+)
+TRINITAS_CONFIG_DIR="${HOME}/.trinitas"
+TRINITAS_TEMPLATES_SRC="${SCRIPT_DIR}/templates/trinitas"
 
 # Agent definitions - ALL 9 AGENTS (Core 6 + Support 3)
 CORE_AGENTS=("athena" "artemis" "hestia" "eris" "hera" "muses")
@@ -571,6 +575,24 @@ show_summary() {
     echo "  • Aurora    - Research Assistant 🌅"
     echo ""
 
+    echo -e "${CYAN}Shared Configuration (v2.4.12+):${NC}"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "  Location: ~/.trinitas/"
+    echo "  • trigger-registry.json - Shared trigger rules (9 agents)"
+    echo "  • .env                  - Auto-enabled features"
+    echo "  • version.json          - Installation metadata"
+    echo ""
+    echo -e "${WHITE}Auto-Enabled Features:${NC}"
+    echo "  ✓ Trigger rules detection"
+    echo "  ✓ Automatic persona routing"
+    echo "  ✓ Hot-reload for config changes"
+    echo ""
+    echo -e "${WHITE}Opt-In Features (edit ~/.trinitas/.env):${NC}"
+    echo "  • TRINITAS_LEARNING_ENABLED=true"
+    echo "  • TRINITAS_PATTERN_SKILL_GEN_ENABLED=true"
+    echo ""
+
     echo -e "${CYAN}Next Steps:${NC}"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
@@ -578,8 +600,9 @@ show_summary() {
         echo ""
         echo -e "${WHITE}Claude Code:${NC}"
         echo "  1. Restart Claude Code to load new configuration"
-        echo "  2. Test: 'Trinitasシステムの動作確認'"
-        echo "  3. Test persona: 'optimize this code' (Artemis detection)"
+        echo "  2. Test: 'Trinitasフルモードで分析'"
+        echo "  3. Test trigger: 'optimize this code' (Artemis auto-detection)"
+        echo "  4. Test trigger: 'security audit' (Hestia auto-detection)"
     fi
 
     if [ "$PLATFORM" = "opencode" ] || [ "$PLATFORM" = "both" ]; then
@@ -588,10 +611,352 @@ show_summary() {
         echo "  1. Start OpenCode: opencode"
         echo "  2. Select agent: opencode --agent athena"
         echo "  3. Switch agents with Tab key"
+        echo "  4. Test trigger: 'research this topic' (Aurora auto-detection)"
     fi
 
     echo ""
+    echo -e "${CYAN}Customization:${NC}"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "  • Edit trigger rules: ~/.trinitas/trigger-registry.json"
+    echo "  • Edit environment:   ~/.trinitas/.env"
+    echo "  • Disable trigger:    Prefix prompt with [no-trigger]"
+    echo ""
     echo -e "${MAGENTA}🎭 Trinitas Agent System is ready!${NC}"
+    echo ""
+}
+
+# ============================================================================
+# Trinitas Shared Configuration (v2.4.12+)
+# ============================================================================
+
+install_trinitas_shared_config() {
+    print_step "Installing Trinitas shared configuration..."
+    echo ""
+
+    # Create shared configuration directory
+    mkdir -p "${TRINITAS_CONFIG_DIR}"
+    mkdir -p "${TRINITAS_CONFIG_DIR}/cache"
+    chmod 700 "${TRINITAS_CONFIG_DIR}"
+
+    # Install trigger-registry.json (shared between Claude Code and OpenCode)
+    if [ -f "${TRINITAS_TEMPLATES_SRC}/trigger-registry.json" ]; then
+        cp "${TRINITAS_TEMPLATES_SRC}/trigger-registry.json" "${TRINITAS_CONFIG_DIR}/"
+        print_success "Installed: trigger-registry.json"
+    else
+        print_warning "trigger-registry.json template not found (skipped)"
+    fi
+
+    # Generate .env from template with auto-configuration
+    generate_trinitas_env
+
+    # Create version lock file
+    cat > "${TRINITAS_CONFIG_DIR}/version.json" <<EOF
+{
+  "version": "${VERSION}",
+  "installed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "platforms": ["${PLATFORM}"],
+  "schema_version": "2.4.12"
+}
+EOF
+    print_success "Installed: version.json"
+
+    print_info "Shared config location: ${TRINITAS_CONFIG_DIR}"
+    echo ""
+}
+
+generate_trinitas_env() {
+    print_info "Generating Trinitas environment configuration..."
+
+    local env_file="${TRINITAS_CONFIG_DIR}/.env"
+    local template_file="${TRINITAS_TEMPLATES_SRC}/.env.template"
+
+    # Generate secure values
+    local secret_key=""
+    if command -v openssl &>/dev/null; then
+        secret_key=$(openssl rand -hex 32)
+    elif command -v python3 &>/dev/null; then
+        secret_key=$(python3 -c "import secrets; print(secrets.token_hex(32))")
+    else
+        secret_key=$(head -c 32 /dev/urandom | xxd -p | tr -d '\n')
+    fi
+
+    # Determine database URL
+    local database_url="sqlite+aiosqlite:///${HOME}/.tmws/data/tmws.db"
+
+    # Ensure database directory exists
+    mkdir -p "${HOME}/.tmws/data"
+    chmod 700 "${HOME}/.tmws"
+
+    if [ -f "${template_file}" ]; then
+        # Replace placeholders in template
+        sed -e "s|{{TMWS_ENVIRONMENT}}|development|g" \
+            -e "s|{{TMWS_DATABASE_URL}}|${database_url}|g" \
+            -e "s|{{TMWS_SECRET_KEY}}|${secret_key}|g" \
+            -e "s|{{HOME}}|${HOME}|g" \
+            "${template_file}" > "${env_file}"
+        chmod 600 "${env_file}"
+        print_success "Generated: .env (with auto-enabled features)"
+    else
+        # Fallback: Create minimal .env
+        cat > "${env_file}" <<EOF
+# Trinitas Environment Configuration (v${VERSION})
+# Auto-generated by install_trinitas.sh
+
+# Core Settings
+TMWS_ENVIRONMENT=development
+TMWS_DATABASE_URL=${database_url}
+TMWS_SECRET_KEY=${secret_key}
+
+# Trigger Rules (Auto-Enabled)
+TRINITAS_TRIGGER_RULES_ENABLED=true
+TRINITAS_AUTO_ROUTING_ENABLED=true
+TRINITAS_CONFIDENCE_THRESHOLD=0.85
+TRINITAS_MAX_PARALLEL_AGENTS=3
+TRINITAS_HOT_RELOAD_ENABLED=true
+
+# Learning System (Opt-In)
+TRINITAS_LEARNING_ENABLED=false
+TRINITAS_AUTO_EVOLVE_ENABLED=false
+TRINITAS_PATTERN_SKILL_GEN_ENABLED=false
+
+# Security
+TMWS_DB_ENCRYPTION_ENABLED=false
+TRINITAS_AUDIT_LOG_LEVEL=MEDIUM
+
+# Privacy (Opt-Out by Default)
+TRINITAS_COLLECT_USAGE_STATS=false
+TRINITAS_ANONYMOUS_TELEMETRY=false
+
+# Full Mode
+TRINITAS_AUTO_ESCALATE_FULL_MODE=false
+TRINITAS_FULL_MODE_CONFIRMATION=true
+EOF
+        chmod 600 "${env_file}"
+        print_success "Generated: .env (minimal configuration)"
+    fi
+
+    print_info "Auto-enabled features:"
+    echo "  - Trigger rules detection"
+    echo "  - Automatic persona routing"
+    echo "  - Hot-reload for config changes"
+    print_info "Opt-in features (disabled by default):"
+    echo "  - Autonomous learning system"
+    echo "  - Pattern-to-skill generation"
+    echo "  - Usage statistics collection"
+}
+
+# ============================================================================
+# TMWS Backend Installation (Optional)
+# ============================================================================
+
+install_tmws_backend() {
+    print_step "Installing TMWS Backend (Python)..."
+    echo ""
+
+    # Check Python version
+    if ! command -v python3 &> /dev/null; then
+        print_error "Python 3 is required but not found"
+        print_info "Install Python 3.11+: https://www.python.org/downloads/"
+        return 1
+    fi
+
+    local python_version=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+    print_info "Python version: ${python_version}"
+
+    # Check if uv is available (preferred)
+    if command -v uv &> /dev/null; then
+        print_info "Using uv package manager (fast)"
+        cd "${SCRIPT_DIR}"
+        uv sync
+        print_success "Dependencies installed with uv"
+    elif command -v pip3 &> /dev/null; then
+        print_info "Using pip3 (fallback)"
+        cd "${SCRIPT_DIR}"
+        pip3 install -e .
+        print_success "Dependencies installed with pip"
+    else
+        print_error "No package manager found (pip3 or uv required)"
+        return 1
+    fi
+
+    # Check Ollama (required for embeddings)
+    if command -v ollama &> /dev/null; then
+        print_success "Ollama found"
+
+        # Check if model is available
+        if ollama list 2>/dev/null | grep -q "multilingual-e5-large"; then
+            print_success "Embedding model available"
+        else
+            print_warning "Embedding model not found"
+            print_info "Pull model: ollama pull zylonai/multilingual-e5-large"
+        fi
+    else
+        print_warning "Ollama not found (required for embeddings)"
+        print_info "Install Ollama: https://ollama.ai/download"
+        print_info "Then: ollama pull zylonai/multilingual-e5-large"
+    fi
+
+    # Database setup
+    print_info "Setting up database..."
+    cd "${SCRIPT_DIR}"
+
+    # Create data directory
+    mkdir -p data
+
+    # Run migrations if alembic is available
+    if command -v alembic &> /dev/null || python3 -c "import alembic" 2>/dev/null; then
+        print_info "Running database migrations..."
+        python3 -m alembic upgrade head 2>/dev/null && print_success "Migrations applied" || print_warning "Migrations skipped (may already be up to date)"
+    else
+        print_warning "Alembic not found - database tables will be created on first run"
+    fi
+
+    echo ""
+    print_success "TMWS Backend installation complete!"
+    echo ""
+}
+
+setup_db_encryption() {
+    print_step "Setting up database encryption (optional)..."
+    echo ""
+
+    # Check for pysqlcipher3
+    if python3 -c "import pysqlcipher3" 2>/dev/null; then
+        print_success "SQLCipher support available"
+    else
+        print_warning "pysqlcipher3 not installed"
+        print_info "For encryption: pip install pysqlcipher3"
+        print_info "Skipping encryption setup (optional feature)"
+        return 0
+    fi
+
+    # Generate encryption key if not exists
+    local secrets_dir="${HOME}/.tmws/secrets"
+    local key_file="${secrets_dir}/db_encryption.key"
+
+    if [ -f "$key_file" ]; then
+        print_success "Encryption key exists: ${key_file}"
+    else
+        print_info "Generating new encryption key..."
+        mkdir -p "$secrets_dir"
+        chmod 700 "$secrets_dir"
+
+        # Generate 256-bit key (64 hex chars)
+        local key=$(openssl rand -hex 32)
+        echo "$key" > "$key_file"
+        chmod 600 "$key_file"
+
+        print_success "Encryption key generated: ${key_file}"
+        print_warning "⚠️ CRITICAL: Backup this key! Lost key = lost data."
+    fi
+
+    # Enable encryption in environment
+    print_info "To enable encryption, set: TMWS_DB_ENCRYPTION_ENABLED=true"
+    echo ""
+}
+
+generate_mcp_config() {
+    print_step "Generating MCP configuration..."
+    echo ""
+
+    local mcp_mode=""
+    local output_file="${CLAUDE_CONFIG_DIR}/.mcp.json"
+
+    # Detect installation mode
+    if docker ps -a --format '{{.Names}}' 2>/dev/null | grep -q 'tmws-app'; then
+        mcp_mode="docker"
+        print_info "Detected: Docker installation"
+    elif command -v uv &>/dev/null && [ -f "${SCRIPT_DIR}/uv.lock" ]; then
+        mcp_mode="uv"
+        print_info "Detected: UV installation"
+    else
+        mcp_mode="local"
+        print_info "Detected: Local Python installation"
+    fi
+
+    # Use the dedicated script if available
+    if [ -f "${SCRIPT_DIR}/scripts/generate_mcp_config.sh" ]; then
+        "${SCRIPT_DIR}/scripts/generate_mcp_config.sh" --mode "$mcp_mode" --output "$output_file"
+        return $?
+    fi
+
+    # Fallback: Generate inline
+    print_info "Generating config for mode: ${mcp_mode}"
+
+    mkdir -p "$(dirname "$output_file")"
+
+    case "$mcp_mode" in
+        docker)
+            cat > "$output_file" <<'MCPEOF'
+{
+  "$comment": "TMWS MCP Configuration - Docker Mode (Generated v2.4.12)",
+  "mcpServers": {
+    "tmws": {
+      "type": "stdio",
+      "command": "docker",
+      "args": ["exec", "-i", "tmws-app", "tmws-mcp-server"],
+      "env": {}
+    },
+    "context7": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"],
+      "env": {}
+    }
+  }
+}
+MCPEOF
+            ;;
+        uv)
+            cat > "$output_file" <<MCPEOF
+{
+  "\$comment": "TMWS MCP Configuration - UV Mode (Generated v2.4.12)",
+  "mcpServers": {
+    "tmws": {
+      "type": "stdio",
+      "command": "uv",
+      "args": ["run", "--project", "${SCRIPT_DIR}", "tmws-mcp-server"],
+      "env": {
+        "TMWS_ENVIRONMENT": "development"
+      }
+    },
+    "context7": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"],
+      "env": {}
+    }
+  }
+}
+MCPEOF
+            ;;
+        local)
+            cat > "$output_file" <<MCPEOF
+{
+  "\$comment": "TMWS MCP Configuration - Local Mode (Generated v2.4.12)",
+  "mcpServers": {
+    "tmws": {
+      "type": "stdio",
+      "command": "python3",
+      "args": ["-m", "src.mcp_server"],
+      "env": {
+        "TMWS_ENVIRONMENT": "development",
+        "PYTHONPATH": "${SCRIPT_DIR}"
+      }
+    },
+    "context7": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"],
+      "env": {}
+    }
+  }
+}
+MCPEOF
+            ;;
+    esac
+
+    print_success "Generated: ${output_file}"
     echo ""
 }
 
@@ -641,6 +1006,10 @@ show_help() {
     echo "  -y, --yes               Skip confirmation prompts"
     echo "  -p, --platform PLATFORM Target platform (claude|opencode|both)"
     echo "  -u, --update            Update existing installation"
+    echo "  --backend               Install TMWS Python backend"
+    echo "  --encryption            Setup database encryption (SQLCipher)"
+    echo "  --mcp-config            Generate .mcp.json configuration"
+    echo "  --full                  Full installation (agents + backend + mcp-config)"
     echo "  --uninstall             Restore from latest backup"
     echo ""
     echo "Platforms:"
@@ -649,15 +1018,23 @@ show_help() {
     echo "  both     - Install for both platforms"
     echo ""
     echo "Examples:"
-    echo "  $0                        # Interactive mode"
+    echo "  $0                        # Interactive mode (agents only)"
     echo "  $0 --platform claude      # Claude Code only"
     echo "  $0 --platform opencode    # OpenCode only"
     echo "  $0 --platform both --yes  # Both, non-interactive"
+    echo "  $0 --backend              # Install TMWS Python backend"
+    echo "  $0 --full --yes           # Full install (agents + backend)"
+    echo "  $0 --encryption           # Setup database encryption"
     echo "  $0 --uninstall            # Restore previous config"
     echo ""
     echo "Agents installed:"
     echo "  Core (6):    Athena, Artemis, Hestia, Eris, Hera, Muses"
     echo "  Support (3): Aphrodite, Metis, Aurora"
+    echo ""
+    echo "TMWS Backend (--backend):"
+    echo "  - Python 3.11+ with uv/pip"
+    echo "  - Ollama for embeddings (multilingual-e5-large)"
+    echo "  - SQLite database with optional encryption"
 }
 
 show_version() {
@@ -676,6 +1053,8 @@ main() {
     PLATFORM=""
     SKIP_CONFIRM=false
     MODE="install"
+    INSTALL_BACKEND=false
+    SETUP_ENCRYPTION=false
 
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -699,6 +1078,23 @@ main() {
                 MODE="update"
                 shift
                 ;;
+            --backend)
+                MODE="backend"
+                shift
+                ;;
+            --encryption)
+                MODE="encryption"
+                shift
+                ;;
+            --mcp-config)
+                MODE="mcp-config"
+                shift
+                ;;
+            --full)
+                MODE="full"
+                INSTALL_BACKEND=true
+                shift
+                ;;
             --uninstall)
                 MODE="uninstall"
                 shift
@@ -711,10 +1107,28 @@ main() {
         esac
     done
 
-    # Handle uninstall mode
+    # Handle special modes
     if [ "$MODE" = "uninstall" ]; then
         print_header
         uninstall
+        exit 0
+    fi
+
+    if [ "$MODE" = "backend" ]; then
+        print_header
+        install_tmws_backend
+        exit 0
+    fi
+
+    if [ "$MODE" = "encryption" ]; then
+        print_header
+        setup_db_encryption
+        exit 0
+    fi
+
+    if [ "$MODE" = "mcp-config" ]; then
+        print_header
+        generate_mcp_config
         exit 0
     fi
 
@@ -726,6 +1140,9 @@ main() {
     # Confirmation
     if [ "$SKIP_CONFIRM" = false ]; then
         echo -e "${YELLOW}This will install Trinitas v${TRINITAS_VERSION} for: ${PLATFORM}${NC}"
+        if [ "$INSTALL_BACKEND" = true ]; then
+            echo -e "${YELLOW}Backend: TMWS Python + SQLite database${NC}"
+        fi
         echo "Existing configurations will be backed up."
         echo ""
         read -p "Continue? [y/N]: " -n 1 -r
@@ -737,7 +1154,11 @@ main() {
         echo ""
     fi
 
-    # Execute installation
+    # Install shared configuration FIRST (v2.4.12+)
+    # This creates ~/.trinitas/ with trigger-registry.json and .env
+    install_trinitas_shared_config
+
+    # Execute platform-specific installation
     case $PLATFORM in
         claude)
             install_claude_code
@@ -754,6 +1175,13 @@ main() {
             exit 1
             ;;
     esac
+
+    # Install backend if requested (--full mode)
+    if [ "$INSTALL_BACKEND" = true ]; then
+        install_tmws_backend
+        # Also generate MCP config in full mode
+        generate_mcp_config
+    fi
 
     # Verify and summarize
     verify_installation

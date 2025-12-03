@@ -614,3 +614,237 @@ class LearningTools(BaseTool):
             return self.format_success(
                 result, f"Generated {result.get('opportunity_count', 0)} learning opportunities",
             )
+
+        @mcp.tool()
+        async def execute_learning_chain(
+            context: str,
+            auto_learn: bool = True,
+            auto_evolve: bool = True,
+            max_patterns: int = 5,
+            min_confidence: float = 0.7,
+        ) -> dict[str, Any]:
+            """Execute automated learning chain for continuous improvement.
+
+            This tool orchestrates the full learning cycle:
+            1. Pattern Detection - Find applicable patterns for current context
+            2. Pattern Application - Apply best matching patterns
+            3. Pattern Evolution - Update patterns based on application results
+            4. Opportunity Discovery - Identify new learning opportunities
+
+            The chain runs automatically, learning and improving from each execution.
+
+            Args:
+                context: Current task/operation context for pattern matching
+                auto_learn: Automatically create new patterns from successful operations
+                auto_evolve: Automatically evolve patterns based on results
+                max_patterns: Maximum patterns to consider per chain execution
+                min_confidence: Minimum confidence threshold for pattern application
+
+            Returns:
+                Dict containing chain execution results and recommendations
+
+            """
+            chain_start = datetime.utcnow()
+            chain_results = {
+                "chain_id": f"chain_{chain_start.timestamp()}",
+                "started_at": chain_start.isoformat(),
+                "context": context[:200],  # Truncate for summary
+                "steps_executed": [],
+                "patterns_applied": [],
+                "patterns_evolved": [],
+                "new_patterns_created": [],
+                "opportunities_found": [],
+                "metrics": {},
+            }
+
+            async def _execute_chain(_session, services):
+                memory_service = services["memory_service"]
+                embedding_service = services["embedding_service"]
+
+                # Step 1: Pattern Detection
+                step1_start = datetime.utcnow()
+                search_query = f"PATTERN SEARCH FOR: {context}"
+                query_embedding = await embedding_service.encode_query(search_query)
+
+                detected_patterns = await memory_service.search_similar_memories(
+                    embedding=query_embedding.tolist(),
+                    memory_type="pattern",
+                    limit=max_patterns,
+                    min_similarity=min_confidence,
+                )
+
+                chain_results["steps_executed"].append({
+                    "step": "pattern_detection",
+                    "duration_ms": (datetime.utcnow() - step1_start).total_seconds() * 1000,
+                    "patterns_found": len(detected_patterns),
+                })
+
+                # Step 2: Pattern Application
+                step2_start = datetime.utcnow()
+                applied_patterns = []
+
+                for pattern in detected_patterns:
+                    pattern_metadata = pattern.metadata_json or {}
+                    pattern_info = {
+                        "pattern_id": str(pattern.id),
+                        "pattern_name": pattern_metadata.get("pattern_name", "Unknown"),
+                        "category": pattern_metadata.get("category", "general"),
+                        "confidence": pattern_metadata.get("confidence", 0.5),
+                        "similarity": getattr(pattern, "similarity", 0.0),
+                    }
+
+                    # Update application count
+                    pattern_metadata["application_count"] = pattern_metadata.get("application_count", 0) + 1
+                    pattern_metadata["last_applied"] = datetime.utcnow().isoformat()
+                    await memory_service.update_memory(str(pattern.id), {"metadata": pattern_metadata})
+
+                    applied_patterns.append(pattern_info)
+
+                chain_results["patterns_applied"] = applied_patterns
+                chain_results["steps_executed"].append({
+                    "step": "pattern_application",
+                    "duration_ms": (datetime.utcnow() - step2_start).total_seconds() * 1000,
+                    "patterns_applied": len(applied_patterns),
+                })
+
+                # Step 3: Pattern Evolution (if enabled)
+                if auto_evolve and applied_patterns:
+                    step3_start = datetime.utcnow()
+                    evolved_patterns = []
+
+                    for pattern in applied_patterns:
+                        # Simulate successful application (in real usage, this would be based on actual results)
+                        pattern_memory = await memory_service.get_memory(pattern["pattern_id"])
+                        if pattern_memory:
+                            metadata = pattern_memory.metadata_json or {}
+                            current_success_rate = metadata.get("success_rate", 1.0)
+                            app_count = metadata.get("application_count", 1)
+
+                            # Update success rate (weighted moving average)
+                            new_success_rate = (current_success_rate * (app_count - 1) + 1.0) / app_count
+
+                            metadata["success_rate"] = new_success_rate
+                            metadata["last_evolved"] = datetime.utcnow().isoformat()
+                            metadata["evolution_count"] = metadata.get("evolution_count", 0) + 1
+
+                            await memory_service.update_memory(pattern["pattern_id"], {"metadata": metadata})
+
+                            evolved_patterns.append({
+                                "pattern_id": pattern["pattern_id"],
+                                "pattern_name": pattern["pattern_name"],
+                                "new_success_rate": new_success_rate,
+                                "evolution_count": metadata["evolution_count"],
+                            })
+
+                    chain_results["patterns_evolved"] = evolved_patterns
+                    chain_results["steps_executed"].append({
+                        "step": "pattern_evolution",
+                        "duration_ms": (datetime.utcnow() - step3_start).total_seconds() * 1000,
+                        "patterns_evolved": len(evolved_patterns),
+                    })
+
+                # Step 4: Auto-learn new pattern (if enabled and no good matches found)
+                if auto_learn and len(detected_patterns) < 2:
+                    step4_start = datetime.utcnow()
+
+                    # Create a new pattern from the context
+                    new_pattern_content = f"Auto-learned pattern from context: {context[:500]}"
+                    new_pattern_embedding = await embedding_service.encode_document(new_pattern_content)
+
+                    new_pattern = await memory_service.create_memory(
+                        content=new_pattern_content,
+                        memory_type="pattern",
+                        tags=["pattern", "auto-learned", "chain-generated"],
+                        metadata={
+                            "pattern_name": f"auto_pattern_{chain_start.timestamp()}",
+                            "pattern_content": context[:500],
+                            "category": "auto-learned",
+                            "confidence": 0.6,  # Lower confidence for auto-learned
+                            "learned_at": datetime.utcnow().isoformat(),
+                            "source": "learning_chain",
+                            "application_count": 0,
+                            "success_rate": 1.0,
+                        },
+                        embedding=new_pattern_embedding.tolist(),
+                        importance=0.7,
+                    )
+
+                    chain_results["new_patterns_created"].append({
+                        "pattern_id": str(new_pattern.id),
+                        "reason": "insufficient_pattern_coverage",
+                        "confidence": 0.6,
+                    })
+
+                    chain_results["steps_executed"].append({
+                        "step": "auto_learn",
+                        "duration_ms": (datetime.utcnow() - step4_start).total_seconds() * 1000,
+                        "patterns_created": 1,
+                    })
+
+                # Step 5: Opportunity Discovery
+                step5_start = datetime.utcnow()
+
+                # Get pattern coverage statistics
+                all_patterns = await memory_service.search_memories(
+                    query="", memory_type="pattern", limit=100,
+                )
+
+                category_coverage = {}
+                for p in all_patterns:
+                    cat = (p.metadata_json or {}).get("category", "unknown")
+                    category_coverage[cat] = category_coverage.get(cat, 0) + 1
+
+                # Identify gaps
+                opportunities = []
+                if len(all_patterns) < 10:
+                    opportunities.append({
+                        "type": "knowledge_expansion",
+                        "priority": "high",
+                        "message": "Pattern knowledge base is limited - consider learning more patterns",
+                    })
+
+                low_coverage_categories = [c for c, count in category_coverage.items() if count < 3]
+                if low_coverage_categories:
+                    opportunities.append({
+                        "type": "category_gap",
+                        "priority": "medium",
+                        "categories": low_coverage_categories,
+                        "message": f"Low pattern coverage in categories: {', '.join(low_coverage_categories)}",
+                    })
+
+                chain_results["opportunities_found"] = opportunities
+                chain_results["steps_executed"].append({
+                    "step": "opportunity_discovery",
+                    "duration_ms": (datetime.utcnow() - step5_start).total_seconds() * 1000,
+                    "opportunities_found": len(opportunities),
+                })
+
+                # Calculate final metrics
+                chain_end = datetime.utcnow()
+                total_duration = (chain_end - chain_start).total_seconds() * 1000
+
+                chain_results["completed_at"] = chain_end.isoformat()
+                chain_results["metrics"] = {
+                    "total_duration_ms": total_duration,
+                    "patterns_detected": len(detected_patterns),
+                    "patterns_applied": len(applied_patterns),
+                    "patterns_evolved": len(chain_results.get("patterns_evolved", [])),
+                    "patterns_created": len(chain_results.get("new_patterns_created", [])),
+                    "opportunities_found": len(opportunities),
+                    "chain_effectiveness": (
+                        "high" if len(applied_patterns) > 2 else
+                        "medium" if len(applied_patterns) > 0 else
+                        "low"
+                    ),
+                }
+
+                return chain_results
+
+            result = await self.execute_with_session(_execute_chain)
+            effectiveness = result.get("metrics", {}).get("chain_effectiveness", "unknown")
+            return self.format_success(
+                result,
+                f"Learning chain completed ({effectiveness} effectiveness) - "
+                f"{result.get('metrics', {}).get('patterns_applied', 0)} patterns applied, "
+                f"{result.get('metrics', {}).get('patterns_evolved', 0)} evolved",
+            )

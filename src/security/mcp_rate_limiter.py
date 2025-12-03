@@ -215,6 +215,31 @@ MCP_RATE_LIMITS = {
         burst=5,
         block_duration=120,
     ),
+    # Pattern-to-Skill operations: v2.4.12 (REQ-4)
+    "pattern_skill_find": RateLimit(
+        requests=60,  # 60 find operations per minute
+        period=60,
+        burst=10,
+        block_duration=60,
+    ),
+    "pattern_skill_promote": RateLimit(
+        requests=10,  # 10 promotions per hour (creates skills)
+        period=3600,
+        burst=2,
+        block_duration=1800,  # 30 minutes
+    ),
+    "pattern_skill_batch": RateLimit(
+        requests=5,  # 5 batch promotions per hour
+        period=3600,
+        burst=0,  # No burst for batch operations
+        block_duration=1800,  # 30 minutes
+    ),
+    "pattern_skill_status": RateLimit(
+        requests=60,  # 60 status checks per minute
+        period=60,
+        burst=10,
+        block_duration=60,
+    ),
 }
 
 

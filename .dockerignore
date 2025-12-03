@@ -164,6 +164,13 @@ archive/mem0_implementation/
 archive/supabase_implementation/
 archive/postgresql_implementation/
 
+# IDE/Editor config directories (v2.4.12+)
+.claude/
+.opencode/
+
+# Templates (not needed in runtime)
+templates/
+
 # Performance benchmarks
 benchmarks/
 

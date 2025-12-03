@@ -338,6 +338,8 @@ def get_rate_limiter() -> RateLimiter:
                 "skill_delete": RateLimit(10, 3600, burst=2),           # 10/hour
                 "skill_share": RateLimit(30, 3600, burst=10),           # 30/hour
                 "skill_activate": RateLimit(20, 3600, burst=5),         # 20/hour
+                # Health API (Hestia Security Audit - Priority 1)
+                "health_detailed": RateLimit(60, 60, burst=10),           # 60/min
             })
         else:
             # Development: Lenient limits
@@ -355,6 +357,8 @@ def get_rate_limiter() -> RateLimiter:
                 "skill_delete": RateLimit(30, 3600, burst=10),          # 30/hour
                 "skill_share": RateLimit(100, 3600, burst=30),          # 100/hour
                 "skill_activate": RateLimit(60, 3600, burst=15),        # 60/hour
+                # Health API (Hestia Security Audit - Priority 1)
+                "health_detailed": RateLimit(120, 60, burst=20),          # 120/min
             })
 
     return _rate_limiter
@@ -743,4 +747,38 @@ async def check_rate_limit_memory_ttl(
     await limiter.check_rate_limit(
         request=request,
         endpoint_type="memory_ttl",
+    )
+
+
+# ============================================================================
+# Health Endpoint Rate Limiting (Hestia Security Audit - Priority 1)
+# ============================================================================
+
+
+async def check_rate_limit_health_detailed(
+    request: Request,
+) -> None:
+    """Check rate limit for detailed health endpoint.
+
+    Raises:
+        HTTPException: 429 if rate limit exceeded
+
+    Security:
+        - 60 requests/min in production
+        - 120 requests/min in development
+        - Prevents DoS via repeated health checks
+        - Prevents system reconnaissance attacks
+        - Disabled in test environment
+
+    Reference:
+        Hestia Security Audit 2025-12-02 (Priority 1 fix)
+    """
+    # Skip rate limiting in test environment
+    if settings.environment == "test":
+        return
+
+    limiter = get_rate_limiter()
+    await limiter.check_rate_limit(
+        request=request,
+        endpoint_type="health_detailed",
     )
