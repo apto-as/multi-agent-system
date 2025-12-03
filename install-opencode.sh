@@ -409,87 +409,58 @@ install_opencode_config() {
 
     local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-    # Create opencode.md (system instructions)
-    cat > "${OPENCODE_CONFIG_DIR}/opencode.md" << 'EOF'
-# TRINITAS-CORE SYSTEM v2.4.12
-## Unified Intelligence Protocol for OpenCode
+    # Copy opencode.md from distribution
+    if [ -f "${script_dir}/opencode/opencode.md" ]; then
+        cp "${script_dir}/opencode/opencode.md" "${OPENCODE_CONFIG_DIR}/"
+        log_success "Copied opencode.md"
+    else
+        log_warn "opencode.md not found in distribution"
+    fi
 
----
-system: "trinitas-core"
-version: "2.4.12"
-status: "Fully Operational"
-platforms: ["opencode"]
----
-
-## System Overview
-
-Trinitasシステムは**9つの専門化されたAIペルソナ**で構成されています。
-TMWS (Trinitas Memory & Workflow System) v2.4.12と完全統合されており、
-42のMCPツールを通じてメモリ管理、ワークフロー調整、セマンティック検索機能を提供します。
-
-## Available AI Personas
-
-### Core 6 Agents
-1. **Athena** 🏛️ - Harmonious Conductor (orchestration, workflow)
-2. **Artemis** 🏹 - Technical Perfectionist (optimization, performance)
-3. **Hestia** 🔥 - Security Guardian (security, audit)
-4. **Eris** ⚔️ - Tactical Coordinator (coordinate, tactical)
-5. **Hera** 🎭 - Strategic Commander (strategy, planning)
-6. **Muses** 📚 - Knowledge Architect (documentation, knowledge)
-
-### Support 3 Agents
-7. **Aphrodite** 🌸 - UI/UX Designer (design, ui, ux)
-8. **Metis** 🔧 - Development Assistant (implement, code, test)
-9. **Aurora** 🌅 - Research Assistant (search, research, context)
-
-## Usage
-Use `/trinitas` command to interact with agents.
-EOF
-
-    log_success "Created opencode.md"
-
-    # Create AGENTS.md
+    # Copy AGENTS.md
     if [ -f "${script_dir}/AGENTS.md" ]; then
         cp "${script_dir}/AGENTS.md" "${OPENCODE_CONFIG_DIR}/"
         log_success "Copied AGENTS.md"
     fi
 
-    # Copy agent definitions if available
-    if [ -d "${script_dir}/agents" ]; then
+    # Copy agent definitions (OpenCode uses different naming)
+    if [ -d "${script_dir}/opencode/agent" ]; then
         rm -rf "${OPENCODE_CONFIG_DIR}/agent"
         mkdir -p "${OPENCODE_CONFIG_DIR}/agent"
-        cp -r "${script_dir}/agents"/* "${OPENCODE_CONFIG_DIR}/agent/" 2>/dev/null || true
-        log_success "Copied agent definitions"
+        cp -r "${script_dir}/opencode/agent"/* "${OPENCODE_CONFIG_DIR}/agent/"
+        log_success "Copied agent definitions (9 agents)"
     fi
 
-    # Create trinitas command
-    mkdir -p "${OPENCODE_CONFIG_DIR}/command"
-    cat > "${OPENCODE_CONFIG_DIR}/command/trinitas.md" << 'EOF'
-# Trinitas Command
+    # Copy commands
+    if [ -d "${script_dir}/opencode/command" ]; then
+        rm -rf "${OPENCODE_CONFIG_DIR}/command"
+        mkdir -p "${OPENCODE_CONFIG_DIR}/command"
+        cp -r "${script_dir}/opencode/command"/* "${OPENCODE_CONFIG_DIR}/command/"
+        log_success "Copied command definitions"
+    fi
 
-Execute Trinitas multi-agent operations.
-
-## Usage
-```
-/trinitas <operation> [args]
-```
-
-## Operations
-- `execute <agent> "<task>"` - Execute specific agent
-- `analyze "<task>" --personas <list>` - Multi-agent analysis
-- `remember <key> "<content>"` - Store in memory
-- `recall "<query>"` - Search memories
-- `status` - System status
-EOF
-
-    log_success "Created trinitas command"
+    # Copy plugins
+    if [ -d "${script_dir}/opencode/plugin" ]; then
+        rm -rf "${OPENCODE_CONFIG_DIR}/plugin"
+        mkdir -p "${OPENCODE_CONFIG_DIR}/plugin"
+        cp -r "${script_dir}/opencode/plugin"/* "${OPENCODE_CONFIG_DIR}/plugin/"
+        log_success "Copied plugins (orchestration, trigger-processor)"
+    fi
 }
 
 # Configure OpenCode settings
 configure_opencode_settings() {
     log_step "Configuring OpenCode MCP settings..."
 
-    cat > "${OPENCODE_CONFIG_DIR}/opencode.json" << 'EOF'
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+    # Copy opencode.json from distribution if available
+    if [ -f "${script_dir}/opencode/opencode.json" ]; then
+        cp "${script_dir}/opencode/opencode.json" "${OPENCODE_CONFIG_DIR}/"
+        log_success "Copied opencode.json"
+    else
+        # Fallback: create default configuration
+        cat > "${OPENCODE_CONFIG_DIR}/opencode.json" << 'EOF'
 {
   "mcpServers": {
     "tmws": {
@@ -508,8 +479,8 @@ configure_opencode_settings() {
   }
 }
 EOF
-
-    log_success "OpenCode configuration created"
+        log_success "Created default opencode.json"
+    fi
 }
 
 # Start TMWS
