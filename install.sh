@@ -7,7 +7,7 @@
 # This installer sets up:
 #   1. TMWS (Trinitas Memory & Workflow System) via Docker
 #   2. Trinitas agents, hooks, and configuration for Claude Code
-#   3. License key activation (90-day ENTERPRISE trial included)
+#   3. Pre-activated ENTERPRISE license
 #
 # Features:
 #   - Automatic backup of existing installations
@@ -45,7 +45,7 @@ TRINITAS_CONFIG_DIR="${HOME}/.trinitas"
 CLAUDE_CONFIG_DIR="${HOME}/.claude"
 BACKUP_DIR="${HOME}/.trinitas-backup"
 
-# License key (ENTERPRISE trial)
+# Pre-activated ENTERPRISE license
 DEFAULT_LICENSE_KEY="TMWS-ENTERPRISE-020d8e77-de36-48a1-b585-7f66aef78c06-20260303-Tp9UYRt6ucUB21hPF9lqZoH.FjSslvfr~if1ThD75L.ro~Kx5glyVyGPm0n4xuziJ~Qmc87PZipJWCefj2HEAA"
 
 # Logging functions
@@ -69,7 +69,7 @@ show_banner() {
 ║      ╚═╝   ╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝╚═╝   ╚═╝   ╚═╝  ╚═╝╚══════╝         ║
 ║                                                                       ║
 ║            Multi-Agent System Installer v2.4.12                       ║
-║            For Claude Code - 90-Day ENTERPRISE Trial                  ║
+║            For Claude Code                                            ║
 ║                                                                       ║
 ╚═══════════════════════════════════════════════════════════════════════╝
 EOF
@@ -374,7 +374,7 @@ TMWS_LOG_LEVEL=INFO
 # Security (Auto-generated - DO NOT SHARE)
 TMWS_SECRET_KEY=${secret_key}
 
-# License Key (90-day ENTERPRISE trial)
+# Pre-activated ENTERPRISE license
 TMWS_LICENSE_KEY="${DEFAULT_LICENSE_KEY}"
 
 # Database (SQLite - stored in ~/.tmws/db/)
@@ -428,21 +428,57 @@ EOF
 install_claude_config() {
     log_step "Installing Trinitas configuration for Claude Code..."
 
-    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd 2>/dev/null || echo "")"
     local config_src="${script_dir}/claudecode"
+    local github_base="https://raw.githubusercontent.com/apto-as/multi-agent-system/main"
+    local use_github=false
+
+    # Check if running via curl | bash (script_dir will be empty or invalid)
+    if [ -z "${script_dir}" ] || [ ! -d "${config_src}" ]; then
+        log_info "Downloading configuration from GitHub..."
+        use_github=true
+        config_src=$(mktemp -d -t trinitas-install.XXXXXXXX)
+        trap 'rm -rf "${config_src}" 2>/dev/null || true' EXIT
+
+        # Download claudecode directory contents
+        mkdir -p "${config_src}/agents" "${config_src}/commands" "${config_src}/hooks/core"
+
+        # Download main config files
+        curl -fsSL "${github_base}/claudecode/CLAUDE.md" -o "${config_src}/CLAUDE.md" 2>/dev/null || true
+        curl -fsSL "${github_base}/claudecode/AGENTS.md" -o "${config_src}/AGENTS.md" 2>/dev/null || true
+        curl -fsSL "${github_base}/claudecode/SUBAGENT_EXECUTION_RULES.md" -o "${config_src}/SUBAGENT_EXECUTION_RULES.md" 2>/dev/null || true
+
+        # Download agents
+        for agent in athena-conductor artemis-optimizer hestia-auditor eris-coordinator hera-strategist muses-documenter aphrodite-designer metis-developer aurora-researcher; do
+            curl -fsSL "${github_base}/claudecode/agents/${agent}.md" -o "${config_src}/agents/${agent}.md" 2>/dev/null || true
+        done
+
+        # Download commands
+        for cmd in trinitas tmws self-introduction status; do
+            curl -fsSL "${github_base}/claudecode/commands/${cmd}.md" -o "${config_src}/commands/${cmd}.md" 2>/dev/null || true
+        done
+
+        # Download hooks
+        curl -fsSL "${github_base}/claudecode/hooks/settings.json" -o "${config_src}/hooks/settings.json" 2>/dev/null || true
+        for hook in dynamic_context_loader protocol_injector; do
+            curl -fsSL "${github_base}/claudecode/hooks/core/${hook}.py" -o "${config_src}/hooks/core/${hook}.py" 2>/dev/null || true
+        done
+    fi
 
     # Copy CLAUDE.md
     if [ -f "${config_src}/CLAUDE.md" ]; then
         cp "${config_src}/CLAUDE.md" "${CLAUDE_CONFIG_DIR}/"
         log_success "Copied CLAUDE.md"
     else
-        log_warn "CLAUDE.md not found in distribution"
+        log_error "CLAUDE.md not found - this is required for Trinitas to function"
     fi
 
     # Copy AGENTS.md
     if [ -f "${config_src}/AGENTS.md" ]; then
         cp "${config_src}/AGENTS.md" "${CLAUDE_CONFIG_DIR}/"
         log_success "Copied AGENTS.md"
+    else
+        log_warn "AGENTS.md not found"
     fi
 
     # Copy SUBAGENT_EXECUTION_RULES.md
@@ -452,25 +488,31 @@ install_claude_config() {
     fi
 
     # Copy agents directory
-    if [ -d "${config_src}/agents" ]; then
+    if [ -d "${config_src}/agents" ] && [ "$(ls -A ${config_src}/agents 2>/dev/null)" ]; then
         rm -rf "${CLAUDE_CONFIG_DIR}/agents"
         cp -r "${config_src}/agents" "${CLAUDE_CONFIG_DIR}/"
         log_success "Copied agents/ (9 agent definitions)"
     fi
 
     # Copy commands directory
-    if [ -d "${config_src}/commands" ]; then
+    if [ -d "${config_src}/commands" ] && [ "$(ls -A ${config_src}/commands 2>/dev/null)" ]; then
         rm -rf "${CLAUDE_CONFIG_DIR}/commands"
         cp -r "${config_src}/commands" "${CLAUDE_CONFIG_DIR}/"
         log_success "Copied commands/"
     fi
 
     # Copy hooks directory
-    if [ -d "${config_src}/hooks" ]; then
+    if [ -d "${config_src}/hooks" ] && [ "$(ls -A ${config_src}/hooks 2>/dev/null)" ]; then
         rm -rf "${CLAUDE_CONFIG_DIR}/hooks"
         cp -r "${config_src}/hooks" "${CLAUDE_CONFIG_DIR}/"
-        chmod +x "${CLAUDE_CONFIG_DIR}"/hooks/**/*.py 2>/dev/null || true
+        # Set executable permissions on Python hook scripts
+        find "${CLAUDE_CONFIG_DIR}/hooks" -type f -name "*.py" -exec chmod 0755 {} \; 2>/dev/null || true
         log_success "Copied hooks/"
+    fi
+
+    # Cleanup temp directory if used
+    if [ "${use_github}" = true ] && [ -d "${config_src}" ]; then
+        rm -rf "${config_src}"
     fi
 }
 
@@ -599,7 +641,7 @@ show_completion() {
     echo -e "${CYAN}What was installed:${NC}"
     echo "  - TMWS Docker container (ghcr.io/apto-as/tmws:${TMWS_VERSION})"
     echo "  - Trinitas 9-agent configuration for Claude Code"
-    echo "  - 90-day ENTERPRISE trial license"
+    echo "  - Pre-activated ENTERPRISE license"
     echo ""
     echo -e "${CYAN}Configuration locations:${NC}"
     echo "  - TMWS config:     ${TRINITAS_CONFIG_DIR}/"
@@ -624,7 +666,7 @@ show_completion() {
     echo "  - Restart TMWS:    cd ~/.trinitas && docker compose restart"
     echo "  - Stop TMWS:       docker stop tmws-app"
     echo ""
-    echo -e "${YELLOW}License: ENTERPRISE Trial${NC}"
+    echo -e "${GREEN}License: ENTERPRISE${NC}"
     echo ""
     echo -e "${GREEN}Enjoy Trinitas Multi-Agent System!${NC}"
     echo ""

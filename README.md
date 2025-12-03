@@ -2,7 +2,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Version-2.4.12-blue.svg" alt="Version">
-  <img src="https://img.shields.io/badge/License-90_Day_Trial-green.svg" alt="License">
+  <img src="https://img.shields.io/badge/License-ENTERPRISE-green.svg" alt="License">
   <img src="https://img.shields.io/badge/Platform-Ubuntu%20%7C%20macOS%20%7C%20WSL2-lightgrey.svg" alt="Platform">
 </p>
 
@@ -14,7 +14,7 @@
 - **Persistent Memory**: TMWS (Trinitas Memory & Workflow System) provides semantic search and cross-session knowledge retention
 - **Phase-Based Execution**: Strategic planning with approval gates ensures quality
 - **42 MCP Tools**: Memory management, verification, skills, agent coordination
-- **90-Day ENTERPRISE Trial**: Full functionality included
+- **Full Functionality**: All features included
 - **Upgrade Support**: Automatic backup and seamless upgrade from previous versions
 
 ## Quick Start
@@ -61,6 +61,50 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/apto-as/multi-agent-sy
 | Ollama | Latest | Required | Required | For embedding generation |
 | Claude Code | Latest | Required | - | Anthropic's CLI |
 | OpenCode | Latest | - | Required | Open-source AI CLI |
+
+### Installing Claude Code
+
+Claude Code is Anthropic's official CLI tool for AI-assisted development. You must install it before running the Trinitas installer.
+
+**Download & Install:**
+
+Visit the official Claude Code page: https://claude.ai/download
+
+Or install via npm:
+
+```bash
+npm install -g @anthropic-ai/claude-code
+```
+
+**Verify Installation:**
+
+```bash
+claude --version
+```
+
+If the `claude` command is not found, ensure it's in your PATH:
+
+```bash
+# Find where Claude Code was installed
+which claude || npm root -g
+
+# Add to PATH if needed (add to ~/.bashrc or ~/.zshrc)
+export PATH="$PATH:$(npm root -g)/.bin"
+```
+
+### Installing OpenCode
+
+OpenCode is an open-source AI CLI tool. Install it before running the Trinitas OpenCode installer.
+
+```bash
+npm install -g opencode
+```
+
+**Verify Installation:**
+
+```bash
+opencode --version
+```
 
 ### Platform-Specific Requirements
 
@@ -192,17 +236,17 @@ Phase 4: Documentation (Muses)
 
 ## License Information
 
-This distribution includes a **90-day ENTERPRISE trial license**.
+This distribution includes a **pre-activated ENTERPRISE license**.
 
-| Feature | Trial | Full License |
-|---------|-------|--------------|
-| All 9 AI Personas | ✅ | ✅ |
-| 42 MCP Tools | ✅ | ✅ |
-| Semantic Memory | ✅ | ✅ |
-| Verification System | ✅ | ✅ |
-| Duration | 90 days | Perpetual |
+| Feature | Included |
+|---------|----------|
+| All 9 AI Personas | ✅ |
+| 42 MCP Tools | ✅ |
+| Semantic Memory | ✅ |
+| Verification System | ✅ |
+| Phase-Based Orchestration | ✅ |
 
-Contact [apto-as](https://github.com/apto-as) for extended licensing.
+Contact [apto-as](https://github.com/apto-as) for support.
 
 ## Troubleshooting
 
