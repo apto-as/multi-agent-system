@@ -45,7 +45,7 @@ TRINITAS_CONFIG_DIR="${HOME}/.trinitas"
 CLAUDE_CONFIG_DIR="${HOME}/.claude"
 BACKUP_DIR="${HOME}/.trinitas-backup"
 
-# 90-day ENTERPRISE trial license (expires 2026-03-03)
+# License key (ENTERPRISE trial)
 DEFAULT_LICENSE_KEY="TMWS-ENTERPRISE-020d8e77-de36-48a1-b585-7f66aef78c06-20260303-Tp9UYRt6ucUB21hPF9lqZoH.FjSslvfr~if1ThD75L.ro~Kx5glyVyGPm0n4xuziJ~Qmc87PZipJWCefj2HEAA"
 
 # Logging functions
@@ -623,10 +623,7 @@ show_completion() {
     echo "  - Restart TMWS:    cd ~/.trinitas && docker compose restart"
     echo "  - Stop TMWS:       docker stop tmws-app"
     echo ""
-    echo -e "${YELLOW}License Information:${NC}"
-    echo "  - Tier: ENTERPRISE (Trial)"
-    echo "  - Expires: 2026-03-03 (90 days)"
-    echo "  - Contact apto-as for extended license"
+    echo -e "${YELLOW}License: ENTERPRISE Trial${NC}"
     echo ""
     echo -e "${GREEN}Enjoy Trinitas Multi-Agent System!${NC}"
     echo ""

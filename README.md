@@ -202,8 +202,6 @@ This distribution includes a **90-day ENTERPRISE trial license**.
 | Verification System | ✅ | ✅ |
 | Duration | 90 days | Perpetual |
 
-**Trial Expiration**: 2026-03-03
-
 Contact [apto-as](https://github.com/apto-as) for extended licensing.
 
 ## Troubleshooting

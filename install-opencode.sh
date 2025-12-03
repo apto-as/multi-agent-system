@@ -45,7 +45,7 @@ TRINITAS_CONFIG_DIR="${HOME}/.trinitas"
 OPENCODE_CONFIG_DIR="${HOME}/.config/opencode"
 BACKUP_DIR="${HOME}/.trinitas-backup"
 
-# 90-day ENTERPRISE trial license (expires 2026-03-03)
+# License key (ENTERPRISE trial)
 DEFAULT_LICENSE_KEY="TMWS-ENTERPRISE-020d8e77-de36-48a1-b585-7f66aef78c06-20260303-Tp9UYRt6ucUB21hPF9lqZoH.FjSslvfr~if1ThD75L.ro~Kx5glyVyGPm0n4xuziJ~Qmc87PZipJWCefj2HEAA"
 
 # Logging functions
@@ -604,7 +604,7 @@ show_completion() {
     echo "  2. Start OpenCode in your project directory"
     echo "  3. Use /trinitas command to interact with agents"
     echo ""
-    echo -e "${YELLOW}License: ENTERPRISE Trial (expires 2026-03-03)${NC}"
+    echo -e "${YELLOW}License: ENTERPRISE Trial${NC}"
     echo ""
     echo -e "${GREEN}Enjoy Trinitas Multi-Agent System!${NC}"
     echo ""

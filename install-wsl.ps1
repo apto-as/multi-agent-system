@@ -344,7 +344,7 @@ function Show-Completion {
     Write-Host "  - Restart TMWS:    docker restart tmws-app"
     Write-Host "  - WSL shell:       wsl -d $distro"
     Write-Host ""
-    Write-Host "License: ENTERPRISE Trial (expires 2026-03-03)" -ForegroundColor Yellow
+    Write-Host "License: ENTERPRISE Trial" -ForegroundColor Yellow
     Write-Host ""
     Write-Host "Enjoy Trinitas Multi-Agent System!" -ForegroundColor Green
     Write-Host ""
