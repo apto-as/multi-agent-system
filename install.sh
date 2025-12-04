@@ -681,7 +681,12 @@ main() {
     # Handle existing installation
     if check_existing_installation; then
         echo ""
-        read -p "Do you want to upgrade? (existing data will be backed up) [Y/n] " -n 1 -r
+        # Use /dev/tty to read input when running via curl | bash
+        if [ -t 0 ]; then
+            read -p "Do you want to upgrade? (existing data will be backed up) [Y/n] " -n 1 -r
+        else
+            read -p "Do you want to upgrade? (existing data will be backed up) [Y/n] " -n 1 -r < /dev/tty
+        fi
         echo ""
         if [[ ! $REPLY =~ ^[Nn]$ ]]; then
             create_backup
