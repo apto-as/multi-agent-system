@@ -387,6 +387,7 @@ services:
     image: ${TMWS_IMAGE}
     container_name: tmws-app
     restart: unless-stopped
+    command: ["tail", "-f", "/dev/null"]  # Keep container running, MCP called via docker exec
     ports:
       - "8892:8892"
       - "8000:8000"
