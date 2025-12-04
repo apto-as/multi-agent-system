@@ -356,8 +356,8 @@ TMWS_SECRET_KEY=${secret_key}
 # Pre-activated ENTERPRISE license
 TMWS_LICENSE_KEY="${DEFAULT_LICENSE_KEY}"
 
-# Database (SQLite - stored in ~/.tmws/db/)
-TMWS_DATABASE_URL=sqlite+aiosqlite:////root/.tmws/db/tmws.db
+# Database (SQLite - stored in /app/.tmws/db/ inside container)
+TMWS_DATABASE_URL=sqlite+aiosqlite:////app/.tmws/db/tmws.db
 
 # Embedding Service (Ollama required)
 OLLAMA_BASE_URL=http://host.docker.internal:11434
@@ -385,9 +385,9 @@ services:
       - "8892:8892"
       - "8000:8000"
     volumes:
-      - ${HOME}/.tmws/db:/root/.tmws/db
-      - ${HOME}/.tmws/logs:/root/.tmws/logs
-      - ${HOME}/.tmws/vector_store:/root/.tmws/vector_store
+      - ${HOME}/.tmws/db:/app/.tmws/db
+      - ${HOME}/.tmws/logs:/app/.tmws/logs
+      - ${HOME}/.tmws/vector_store:/app/.tmws/vector_store
     env_file:
       - .env
     extra_hosts:
