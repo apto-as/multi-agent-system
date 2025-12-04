@@ -37,9 +37,5 @@
   "instructions": [
     "{file:~/.config/opencode/opencode.md}",
     "{file:~/.config/opencode/AGENTS.md}"
-  ],
-  "plugin": [
-    "~/.config/opencode/plugin/trinitas-orchestration.js",
-    "~/.config/opencode/plugin/trinitas-trigger-processor.js"
   ]
 }
