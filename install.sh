@@ -377,11 +377,33 @@ TMWS_SECRET_KEY=${secret_key}
 # Pre-activated ENTERPRISE license
 TMWS_LICENSE_KEY="${DEFAULT_LICENSE_KEY}"
 
+# Network Configuration (CRITICAL for production mode)
+TMWS_CORS_ORIGINS=["http://localhost:3000","http://localhost:8892","http://127.0.0.1:8892"]
+TMWS_HOST=0.0.0.0
+TMWS_PORT=8000
+
 # Database (SQLite - stored in /app/.tmws/db/ inside container)
 TMWS_DATABASE_URL=sqlite+aiosqlite:////app/.tmws/db/tmws.db
 
 # Embedding Service (Ollama required)
 OLLAMA_BASE_URL=http://host.docker.internal:11434
+
+# Security Settings
+TMWS_AUTH_ENABLED=true
+TMWS_RATE_LIMIT_ENABLED=true
+TMWS_RATE_LIMIT_PER_MINUTE=60
+TMWS_SECURITY_HEADERS_ENABLED=true
+TMWS_AUDIT_LOG_ENABLED=true
+TMWS_NAMESPACE_ISOLATION_ENABLED=true
+TMWS_DEFAULT_NAMESPACE=default
+
+# Features
+TMWS_ENABLE_TRINITAS=true
+
+# Vector Search Configuration
+TMWS_CHROMA_COLLECTION_NAME=tmws_memories
+TMWS_VECTOR_SEARCH_TOP_K=10
+TMWS_VECTOR_SEARCH_MIN_SIMILARITY=0.7
 EOF
 
     chmod 600 "${env_file}"
