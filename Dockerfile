@@ -89,7 +89,7 @@ RUN ls -lh /build/dist/*.whl && \
 FROM python:3.11-slim@sha256:193fdd0bbcb3d2ae612bd6cc3548d2f7c78d65b549fcaa8af75624c47474444d
 
 LABEL maintainer="Trinitas Development Team <dev@trinitas.ai>"
-LABEL version="2.4.8"
+LABEL version="2.4.13"
 LABEL description="TMWS MCP Server - SQLite + ChromaDB architecture + Trinitas Agents + Ed25519 License + MCP-first Skills/Agent Tools"
 
 WORKDIR /app
@@ -99,16 +99,28 @@ WORKDIR /app
 # sqlite3: database CLI
 # libsqlcipher1: SQLCipher runtime library (Phase 2E-2)
 # procps: provides pgrep for healthcheck
+# nodejs/npm: npx for external MCP servers (context7, playwright)
+# ca-certificates: HTTPS for uv/uvx installer
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     sqlite3 \
     libsqlcipher1 \
     procps \
+    nodejs \
+    npm \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
 # Create non-root user (UID 1000 for compatibility)
 RUN useradd -m -u 1000 -s /bin/bash tmws
+
+# Install uv/uvx for external MCP servers (serena, etc.)
+# Install as tmws user so uvx is available at runtime
+USER tmws
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+USER root
+ENV PATH="/home/tmws/.local/bin:$PATH"
 
 # Copy dependencies definition and bytecode-only wheel
 COPY --from=builder /build/pyproject.toml /tmp/
