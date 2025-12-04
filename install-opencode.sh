@@ -301,6 +301,10 @@ create_directories() {
     mkdir -p "${HOME}/.tmws/logs"
     mkdir -p "${HOME}/.tmws/vector_store"
 
+    # Make TMWS data directories writable by Docker container (UID 1000)
+    # This ensures compatibility across different host user UIDs
+    chmod -R 777 "${HOME}/.tmws"
+
     echo "${TMWS_VERSION}" > "${TRINITAS_CONFIG_DIR}/.version"
 
     log_success "Directories created"
