@@ -503,24 +503,26 @@ configure_opencode_settings() {
         cp "${script_dir}/opencode/opencode.json" "${OPENCODE_CONFIG_DIR}/"
         log_success "Copied opencode.json"
     else
-        # Fallback: create default configuration
+        # Fallback: create default configuration (OpenCode schema-compliant)
         cat > "${OPENCODE_CONFIG_DIR}/opencode.json" << 'EOF'
 {
-  "mcpServers": {
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
     "tmws": {
-      "command": "docker",
-      "args": ["exec", "-i", "tmws-app", "python", "-m", "src.mcp_server"],
-      "env": {}
+      "type": "local",
+      "command": ["docker", "exec", "-i", "tmws-app", "tmws-mcp-server"],
+      "enabled": true,
+      "timeout": 10000
     }
   },
-  "plugins": {
-    "enabled": true,
-    "directory": "plugin"
-  },
-  "commands": {
-    "enabled": true,
-    "directory": "command"
-  }
+  "instructions": [
+    "{file:~/.config/opencode/opencode.md}",
+    "{file:~/.config/opencode/AGENTS.md}"
+  ],
+  "plugin": [
+    "~/.config/opencode/plugin/trinitas-orchestration.js",
+    "~/.config/opencode/plugin/trinitas-trigger-processor.js"
+  ]
 }
 EOF
         log_success "Created default opencode.json"

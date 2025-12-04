@@ -38,16 +38,8 @@
     "{file:~/.config/opencode/opencode.md}",
     "{file:~/.config/opencode/AGENTS.md}"
   ],
-  "plugins": [
-    {
-      "name": "trinitas-orchestration",
-      "path": "~/.config/opencode/plugin/trinitas-orchestration.js",
-      "enabled": true
-    },
-    {
-      "name": "trinitas-trigger-processor",
-      "path": "~/.config/opencode/plugin/trinitas-trigger-processor.js",
-      "enabled": true
-    }
+  "plugin": [
+    "~/.config/opencode/plugin/trinitas-orchestration.js",
+    "~/.config/opencode/plugin/trinitas-trigger-processor.js"
   ]
 }
