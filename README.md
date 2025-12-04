@@ -267,14 +267,32 @@ docker logs -f tmws-app
 
 ```bash
 # Check if Ollama is running
-curl http://localhost:11434/api/tags
+curl http://localhost:11434/api/version
 
-# Start Ollama
-ollama serve
+# Check Ollama process
+pgrep -a ollama
 
 # Pull required model
 ollama pull zylonai/multilingual-e5-large
 ```
+
+**Important for SSH/Remote Servers:**
+
+Running `ollama serve &` in a terminal will terminate when the SSH session disconnects. For persistent operation, use systemd:
+
+```bash
+# Start Ollama as a systemd service (recommended)
+sudo systemctl enable ollama
+sudo systemctl start ollama
+
+# Verify it's running
+systemctl status ollama
+
+# Check if auto-start is enabled
+systemctl is-enabled ollama
+```
+
+> **Note:** The Ollama installer (`curl -fsSL https://ollama.ai/install.sh | sh`) typically registers a systemd service automatically. If not, use `nohup ollama serve > /dev/null 2>&1 &` as an alternative.
 
 ### License Verification
 
