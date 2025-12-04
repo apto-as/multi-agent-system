@@ -2,6 +2,8 @@ name: Docker Image CI/CD
 
 on:
   push:
+    branches:
+      - master  # Trigger on push to master
     tags:
       - 'v*.*.*'  # Trigger on version tags (v2.3.1, v2.4.0, etc.)
   workflow_dispatch:  # Allow manual trigger from GitHub UI
@@ -46,7 +48,8 @@ jobs:
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=,format=short
 
       - name: Build and push Docker image
         id: build
