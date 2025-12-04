@@ -1,0 +1,290 @@
+# ========================================
+# TMWS v2.3.1 - Universal Deployment
+# ========================================
+# Architecture: Flexible hybrid mode
+#   Option A (Recommended): Ollama native + TMWS Docker
+#   Option B: Both in Docker (see comments)
+#
+# Platforms: Windows, Linux, Mac (use docker-compose.mac.yml for Mac)
+# ========================================
+
+version: '3.8'
+
+services:
+  tmws:
+    # Option 1: Build from source
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    # Option 2: Use pre-built image (uncomment after first release)
+    # image: ghcr.io/apto-as/tmws:v2.3.1
+
+    container_name: tmws-app
+    hostname: tmws
+
+    # STDIO MCP Server Requirements (Phase 4.2: Critical for interactive mode)
+    tty: true           # Allocate pseudo-TTY for STDIO mode
+    stdin_open: true    # Keep STDIN open for interactive MCP server
+
+    # Load environment variables from .env file
+    env_file:
+      - .env
+
+    ports:
+      # MCP Server API
+      - "8000:8000"
+
+    volumes:
+      # Consolidated TMWS data directory (Phase 2E-3: FORTRESS CONSOLIDATION)
+      # Contains: db/, secrets/, logs/, vector_store/, output/
+      - ./.tmws:/app/.tmws
+
+      # Configuration files (kept separate for easy editing)
+      - ./config:/app/config
+
+      # Trinitas agent files (Phase 4.2: Agent file delivery to Claude Desktop)
+      # Bidirectional sync: Container generates .md files → Host reads them
+      - ~/.claude/agents:/home/tmws/.claude/agents
+
+    environment:
+      # License Configuration (Phase 2E-3)
+      - TMWS_LICENSE_KEY=${TMWS_LICENSE_KEY}              # Required
+      - TMWS_LICENSE_STRICT_MODE=${TMWS_LICENSE_STRICT_MODE:-false}  # Optional
+
+      # Environment
+      - TMWS_ENVIRONMENT=${TMWS_ENVIRONMENT:-production}
+
+      # Security (REQUIRED - set in .env)
+      - TMWS_SECRET_KEY=${TMWS_SECRET_KEY}
+
+      # Database (Phase 2E-3: Consolidated path)
+      - TMWS_DATABASE_URL=sqlite+aiosqlite:////app/.tmws/db/tmws.db
+
+      # ===== Ollama Configuration =====
+      # Option A (Native Ollama - RECOMMENDED):
+      #   Windows/Linux: Use localhost or host.docker.internal
+      #   Requires: Ollama installed on host
+      - TMWS_OLLAMA_BASE_URL=${TMWS_OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+
+      # Option B (Dockerized Ollama - see service below):
+      #   Uncomment ollama service below and use:
+      # - TMWS_OLLAMA_BASE_URL=http://ollama:11434
+
+      - TMWS_OLLAMA_MODEL=zylonai/multilingual-e5-large
+
+      # ChromaDB (Phase 2E-3: Consolidated path)
+      - TMWS_CHROMA_PERSIST_DIRECTORY=/app/.tmws/vector_store
+
+      # Logging (Phase 2E-3: Consolidated path)
+      - TMWS_LOG_LEVEL=${TMWS_LOG_LEVEL:-INFO}
+      - TMWS_LOG_FILE=/app/.tmws/logs/tmws.log
+
+      # CORS (if needed for web clients)
+      - TMWS_CORS_ORIGINS=${TMWS_CORS_ORIGINS:-["http://localhost:3000"]}
+
+      # Performance
+      - TMWS_MAX_WORKERS=${TMWS_MAX_WORKERS:-4}
+      - TMWS_REQUEST_TIMEOUT=${TMWS_REQUEST_TIMEOUT:-60}
+
+    restart: unless-stopped
+
+    # Healthcheck disabled for STDIO MCP server (no HTTP endpoint)
+    # healthcheck:
+    #   test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 3
+    #   start_period: 30s
+
+    # ========================================
+    # P1-2: Docker Security Baseline (v2.4.0)
+    # ========================================
+    # Defense in depth: Multiple security layers
+    # ========================================
+    security_opt:
+      - no-new-privileges:true  # Prevent privilege escalation
+
+    # Drop all capabilities and add only required ones
+    # Port 8000 doesn't require NET_BIND_SERVICE (<1024)
+    cap_drop:
+      - ALL
+    # cap_add:
+    #   - NET_BIND_SERVICE  # Only needed for ports <1024
+
+    # Read-only root filesystem (optional, commented for compatibility)
+    # Requires explicit tmpfs mounts for writable directories
+    # read_only: true
+    # tmpfs:
+    #   - /tmp
+    #   - /run
+
+    # Resource limits (adjust based on your system)
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '1.0'
+          memory: 1G
+
+    # Dependencies (uncomment if using Option B)
+    # depends_on:
+    #   ollama:
+    #     condition: service_healthy
+
+    networks:
+      - tmws-network
+
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ========================================
+  # Option B: Dockerized Ollama
+  # ========================================
+  # Uncomment this section if you want Ollama in Docker
+  # Note: GPU passthrough required for optimal performance
+  # ========================================
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   container_name: tmws-ollama
+  #   hostname: ollama
+  #
+  #   ports:
+  #     - "11434:11434"
+  #
+  #   volumes:
+  #     # Persist Ollama models
+  #     - ollama-models:/root/.ollama
+  #
+  #   environment:
+  #     # GPU configuration (NVIDIA)
+  #     - NVIDIA_VISIBLE_DEVICES=all
+  #     - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+  #
+  #   # GPU support (NVIDIA - requires nvidia-docker2)
+  #   # deploy:
+  #   #   resources:
+  #   #     reservations:
+  #   #       devices:
+  #   #         - driver: nvidia
+  #   #           count: 1
+  #   #           capabilities: [gpu]
+  #
+  #   restart: unless-stopped
+  #
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 60s
+  #
+  #   networks:
+  #     - tmws-network
+
+networks:
+  tmws-network:
+    driver: bridge
+
+# Volumes (uncomment if using Option B)
+# volumes:
+#   ollama-models:
+#     driver: local
+
+# ========================================
+# Setup Instructions
+# ========================================
+# Option A (Recommended - Native Ollama):
+#
+# 1. Install Ollama on host:
+#    Windows: https://ollama.ai/download/windows
+#    Linux: curl -fsSL https://ollama.ai/install.sh | sh
+#
+# 2. Start Ollama:
+#    ollama serve
+#
+# 3. Pull model:
+#    ollama pull zylonai/multilingual-e5-large
+#
+# 4. Create .env:
+#    cp .env.example .env
+#    # Set TMWS_SECRET_KEY (use: openssl rand -hex 32)
+#
+# 5. Create directories:
+#    mkdir -p data config logs .chroma
+#
+# 6. Start TMWS:
+#    docker-compose up -d
+#
+# 7. Verify:
+#    docker-compose ps
+#    docker-compose logs -f tmws
+#    curl http://localhost:8000/health
+#
+# ========================================
+# Option B (Both in Docker):
+#
+# 1. Uncomment ollama service above
+# 2. Update TMWS_OLLAMA_BASE_URL to http://ollama:11434
+# 3. Uncomment depends_on in tmws service
+# 4. For GPU support:
+#    - Install nvidia-docker2: https://docs.nvidia.com/datacenter/cloud-native/
+#    - Uncomment GPU sections in ollama service
+#
+# 5. Start both services:
+#    docker-compose up -d
+#
+# 6. Pull model inside container:
+#    docker exec -it tmws-ollama ollama pull zylonai/multilingual-e5-large
+#
+# 7. Verify:
+#    docker-compose ps
+#    docker exec -it tmws-ollama ollama list
+#    curl http://localhost:8000/health
+#
+# ========================================
+# Platform-Specific Notes
+# ========================================
+# Windows:
+#   - Use WSL2 backend for Docker Desktop
+#   - host.docker.internal works by default
+#   - GPU: Requires WSL2 + CUDA support
+#
+# Linux:
+#   - Use host.docker.internal or host network mode
+#   - For network_mode: host, change ports to localhost
+#   - GPU: Requires nvidia-docker2
+#
+# Mac:
+#   - Use docker-compose.mac.yml instead (Metal GPU)
+#   - host.docker.internal works by default
+#
+# ========================================
+# Troubleshooting
+# ========================================
+# "Connection refused" to Ollama:
+#   1. Verify Ollama running: curl http://localhost:11434/api/tags
+#   2. Check firewall rules
+#   3. On Linux: try network_mode: host
+#
+# "Model not found":
+#   ollama pull zylonai/multilingual-e5-large
+#
+# Permission denied on volumes:
+#   chmod -R 755 data config logs .chroma
+#
+# Slow performance:
+#   - Option A: GPU acceleration on host
+#   - Option B: Enable GPU passthrough
+#
+# Reset everything:
+#   docker-compose down -v
+#   rm -rf data/.chroma/* data/*.db logs/*
+#   docker-compose up -d
+# ========================================

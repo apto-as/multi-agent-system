@@ -1,10 +1,10 @@
-# TRINITAS Agent Coordination Protocol v2.4.8
+# TRINITAS Agent Coordination Protocol v2.4.12
 ## Phase-Based Execution & Multi-Agent Collaboration
 
 ---
-protocol_version: "2.4.11"
+protocol_version: "2.4.12"
 compatible_with: ["claude-code", "opencode"]
-tmws_version: "v2.4.8"
+tmws_version: "v2.4.12"
 agent_count: 9
 last_updated: "2025-12-03"
 ---
@@ -303,11 +303,11 @@ Incident Response:
 
 ## Version History
 
-- **v2.5.0** (2025-12-01): 9エージェント対応、TMWS v2.4.8統合
+- **v2.4.12** (2025-12-03): 9エージェント対応、TMWS v2.4.12統合
 - **v2.2.0**: Phase-Based Protocol確立
 - **v2.0.0**: Core 6 Agent Protocol
 
 ---
 
-*Trinitas Agent Coordination Protocol v2.5.0*
-*9 Agents - Phase-Based Execution - TMWS Integration*
+*Trinitas Agent Coordination Protocol v2.4.12*
+*9 Agents - Phase-Based Execution - TMWS v2.4.12 Integration*
