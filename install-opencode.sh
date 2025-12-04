@@ -47,6 +47,7 @@ BACKUP_DIR="${HOME}/.trinitas-backup"
 
 # Pre-activated ENTERPRISE license
 DEFAULT_LICENSE_KEY="TMWS-ENTERPRISE-020d8e77-de36-48a1-b585-7f66aef78c06-20260303-Tp9UYRt6ucUB21hPF9lqZoH.FjSslvfr~if1ThD75L.ro~Kx5glyVyGPm0n4xuziJ~Qmc87PZipJWCefj2HEAA"
+DEFAULT_LICENSE_PUBLIC_KEY="hWZG1qVDWLQj1bzq/CzU23Sjg5XDsEOB0/9+3vzXcRU="
 
 # Logging functions
 log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
@@ -359,6 +360,7 @@ TMWS_SECRET_KEY=${secret_key}
 
 # Pre-activated ENTERPRISE license
 TMWS_LICENSE_KEY="${DEFAULT_LICENSE_KEY}"
+TMWS_LICENSE_PUBLIC_KEY="${DEFAULT_LICENSE_PUBLIC_KEY}"
 
 # Database (SQLite - stored in /app/.tmws/db/ inside container)
 TMWS_DATABASE_URL=sqlite+aiosqlite:////app/.tmws/db/tmws.db
