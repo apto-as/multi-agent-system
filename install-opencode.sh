@@ -366,7 +366,7 @@ TMWS_LICENSE_PUBLIC_KEY="${DEFAULT_LICENSE_PUBLIC_KEY}"
 TMWS_DATABASE_URL=sqlite+aiosqlite:////app/.tmws/db/tmws.db
 
 # Embedding Service (Ollama required)
-OLLAMA_BASE_URL=http://host.docker.internal:11434
+TMWS_OLLAMA_BASE_URL=http://host.docker.internal:11434
 EOF
 
     chmod 600 "${env_file}"
