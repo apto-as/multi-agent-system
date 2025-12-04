@@ -504,6 +504,7 @@ configure_opencode_settings() {
         log_success "Copied opencode.json"
     else
         # Fallback: create default configuration (OpenCode schema-compliant)
+        # Note: Plugins auto-load from ~/.config/opencode/plugin/ directory
         cat > "${OPENCODE_CONFIG_DIR}/opencode.json" << 'EOF'
 {
   "$schema": "https://opencode.ai/config.json",
@@ -518,10 +519,6 @@ configure_opencode_settings() {
   "instructions": [
     "{file:~/.config/opencode/opencode.md}",
     "{file:~/.config/opencode/AGENTS.md}"
-  ],
-  "plugin": [
-    "~/.config/opencode/plugin/trinitas-orchestration.js",
-    "~/.config/opencode/plugin/trinitas-trigger-processor.js"
   ]
 }
 EOF
