@@ -1,5 +1,5 @@
 # =============================================================================
-# Trinitas Multi-Agent System Installer v2.4.15
+# Trinitas Multi-Agent System Installer v2.4.16
 # For Windows (WSL2 Required)
 # =============================================================================
 #
@@ -32,8 +32,8 @@ param(
 )
 
 # Version
-$INSTALLER_VERSION = "2.4.15"
-$TMWS_VERSION = "2.4.15"
+$INSTALLER_VERSION = "2.4.16"
+$TMWS_VERSION = "2.4.16"
 
 # Configuration
 $TMWS_IMAGE = "ghcr.io/apto-as/tmws:latest"
