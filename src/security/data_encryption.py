@@ -73,7 +73,10 @@ class EncryptionKeyManager:
         return base64.urlsafe_b64encode(secrets.token_bytes(32)).decode("utf-8")
 
     def derive_key(
-        self, context: str, agent_id: str, key_purpose: str = "data_encryption",
+        self,
+        context: str,
+        agent_id: str,
+        key_purpose: str = "data_encryption",
     ) -> bytes:
         """Derive encryption key for specific context and agent.
 
@@ -211,7 +214,9 @@ class FieldEncryption:
             "classification": classification.value,
             "encryption_version": "2.0",  # Bumped for access control support
             "key_context": context,
-            "access_level": access_level.value if isinstance(access_level, AccessLevel) else access_level,
+            "access_level": access_level.value
+            if isinstance(access_level, AccessLevel)
+            else access_level,
             "shared_with_agents": shared_with_agents or [],
         }
 
@@ -328,7 +333,10 @@ class MemoryEncryption:
         # Encrypt main content
         if memory_data.get("content"):
             encrypted_content = await self.field_encryption.encrypt_field(
-                memory_data["content"], "content", agent_id, DataClassification.CONFIDENTIAL,
+                memory_data["content"],
+                "content",
+                agent_id,
+                DataClassification.CONFIDENTIAL,
             )
             encrypted_memory["encrypted_content"] = encrypted_content
             encrypted_memory.pop("content", None)  # Remove plaintext
@@ -341,7 +349,10 @@ class MemoryEncryption:
             for key in sensitive_keys:
                 if key in metadata:
                     encrypted_meta = await self.field_encryption.encrypt_field(
-                        metadata[key], f"metadata_{key}", agent_id, DataClassification.INTERNAL,
+                        metadata[key],
+                        f"metadata_{key}",
+                        agent_id,
+                        DataClassification.INTERNAL,
                     )
                     if "encrypted_metadata" not in encrypted_memory:
                         encrypted_memory["encrypted_metadata"] = {}
@@ -351,7 +362,10 @@ class MemoryEncryption:
         # Encrypt embeddings if present
         if memory_data.get("embeddings"):
             encrypted_embeddings = await self.field_encryption.encrypt_field(
-                memory_data["embeddings"], "embeddings", agent_id, DataClassification.INTERNAL,
+                memory_data["embeddings"],
+                "embeddings",
+                agent_id,
+                DataClassification.INTERNAL,
             )
             encrypted_memory["encrypted_embeddings"] = encrypted_embeddings
             encrypted_memory.pop("embeddings", None)
@@ -429,7 +443,9 @@ class TransportEncryption:
     def __init__(self):
         # Generate ephemeral keys for session
         self._private_key = rsa.generate_private_key(
-            public_exponent=65537, key_size=2048, backend=default_backend(),
+            public_exponent=65537,
+            key_size=2048,
+            backend=default_backend(),
         )
         self._public_key = self._private_key.public_key()
 
@@ -445,12 +461,15 @@ class TransportEncryption:
     def add_peer_key(self, agent_id: str, public_key_pem: str):
         """Add peer's public key for secure communication."""
         public_key = serialization.load_pem_public_key(
-            public_key_pem.encode(), backend=default_backend(),
+            public_key_pem.encode(),
+            backend=default_backend(),
         )
         self.peer_keys[agent_id] = public_key
 
     async def encrypt_message(
-        self, message: dict[str, Any], recipient_agent: str,
+        self,
+        message: dict[str, Any],
+        recipient_agent: str,
     ) -> dict[str, Any]:
         """Encrypt message for specific recipient agent."""
         if recipient_agent not in self.peer_keys:
@@ -471,7 +490,9 @@ class TransportEncryption:
         encrypted_key = recipient_public_key.encrypt(
             symmetric_key,
             padding.OAEP(
-                mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None,
+                mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None,
             ),
         )
 
@@ -489,7 +510,9 @@ class TransportEncryption:
         symmetric_key = self._private_key.decrypt(
             encrypted_key,
             padding.OAEP(
-                mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None,
+                mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None,
             ),
         )
 
@@ -558,7 +581,10 @@ class EncryptionService:
             for field_name, field_value in data.items():
                 if field_value and not field_name.startswith("_"):  # Skip private/system fields
                     encrypted_field = await self.field_encryption.encrypt_field(
-                        field_value, field_name, agent_id, classification,
+                        field_value,
+                        field_name,
+                        agent_id,
+                        classification,
                     )
                     encrypted_fields[f"encrypted_{field_name}"] = encrypted_field
                 else:
@@ -584,7 +610,9 @@ class EncryptionService:
         """
         if data_type == "memory":
             return await self.memory_encryption.decrypt_memory(
-                encrypted_data, requesting_agent, requesting_namespace,
+                encrypted_data,
+                requesting_agent,
+                requesting_namespace,
             )
         else:
             # Generic field-level decryption

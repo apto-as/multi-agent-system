@@ -12,14 +12,13 @@ Access level determines the MAXIMUM allowed TTL to prevent long-lived
 sensitive data exposure.
 """
 
-import pytest
-from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
-from uuid import uuid4
 
-from src.models.memory import AccessLevel, Memory
-from src.services.memory_service import HybridMemoryService
+import pytest
+
 from src.core.exceptions import ValidationError
+from src.models.memory import AccessLevel
+from src.services.memory_service import HybridMemoryService
 
 
 @pytest.fixture

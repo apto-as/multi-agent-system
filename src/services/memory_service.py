@@ -81,9 +81,7 @@ def _validate_ttl_days(ttl_days: int | None) -> None:
 
     # V-TTL-3: Type validation (prevent type confusion attacks)
     if not isinstance(ttl_days, int):
-        raise TypeError(
-            f"ttl_days must be an integer or None, got {type(ttl_days).__name__}"
-        )
+        raise TypeError(f"ttl_days must be an integer or None, got {type(ttl_days).__name__}")
 
     # V-TTL-2: Prevent zero/negative values (security bypass)
     if ttl_days < 1:
@@ -137,8 +135,8 @@ def _validate_access_level_ttl_limit(access_level: AccessLevel, ttl_days: int | 
     # Define maximum TTL for each access level
     ACCESS_LEVEL_TTL_LIMITS = {
         AccessLevel.PRIVATE: 365,  # 1 year
-        AccessLevel.TEAM: 180,     # 6 months
-        AccessLevel.PUBLIC: 90,    # 3 months (most restricted)
+        AccessLevel.TEAM: 180,  # 6 months
+        AccessLevel.PUBLIC: 90,  # 3 months (most restricted)
         AccessLevel.SYSTEM: None,  # Permanent only (no TTL allowed)
     }
 
@@ -213,6 +211,7 @@ class HybridMemoryService:
         if self._agent_service is None:
             # Avoid circular import by importing here
             from src.services.agent_service import AgentService
+
             self._agent_service = AgentService(self.session)
         return self._agent_service
 
@@ -303,9 +302,12 @@ class HybridMemoryService:
             except (ValueError, TypeError) as e:
                 # AUDIT LOG: TTL validation failed
                 validation_error = (
-                    "value_too_high" if "at most" in str(e)
-                    else "value_too_low" if "at least" in str(e)
-                    else "type_error" if isinstance(e, TypeError)
+                    "value_too_high"
+                    if "at most" in str(e)
+                    else "value_too_low"
+                    if "at least" in str(e)
+                    else "type_error"
+                    if isinstance(e, TypeError)
                     else "invalid_value"
                 )
                 logger.warning(
@@ -344,6 +346,7 @@ class HybridMemoryService:
             expires_at = None
             if ttl_days is not None:
                 from datetime import datetime, timedelta, timezone
+
                 expires_at = datetime.now(timezone.utc) + timedelta(days=ttl_days)
 
                 # AUDIT LOG: TTL set successfully
@@ -699,7 +702,7 @@ class HybridMemoryService:
             # ChromaDB stores UUIDs without hyphens, need to restore them
             def restore_uuid_hyphens(uuid_str: str) -> str:
                 """Restore hyphens to UUID (ChromaDB removes them). Format: 8-4-4-4-12"""
-                if len(uuid_str) == 32 and '-' not in uuid_str:
+                if len(uuid_str) == 32 and "-" not in uuid_str:
                     restored = f"{uuid_str[:8]}-{uuid_str[8:12]}-{uuid_str[12:16]}-{uuid_str[16:20]}-{uuid_str[20:]}"
                     logger.debug(f"🔧 Restored UUID: {uuid_str} → {restored}")
                     return restored
@@ -730,8 +733,12 @@ class HybridMemoryService:
                     "access_level": memory.access_level.value,
                     "shared_with_agents": memory.shared_with_agents,
                     "context": memory.context,
-                    "created_at": memory.created_at.isoformat() if hasattr(memory.created_at, "isoformat") else str(memory.created_at),
-                    "updated_at": memory.updated_at.isoformat() if hasattr(memory.updated_at, "isoformat") else str(memory.updated_at),
+                    "created_at": memory.created_at.isoformat()
+                    if hasattr(memory.created_at, "isoformat")
+                    else str(memory.created_at),
+                    "updated_at": memory.updated_at.isoformat()
+                    if hasattr(memory.updated_at, "isoformat")
+                    else str(memory.updated_at),
                     "similarity": similarity_map.get(str(memory.id), 0.0),
                 }
                 results.append(memory_dict)
@@ -1270,7 +1277,7 @@ class HybridMemoryService:
             )
 
         # Validate min_importance parameter
-        if not isinstance(min_importance, (int, float)):
+        if not isinstance(min_importance, int | float):
             log_and_raise(
                 ValidationError,
                 f"min_importance must be a number, got {type(min_importance).__name__}",
@@ -1348,7 +1355,7 @@ class HybridMemoryService:
                         "min_importance": min_importance,
                         "dry_run": dry_run,
                         "limit": limit,
-                    }
+                    },
                 },
                 agent_id=agent_id,
                 user_id=agent_id,
@@ -1359,14 +1366,18 @@ class HybridMemoryService:
 
         cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
 
-        query = select(Memory.id).where(
-            and_(
-                Memory.namespace == namespace,  # Verified namespace
-                Memory.created_at < cutoff_date,
-                Memory.importance_score < min_importance,
-                Memory.access_count == 0,  # Never accessed
-            ),
-        ).limit(limit)  # V-PRUNE-3: Rate limiting
+        query = (
+            select(Memory.id)
+            .where(
+                and_(
+                    Memory.namespace == namespace,  # Verified namespace
+                    Memory.created_at < cutoff_date,
+                    Memory.importance_score < min_importance,
+                    Memory.access_count == 0,  # Never accessed
+                ),
+            )
+            .limit(limit)
+        )  # V-PRUNE-3: Rate limiting
 
         result = await self.session.execute(query)
         memory_ids = [row[0] for row in result.all()]
@@ -1482,7 +1493,7 @@ class HybridMemoryService:
                         "namespace": namespace,
                         "deleted_count": deleted_count,
                         "dry_run": dry_run,
-                    }
+                    },
                 },
                 agent_id=agent_id,
             )
@@ -1628,7 +1639,7 @@ class HybridMemoryService:
                         "agent_id": agent_id,
                         "dry_run": dry_run,
                         "limit": limit,
-                    }
+                    },
                 },
                 agent_id=agent_id,
             )
@@ -1702,9 +1713,7 @@ class HybridMemoryService:
         if self.vector_service:
             try:
                 await self._ensure_initialized()
-                await self.vector_service.delete_memories_batch(
-                    [str(mid) for mid in memory_ids]
-                )
+                await self.vector_service.delete_memories_batch([str(mid) for mid in memory_ids])
             except (KeyboardInterrupt, SystemExit):
                 raise
             except ChromaOperationError as e:
@@ -1725,9 +1734,7 @@ class HybridMemoryService:
                 )
 
         # Delete from SQLite
-        result = await self.session.execute(
-            delete(Memory).where(Memory.id.in_(memory_ids))
-        )
+        result = await self.session.execute(delete(Memory).where(Memory.id.in_(memory_ids)))
         await self.session.commit()
 
         deleted_count = result.rowcount
@@ -1754,7 +1761,7 @@ class HybridMemoryService:
                         "namespace": namespace,
                         "deleted_count": deleted_count,
                         "deleted_ids": [str(mid) for mid in memory_ids[:10]],  # First 10 IDs
-                    }
+                    },
                 },
                 agent_id=agent_id,
             )
@@ -1840,7 +1847,9 @@ class HybridMemoryService:
         # STEP 2: Fetch memory and verify ownership
         from sqlalchemy import select
 
-        stmt = select(Memory).where(Memory.id == str(memory_id))  # Convert UUID to string for SQLite
+        stmt = select(Memory).where(
+            Memory.id == str(memory_id)
+        )  # Convert UUID to string for SQLite
         result = await self.session.execute(stmt)
         memory = result.scalar_one_or_none()
 
@@ -1886,7 +1895,7 @@ class HybridMemoryService:
                         "memory_id": str(memory_id),
                         "new_ttl_days": ttl_days,
                         "agent_id": agent_id,
-                    }
+                    },
                 },
                 agent_id=agent_id,
             )
@@ -1940,7 +1949,7 @@ class HybridMemoryService:
                         "previous_ttl_days": previous_ttl_days,
                         "new_ttl_days": ttl_days,
                         "new_expires_at": new_expires_at,
-                    }
+                    },
                 },
                 agent_id=agent_id,
             )

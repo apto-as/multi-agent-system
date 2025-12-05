@@ -35,7 +35,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.exceptions import log_and_raise
 from src.models.execution_trace import SkillSuggestion
-from src.models.skill import AccessLevel, Skill, SkillVersion
+from src.models.skill import AccessLevel, Skill
 
 if TYPE_CHECKING:
     from src.services.skill_service import SkillService
@@ -529,9 +529,7 @@ class ProactiveContextService:
         Returns:
             1024-dimensional embedding vector
         """
-        embedding = await asyncio.to_thread(
-            self.embedding_service.embed_text, text
-        )
+        embedding = await asyncio.to_thread(self.embedding_service.embed_text, text)
         return embedding
 
     async def _search_skills(
@@ -591,14 +589,12 @@ class ProactiveContextService:
         # Note: Skill.is_deleted is the only status field - there's no is_active
         # Skills with active_version >= 1 are considered "active"
         result = await self.session.execute(
-            select(Skill.id)
-            .where(
+            select(Skill.id).where(
                 and_(
                     Skill.is_deleted == False,  # noqa: E712 - Not deleted
                     Skill.active_version >= 1,  # Has at least one active version
                     # Access control: PUBLIC or same namespace
-                    (Skill.access_level == AccessLevel.PUBLIC)
-                    | (Skill.namespace == namespace),
+                    (Skill.access_level == AccessLevel.PUBLIC) | (Skill.namespace == namespace),
                 )
             )
         )
@@ -691,8 +687,7 @@ class ProactiveContextService:
         )
 
         result = await self.session.execute(
-            select(SkillSuggestion.skill_id)
-            .where(
+            select(SkillSuggestion.skill_id).where(
                 and_(
                     SkillSuggestion.namespace == namespace,
                     SkillSuggestion.agent_id == agent_id,
@@ -812,8 +807,7 @@ class ProactiveContextService:
                         else_=0,
                     )
                 ).label("unhelpful"),
-            )
-            .where(
+            ).where(
                 and_(
                     SkillSuggestion.namespace == namespace,
                     SkillSuggestion.created_at >= cutoff_date,
@@ -836,7 +830,9 @@ class ProactiveContextService:
             "unhelpful": unhelpful,
             "no_feedback": no_feedback,
             "activation_rate": activated / total if total > 0 else 0.0,
-            "helpfulness_rate": helpful / (helpful + unhelpful) if (helpful + unhelpful) > 0 else 0.0,
+            "helpfulness_rate": helpful / (helpful + unhelpful)
+            if (helpful + unhelpful) > 0
+            else 0.0,
         }
 
     async def _get_top_effective_skills(
@@ -874,9 +870,7 @@ class ProactiveContextService:
             )
             .group_by(SkillSuggestion.skill_id)
             .having(func.count(SkillSuggestion.id) >= 3)  # Minimum sample size
-            .order_by(
-                (helpful_sum / func.count(SkillSuggestion.id)).desc()
-            )
+            .order_by((helpful_sum / func.count(SkillSuggestion.id)).desc())
             .limit(limit)
         )
 
@@ -886,12 +880,14 @@ class ProactiveContextService:
             activated = row[2] or 0
             helpful = row[3] or 0
 
-            top_skills.append({
-                "skill_id": row[0],
-                "total_suggestions": total,
-                "activation_rate": activated / total if total > 0 else 0.0,
-                "helpfulness_rate": helpful / total if total > 0 else 0.0,
-            })
+            top_skills.append(
+                {
+                    "skill_id": row[0],
+                    "total_suggestions": total,
+                    "activation_rate": activated / total if total > 0 else 0.0,
+                    "helpfulness_rate": helpful / total if total > 0 else 0.0,
+                }
+            )
 
         return top_skills
 
@@ -928,9 +924,7 @@ class ProactiveContextService:
             )
             .group_by(SkillSuggestion.skill_id)
             .having(func.count(SkillSuggestion.id) >= 5)  # Minimum sample size
-            .order_by(
-                (activated_sum / func.count(SkillSuggestion.id)).asc()
-            )
+            .order_by((activated_sum / func.count(SkillSuggestion.id)).asc())
             .limit(limit)
         )
 
@@ -941,11 +935,13 @@ class ProactiveContextService:
             activation_rate = activated / total if total > 0 else 0.0
 
             if activation_rate < self.LOW_ACTIVATION_THRESHOLD:
-                low_skills.append({
-                    "skill_id": row[0],
-                    "total_suggestions": total,
-                    "activation_rate": activation_rate,
-                })
+                low_skills.append(
+                    {
+                        "skill_id": row[0],
+                        "total_suggestions": total,
+                        "activation_rate": activation_rate,
+                    }
+                )
 
         return low_skills
 
@@ -994,8 +990,7 @@ class ProactiveContextService:
 
         # High-performing skill recommendations
         if top_skills and any(
-            s["helpfulness_rate"] >= self.HIGH_EFFECTIVENESS_THRESHOLD
-            for s in top_skills
+            s["helpfulness_rate"] >= self.HIGH_EFFECTIVENESS_THRESHOLD for s in top_skills
         ):
             recommendations.append(
                 "Some skills show >80% helpfulness. Consider promoting them "

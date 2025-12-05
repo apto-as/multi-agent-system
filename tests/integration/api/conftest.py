@@ -14,16 +14,15 @@ Author: Artemis (Technical Perfectionist)
 Created: 2025-11-12 (Phase 1-3-D: Integration Tests)
 """
 
+from collections.abc import AsyncGenerator
 from datetime import datetime, timedelta, timezone
-from typing import AsyncGenerator
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
 import pytest_asyncio
 from fastapi import Request
 from fastapi.testclient import TestClient
-from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -34,7 +33,6 @@ from src.infrastructure.adapters.mcp_client_adapter import MCPClientAdapter
 from src.models.agent import Agent, AgentStatus
 from src.models.base import Base
 from src.security.jwt_service import jwt_service
-
 
 # ============================================================================
 # Database Fixtures (Real SQLite :memory: with StaticPool)
@@ -300,7 +298,9 @@ def test_client(
                 namespace=test_agent.namespace,
                 roles=["user"],
             )
-            print(f"[TEST-AUTH] No auth header, using test_agent: {user.agent_id}, namespace={user.namespace}")
+            print(
+                f"[TEST-AUTH] No auth header, using test_agent: {user.agent_id}, namespace={user.namespace}"
+            )
             return user
 
         token = auth_header.split(" ")[1]
@@ -322,7 +322,9 @@ def test_client(
                 namespace=test_agent.namespace,
                 roles=["user"],
             )
-            print(f"[TEST-AUTH] JWT decode failed ({e}), using test_agent: {user.agent_id}, namespace={user.namespace}")
+            print(
+                f"[TEST-AUTH] JWT decode failed ({e}), using test_agent: {user.agent_id}, namespace={user.namespace}"
+            )
             return user
 
     # Apply dependency overrides

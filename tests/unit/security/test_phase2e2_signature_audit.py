@@ -38,12 +38,11 @@ import re
 import statistics
 import time
 from datetime import datetime, timedelta, timezone
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 
 from src.services.license_service import LicenseService, TierEnum
-
 
 # ============================================================================
 # ATTACK VECTOR 1: Database Tampering Attack
@@ -81,9 +80,7 @@ async def test_database_tampering_has_zero_effect():
     # Create signature data
     signature_data = f"{tier.value}:{license_id}:{expiry_str}"
     signature = hmac.new(
-        service.secret_key.encode(),
-        signature_data.encode(),
-        hashlib.sha256
+        service.secret_key.encode(), signature_data.encode(), hashlib.sha256
     ).hexdigest()[:16]
 
     # Assemble expired license key
@@ -146,8 +143,7 @@ async def test_license_forgery_attack_blocked():
 
     # CRITICAL ASSERTION: Forged license must be rejected
     assert result.valid is False, (
-        "CRITICAL: License forgery attack succeeded! "
-        "Forged signature was accepted."
+        "CRITICAL: License forgery attack succeeded! Forged signature was accepted."
     )
     assert "signature" in result.error_message.lower(), (
         f"Error should mention signature, got: {result.error_message}"
@@ -188,9 +184,7 @@ async def test_tier_upgrade_attack_blocked():
     # Create correct signature for PRO tier
     signature_data = f"{pro_tier.value}:{pro_uuid}:{expiry_str}"
     correct_signature = hmac.new(
-        service.secret_key.encode(),
-        signature_data.encode(),
-        hashlib.sha256
+        service.secret_key.encode(), signature_data.encode(), hashlib.sha256
     ).hexdigest()[:16]
 
     # Create valid PRO license
@@ -212,7 +206,9 @@ async def test_tier_upgrade_attack_blocked():
         "CRITICAL: Tier upgrade attack succeeded! "
         "PRO license upgraded to ENTERPRISE without signature verification."
     )
-    assert "signature" in result.error_message.lower() or "tampering" in result.error_message.lower()
+    assert (
+        "signature" in result.error_message.lower() or "tampering" in result.error_message.lower()
+    )
 
     print("✅ Attack Vector 3 BLOCKED: Tier upgrade prevented by signature verification")
 
@@ -249,13 +245,10 @@ async def test_expiry_extension_attack_blocked():
     # Create correct signature for original expiry
     signature_data = f"{tier.value}:{license_id}:{original_expiry}"
     correct_signature = hmac.new(
-        service.secret_key.encode(),
-        signature_data.encode(),
-        hashlib.sha256
+        service.secret_key.encode(), signature_data.encode(), hashlib.sha256
     ).hexdigest()[:16]
 
     # Create valid license with original expiry
-    original_key = f"TMWS-{tier.value}-{license_id}-{original_expiry}-{correct_signature}"
 
     # ATTACK: Change expiry to 2099 (keep same UUID, tier, signature)
     extended_expiry = "20991231"
@@ -269,7 +262,9 @@ async def test_expiry_extension_attack_blocked():
         "CRITICAL: Expiry extension attack succeeded! "
         "License expiry extended without signature verification."
     )
-    assert "signature" in result.error_message.lower() or "tampering" in result.error_message.lower()
+    assert (
+        "signature" in result.error_message.lower() or "tampering" in result.error_message.lower()
+    )
 
     print("✅ Attack Vector 4 BLOCKED: Expiry extension prevented by signature verification")
 
@@ -338,11 +333,13 @@ async def test_timing_attack_resistance():
     assert variation < 0.10, (
         f"CRITICAL: Timing attack vulnerability detected! "
         f"Timing variation {variation:.2%} exceeds 10% threshold. "
-        f"avg1={avg1*1000:.3f}ms, avg2={avg2*1000:.3f}ms. "
+        f"avg1={avg1 * 1000:.3f}ms, avg2={avg2 * 1000:.3f}ms. "
         f"hmac.compare_digest() may not be used for signature comparison."
     )
 
-    print(f"✅ Attack Vector 5 BLOCKED: Timing attack resistance confirmed (variation: {variation:.2%})")
+    print(
+        f"✅ Attack Vector 5 BLOCKED: Timing attack resistance confirmed (variation: {variation:.2%})"
+    )
 
 
 # ============================================================================
@@ -376,15 +373,11 @@ async def test_hmac_sha256_signature_generation():
     # Generate signature twice
     signature_data = f"{tier.value}:{license_id}:{expiry_str}"
     sig1 = hmac.new(
-        service.secret_key.encode(),
-        signature_data.encode(),
-        hashlib.sha256
+        service.secret_key.encode(), signature_data.encode(), hashlib.sha256
     ).hexdigest()[:16]
 
     sig2 = hmac.new(
-        service.secret_key.encode(),
-        signature_data.encode(),
-        hashlib.sha256
+        service.secret_key.encode(), signature_data.encode(), hashlib.sha256
     ).hexdigest()[:16]
 
     # Signatures must be identical (deterministic)
@@ -392,14 +385,12 @@ async def test_hmac_sha256_signature_generation():
 
     # Signature must be 16 hex characters
     assert len(sig1) == 16, f"Signature length should be 16, got {len(sig1)}"
-    assert re.match(r'^[0-9a-f]{16}$', sig1), f"Signature should be 16 hex chars, got: {sig1}"
+    assert re.match(r"^[0-9a-f]{16}$", sig1), f"Signature should be 16 hex chars, got: {sig1}"
 
     # Signature must change if any input changes
     different_tier_data = f"{TierEnum.PRO.value}:{license_id}:{expiry_str}"
     different_sig = hmac.new(
-        service.secret_key.encode(),
-        different_tier_data.encode(),
-        hashlib.sha256
+        service.secret_key.encode(), different_tier_data.encode(), hashlib.sha256
     ).hexdigest()[:16]
 
     assert sig1 != different_sig, "Signature must change when tier changes"
@@ -422,6 +413,7 @@ async def test_constant_time_comparison_implementation():
     - Runtime test: Verify timing consistency
     """
     import inspect
+
     from src.services.license_service import LicenseService
 
     # Read validate_license_key source code
@@ -434,10 +426,10 @@ async def test_constant_time_comparison_implementation():
     )
 
     # Verify it's used for signature comparison (not just present in code)
-    assert "compare_digest(signature_provided, expected_signature)" in source or \
-           "compare_digest(expected_signature, signature_provided)" in source, (
-        "hmac.compare_digest() found but not used for signature comparison"
-    )
+    assert (
+        "compare_digest(signature_provided, expected_signature)" in source
+        or "compare_digest(expected_signature, signature_provided)" in source
+    ), "hmac.compare_digest() found but not used for signature comparison"
 
     print("✅ Constant-time comparison (hmac.compare_digest) confirmed in code")
 
@@ -467,9 +459,7 @@ async def test_signature_entropy_sufficient():
 
         signature_data = f"{tier.value}:{license_id}:{expiry_str}"
         signature = hmac.new(
-            service.secret_key.encode(),
-            signature_data.encode(),
-            hashlib.sha256
+            service.secret_key.encode(), signature_data.encode(), hashlib.sha256
         ).hexdigest()[:16]
 
         signatures.add(signature)
@@ -512,9 +502,7 @@ async def test_validation_without_database():
 
     signature_data = f"{tier.value}:{license_id}:{expiry_str}"
     signature = hmac.new(
-        service.secret_key.encode(),
-        signature_data.encode(),
-        hashlib.sha256
+        service.secret_key.encode(), signature_data.encode(), hashlib.sha256
     ).hexdigest()[:16]
 
     valid_key = f"TMWS-{tier.value}-{license_id}-{expiry_str}-{signature}"
@@ -524,8 +512,7 @@ async def test_validation_without_database():
 
     # CRITICAL ASSERTION: Validation must succeed without database
     assert result.valid is True, (
-        "CRITICAL: Validation requires database! "
-        "Signature-only validation should work offline."
+        "CRITICAL: Validation requires database! Signature-only validation should work offline."
     )
     assert result.tier == TierEnum.ENTERPRISE
     assert result.license_id == license_id
@@ -547,34 +534,41 @@ def test_code_review_no_database_queries():
     - Only Phase 7 (usage tracking) should have database access
     """
     import inspect
+
     from src.services.license_service import LicenseService
 
     source = inspect.getsource(LicenseService.validate_license_key)
 
     # Split into phases
-    lines = source.split('\n')
+    lines = source.split("\n")
     validation_lines = []
     in_validation_phase = False
 
     for line in lines:
-        if 'Phase 1:' in line or 'Phase 2:' in line or 'Phase 3:' in line or \
-           'Phase 4:' in line or 'Phase 5:' in line or 'Phase 6:' in line:
+        if (
+            "Phase 1:" in line
+            or "Phase 2:" in line
+            or "Phase 3:" in line
+            or "Phase 4:" in line
+            or "Phase 5:" in line
+            or "Phase 6:" in line
+        ):
             in_validation_phase = True
-        elif 'Phase 7:' in line or 'Phase 8:' in line:
+        elif "Phase 7:" in line or "Phase 8:" in line:
             in_validation_phase = False
 
         if in_validation_phase:
             validation_lines.append(line)
 
-    validation_code = '\n'.join(validation_lines)
+    validation_code = "\n".join(validation_lines)
 
     # CRITICAL ASSERTION: No database queries in validation phases 1-6
     dangerous_patterns = [
-        r'select\(',
-        r'\.query\(',
-        r'\.execute\(',
-        r'self\.db_session',
-        r'await.*db',
+        r"select\(",
+        r"\.query\(",
+        r"\.execute\(",
+        r"self\.db_session",
+        r"await.*db",
     ]
 
     for pattern in dangerous_patterns:
@@ -615,9 +609,7 @@ async def test_validation_performance():
 
     signature_data = f"{tier.value}:{license_id}:{expiry_str}"
     signature = hmac.new(
-        service.secret_key.encode(),
-        signature_data.encode(),
-        hashlib.sha256
+        service.secret_key.encode(), signature_data.encode(), hashlib.sha256
     ).hexdigest()[:16]
 
     valid_key = f"TMWS-{tier.value}-{license_id}-{expiry_str}-{signature}"
@@ -636,8 +628,7 @@ async def test_validation_performance():
 
     # PERFORMANCE ASSERTION: P95 < 5ms
     assert p95 < 5.0, (
-        f"Validation performance degraded! "
-        f"P95 latency {p95:.2f}ms exceeds 5ms target."
+        f"Validation performance degraded! P95 latency {p95:.2f}ms exceeds 5ms target."
     )
 
     print(f"✅ Performance target met: P95 latency = {p95:.2f}ms (target: <5ms)")
@@ -671,11 +662,11 @@ async def test_resource_exhaustion_prevention():
     assert result.valid is False, "Malicious input should be rejected"
     assert duration < 0.1, (
         f"Resource exhaustion risk! "
-        f"Processing took {duration*1000:.1f}ms (should be <100ms). "
+        f"Processing took {duration * 1000:.1f}ms (should be <100ms). "
         f"Input length: {len(huge_key)}"
     )
 
-    print(f"✅ Resource exhaustion prevented (rejected in {duration*1000:.1f}ms)")
+    print(f"✅ Resource exhaustion prevented (rejected in {duration * 1000:.1f}ms)")
 
 
 # ============================================================================
@@ -685,16 +676,19 @@ async def test_resource_exhaustion_prevention():
 
 @pytest.mark.security
 @pytest.mark.asyncio
-@pytest.mark.parametrize("malformed_input,description", [
-    ("", "empty string"),
-    ("TMWS", "missing components"),
-    ("TMWS-PRO", "missing UUID and signature"),
-    ("TMWS-PRO-invalid-uuid-PERPETUAL-abc", "invalid UUID format"),
-    ("TMWS-INVALID-550e8400-e29b-41d4-a716-446655440000-PERPETUAL-abc", "invalid tier"),
-    ("\x00" * 100, "null bytes"),
-    ("TMWS-PRO-" + ("\uffff" * 50), "unicode characters"),
-    ("TMWS-PRO-550e8400-e29b-41d4-a716-446655440000-99999999-abc", "invalid expiry date"),
-])
+@pytest.mark.parametrize(
+    "malformed_input,description",
+    [
+        ("", "empty string"),
+        ("TMWS", "missing components"),
+        ("TMWS-PRO", "missing UUID and signature"),
+        ("TMWS-PRO-invalid-uuid-PERPETUAL-abc", "invalid UUID format"),
+        ("TMWS-INVALID-550e8400-e29b-41d4-a716-446655440000-PERPETUAL-abc", "invalid tier"),
+        ("\x00" * 100, "null bytes"),
+        ("TMWS-PRO-" + ("\uffff" * 50), "unicode characters"),
+        ("TMWS-PRO-550e8400-e29b-41d4-a716-446655440000-99999999-abc", "invalid expiry date"),
+    ],
+)
 async def test_malformed_input_handling(malformed_input, description):
     """
     Test graceful handling of malformed input.
@@ -711,9 +705,7 @@ async def test_malformed_input_handling(malformed_input, description):
         result = await service.validate_license_key(malformed_input)
 
         # Must reject malformed input
-        assert result.valid is False, (
-            f"Malformed input accepted: {description}"
-        )
+        assert result.valid is False, f"Malformed input accepted: {description}"
 
         # Must have error message
         assert result.error_message is not None

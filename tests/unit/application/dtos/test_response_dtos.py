@@ -5,16 +5,17 @@ This module tests Response DTO mapping and serialization logic.
 Tests follow TDD RED phase methodology - expecting failures until implementation exists.
 """
 
-import pytest
 from datetime import datetime
-from uuid import uuid4
 from unittest.mock import MagicMock
+from uuid import uuid4
+
+import pytest
 
 from src.application.dtos.response_dtos import (
+    DisconnectionResultDTO,
     MCPConnectionDTO,
     ToolDTO,
     ToolExecutionResultDTO,
-    DisconnectionResultDTO,
 )
 
 
@@ -117,24 +118,24 @@ class TestMCPConnectionDTO:
         result = dto.to_dict()
 
         # Assert - UUID fields as strings
-        assert isinstance(result['id'], str)
-        assert isinstance(result['agent_id'], str)
+        assert isinstance(result["id"], str)
+        assert isinstance(result["agent_id"], str)
 
         # Assert - Datetime fields as ISO format strings
-        assert isinstance(result['created_at'], str)
-        assert result['created_at'] == "2024-01-01T12:00:00"
-        assert isinstance(result['connected_at'], str)
-        assert result['connected_at'] == "2024-01-01T12:00:05"
-        assert result['disconnected_at'] is None
+        assert isinstance(result["created_at"], str)
+        assert result["created_at"] == "2024-01-01T12:00:00"
+        assert isinstance(result["connected_at"], str)
+        assert result["connected_at"] == "2024-01-01T12:00:05"
+        assert result["disconnected_at"] is None
 
         # Assert - Status as string
-        assert result['status'] == "ACTIVE"
+        assert result["status"] == "ACTIVE"
 
         # Assert - Tools as list of dicts
-        assert isinstance(result['tools'], list)
-        assert len(result['tools']) == 1
-        assert isinstance(result['tools'][0], dict)
-        assert result['tools'][0]['name'] == "test_tool"
+        assert isinstance(result["tools"], list)
+        assert len(result["tools"]) == 1
+        assert isinstance(result["tools"][0], dict)
+        assert result["tools"][0]["name"] == "test_tool"
 
 
 class TestToolDTO:
@@ -196,10 +197,10 @@ class TestToolDTO:
 
         # Assert
         assert isinstance(result, dict)
-        assert result['name'] == "test_tool"
-        assert result['description'] == "Test Tool"
-        assert result['category'] == "general"
-        assert isinstance(result['input_schema'], dict)
+        assert result["name"] == "test_tool"
+        assert result["description"] == "Test Tool"
+        assert result["category"] == "general"
+        assert isinstance(result["input_schema"], dict)
 
 
 class TestToolExecutionResultDTO:
@@ -232,10 +233,10 @@ class TestToolExecutionResultDTO:
         result = dto.to_dict()
 
         # Assert
-        assert isinstance(result['connection_id'], str)
-        assert result['connection_id'] == str(connection_id)
-        assert result['tool_name'] == "test_tool"
-        assert result['result'] == {"output": "success", "data": [1, 2, 3]}
+        assert isinstance(result["connection_id"], str)
+        assert result["connection_id"] == str(connection_id)
+        assert result["tool_name"] == "test_tool"
+        assert result["result"] == {"output": "success", "data": [1, 2, 3]}
 
 
 class TestDisconnectionResultDTO:
@@ -270,8 +271,8 @@ class TestDisconnectionResultDTO:
         result = dto.to_dict()
 
         # Assert
-        assert isinstance(result['connection_id'], str)
-        assert result['connection_id'] == str(connection_id)
-        assert result['server_name'] == "test_server"
-        assert isinstance(result['disconnected_at'], str)
-        assert result['disconnected_at'] == "2024-01-01T12:30:00"
+        assert isinstance(result["connection_id"], str)
+        assert result["connection_id"] == str(connection_id)
+        assert result["server_name"] == "test_server"
+        assert isinstance(result["disconnected_at"], str)
+        assert result["disconnected_at"] == "2024-01-01T12:30:00"

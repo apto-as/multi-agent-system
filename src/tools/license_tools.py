@@ -189,14 +189,10 @@ async def validate_license_key(
         "valid": validation_result.valid,
         "tier": validation_result.tier.value if validation_result.tier else None,
         "expires_at": (
-            validation_result.expires_at.isoformat()
-            if validation_result.expires_at
-            else None
+            validation_result.expires_at.isoformat() if validation_result.expires_at else None
         ),
         "is_perpetual": validation_result.expires_at is None,
-        "agent_id": (
-            str(validation_result.license_id) if validation_result.license_id else None
-        ),
+        "agent_id": (str(validation_result.license_id) if validation_result.license_id else None),
         "error": validation_result.error_message,
     }
 
@@ -328,9 +324,7 @@ async def get_license_usage_history(
 
     # 2. Call LicenseService.get_license_usage_history()
     service = LicenseService(db_session=db_session)
-    usage_records = await service.get_license_usage_history(
-        license_id=license_id, limit=limit
-    )
+    usage_records = await service.get_license_usage_history(license_id=license_id, limit=limit)
 
     # 3. Format response
     return [
@@ -412,5 +406,7 @@ async def get_license_info(
         "expires_at": db_license.expires_at.isoformat() if db_license.expires_at else None,
         "is_active": db_license.is_active,
         "revoked_at": db_license.revoked_at.isoformat() if db_license.revoked_at else None,
-        "revoked_reason": db_license.revoked_reason if hasattr(db_license, "revoked_reason") else None,
+        "revoked_reason": db_license.revoked_reason
+        if hasattr(db_license, "revoked_reason")
+        else None,
     }

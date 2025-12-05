@@ -64,9 +64,7 @@ class SQLAlchemyUnitOfWork(UnitOfWork):
 
         # Initialize repositories with the session
         self.agent_repository = SQLAlchemyAgentRepository(self._session)
-        self.mcp_connection_repository = SQLAlchemyMCPConnectionRepository(
-            self._session
-        )
+        self.mcp_connection_repository = SQLAlchemyMCPConnectionRepository(self._session)
 
         return self
 

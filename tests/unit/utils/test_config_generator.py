@@ -4,7 +4,6 @@ v2.4.5: OpenCode MCP config generation tests.
 """
 
 import json
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -344,7 +343,7 @@ class TestConfigGeneratorSecurity:
 
     def test_atomic_write_cleans_up_on_failure(self, tmp_path):
         """Test temp file is cleaned up on write failure."""
-        from unittest.mock import patch, mock_open
+        from unittest.mock import patch
 
         output_path = tmp_path / "config.json"
 
@@ -430,18 +429,19 @@ class TestR2CommandWhitelist:
     def test_valid_default_command(self):
         """Test that default command 'uv' is valid."""
         from src.utils.config_generator import validate_command
+
         assert validate_command("uv", strict=True) is True
 
     def test_valid_commands_whitelist(self):
         """Test all whitelisted commands are valid."""
-        from src.utils.config_generator import validate_command, ALLOWED_COMMANDS
+        from src.utils.config_generator import ALLOWED_COMMANDS, validate_command
 
         for cmd in ALLOWED_COMMANDS:
             assert validate_command(cmd, strict=True) is True
 
     def test_invalid_command_raises_error(self):
         """Test that non-whitelisted command raises error in strict mode."""
-        from src.utils.config_generator import validate_command, CommandValidationError
+        from src.utils.config_generator import CommandValidationError, validate_command
 
         with pytest.raises(CommandValidationError) as exc_info:
             validate_command("unknown_command", strict=True)
@@ -449,7 +449,7 @@ class TestR2CommandWhitelist:
 
     def test_dangerous_command_blocked(self):
         """Test that dangerous commands are always blocked."""
-        from src.utils.config_generator import validate_command, CommandValidationError
+        from src.utils.config_generator import CommandValidationError, validate_command
 
         dangerous = ["rm", "sudo", "bash", "sh", "eval", "curl", "wget"]
         for cmd in dangerous:
@@ -460,12 +460,13 @@ class TestR2CommandWhitelist:
     def test_command_with_path_is_normalized(self):
         """Test that commands with paths are normalized."""
         from src.utils.config_generator import validate_command
+
         # /usr/bin/python should normalize to 'python'
         assert validate_command("/usr/bin/python", strict=True) is True
 
     def test_empty_command_raises_error(self):
         """Test that empty command raises error."""
-        from src.utils.config_generator import validate_command, CommandValidationError
+        from src.utils.config_generator import CommandValidationError, validate_command
 
         with pytest.raises(CommandValidationError):
             validate_command("", strict=True)
@@ -475,7 +476,7 @@ class TestR2CommandWhitelist:
 
     def test_mcp_server_config_validates_command(self):
         """Test that MCPServerConfig validates command on creation."""
-        from src.utils.config_generator import MCPServerConfig, CommandValidationError
+        from src.utils.config_generator import CommandValidationError, MCPServerConfig
 
         # Valid command should work
         config = MCPServerConfig(command="uv")
@@ -487,7 +488,7 @@ class TestR2CommandWhitelist:
 
     def test_mcp_server_config_sanitizes_args(self):
         """Test that MCPServerConfig sanitizes arguments."""
-        from src.utils.config_generator import MCPServerConfig, CommandValidationError
+        from src.utils.config_generator import CommandValidationError, MCPServerConfig
 
         # Valid args should work
         config = MCPServerConfig(args=["run", "tmws-mcp-server"])
@@ -499,7 +500,7 @@ class TestR2CommandWhitelist:
 
     def test_shell_injection_patterns_blocked(self):
         """Test that shell injection patterns are blocked in args."""
-        from src.utils.config_generator import MCPServerConfig, CommandValidationError
+        from src.utils.config_generator import CommandValidationError, MCPServerConfig
 
         dangerous_args = [
             "arg; rm -rf /",
@@ -535,10 +536,7 @@ class TestR2CommandWhitelist:
         from src.utils.config_generator import MCPServerConfig
 
         # Non-strict mode allows unknown commands
-        config = MCPServerConfig(
-            command="custom_tool",
-            validate_command_strict=False
-        )
+        config = MCPServerConfig(command="custom_tool", validate_command_strict=False)
         assert config.command == "custom_tool"
 
     def test_dangerous_commands_list_comprehensive(self):

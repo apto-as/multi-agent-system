@@ -9,6 +9,7 @@ MCP Server providing Trinitas agents with:
 
 Architecture: SQLite + ChromaDB
 """
+
 from importlib.metadata import version as get_version
 
 try:
@@ -182,9 +183,12 @@ class HybridMCPServer:
 
             # Validate namespace (rejects 'default')
             from src.utils.namespace import validate_namespace
+
             validate_namespace(namespace)
 
-            return await self.store_memory_hybrid(content, importance_score, tags, namespace, context)
+            return await self.store_memory_hybrid(
+                content, importance_score, tags, namespace, context
+            )
 
         @self.mcp.tool(
             name="search_memories",
@@ -210,6 +214,7 @@ class HybridMCPServer:
 
             # Validate namespace (rejects 'default')
             from src.utils.namespace import validate_namespace
+
             validate_namespace(namespace)
 
             return await self.search_memories_hybrid(query, limit, min_similarity, namespace, tags)
@@ -224,7 +229,9 @@ class HybridMCPServer:
             due_date: str = None,
         ) -> dict:
             """Create coordinated task."""
-            return await self._create_task(title, description, priority, assigned_agent_id, estimated_duration, due_date)
+            return await self._create_task(
+                title, description, priority, assigned_agent_id, estimated_duration, due_date
+            )
 
         @self.mcp.tool(name="get_agent_status", description="Get status of connected agents")
         async def get_agent_status() -> dict:
@@ -248,7 +255,7 @@ class HybridMCPServer:
 
         @self.mcp.tool(
             name="list_mcp_servers",
-            description="List available MCP servers from presets and their connection status"
+            description="List available MCP servers from presets and their connection status",
         )
         async def list_mcp_servers() -> dict:
             """List all MCP servers defined in presets with their current status.
@@ -275,15 +282,17 @@ class HybridMCPServer:
                             is_connected = conn.is_connected
                             tool_count = len(conn.tools)
 
-                    servers.append({
-                        "name": name,
-                        "transport_type": preset.transport_type.value,
-                        "auto_connect": preset.auto_connect,
-                        "is_connected": is_connected,
-                        "tool_count": tool_count,
-                        "command": preset.command if preset.command else None,
-                        "url": preset.url if preset.url else None,
-                    })
+                    servers.append(
+                        {
+                            "name": name,
+                            "transport_type": preset.transport_type.value,
+                            "auto_connect": preset.auto_connect,
+                            "is_connected": is_connected,
+                            "tool_count": tool_count,
+                            "command": preset.command if preset.command else None,
+                            "url": preset.url if preset.url else None,
+                        }
+                    )
 
                 return {
                     "status": "success",
@@ -299,8 +308,7 @@ class HybridMCPServer:
                 }
 
         @self.mcp.tool(
-            name="connect_mcp_server",
-            description="Connect to a preset MCP server by name"
+            name="connect_mcp_server", description="Connect to a preset MCP server by name"
         )
         async def connect_mcp_server(server_name: str) -> dict:
             """Connect to an MCP server defined in presets.
@@ -320,6 +328,7 @@ class HybridMCPServer:
                 # Ensure manager is initialized
                 if not self.external_mcp_manager:
                     from src.infrastructure.mcp import MCPManager
+
                     self.external_mcp_manager = MCPManager()
 
                 # Check if already connected
@@ -346,15 +355,14 @@ class HybridMCPServer:
 
                 # Security check: Enforce maximum connections (prevent resource exhaustion)
                 MAX_CONNECTIONS = 10
-                current_connections = len([
-                    c for c in self.external_mcp_manager.connections.values()
-                    if c.is_connected
-                ])
+                current_connections = len(
+                    [c for c in self.external_mcp_manager.connections.values() if c.is_connected]
+                )
                 if current_connections >= MAX_CONNECTIONS:
                     return {
                         "status": "error",
                         "error": f"Max connections ({MAX_CONNECTIONS}) reached. "
-                                 f"Disconnect a server first.",
+                        f"Disconnect a server first.",
                         "current_connections": current_connections,
                     }
 
@@ -378,10 +386,7 @@ class HybridMCPServer:
                     "error": str(e),
                 }
 
-        @self.mcp.tool(
-            name="disconnect_mcp_server",
-            description="Disconnect from an MCP server"
-        )
+        @self.mcp.tool(name="disconnect_mcp_server", description="Disconnect from an MCP server")
         async def disconnect_mcp_server(server_name: str) -> dict:
             """Disconnect from an MCP server.
 
@@ -422,8 +427,7 @@ class HybridMCPServer:
                 }
 
         @self.mcp.tool(
-            name="get_mcp_status",
-            description="Get current status of all MCP server connections"
+            name="get_mcp_status", description="Get current status of all MCP server connections"
         )
         async def get_mcp_status() -> dict:
             """Get status of all connected MCP servers.
@@ -467,6 +471,7 @@ class HybridMCPServer:
         try:
             # Detect namespace once at startup (cache for all subsequent operations)
             from src.utils.namespace import detect_project_namespace
+
             self.default_namespace = await detect_project_namespace()
             logger.info(f"🔖 Default namespace detected: {self.default_namespace}")
 
@@ -482,63 +487,86 @@ class HybridMCPServer:
                 scheduler=None,  # Scheduler will be created by start_scheduler tool
             )
             await expiration_tools.register_tools(self.mcp, get_session)
-            logger.info("Expiration tools registered (10 secure MCP tools, scheduler not auto-started)")
+            logger.info(
+                "Expiration tools registered (10 secure MCP tools, scheduler not auto-started)"
+            )
 
             # Register verification tools (v2.3.0+ agent trust system)
             from src.tools.verification_tools import register_verification_tools
+
             await register_verification_tools(self.mcp)
-            logger.info("Verification tools registered (5 MCP tools for agent trust & verification)")
+            logger.info(
+                "Verification tools registered (5 MCP tools for agent trust & verification)"
+            )
 
             # Register skill tools (v2.4.7+ MCP-first architecture)
             from src.tools.skill_tools import SkillTools
+
             skill_tools = SkillTools()
             await skill_tools.register_tools(self.mcp, get_session)
             logger.info("Skill tools registered (8 MCP tools for skill lifecycle management)")
 
             # Register agent tools (v2.4.7+ MCP-first architecture)
             from src.tools.agent_tools import AgentTools
+
             agent_tools = AgentTools()
             await agent_tools.register_tools(self.mcp, get_session)
             logger.info("Agent tools registered (9 MCP tools for agent management)")
 
             # Register routing tools (v2.4.8+ Orchestration Layer)
             from src.tools.routing_tools import RoutingTools
+
             routing_tools = RoutingTools()
             await routing_tools.register_tools(self.mcp)
             logger.info("Routing tools registered (5 MCP tools for intelligent task routing)")
 
             # Register communication tools (v2.4.8+ Orchestration Layer)
             from src.tools.communication_tools import CommunicationTools
+
             communication_tools = CommunicationTools()
             await communication_tools.register_tools(self.mcp)
             logger.info("Communication tools registered (8 MCP tools for inter-agent messaging)")
 
             # Register orchestration tools (v2.4.8+ Orchestration Layer)
             from src.tools.orchestration_tools import OrchestrationTools
+
             orchestration_tools = OrchestrationTools()
             await orchestration_tools.register_tools(self.mcp)
             logger.info("Orchestration tools registered (7 MCP tools for phase-based execution)")
 
             # Register learning tools (v2.4.12+ Autonomous Learning System)
             from src.tools.learning_tools import LearningTools
+
             learning_tools = LearningTools()
             await learning_tools.register_tools(self.mcp)
-            logger.info("Learning tools registered (6 MCP tools for pattern learning, evolution & chain execution)")
+            logger.info(
+                "Learning tools registered (6 MCP tools for pattern learning, evolution & chain execution)"
+            )
 
             # Register pattern-skill tools (v2.4.12+ Pattern to Skill Auto-Generation)
             from src.tools.pattern_skill_tools import PatternSkillTools
+
             pattern_skill_tools = PatternSkillTools()
             await pattern_skill_tools.register_tools(self.mcp, get_session)
-            logger.info("Pattern-skill tools registered (4 MCP tools for pattern-to-skill promotion)")
+            logger.info(
+                "Pattern-skill tools registered (4 MCP tools for pattern-to-skill promotion)"
+            )
 
             # Register tool search tools (v2.5.0+ Tool Search + MCP Hub)
             from src.tools import tool_search_tools
+
             await tool_search_tools.register_tools(
                 self.mcp,
                 embedding_service=self.embedding_service,
                 persist_directory=str(Path(self.settings.data_dir) / "chromadb"),
             )
             logger.info("Tool search tools registered (2 MCP tools for semantic tool discovery)")
+
+            # Register MCP Hub management tools (v2.5.0+ Tool Search + MCP Hub Phase 3)
+            from src.tools import mcp_hub_tools
+
+            await mcp_hub_tools.register_tools(self.mcp)
+            logger.info("MCP Hub tools registered (5 MCP tools for server connection management)")
 
             # Phase 3: Trinitas Agent File Loading (v2.4.0+, license-gated, OPTIONAL)
             # This phase generates agent markdown files for Claude Desktop
@@ -555,7 +583,7 @@ class HybridMCPServer:
                         # Create TrinitasLoader instance
                         trinitas_loader = TrinitasLoader(
                             license_service=license_service,
-                            memory_service=None  # v2.4.0: Uses bundled files, DB in v2.4.1
+                            memory_service=None,  # v2.4.0: Uses bundled files, DB in v2.4.1
                         )
 
                         # Load Trinitas agents with license gating
@@ -593,7 +621,9 @@ class HybridMCPServer:
                 except Exception as e:
                     # Non-critical error: Trinitas file loading is optional feature
                     logger.warning(f"Trinitas agent file loading failed (non-critical): {e}")
-                    logger.info("TMWS will continue without agent files (database registration will still work)")
+                    logger.info(
+                        "TMWS will continue without agent files (database registration will still work)"
+                    )
 
                 # Phase 4: Trinitas Agent Auto-Registration (v2.4.0+, INDEPENDENT)
                 # This phase registers agents to database (NOT dependent on file loading)
@@ -621,6 +651,7 @@ class HybridMCPServer:
 
                         # Check if tier is sufficient (PRO/ENTERPRISE)
                         from src.services.license_service import TierEnum
+
                         if validation_result.tier == TierEnum.FREE:
                             logger.warning(
                                 "Trinitas agent registration requires PRO+ license. "
@@ -675,7 +706,9 @@ class HybridMCPServer:
                                     existing_agent = result.scalar_one_or_none()
 
                                     if existing_agent:
-                                        logger.debug(f"Agent {agent_id} already registered, skipping")
+                                        logger.debug(
+                                            f"Agent {agent_id} already registered, skipping"
+                                        )
                                         skipped_count += 1
                                         continue
 
@@ -707,7 +740,7 @@ class HybridMCPServer:
                                     logger.warning(
                                         f"Failed to register agent {agent_id}: {e}",
                                         exc_info=True,
-                                        extra={"agent_id": agent_id}
+                                        extra={"agent_id": agent_id},
                                     )
 
                             logger.info(
@@ -722,7 +755,7 @@ class HybridMCPServer:
                     logger.error(
                         f"Trinitas Agent Auto-Registration failed: {e}",
                         exc_info=True,
-                        extra={"phase": "agent_auto_registration"}
+                        extra={"phase": "agent_auto_registration"},
                     )
                     logger.warning("TMWS will continue without Trinitas agent registration")
 
@@ -920,7 +953,13 @@ class HybridMCPServer:
             return {"error": str(e), "results": [], "count": 0, "error_type": "UnexpectedError"}
 
     async def _create_task(
-        self, title: str, description: str, priority: str, assigned_agent_id: str, estimated_duration: int = None, due_date: str = None,
+        self,
+        title: str,
+        description: str,
+        priority: str,
+        assigned_agent_id: str,
+        estimated_duration: int = None,
+        due_date: str = None,
     ) -> dict:
         """Create task in SQLite database."""
         self.metrics["requests"] += 1
@@ -939,7 +978,10 @@ class HybridMCPServer:
                     try:
                         parsed_due_date = datetime.fromisoformat(due_date)
                     except ValueError:
-                        return {"error": f"Invalid due_date format: {due_date}", "error_type": "ValidationError"}
+                        return {
+                            "error": f"Invalid due_date format: {due_date}",
+                            "error_type": "ValidationError",
+                        }
 
                 task = await task_service.create_task(
                     title=title,
@@ -1029,7 +1071,8 @@ class HybridMCPServer:
                 memory_service = HybridMemoryService(session)
 
                 stats = await memory_service.get_memory_stats(
-                    agent_id=self.agent_id, namespace="default",
+                    agent_id=self.agent_id,
+                    namespace="default",
                 )
 
                 # Add MCP server metrics
@@ -1175,6 +1218,7 @@ def first_run_setup():
         MCP_CONFIG_FILE = TMWS_HOME / "mcp.json"
         if not MCP_CONFIG_FILE.exists():
             import json
+
             default_mcp_config = {
                 "$schema": "https://tmws.dev/schemas/mcp-servers.json",
                 "$comment": "TMWS MCP Server Configuration. Edit this file to add/remove MCP servers.",
@@ -1184,30 +1228,30 @@ def first_run_setup():
                         "command": "npx",
                         "args": ["-y", "@upstash/context7-mcp@latest"],
                         "autoConnect": True,
-                        "$comment": "Documentation lookup - https://context7.com"
+                        "$comment": "Documentation lookup - https://context7.com",
                     },
                     "playwright": {
                         "type": "stdio",
                         "command": "npx",
                         "args": ["-y", "@anthropic/mcp-playwright@latest"],
                         "autoConnect": True,
-                        "$comment": "Browser automation - https://playwright.dev"
+                        "$comment": "Browser automation - https://playwright.dev",
                     },
                     "serena": {
                         "type": "stdio",
                         "command": "uvx",
                         "args": ["--from", "serena-mcp-server", "serena"],
                         "autoConnect": True,
-                        "$comment": "Code analysis - https://github.com/oraios/serena"
+                        "$comment": "Code analysis - https://github.com/oraios/serena",
                     },
                     "chrome-devtools": {
                         "type": "stdio",
                         "command": "npx",
                         "args": ["-y", "@anthropic/mcp-chrome-devtools@latest"],
                         "autoConnect": False,
-                        "$comment": "Chrome DevTools - requires Chrome with remote debugging (chrome --remote-debugging-port=9222)"
-                    }
-                }
+                        "$comment": "Chrome DevTools - requires Chrome with remote debugging (chrome --remote-debugging-port=9222)",
+                    },
+                },
             }
             with open(MCP_CONFIG_FILE, "w") as f:
                 json.dump(default_mcp_config, f, indent=2)
@@ -1216,7 +1260,6 @@ def first_run_setup():
         # Initialize database schema
         print("🔧 Initializing database schema...", file=sys.stderr)
         try:
-
             from src.core.config import get_settings
             from src.core.database import get_engine
             from src.models import TMWSBase
@@ -1228,15 +1271,23 @@ def first_run_setup():
                 print(f"🔍 Current working directory: {os.getcwd()}", file=sys.stderr)
                 print(f"🔍 HOME: {os.environ.get('HOME')}", file=sys.stderr)
                 print(f"🔍 USER: {os.environ.get('USER')}", file=sys.stderr)
-                print(f"🔍 Settings database_url_async: {settings.database_url_async}", file=sys.stderr)
+                print(
+                    f"🔍 Settings database_url_async: {settings.database_url_async}",
+                    file=sys.stderr,
+                )
 
                 # Extract and verify database path
                 if "sqlite" in settings.database_url_async:
-                    db_path_str = settings.database_url_async.replace("sqlite+aiosqlite://", "").replace("sqlite://", "")
+                    db_path_str = settings.database_url_async.replace(
+                        "sqlite+aiosqlite://", ""
+                    ).replace("sqlite://", "")
                     db_path = Path(db_path_str)
                     print(f"🔍 Database file path: {db_path}", file=sys.stderr)
                     print(f"🔍 Database parent exists: {db_path.parent.exists()}", file=sys.stderr)
-                    print(f"🔍 Database parent writable: {os.access(db_path.parent, os.W_OK)}", file=sys.stderr)
+                    print(
+                        f"🔍 Database parent writable: {os.access(db_path.parent, os.W_OK)}",
+                        file=sys.stderr,
+                    )
 
                 # Get the engine - let aiosqlite create the database file automatically
                 engine = get_engine()
@@ -1250,6 +1301,7 @@ def first_run_setup():
 
                 # Clear engine cache to avoid event loop conflicts
                 import src.core.database as db_module
+
                 db_module._engine = None
 
                 print("✅ Database schema initialized", file=sys.stderr)
@@ -1258,18 +1310,22 @@ def first_run_setup():
         except Exception as e:
             print(f"⚠️  Database initialization error: {e}", file=sys.stderr)
             import traceback
+
             traceback.print_exc(file=sys.stderr)
 
         print(file=sys.stderr)
         print("📝 For Claude Desktop, add to config:", file=sys.stderr)
-        print("""
+        print(
+            """
 {
   "tmws": {
     "command": "uvx",
     "args": ["tmws-mcp-server"]
   }
 }
-""", file=sys.stderr)
+""",
+            file=sys.stderr,
+        )
         print("=" * 60, file=sys.stderr)
         print(file=sys.stderr)
 

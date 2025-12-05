@@ -104,9 +104,7 @@ class ToolMetadata(BaseModel):
             Input:  ["<script>alert(1)</script>", "valid-tag"]
             Output: ["&lt;script&gt;alert(1)&lt;/script&gt;", "valid-tag"]
         """
-        return [
-            bleach.clean(tag, tags=[], attributes={}, strip=False) for tag in v
-        ]
+        return [bleach.clean(tag, tags=[], attributes={}, strip=False) for tag in v]
 
     model_config = {
         "extra": "forbid",  # Reject unknown fields (injection prevention)

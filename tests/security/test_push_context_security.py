@@ -10,12 +10,10 @@ This module tests security requirements for the unified push architecture:
 Reference: https://www.anthropic.com/engineering/advanced-tool-use
 """
 
-import os
 import sys
 from pathlib import Path
 
 import pytest
-import pytest_asyncio
 
 # Add hooks directory to path for imports
 HOOKS_DIR = Path(__file__).parent.parent.parent / "hooks" / "core"
@@ -179,14 +177,16 @@ def hello():
 
         attacks = [
             "<scr<script>ipt>evil()</script>",  # Nested script tags
-            '<div><script>evil()</script></div>',  # Script inside div
+            "<div><script>evil()</script></div>",  # Script inside div
             "<<script>script>evil()<</script>/script>",  # Double encoding attempt
         ]
 
         for attack in attacks:
             result = sanitize_md_content(attack)
             # After sanitization, no script should remain
-            assert "script" not in result.lower() or ("<script" not in result.lower() and "script>" not in result.lower())
+            assert "script" not in result.lower() or (
+                "<script" not in result.lower() and "script>" not in result.lower()
+            )
 
     def test_sanitize_svg_injection(self):
         """Test removal of SVG-based injection attempts."""
@@ -194,7 +194,7 @@ def hello():
 
         attacks = [
             '<svg onload="evil()">',
-            '<svg><script>evil()</script></svg>',
+            "<svg><script>evil()</script></svg>",
             '<svg><animate onbegin="evil()">',
         ]
 
@@ -327,8 +327,9 @@ class TestContextTemplatesSecurity:
             content = template_file.read_text()
 
             for pattern in dangerous_patterns:
-                assert pattern.lower() not in content.lower(), \
+                assert pattern.lower() not in content.lower(), (
                     f"Dangerous pattern '{pattern}' found in {template_file.name}"
+                )
 
     def test_templates_no_external_resources(self):
         """Test that templates don't load external resources."""
@@ -338,7 +339,7 @@ class TestContextTemplatesSecurity:
             content = template_file.read_text()
 
             # No external scripts
-            assert "src=" not in content.lower() or "src=\"#" in content.lower()
+            assert "src=" not in content.lower() or 'src="#' in content.lower()
 
             # No external stylesheets
             assert "<link" not in content.lower()
@@ -353,7 +354,9 @@ class TestOpenCodePluginSecurity:
     def test_plugin_sanitizes_api_response(self):
         """Test that plugin sanitizes API responses before injection."""
         # This is a structural test - the plugin code uses sanitize_md_content
-        plugin_dir = Path(__file__).parent.parent.parent / "opencode-plugin" / "trinitas-injector" / "src"
+        plugin_dir = (
+            Path(__file__).parent.parent.parent / "opencode-plugin" / "trinitas-injector" / "src"
+        )
         injector_file = plugin_dir / "injector.ts"
 
         content = injector_file.read_text()
@@ -366,7 +369,9 @@ class TestOpenCodePluginSecurity:
         # The API client should use the configured base URL
         # In production, this should be HTTPS
         # This test verifies the pattern is in place
-        plugin_dir = Path(__file__).parent.parent.parent / "opencode-plugin" / "trinitas-injector" / "src"
+        plugin_dir = (
+            Path(__file__).parent.parent.parent / "opencode-plugin" / "trinitas-injector" / "src"
+        )
         client_file = plugin_dir / "api-client.ts"
 
         content = client_file.read_text()
@@ -376,7 +381,9 @@ class TestOpenCodePluginSecurity:
 
     def test_plugin_timeout_configured(self):
         """Test that plugin has request timeout configured."""
-        plugin_dir = Path(__file__).parent.parent.parent / "opencode-plugin" / "trinitas-injector" / "src"
+        plugin_dir = (
+            Path(__file__).parent.parent.parent / "opencode-plugin" / "trinitas-injector" / "src"
+        )
         client_file = plugin_dir / "api-client.ts"
 
         content = client_file.read_text()

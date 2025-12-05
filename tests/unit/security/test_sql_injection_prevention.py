@@ -21,16 +21,14 @@ Created: 2025-11-24
 Version: 1.0.0
 """
 
-import pytest
 import time
+
+import pytest
 from sqlalchemy import select
-from uuid import uuid4
 
-from src.security.query_builder import SecureQueryBuilder
-from src.models.memory import Memory
 from src.models.agent import Agent
-from src.models.learning_pattern import LearningPattern
-
+from src.models.memory import Memory
+from src.security.query_builder import SecureQueryBuilder
 
 # ============================================================================
 # Category A: Basic Wildcard Escaping (5 tests)
@@ -165,9 +163,7 @@ class TestUnicodeAndEdgeCases:
 
     def test_custom_escape_char(self):
         """Custom escape character should work."""
-        escaped, escape_char = SecureQueryBuilder.safe_like_pattern(
-            "test%", escape_char="!"
-        )
+        escaped, escape_char = SecureQueryBuilder.safe_like_pattern("test%", escape_char="!")
         # Should use ! instead of \\
         assert escaped == "test!%", f"Expected 'test!%', got '{escaped}'"
         assert escape_char == "!", f"Expected '!', got '{escape_char}'"
@@ -185,9 +181,7 @@ class TestSQLAlchemyIntegration:
     async def test_ilike_with_escape(self, test_session):
         """Test .ilike() with ESCAPE clause."""
         escaped, escape_char = SecureQueryBuilder.safe_like_pattern("50%")
-        query = select(Memory).where(
-            Memory.content.ilike(f"%{escaped}%", escape=escape_char)
-        )
+        query = select(Memory).where(Memory.content.ilike(f"%{escaped}%", escape=escape_char))
         # Should generate: WHERE content ILIKE '%50\\%%' ESCAPE '\\'
         result = await test_session.execute(query)
         # Verify query executes without error
@@ -197,9 +191,7 @@ class TestSQLAlchemyIntegration:
     async def test_like_with_escape(self, test_session):
         """Test .like() with ESCAPE clause (case-sensitive)."""
         escaped, escape_char = SecureQueryBuilder.safe_like_pattern("Test_")
-        query = select(Agent).where(
-            Agent.display_name.like(f"%{escaped}%", escape=escape_char)
-        )
+        query = select(Agent).where(Agent.display_name.like(f"%{escaped}%", escape=escape_char))
         result = await test_session.execute(query)
         assert result is not None
 
@@ -223,7 +215,7 @@ class TestSQLAlchemyIntegration:
             search_columns=["display_name", "agent_id"],
             search_term="test%%%%%",  # DoS attempt
             session=test_session,
-            case_insensitive=True
+            case_insensitive=True,
         )
         # Should NOT cause DoS (wildcards escaped)
         assert isinstance(result, list), "Should return list of results"
@@ -240,30 +232,35 @@ class TestServiceLayerMigration:
     def test_learning_service_uses_secure_query_builder(self):
         """LearningService code contains SecureQueryBuilder import."""
         import inspect
+
         from src.services.learning_service import LearningService
 
         # Verify the service file contains the V-3 mitigation
         source = inspect.getsource(LearningService.search_patterns)
-        assert "SecureQueryBuilder" in source, \
+        assert "SecureQueryBuilder" in source, (
             "LearningService.search_patterns() should use SecureQueryBuilder"
-        assert "safe_like_pattern" in source, \
+        )
+        assert "safe_like_pattern" in source, (
             "LearningService.search_patterns() should escape wildcards"
+        )
 
     def test_agent_service_uses_secure_query_builder(self):
         """AgentService code contains SecureQueryBuilder import."""
         import inspect
+
         from src.services.agent_service import AgentService
 
         # Verify the service file contains the V-3 mitigation
         source = inspect.getsource(AgentService.search_agents)
-        assert "SecureQueryBuilder" in source, \
+        assert "SecureQueryBuilder" in source, (
             "AgentService.search_agents() should use SecureQueryBuilder"
-        assert "safe_like_pattern" in source, \
-            "AgentService.search_agents() should escape wildcards"
+        )
+        assert "safe_like_pattern" in source, "AgentService.search_agents() should escape wildcards"
 
     def test_pattern_execution_service_uses_secure_query_builder(self):
         """PatternExecutionService code contains SecureQueryBuilder import."""
         import inspect
+
         # Import the module to check its methods
         from src.services import pattern_execution_service
 
@@ -271,12 +268,11 @@ class TestServiceLayerMigration:
         source = inspect.getsource(pattern_execution_service)
 
         # Verify the service file contains the V-3 mitigation
-        assert "SecureQueryBuilder" in source, \
+        assert "SecureQueryBuilder" in source, (
             "pattern_execution_service should use SecureQueryBuilder"
-        assert "safe_like_pattern" in source, \
-            "pattern_execution_service should escape wildcards"
-        assert "_execute_memory" in source, \
-            "_execute_memory method should exist"
+        )
+        assert "safe_like_pattern" in source, "pattern_execution_service should escape wildcards"
+        assert "_execute_memory" in source, "_execute_memory method should exist"
 
     @pytest.mark.asyncio
     async def test_agent_service_integration(self, test_session):
@@ -308,9 +304,7 @@ class TestPerformance:
         escaped, escape_char = SecureQueryBuilder.safe_like_pattern("test")
 
         start = time.perf_counter()
-        query = select(Memory).where(
-            Memory.content.ilike(f"%{escaped}%", escape=escape_char)
-        )
+        query = select(Memory).where(Memory.content.ilike(f"%{escaped}%", escape=escape_char))
         await test_session.execute(query)
         duration = (time.perf_counter() - start) * 1000  # ms
 
@@ -325,9 +319,7 @@ class TestPerformance:
         escaped, escape_char = SecureQueryBuilder.safe_like_pattern(malicious)
 
         start = time.perf_counter()
-        query = select(Memory).where(
-            Memory.content.ilike(f"%{escaped}%", escape=escape_char)
-        )
+        query = select(Memory).where(Memory.content.ilike(f"%{escaped}%", escape=escape_char))
         await test_session.execute(query)
         duration = (time.perf_counter() - start) * 1000  # ms
 
@@ -361,9 +353,7 @@ class TestSecurityValidation:
         malicious = "test%' UNION SELECT password FROM users WHERE '1'='1"
 
         escaped, escape_char = SecureQueryBuilder.safe_like_pattern(malicious)
-        query = select(Memory).where(
-            Memory.content.ilike(f"%{escaped}%", escape=escape_char)
-        )
+        query = select(Memory).where(Memory.content.ilike(f"%{escaped}%", escape=escape_char))
 
         # SQLAlchemy should parameterize, preventing injection
         result = await test_session.execute(query)
@@ -378,15 +368,10 @@ class TestSecurityValidation:
         from src.security.query_builder import SecureQueryBuilder
 
         # Try to inject malicious column name
-        malicious_filters = {
-            "agent_id": "test",
-            "'; DROP TABLE memories; --": "malicious"
-        }
+        malicious_filters = {"agent_id": "test", "'; DROP TABLE memories; --": "malicious"}
 
         with pytest.raises(ValueError, match="Invalid column name"):
-            await SecureQueryBuilder.build_filter_query(
-                Memory, malicious_filters, test_session
-            )
+            await SecureQueryBuilder.build_filter_query(Memory, malicious_filters, test_session)
 
     @pytest.mark.asyncio
     async def test_build_search_query_column_validation(self, test_session):
@@ -399,7 +384,7 @@ class TestSecurityValidation:
                 model=Memory,
                 search_columns=malicious_columns,
                 search_term="test",
-                session=test_session
+                session=test_session,
             )
 
 

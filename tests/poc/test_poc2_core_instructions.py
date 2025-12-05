@@ -23,31 +23,31 @@ from src.services.skill_service_poc import SkillServicePOC
 @pytest.mark.asyncio
 async def test_poc2_core_instructions_performance():
     """POC 2: Core instructions layer query performance validation."""
-    
+
     # Setup: Create in-memory test database
     engine = create_async_engine(
         "sqlite+aiosqlite:///:memory:",
         echo=False,
     )
     async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-    
+
     # Create tables from migration
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    
+
     print("\n" + "=" * 80)
     print("POC 2: Core Instructions Layer Performance Test")
     print("=" * 80)
-    
+
     # Insert 1,000 test skills with versions
     async with async_session() as session:
-        print(f"\nInserting 1,000 test skills with versions...")
+        print("\nInserting 1,000 test skills with versions...")
         now = datetime.now(timezone.utc)
-        
+
         for i in range(1000):
             skill_id = str(uuid4())
             version_id = str(uuid4())
-            
+
             skill = Skill(
                 id=skill_id,
                 name=f"test-skill-{i:04d}",
@@ -61,7 +61,7 @@ async def test_poc2_core_instructions_performance():
                 created_at=now,
                 updated_at=now,
             )
-            
+
             skill_version = SkillVersion(
                 id=version_id,
                 skill_id=skill_id,
@@ -72,30 +72,29 @@ async def test_poc2_core_instructions_performance():
                 created_by="test-agent",
                 created_at=now,
             )
-            
+
             session.add(skill)
             session.add(skill_version)
-        
+
         await session.commit()
-        print(f"✅ Inserted 1,000 skills with versions")
-    
+        print("✅ Inserted 1,000 skills with versions")
+
     # Benchmark: 100 queries
-    print(f"\nExecuting 100 core instructions queries...")
+    print("\nExecuting 100 core instructions queries...")
     async with async_session() as session:
         service = SkillServicePOC(session)
         latencies = []
-        
+
         # Get first skill ID for testing
         first_skill_id = None
         async with async_session() as temp_session:
             from sqlalchemy import text
-            result = await temp_session.execute(
-                text("SELECT id FROM skills LIMIT 1")
-            )
+
+            result = await temp_session.execute(text("SELECT id FROM skills LIMIT 1"))
             row = result.first()
             if row:
                 first_skill_id = row[0]
-        
+
         for i in range(100):
             start = time.perf_counter()
             result = await service.get_skill_core_instructions(
@@ -105,12 +104,12 @@ async def test_poc2_core_instructions_performance():
             )
             end = time.perf_counter()
             latencies.append((end - start) * 1000)  # Convert to ms
-            
+
             # Verify results
             assert result is not None, "Expected result from get_skill_core_instructions"
             assert "core_instructions" in result
             assert result["metadata"]["namespace"] == "test-namespace"
-    
+
     # Calculate statistics
     p50 = statistics.median(latencies)
     p95 = statistics.quantiles(latencies, n=20)[18]  # 95th percentile
@@ -118,7 +117,7 @@ async def test_poc2_core_instructions_performance():
     avg = statistics.mean(latencies)
     min_lat = min(latencies)
     max_lat = max(latencies)
-    
+
     # Print results
     print("\n" + "-" * 80)
     print("Results:")
@@ -131,13 +130,13 @@ async def test_poc2_core_instructions_performance():
     print(f"  P99:        {p99:7.3f} ms")
     print(f"  Max:        {max_lat:7.3f} ms")
     print("-" * 80)
-    print(f"  Target:     < 30ms P95")
+    print("  Target:     < 30ms P95")
     print(f"  Status:     {'✅ PASS' if p95 < 30 else '❌ FAIL'}")
     print("=" * 80 + "\n")
-    
+
     # Assert success criteria
     assert p95 < 30, f"POC 2 FAILED: P95 {p95:.3f}ms exceeds target 30ms"
-    
+
     await engine.dispose()
 
 
@@ -215,7 +214,7 @@ async def test_integration_2_1_single_skill_activation():
         print(f"  Core Instr:     {result['core_instructions'][:50]}...")
         print(f"  Namespace:      {result['metadata']['namespace']}")
         print(f"  Latency:        {latency_ms:.3f} ms")
-        print(f"  Target:         < 1.0ms P95")
+        print("  Target:         < 1.0ms P95")
         print(f"  Status:         {'✅ PASS' if latency_ms < 2.0 else '⚠️  WARN'}")
         print("=" * 80)
 
@@ -299,14 +298,15 @@ async def test_integration_2_2_active_version_integrity():
 
         # Validations
         assert result is not None, "Expected result"
-        assert result["core_instructions"] == "NEW: Version 2 instructions", \
+        assert result["core_instructions"] == "NEW: Version 2 instructions", (
             f"Expected version 2, got: {result['core_instructions']}"
+        )
 
         print(f"  Skill ID:       {skill_id}")
         print(f"  Active Version: {skill.active_version}")
         print(f"  Core Instr:     {result['core_instructions']}")
         print(f"  Latency:        {latency_ms:.3f} ms")
-        print(f"  Status:         ✅ PASS (correct version returned)")
+        print("  Status:         ✅ PASS (correct version returned)")
         print("=" * 80)
 
     await engine.dispose()
@@ -348,9 +348,9 @@ async def test_integration_2_3_nonexistent_skill_handling():
         assert result is None, f"Expected None for non-existent skill, got: {result}"
 
         print(f"  Skill ID:       {fake_skill_id} (non-existent)")
-        print(f"  Result:         None ✅")
+        print("  Result:         None ✅")
         print(f"  Latency:        {latency_ms:.3f} ms")
-        print(f"  Status:         ✅ PASS (graceful handling)")
+        print("  Status:         ✅ PASS (graceful handling)")
         print("=" * 80)
 
     await engine.dispose()
@@ -371,8 +371,9 @@ async def test_phase2_scenario_2_2_concurrent_skill_loading():
     - No data corruption (each skill returns correct content)
     - Concurrent loading <3ms P95 (should be similar to single query)
     """
-    from src.models.memory import Memory
     from sqlalchemy.pool import StaticPool
+
+    from src.models.memory import Memory
 
     print("\n" + "=" * 80)
     print("Phase 2 Scenario 2.2: Concurrent Skill Loading (3 Skills)")
@@ -384,9 +385,7 @@ async def test_phase2_scenario_2_2_concurrent_skill_loading():
         poolclass=StaticPool,
         connect_args={"check_same_thread": False},
     )
-    async_session_maker = async_sessionmaker(
-        engine, class_=AsyncSession, expire_on_commit=False
-    )
+    async_session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -445,7 +444,7 @@ async def test_phase2_scenario_2_2_concurrent_skill_loading():
     concurrent_latency = (end - start) * 1000
 
     print(f"\n  Concurrent Loading:       {concurrent_latency:.3f} ms")
-    print(f"  Target:                   < 3.0ms P95")
+    print("  Target:                   < 3.0ms P95")
     print(f"  Status:                   {'✅ PASS' if concurrent_latency < 4.5 else '⚠️  WARN'}")
 
     # Validation 1: All 3 skills activated successfully
@@ -456,34 +455,35 @@ async def test_phase2_scenario_2_2_concurrent_skill_loading():
         assert result is not None, f"Skill {i} activation returned None"
         assert "core_instructions" in result, f"Skill {i} missing core_instructions"
 
-    print(f"  All Skills Activated:     ✅ (3/3)")
+    print("  All Skills Activated:     ✅ (3/3)")
 
     # Validation 3: All unique (no data corruption)
     result_ids = [r["id"] for r in results]
     assert len(set(result_ids)) == 3, f"Duplicate skill IDs detected: {result_ids}"
 
-    print(f"  Unique Skills:            ✅ (no duplicates)")
+    print("  Unique Skills:            ✅ (no duplicates)")
 
     # Validation 4: Content integrity (each skill has correct unique marker)
     for i, result in enumerate(results):
         # Check if content contains the unique marker
         full_content = result.get("core_instructions", "")
         # Note: core_instructions is first 500 chars, so marker might be there
-        expected_marker = f"SKILL_{i}_DATA"
         skill_index = skill_ids.index(result["id"])
-        actual_marker = f"SKILL_{skill_index}_DATA"
 
         # Content should match the skill's original memory content
-        assert f"Concurrent Skill {skill_index}" in full_content or \
-               f"Core instructions for skill {skill_index}" in full_content, \
-               f"Skill {i} content integrity check failed"
+        assert (
+            f"Concurrent Skill {skill_index}" in full_content
+            or f"Core instructions for skill {skill_index}" in full_content
+        ), f"Skill {i} content integrity check failed"
 
-    print(f"  Content Integrity:        ✅ (all correct)")
+    print("  Content Integrity:        ✅ (all correct)")
 
     print("=" * 80)
 
     # Integration test allows 1.5× tolerance
-    assert concurrent_latency < 4.5, f"Phase 2 Scenario 2.2 FAILED: {concurrent_latency:.3f}ms > 4.5ms"
+    assert concurrent_latency < 4.5, (
+        f"Phase 2 Scenario 2.2 FAILED: {concurrent_latency:.3f}ms > 4.5ms"
+    )
 
     await engine.dispose()
 

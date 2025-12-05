@@ -7,20 +7,20 @@ Author: Artemis (Technical Perfectionist)
 Created: 2025-11-12 (Phase 1-1-B: Infrastructure Implementation)
 """
 
-import pytest
 from uuid import uuid4
-from datetime import datetime
+
+import pytest
 
 # Domain imports
 from src.domain.aggregates.mcp_connection import MCPConnection
+from src.domain.entities.tool import Tool
 from src.domain.value_objects.connection_config import ConnectionConfig
 from src.domain.value_objects.connection_status import ConnectionStatus
-from src.domain.entities.tool import Tool
 from src.domain.value_objects.tool_category import ToolCategory
+from src.infrastructure.exceptions import AggregateNotFoundError
 
 # Infrastructure imports
 from src.infrastructure.repositories.mcp_connection_repository import MCPConnectionRepository
-from src.infrastructure.exceptions import RepositoryError, AggregateNotFoundError
 
 
 class TestMCPConnectionRepository:
@@ -31,10 +31,7 @@ class TestMCPConnectionRepository:
         """Test: Save new MCPConnection to repository"""
         # Arrange
         config = ConnectionConfig(
-            server_name="test_server",
-            url="http://localhost:8080/mcp",
-            timeout=30,
-            retry_attempts=3
+            server_name="test_server", url="http://localhost:8080/mcp", timeout=30, retry_attempts=3
         )
 
         connection = MCPConnection(
@@ -42,7 +39,7 @@ class TestMCPConnectionRepository:
             server_name="test_server",
             config=config,
             namespace="test-namespace",
-            agent_id="test-agent"
+            agent_id="test-agent",
         )
 
         # Act
@@ -59,16 +56,13 @@ class TestMCPConnectionRepository:
     async def test_get_by_id_existing_connection(self, test_session):
         """Test: Retrieve connection by ID"""
         # Arrange
-        config = ConnectionConfig(
-            server_name="test_server",
-            url="http://localhost:8080/mcp"
-        )
+        config = ConnectionConfig(server_name="test_server", url="http://localhost:8080/mcp")
         connection = MCPConnection(
             id=uuid4(),
             server_name="test_server",
             config=config,
             namespace="test-namespace",
-            agent_id="test-agent"
+            agent_id="test-agent",
         )
 
         repository = MCPConnectionRepository(test_session)
@@ -107,16 +101,25 @@ class TestMCPConnectionRepository:
         config = ConnectionConfig(server_name="server", url="http://localhost:8080")
 
         conn1 = MCPConnection(
-            id=uuid4(), server_name="server1", config=config,
-            namespace="project-x", agent_id="agent-a"
+            id=uuid4(),
+            server_name="server1",
+            config=config,
+            namespace="project-x",
+            agent_id="agent-a",
         )
         conn2 = MCPConnection(
-            id=uuid4(), server_name="server2", config=config,
-            namespace="project-x", agent_id="agent-a"
+            id=uuid4(),
+            server_name="server2",
+            config=config,
+            namespace="project-x",
+            agent_id="agent-a",
         )
         conn3 = MCPConnection(
-            id=uuid4(), server_name="server3", config=config,
-            namespace="project-y", agent_id="agent-a"
+            id=uuid4(),
+            server_name="server3",
+            config=config,
+            namespace="project-y",
+            agent_id="agent-a",
         )
 
         await repository.save(conn1)
@@ -140,15 +143,18 @@ class TestMCPConnectionRepository:
 
         # Create connections with different statuses
         conn1 = MCPConnection(
-            id=uuid4(), server_name="server1", config=config,
-            namespace="test", agent_id="agent"
+            id=uuid4(), server_name="server1", config=config, namespace="test", agent_id="agent"
         )
-        tool = Tool(name="test_tool", description="Test", input_schema={}, category=ToolCategory.DATA_PROCESSING)
+        tool = Tool(
+            name="test_tool",
+            description="Test",
+            input_schema={},
+            category=ToolCategory.DATA_PROCESSING,
+        )
         conn1.mark_as_active([tool])
 
         conn2 = MCPConnection(
-            id=uuid4(), server_name="server2", config=config,
-            namespace="test", agent_id="agent"
+            id=uuid4(), server_name="server2", config=config, namespace="test", agent_id="agent"
         )
         # conn2 stays DISCONNECTED
 
@@ -173,14 +179,18 @@ class TestMCPConnectionRepository:
         config = ConnectionConfig(server_name="server", url="http://localhost:8080")
 
         connection = MCPConnection(
-            id=uuid4(), server_name="server", config=config,
-            namespace="test", agent_id="agent"
+            id=uuid4(), server_name="server", config=config, namespace="test", agent_id="agent"
         )
         await repository.save(connection)
         connection_id = connection.id
 
         # Modify connection
-        tool = Tool(name="tool1", description="Tool 1", input_schema={}, category=ToolCategory.DATA_PROCESSING)
+        tool = Tool(
+            name="tool1",
+            description="Tool 1",
+            input_schema={},
+            category=ToolCategory.DATA_PROCESSING,
+        )
         connection.mark_as_active([tool])
 
         # Act
@@ -204,8 +214,7 @@ class TestMCPConnectionRepository:
         config = ConnectionConfig(server_name="server", url="http://localhost:8080")
 
         connection = MCPConnection(
-            id=uuid4(), server_name="server", config=config,
-            namespace="test", agent_id="agent"
+            id=uuid4(), server_name="server", config=config, namespace="test", agent_id="agent"
         )
         await repository.save(connection)
         connection_id = connection.id
@@ -227,27 +236,20 @@ class TestMCPConnectionRepository:
                 name="search_memory",
                 description="Search memories",
                 input_schema={"type": "object"},
-                category=ToolCategory.API_INTEGRATION
+                category=ToolCategory.API_INTEGRATION,
             ),
             Tool(
                 name="create_task",
                 description="Create task",
                 input_schema={"type": "object"},
-                category=ToolCategory.API_INTEGRATION
-            )
+                category=ToolCategory.API_INTEGRATION,
+            ),
         ]
 
-        config = ConnectionConfig(
-            server_name="test_server",
-            url="http://localhost:8080/mcp"
-        )
+        config = ConnectionConfig(server_name="test_server", url="http://localhost:8080/mcp")
 
         connection = MCPConnection(
-            id=uuid4(),
-            server_name="test_server",
-            config=config,
-            namespace="test",
-            agent_id="agent"
+            id=uuid4(), server_name="test_server", config=config, namespace="test", agent_id="agent"
         )
         connection.mark_as_active(tools)
 
@@ -265,19 +267,19 @@ class TestMCPConnectionRepository:
         """Test: Domain events should not be persisted to database"""
         # Arrange
         repository = MCPConnectionRepository(test_session)
-        config = ConnectionConfig(
-            server_name="test_server",
-            url="http://localhost:8080/mcp"
-        )
+        config = ConnectionConfig(server_name="test_server", url="http://localhost:8080/mcp")
 
         connection = MCPConnection(
-            id=uuid4(),
-            server_name="test_server",
-            config=config,
-            namespace="test",
-            agent_id="agent"
+            id=uuid4(), server_name="test_server", config=config, namespace="test", agent_id="agent"
         )
-        tools = [Tool(name="tool1", description="Tool 1", input_schema={}, category=ToolCategory.DATA_PROCESSING)]
+        tools = [
+            Tool(
+                name="tool1",
+                description="Tool 1",
+                input_schema={},
+                category=ToolCategory.DATA_PROCESSING,
+            )
+        ]
         connection.mark_as_active(tools)
 
         assert len(connection.domain_events) > 0  # Has events
@@ -297,12 +299,18 @@ class TestMCPConnectionRepository:
         config = ConnectionConfig(server_name="server", url="http://localhost:8080")
 
         conn_a = MCPConnection(
-            id=uuid4(), server_name="server_a", config=config,
-            namespace="project-a", agent_id="agent-1"
+            id=uuid4(),
+            server_name="server_a",
+            config=config,
+            namespace="project-a",
+            agent_id="agent-1",
         )
         conn_b = MCPConnection(
-            id=uuid4(), server_name="server_b", config=config,
-            namespace="project-b", agent_id="agent-1"
+            id=uuid4(),
+            server_name="server_b",
+            config=config,
+            namespace="project-b",
+            agent_id="agent-1",
         )
 
         await repository.save(conn_a)
@@ -340,8 +348,11 @@ class TestMCPConnectionRepository:
 
         connections = [
             MCPConnection(
-                id=uuid4(), server_name=f"server_{i}", config=config,
-                namespace="test", agent_id="agent"
+                id=uuid4(),
+                server_name=f"server_{i}",
+                config=config,
+                namespace="test",
+                agent_id="agent",
             )
             for i in range(10)  # Reduced from 100 for faster tests
         ]
@@ -369,16 +380,13 @@ class TestMCPConnectionRepository:
         Prevents cross-tenant data access (CVSS 8.7 HIGH)
         """
         # Arrange: Create connection in namespace "project-x"
-        config = ConnectionConfig(
-            server_name="test_server",
-            url="http://localhost:8080/mcp"
-        )
+        config = ConnectionConfig(server_name="test_server", url="http://localhost:8080/mcp")
         connection = MCPConnection(
             id=uuid4(),
             server_name="test_server",
             config=config,
             namespace="project-x",
-            agent_id="agent-x"
+            agent_id="agent-x",
         )
 
         repository = MCPConnectionRepository(test_session)
@@ -386,7 +394,9 @@ class TestMCPConnectionRepository:
 
         # Act & Assert: Attempt access from different namespace should fail
         with pytest.raises(AggregateNotFoundError) as exc_info:
-            await repository.get_by_id(saved_connection.id, namespace="project-y")  # ❌ Wrong namespace
+            await repository.get_by_id(
+                saved_connection.id, namespace="project-y"
+            )  # ❌ Wrong namespace
 
         # Verify error message contains connection ID
         assert str(saved_connection.id) in str(exc_info.value)
@@ -404,16 +414,13 @@ class TestMCPConnectionRepository:
         Prevents unauthorized deletion (CVSS 9.1 CRITICAL)
         """
         # Arrange: Create connection owned by agent-x in namespace project-x
-        config = ConnectionConfig(
-            server_name="test_server",
-            url="http://localhost:8080/mcp"
-        )
+        config = ConnectionConfig(server_name="test_server", url="http://localhost:8080/mcp")
         connection = MCPConnection(
             id=uuid4(),
             server_name="test_server",
             config=config,
             namespace="project-x",
-            agent_id="agent-x"
+            agent_id="agent-x",
         )
 
         repository = MCPConnectionRepository(test_session)
@@ -424,7 +431,7 @@ class TestMCPConnectionRepository:
             await repository.delete(
                 saved_connection.id,
                 namespace="project-y",  # ❌ Wrong namespace
-                agent_id="agent-x"
+                agent_id="agent-x",
             )
 
         # Act & Assert: Different agent (even same namespace) should fail
@@ -432,7 +439,7 @@ class TestMCPConnectionRepository:
             await repository.delete(
                 saved_connection.id,
                 namespace="project-x",
-                agent_id="agent-y"  # ❌ Wrong agent (not owner)
+                agent_id="agent-y",  # ❌ Wrong agent (not owner)
             )
 
         # Verify connection still exists (not deleted by unauthorized attempts)
@@ -443,7 +450,7 @@ class TestMCPConnectionRepository:
         await repository.delete(
             saved_connection.id,
             namespace="project-x",
-            agent_id="agent-x"  # ✅ Correct namespace + owner
+            agent_id="agent-x",  # ✅ Correct namespace + owner
         )
 
         # Verify connection is deleted

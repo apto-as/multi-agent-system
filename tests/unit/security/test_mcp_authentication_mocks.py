@@ -7,20 +7,20 @@ Validates business logic and error handling.
 Execution time: <5 seconds for all 15 tests.
 """
 
-import pytest
-from unittest.mock import AsyncMock, Mock, patch, MagicMock
-from datetime import datetime, timedelta
-from uuid import UUID
+from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
+import pytest
+
+from src.models.agent import AgentStatus
 from src.security.mcp_auth import (
-    MCPAuthService,
+    MCPAuthContext,
     MCPAuthenticationError,
     MCPAuthorizationError,
-    MCPAuthContext,
-    MCPRole,
+    MCPAuthService,
     MCPOperation,
+    MCPRole,
 )
-from src.models.agent import Agent, AgentStatus
 
 
 class TestMCPAuthenticationMocks:
@@ -47,18 +47,14 @@ class TestMCPAuthenticationMocks:
     # ===== Category 1: API Key Authentication (6 tests) =====
 
     @pytest.mark.asyncio
-    async def test_authenticate_with_valid_api_key_mock(
-        self, mock_session, mock_agent
-    ):
+    async def test_authenticate_with_valid_api_key_mock(self, mock_session, mock_agent):
         """Test successful authentication with valid API key."""
         # Add api_key_hash to mock agent
         mock_agent.api_key_hash = "salt:hash"
 
         with (
-            patch("src.security.mcp_auth.select") as mock_select,
-            patch(
-                "src.utils.security.verify_password_with_salt"
-            ) as mock_verify,
+            patch("src.security.mcp_auth.select"),
+            patch("src.utils.security.verify_password_with_salt") as mock_verify,
         ):
             # Mock database query result
             mock_result = AsyncMock()
@@ -84,18 +80,14 @@ class TestMCPAuthenticationMocks:
             mock_verify.assert_called_once_with("valid-key", "hash", "salt")
 
     @pytest.mark.asyncio
-    async def test_authenticate_with_invalid_api_key_mock(
-        self, mock_session, mock_agent
-    ):
+    async def test_authenticate_with_invalid_api_key_mock(self, mock_session, mock_agent):
         """Test authentication failure with invalid API key."""
         # Add api_key_hash to mock agent
         mock_agent.api_key_hash = "salt:hash"
 
         with (
-            patch("src.security.mcp_auth.select") as mock_select,
-            patch(
-                "src.utils.security.verify_password_with_salt"
-            ) as mock_verify,
+            patch("src.security.mcp_auth.select"),
+            patch("src.utils.security.verify_password_with_salt") as mock_verify,
         ):
             # Mock database query result
             mock_result = AsyncMock()
@@ -118,14 +110,12 @@ class TestMCPAuthenticationMocks:
             assert "Invalid API key" in str(exc_info.value)
 
     @pytest.mark.asyncio
-    async def test_authenticate_with_expired_api_key_mock(
-        self, mock_session, mock_agent
-    ):
+    async def test_authenticate_with_expired_api_key_mock(self, mock_session, mock_agent):
         """Test authentication failure with no API key configured."""
         # Agent has no API key configured
         mock_agent.api_key_hash = None
 
-        with patch("src.security.mcp_auth.select") as mock_select:
+        with patch("src.security.mcp_auth.select"):
             # Mock database query result
             mock_result = AsyncMock()
             mock_result.scalar_one_or_none = Mock(return_value=mock_agent)
@@ -142,14 +132,13 @@ class TestMCPAuthenticationMocks:
                 )
 
             assert "api key" in str(exc_info.value).lower() and (
-                "no" in str(exc_info.value).lower()
-                or "configured" in str(exc_info.value).lower()
+                "no" in str(exc_info.value).lower() or "configured" in str(exc_info.value).lower()
             )
 
     @pytest.mark.asyncio
     async def test_authenticate_with_nonexistent_agent_mock(self, mock_session):
         """Test authentication failure when agent doesn't exist."""
-        with patch("src.security.mcp_auth.select") as mock_select:
+        with patch("src.security.mcp_auth.select"):
             # Mock database query result - agent not found
             mock_result = AsyncMock()
             mock_result.scalar_one_or_none = Mock(return_value=None)
@@ -168,13 +157,11 @@ class TestMCPAuthenticationMocks:
             assert "not found" in str(exc_info.value).lower()
 
     @pytest.mark.asyncio
-    async def test_authenticate_with_inactive_agent_mock(
-        self, mock_session, mock_agent
-    ):
+    async def test_authenticate_with_inactive_agent_mock(self, mock_session, mock_agent):
         """Test authentication failure when agent is inactive."""
         mock_agent.status = AgentStatus.INACTIVE
 
-        with patch("src.security.mcp_auth.select") as mock_select:
+        with patch("src.security.mcp_auth.select"):
             # Mock database query result
             mock_result = AsyncMock()
             mock_result.scalar_one_or_none = Mock(return_value=mock_agent)
@@ -190,18 +177,17 @@ class TestMCPAuthenticationMocks:
                     tool_name="test_tool",
                 )
 
-            assert "not active" in str(exc_info.value).lower() or "inactive" in str(
-                exc_info.value
-            ).lower()
+            assert (
+                "not active" in str(exc_info.value).lower()
+                or "inactive" in str(exc_info.value).lower()
+            )
 
     @pytest.mark.asyncio
-    async def test_authenticate_with_suspended_agent_mock(
-        self, mock_session, mock_agent
-    ):
+    async def test_authenticate_with_suspended_agent_mock(self, mock_session, mock_agent):
         """Test authentication failure when agent is suspended."""
         mock_agent.status = AgentStatus.SUSPENDED
 
-        with patch("src.security.mcp_auth.select") as mock_select:
+        with patch("src.security.mcp_auth.select"):
             # Mock database query result
             mock_result = AsyncMock()
             mock_result.scalar_one_or_none = Mock(return_value=mock_agent)
@@ -225,7 +211,7 @@ class TestMCPAuthenticationMocks:
     async def test_authenticate_with_valid_jwt_mock(self, mock_session, mock_agent):
         """Test successful authentication with valid JWT."""
         with (
-            patch("src.security.mcp_auth.select") as mock_select,
+            patch("src.security.mcp_auth.select"),
             patch.object(MCPAuthService, "__init__", lambda self: None),
         ):
             # Mock database query result
@@ -256,12 +242,10 @@ class TestMCPAuthenticationMocks:
             mock_jwt_service.verify_token.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_authenticate_with_unsigned_jwt_mock(
-        self, mock_session, mock_agent
-    ):
+    async def test_authenticate_with_unsigned_jwt_mock(self, mock_session, mock_agent):
         """Test authentication failure with invalid JWT (returns None)."""
         with (
-            patch("src.security.mcp_auth.select") as mock_select,
+            patch("src.security.mcp_auth.select"),
             patch.object(MCPAuthService, "__init__", lambda self: None),
         ):
             # Mock database query result
@@ -285,15 +269,15 @@ class TestMCPAuthenticationMocks:
                     tool_name="test_tool",
                 )
 
-            assert "invalid" in str(exc_info.value).lower() or "expired" in str(
-                exc_info.value
-            ).lower()
+            assert (
+                "invalid" in str(exc_info.value).lower() or "expired" in str(exc_info.value).lower()
+            )
 
     @pytest.mark.asyncio
     async def test_authenticate_with_expired_jwt_mock(self, mock_session, mock_agent):
         """Test authentication failure with expired JWT."""
         with (
-            patch("src.security.mcp_auth.select") as mock_select,
+            patch("src.security.mcp_auth.select"),
             patch.object(MCPAuthService, "__init__", lambda self: None),
         ):
             # Mock database query result
@@ -317,17 +301,15 @@ class TestMCPAuthenticationMocks:
                     tool_name="test_tool",
                 )
 
-            assert "invalid" in str(exc_info.value).lower() or "expired" in str(
-                exc_info.value
-            ).lower()
+            assert (
+                "invalid" in str(exc_info.value).lower() or "expired" in str(exc_info.value).lower()
+            )
 
     @pytest.mark.asyncio
-    async def test_authenticate_with_tampered_jwt_mock(
-        self, mock_session, mock_agent
-    ):
+    async def test_authenticate_with_tampered_jwt_mock(self, mock_session, mock_agent):
         """Test authentication failure with tampered JWT payload."""
         with (
-            patch("src.security.mcp_auth.select") as mock_select,
+            patch("src.security.mcp_auth.select"),
             patch.object(MCPAuthService, "__init__", lambda self: None),
         ):
             # Mock database query result
@@ -351,17 +333,15 @@ class TestMCPAuthenticationMocks:
                     tool_name="test_tool",
                 )
 
-            assert "invalid" in str(exc_info.value).lower() or "expired" in str(
-                exc_info.value
-            ).lower()
+            assert (
+                "invalid" in str(exc_info.value).lower() or "expired" in str(exc_info.value).lower()
+            )
 
     @pytest.mark.asyncio
-    async def test_authenticate_jwt_agent_mismatch_mock(
-        self, mock_session, mock_agent
-    ):
+    async def test_authenticate_jwt_agent_mismatch_mock(self, mock_session, mock_agent):
         """Test authentication failure when JWT agent_id doesn't match request agent_id."""
         with (
-            patch("src.security.mcp_auth.select") as mock_select,
+            patch("src.security.mcp_auth.select"),
             patch.object(MCPAuthService, "__init__", lambda self: None),
         ):
             # Mock database query result

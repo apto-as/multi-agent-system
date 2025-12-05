@@ -119,8 +119,6 @@ class PermissionError(TMWSException):
     pass
 
 
-
-
 class ServiceError(TMWSException):
     """General service errors."""
 
@@ -133,7 +131,8 @@ class NotFoundError(TMWSException):
     def __init__(self, resource_type: str, resource_id: str):
         message = f"{resource_type} with id '{resource_id}' not found"
         super().__init__(
-            message, {"resource_type": resource_type, "resource_id": resource_id},
+            message,
+            {"resource_type": resource_type, "resource_id": resource_id},
         )
 
 
@@ -146,15 +145,11 @@ class DatabaseOperationError(DatabaseException):
     pass
 
 
-
-
 # Service Initialization and Execution Errors
 class ServiceInitializationError(ServiceError):
     """Raised when service initialization fails."""
 
     pass
-
-
 
 
 # Memory Service Specific Errors
@@ -168,12 +163,6 @@ class MemorySearchError(MemoryException):
     """Raised when memory search fails."""
 
     pass
-
-
-
-
-
-
 
 
 # Vector Search Specific Errors
@@ -201,21 +190,11 @@ class EmbeddingGenerationError(VectorSearchError):
     pass
 
 
-
-
-
-
-
-
 # Integration Errors
 class IntegrationError(TMWSException):
     """Base class for external integration errors."""
 
     pass
-
-
-
-
 
 
 # MCP Server Errors
@@ -252,10 +231,6 @@ class ImmutableRecordError(TMWSException):
     """
 
     pass
-
-
-
-
 
 
 # Utility function for logging and re-raising

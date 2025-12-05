@@ -5,15 +5,16 @@ This module tests the ExecuteToolUseCase in isolation with all dependencies mock
 Tests follow TDD RED phase methodology - expecting failures until implementation exists.
 """
 
-import pytest
-from uuid import uuid4
 from unittest.mock import AsyncMock, MagicMock
+from uuid import uuid4
 
+import pytest
+
+from src.application.dtos.request_dtos import ExecuteToolRequest
+from src.application.dtos.response_dtos import ToolExecutionResultDTO
 from src.application.use_cases.execute_tool_use_case import (
     ExecuteToolUseCase,
 )
-from src.application.dtos.request_dtos import ExecuteToolRequest
-from src.application.dtos.response_dtos import ToolExecutionResultDTO
 
 
 @pytest.mark.asyncio
@@ -154,9 +155,7 @@ class TestExecuteToolUseCase:
         )
 
         # Assert - Tool verification
-        mock_active_connection.get_tool_by_name.assert_called_once_with(
-            valid_request.tool_name
-        )
+        mock_active_connection.get_tool_by_name.assert_called_once_with(valid_request.tool_name)
 
         # Assert - Tool execution
         mock_adapter.execute_tool.assert_called_once_with(
@@ -243,7 +242,9 @@ class TestExecuteToolUseCase:
             await use_case.execute(valid_request)
 
         # Should raise ValidationError with "not active"
-        assert "not active" in str(exc_info.value).lower() or "failed" in str(exc_info.value).lower()
+        assert (
+            "not active" in str(exc_info.value).lower() or "failed" in str(exc_info.value).lower()
+        )
 
         # Verify no adapter calls
         mock_adapter.execute_tool.assert_not_called()

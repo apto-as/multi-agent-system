@@ -128,7 +128,9 @@ class SecurityAuditFacade:
 
         # Step 3: Brute force detection (for authentication events)
         brute_force_info = None
-        if event_type in ["authentication_failed", "authorization_denied", "login_failed"] and (ip_address or agent_id):
+        if event_type in ["authentication_failed", "authorization_denied", "login_failed"] and (
+            ip_address or agent_id
+        ):
             brute_force_info = await self.risk_analyzer.check_brute_force(
                 agent_id=agent_id or "unknown",
                 event_type=event_type,
@@ -143,16 +145,18 @@ class SecurityAuditFacade:
         if alert_sent:
             logger.info(
                 f"🚨 Security alert sent for {event_type}",
-                extra={"event_type": event_type, "risk_score": risk_score}
+                extra={"event_type": event_type, "risk_score": risk_score},
             )
 
         # Step 5: Store event
-        event_hash = RiskAnalyzer.generate_event_hash({
-            "event_type": event_type,
-            "client_ip": ip_address,
-            "endpoint": event_data.get("endpoint"),
-            "user_id": user_id,
-        })
+        event_hash = RiskAnalyzer.generate_event_hash(
+            {
+                "event_type": event_type,
+                "client_ip": ip_address,
+                "endpoint": event_data.get("endpoint"),
+                "user_id": user_id,
+            }
+        )
 
         saved_event = await self.event_store.save(
             event_type=event_type,

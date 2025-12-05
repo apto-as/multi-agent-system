@@ -211,7 +211,11 @@ class SkillTools:
                     try:
                         skill_uuid = UUID(skill_id)
                     except ValueError:
-                        return {"success": False, "error": "Invalid skill_id format", "error_type": "validation"}
+                        return {
+                            "success": False,
+                            "error": "Invalid skill_id format",
+                            "error_type": "validation",
+                        }
 
                     # Step 3: Execute service method (authorization checked inside)
                     skill_service = SkillService(session)
@@ -223,7 +227,11 @@ class SkillTools:
                     )
 
                     if not result:
-                        return {"success": False, "error": "Skill not found or access denied", "error_type": "not_found"}
+                        return {
+                            "success": False,
+                            "error": "Skill not found or access denied",
+                            "error_type": "not_found",
+                        }
 
                     logger.info(f"get_skill: agent={context.agent_id}, skill_id={skill_id}")
 
@@ -305,9 +313,17 @@ class SkillTools:
 
                     # Step 3: Validate input
                     if not name or not name.strip():
-                        return {"success": False, "error": "Skill name is required", "error_type": "validation"}
+                        return {
+                            "success": False,
+                            "error": "Skill name is required",
+                            "error_type": "validation",
+                        }
                     if not content or not content.strip():
-                        return {"success": False, "error": "Skill content is required", "error_type": "validation"}
+                        return {
+                            "success": False,
+                            "error": "Skill content is required",
+                            "error_type": "validation",
+                        }
 
                     # Step 4: Execute service method
                     skill_service = SkillService(session)
@@ -397,7 +413,11 @@ class SkillTools:
                     try:
                         skill_uuid = UUID(skill_id)
                     except ValueError:
-                        return {"success": False, "error": "Invalid skill_id format", "error_type": "validation"}
+                        return {
+                            "success": False,
+                            "error": "Invalid skill_id format",
+                            "error_type": "validation",
+                        }
 
                     # Step 3: Authorization (REQ-2) - owner check done in service
                     await authorize_mcp_request(
@@ -420,7 +440,11 @@ class SkillTools:
                         update_data["tags"] = tags
 
                     if not update_data:
-                        return {"success": False, "error": "No update fields provided", "error_type": "validation"}
+                        return {
+                            "success": False,
+                            "error": "No update fields provided",
+                            "error_type": "validation",
+                        }
 
                     # Step 5: Execute service method
                     skill_service = SkillService(session)
@@ -432,7 +456,11 @@ class SkillTools:
                     )
 
                     if not result:
-                        return {"success": False, "error": "Skill not found or access denied", "error_type": "not_found"}
+                        return {
+                            "success": False,
+                            "error": "Skill not found or access denied",
+                            "error_type": "not_found",
+                        }
 
                     logger.info(
                         f"update_skill: agent={context.agent_id}, "
@@ -498,7 +526,11 @@ class SkillTools:
                     try:
                         skill_uuid = UUID(skill_id)
                     except ValueError:
-                        return {"success": False, "error": "Invalid skill_id format", "error_type": "validation"}
+                        return {
+                            "success": False,
+                            "error": "Invalid skill_id format",
+                            "error_type": "validation",
+                        }
 
                     # Step 3: Authorization (REQ-2)
                     await authorize_mcp_request(
@@ -516,7 +548,11 @@ class SkillTools:
                     )
 
                     if not result:
-                        return {"success": False, "error": "Skill not found or access denied", "error_type": "not_found"}
+                        return {
+                            "success": False,
+                            "error": "Skill not found or access denied",
+                            "error_type": "not_found",
+                        }
 
                     logger.info(f"delete_skill: agent={context.agent_id}, skill_id={skill_id}")
 
@@ -585,11 +621,19 @@ class SkillTools:
                     try:
                         skill_uuid = UUID(skill_id)
                     except ValueError:
-                        return {"success": False, "error": "Invalid skill_id format", "error_type": "validation"}
+                        return {
+                            "success": False,
+                            "error": "Invalid skill_id format",
+                            "error_type": "validation",
+                        }
 
                     # Step 3: Validate target agents
                     if not target_agent_ids:
-                        return {"success": False, "error": "target_agent_ids is required", "error_type": "validation"}
+                        return {
+                            "success": False,
+                            "error": "target_agent_ids is required",
+                            "error_type": "validation",
+                        }
 
                     # Step 4: Authorization (REQ-2)
                     await authorize_mcp_request(
@@ -608,7 +652,11 @@ class SkillTools:
                     )
 
                     if not result:
-                        return {"success": False, "error": "Skill not found or access denied", "error_type": "not_found"}
+                        return {
+                            "success": False,
+                            "error": "Skill not found or access denied",
+                            "error_type": "not_found",
+                        }
 
                     logger.info(
                         f"share_skill: agent={context.agent_id}, "
@@ -679,7 +727,11 @@ class SkillTools:
                     try:
                         skill_uuid = UUID(skill_id)
                     except ValueError:
-                        return {"success": False, "error": "Invalid skill_id format", "error_type": "validation"}
+                        return {
+                            "success": False,
+                            "error": "Invalid skill_id format",
+                            "error_type": "validation",
+                        }
 
                     # Step 3: Authorization (REQ-2)
                     await authorize_mcp_request(
@@ -697,7 +749,11 @@ class SkillTools:
                     )
 
                     if not result:
-                        return {"success": False, "error": "Skill not found or access denied", "error_type": "not_found"}
+                        return {
+                            "success": False,
+                            "error": "Skill not found or access denied",
+                            "error_type": "not_found",
+                        }
 
                     logger.info(f"activate_skill: agent={context.agent_id}, skill_id={skill_id}")
 
@@ -760,7 +816,11 @@ class SkillTools:
                     try:
                         skill_uuid = UUID(skill_id)
                     except ValueError:
-                        return {"success": False, "error": "Invalid skill_id format", "error_type": "validation"}
+                        return {
+                            "success": False,
+                            "error": "Invalid skill_id format",
+                            "error_type": "validation",
+                        }
 
                     # Step 3: Authorization (REQ-2)
                     await authorize_mcp_request(
@@ -778,7 +838,11 @@ class SkillTools:
                     )
 
                     if not result:
-                        return {"success": False, "error": "Skill not found or access denied", "error_type": "not_found"}
+                        return {
+                            "success": False,
+                            "error": "Skill not found or access denied",
+                            "error_type": "not_found",
+                        }
 
                     logger.info(f"deactivate_skill: agent={context.agent_id}, skill_id={skill_id}")
 

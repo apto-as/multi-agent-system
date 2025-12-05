@@ -9,7 +9,6 @@ Tests the access tracking functionality of get_memory():
 - Concurrent access handling
 """
 
-import asyncio
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
@@ -153,10 +152,11 @@ async def test_multiple_accesses_increment_correctly(memory_service, mock_sessio
     ]
 
     # Act - Access memory 3 times with mocked datetime
-    for i, access_time in enumerate(access_times):
-        with patch("src.services.memory_service.datetime") as mock_svc_dt, patch(
-            "src.models.memory.datetime"
-        ) as mock_model_dt:
+    for _i, access_time in enumerate(access_times):
+        with (
+            patch("src.services.memory_service.datetime") as mock_svc_dt,
+            patch("src.models.memory.datetime") as mock_model_dt,
+        ):
             # Mock rate limit check in service
             mock_svc_dt.now.return_value = access_time
             mock_svc_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
@@ -165,7 +165,7 @@ async def test_multiple_accesses_increment_correctly(memory_service, mock_sessio
             mock_model_dt.now.return_value = access_time
             mock_model_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
 
-            result = await memory_service.get_memory(memory_id, track_access=True)
+            await memory_service.get_memory(memory_id, track_access=True)
 
             # Update test_memory state for next iteration
             if mock_session.commit.called:
@@ -278,9 +278,10 @@ async def test_concurrent_access_tracking(memory_service, mock_session):
     for i in range(5):
         access_time = base_time + timedelta(seconds=i * 6)  # 0s, 6s, 12s, 18s, 24s
 
-        with patch("src.services.memory_service.datetime") as mock_svc_dt, patch(
-            "src.models.memory.datetime"
-        ) as mock_model_dt:
+        with (
+            patch("src.services.memory_service.datetime") as mock_svc_dt,
+            patch("src.models.memory.datetime") as mock_model_dt,
+        ):
             # Mock rate limit check in service
             mock_svc_dt.now.return_value = access_time
             mock_svc_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
@@ -289,7 +290,7 @@ async def test_concurrent_access_tracking(memory_service, mock_session):
             mock_model_dt.now.return_value = access_time
             mock_model_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
 
-            result = await memory_service.get_memory(memory_id, track_access=True)
+            await memory_service.get_memory(memory_id, track_access=True)
 
             # Update test_memory state for next iteration
             if mock_session.commit.called:

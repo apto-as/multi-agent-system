@@ -42,6 +42,7 @@ from src.services.learning_trust_integration import LearningTrustIntegration
 # Unit Tests: propagate_learning_success()
 # ============================================================================
 
+
 class TestPropagateLearningSuccess:
     """Test successful pattern usage → trust boost"""
 
@@ -55,7 +56,7 @@ class TestPropagateLearningSuccess:
             namespace="test",
             trust_score=0.5,
             total_verifications=10,
-            accurate_verifications=5
+            accurate_verifications=5,
         )
         db_session.add(agent)
 
@@ -67,7 +68,7 @@ class TestPropagateLearningSuccess:
             access_level="public",  # Must be public for trust boost
             pattern_data={"test": "data"},
             success_rate=0.95,
-            usage_count=50
+            usage_count=50,
         )
         db_session.add(pattern)
         await db_session.flush()
@@ -76,9 +77,7 @@ class TestPropagateLearningSuccess:
 
         # Act
         new_score = await integration.propagate_learning_success(
-            agent_id="test-agent",
-            pattern_id=pattern.id,
-            requesting_namespace="test"
+            agent_id="test-agent", pattern_id=pattern.id, requesting_namespace="test"
         )
 
         # Assert
@@ -101,7 +100,7 @@ class TestPropagateLearningSuccess:
             namespace="test",
             trust_score=0.6,
             total_verifications=5,
-            accurate_verifications=3
+            accurate_verifications=3,
         )
         db_session.add(agent)
 
@@ -113,7 +112,7 @@ class TestPropagateLearningSuccess:
             access_level="system",  # System-level pattern
             pattern_data={"system": "config"},
             success_rate=0.99,
-            usage_count=1000
+            usage_count=1000,
         )
         db_session.add(pattern)
         await db_session.flush()
@@ -122,9 +121,7 @@ class TestPropagateLearningSuccess:
 
         # Act
         new_score = await integration.propagate_learning_success(
-            agent_id="test-agent",
-            pattern_id=pattern.id,
-            requesting_namespace="test"
+            agent_id="test-agent", pattern_id=pattern.id, requesting_namespace="test"
         )
 
         # Assert
@@ -142,7 +139,7 @@ class TestPropagateLearningSuccess:
             namespace="test",
             trust_score=0.5,
             total_verifications=10,
-            accurate_verifications=5
+            accurate_verifications=5,
         )
         db_session.add(agent)
 
@@ -154,7 +151,7 @@ class TestPropagateLearningSuccess:
             access_level="private",  # Private pattern
             pattern_data={"test": "data"},
             success_rate=0.99,
-            usage_count=10
+            usage_count=10,
         )
         db_session.add(pattern)
         await db_session.flush()
@@ -164,9 +161,7 @@ class TestPropagateLearningSuccess:
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
             await integration.propagate_learning_success(
-                agent_id="test-agent",
-                pattern_id=pattern.id,
-                requesting_namespace="test"
+                agent_id="test-agent", pattern_id=pattern.id, requesting_namespace="test"
             )
 
         assert "private" in str(exc_info.value).lower()
@@ -187,7 +182,7 @@ class TestPropagateLearningSuccess:
             namespace="test",
             trust_score=0.5,
             total_verifications=10,
-            accurate_verifications=5
+            accurate_verifications=5,
         )
         db_session.add(agent)
 
@@ -199,7 +194,7 @@ class TestPropagateLearningSuccess:
             access_level="public",  # Even though public
             pattern_data={"test": "data"},
             success_rate=0.99,
-            usage_count=10
+            usage_count=10,
         )
         db_session.add(pattern)
         await db_session.flush()
@@ -209,9 +204,7 @@ class TestPropagateLearningSuccess:
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
             await integration.propagate_learning_success(
-                agent_id="test-agent",
-                pattern_id=pattern.id,
-                requesting_namespace="test"
+                agent_id="test-agent", pattern_id=pattern.id, requesting_namespace="test"
             )
 
         assert "own pattern" in str(exc_info.value).lower() or "self" in str(exc_info.value).lower()
@@ -231,7 +224,7 @@ class TestPropagateLearningSuccess:
             namespace="test",
             trust_score=0.5,
             total_verifications=10,
-            accurate_verifications=5
+            accurate_verifications=5,
         )
         db_session.add(agent)
         await db_session.flush()
@@ -243,7 +236,7 @@ class TestPropagateLearningSuccess:
             await integration.propagate_learning_success(
                 agent_id="test-agent",
                 pattern_id=uuid4(),  # Random UUID (doesn't exist)
-                requesting_namespace="test"
+                requesting_namespace="test",
             )
 
         assert "LearningPattern" in str(exc_info.value)
@@ -252,6 +245,7 @@ class TestPropagateLearningSuccess:
 # ============================================================================
 # Unit Tests: propagate_learning_failure()
 # ============================================================================
+
 
 class TestPropagateLearningFailure:
     """Test failed pattern usage → trust penalty"""
@@ -266,7 +260,7 @@ class TestPropagateLearningFailure:
             namespace="test",
             trust_score=0.6,
             total_verifications=10,
-            accurate_verifications=6
+            accurate_verifications=6,
         )
         db_session.add(agent)
 
@@ -278,7 +272,7 @@ class TestPropagateLearningFailure:
             access_level="public",
             pattern_data={"test": "data"},
             success_rate=0.1,  # Low success rate
-            usage_count=20
+            usage_count=20,
         )
         db_session.add(pattern)
         await db_session.flush()
@@ -287,9 +281,7 @@ class TestPropagateLearningFailure:
 
         # Act
         new_score = await integration.propagate_learning_failure(
-            agent_id="test-agent",
-            pattern_id=pattern.id,
-            requesting_namespace="test"
+            agent_id="test-agent", pattern_id=pattern.id, requesting_namespace="test"
         )
 
         # Assert
@@ -312,7 +304,7 @@ class TestPropagateLearningFailure:
             namespace="test",
             trust_score=0.5,
             total_verifications=5,
-            accurate_verifications=3
+            accurate_verifications=3,
         )
         db_session.add(agent)
 
@@ -324,7 +316,7 @@ class TestPropagateLearningFailure:
             access_level="system",
             pattern_data={"system": "config"},
             success_rate=0.8,
-            usage_count=100
+            usage_count=100,
         )
         db_session.add(pattern)
         await db_session.flush()
@@ -333,9 +325,7 @@ class TestPropagateLearningFailure:
 
         # Act
         new_score = await integration.propagate_learning_failure(
-            agent_id="test-agent",
-            pattern_id=pattern.id,
-            requesting_namespace="test"
+            agent_id="test-agent", pattern_id=pattern.id, requesting_namespace="test"
         )
 
         # Assert
@@ -353,7 +343,7 @@ class TestPropagateLearningFailure:
             namespace="test",
             trust_score=0.5,
             total_verifications=10,
-            accurate_verifications=5
+            accurate_verifications=5,
         )
         db_session.add(agent)
 
@@ -365,7 +355,7 @@ class TestPropagateLearningFailure:
             access_level="private",
             pattern_data={"test": "data"},
             success_rate=0.1,
-            usage_count=10
+            usage_count=10,
         )
         db_session.add(pattern)
         await db_session.flush()
@@ -375,9 +365,7 @@ class TestPropagateLearningFailure:
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
             await integration.propagate_learning_failure(
-                agent_id="test-agent",
-                pattern_id=pattern.id,
-                requesting_namespace="test"
+                agent_id="test-agent", pattern_id=pattern.id, requesting_namespace="test"
             )
 
         assert "private" in str(exc_info.value).lower()
@@ -396,7 +384,7 @@ class TestPropagateLearningFailure:
             namespace="namespace-A",  # Different namespace
             trust_score=0.5,
             total_verifications=10,
-            accurate_verifications=5
+            accurate_verifications=5,
         )
         db_session.add(agent)
 
@@ -408,7 +396,7 @@ class TestPropagateLearningFailure:
             access_level="public",
             pattern_data={"test": "data"},
             success_rate=0.8,
-            usage_count=20
+            usage_count=20,
         )
         db_session.add(pattern)
         await db_session.flush()
@@ -420,7 +408,7 @@ class TestPropagateLearningFailure:
             await integration.propagate_learning_failure(
                 agent_id="test-agent",
                 pattern_id=pattern.id,
-                requesting_namespace="namespace-B"  # Mismatched namespace
+                requesting_namespace="namespace-B",  # Mismatched namespace
             )
 
         # Verify error message mentions namespace
@@ -438,7 +426,7 @@ class TestPropagateLearningFailure:
             access_level="public",
             pattern_data={"test": "data"},
             success_rate=0.8,
-            usage_count=20
+            usage_count=20,
         )
         db_session.add(pattern)
         await db_session.flush()
@@ -448,15 +436,14 @@ class TestPropagateLearningFailure:
         # Act & Assert
         with pytest.raises(AgentNotFoundError):
             await integration.propagate_learning_failure(
-                agent_id="nonexistent-agent",
-                pattern_id=pattern.id,
-                requesting_namespace="test"
+                agent_id="nonexistent-agent", pattern_id=pattern.id, requesting_namespace="test"
             )
 
 
 # ============================================================================
 # Unit Tests: evaluate_pattern_reliability()
 # ============================================================================
+
 
 class TestEvaluatePatternReliability:
     """Test pattern reliability evaluation"""
@@ -473,7 +460,7 @@ class TestEvaluatePatternReliability:
             access_level="public",
             pattern_data={"test": "data"},
             success_rate=0.95,  # 95% success
-            usage_count=100  # Well-tested
+            usage_count=100,  # Well-tested
         )
         db_session.add(pattern)
         await db_session.flush()
@@ -502,7 +489,7 @@ class TestEvaluatePatternReliability:
             access_level="public",
             pattern_data={"test": "data"},
             success_rate=0.95,  # High success
-            usage_count=2  # But too few uses
+            usage_count=2,  # But too few uses
         )
         db_session.add(pattern)
         await db_session.flush()
@@ -530,7 +517,7 @@ class TestEvaluatePatternReliability:
             access_level="private",  # Private
             pattern_data={"test": "data"},
             success_rate=0.99,
-            usage_count=1000
+            usage_count=1000,
         )
         db_session.add(pattern)
         await db_session.flush()
@@ -550,6 +537,7 @@ class TestEvaluatePatternReliability:
 # Unit Tests: batch_update_from_patterns()
 # ============================================================================
 
+
 class TestBatchUpdateFromPatterns:
     """Test batch trust score updates from multiple pattern usages"""
 
@@ -563,7 +551,7 @@ class TestBatchUpdateFromPatterns:
             namespace="test",
             trust_score=0.5,
             total_verifications=10,
-            accurate_verifications=5
+            accurate_verifications=5,
         )
         agent2 = Agent(
             agent_id="agent-2",
@@ -571,7 +559,7 @@ class TestBatchUpdateFromPatterns:
             namespace="test",
             trust_score=0.6,
             total_verifications=10,
-            accurate_verifications=6
+            accurate_verifications=6,
         )
         db_session.add_all([agent1, agent2])
 
@@ -583,7 +571,7 @@ class TestBatchUpdateFromPatterns:
             access_level="public",
             pattern_data={"test": "data"},
             success_rate=0.9,
-            usage_count=50
+            usage_count=50,
         )
         pattern_b = LearningPattern(
             pattern_name="pattern_b",
@@ -593,7 +581,7 @@ class TestBatchUpdateFromPatterns:
             access_level="public",
             pattern_data={"test": "data"},
             success_rate=0.8,
-            usage_count=40
+            usage_count=40,
         )
         db_session.add_all([pattern_a, pattern_b])
         await db_session.flush()
@@ -636,7 +624,7 @@ class TestBatchUpdateFromPatterns:
             namespace="test",
             trust_score=0.5,
             total_verifications=10,
-            accurate_verifications=5
+            accurate_verifications=5,
         )
         db_session.add(agent)
 
@@ -648,7 +636,7 @@ class TestBatchUpdateFromPatterns:
             access_level="public",
             pattern_data={"test": "data"},
             success_rate=0.9,
-            usage_count=50
+            usage_count=50,
         )
         db_session.add(pattern)
         await db_session.flush()
@@ -678,6 +666,7 @@ class TestBatchUpdateFromPatterns:
 # Integration Tests: LearningService → Integration → TrustService
 # ============================================================================
 
+
 class TestLearningServiceIntegration:
     """Test integration between LearningService and TrustService via integration layer"""
 
@@ -693,7 +682,7 @@ class TestLearningServiceIntegration:
             namespace="test",
             trust_score=0.5,
             total_verifications=10,
-            accurate_verifications=5
+            accurate_verifications=5,
         )
         db_session.add(agent)
 
@@ -705,7 +694,7 @@ class TestLearningServiceIntegration:
             access_level="public",
             pattern_data={"test": "data"},
             success_rate=0.9,
-            usage_count=20
+            usage_count=20,
         )
         db_session.add(pattern)
         await db_session.flush()
@@ -719,14 +708,12 @@ class TestLearningServiceIntegration:
             using_agent_id="test-agent",
             execution_time=0.5,
             success=True,
-            context_data={"test": "context"}
+            context_data={"test": "context"},
         )
 
         # Manually call integration (LearningService doesn't have auto-integration yet)
         new_score = await integration.propagate_learning_success(
-            agent_id="test-agent",
-            pattern_id=pattern.id,
-            requesting_namespace="test"
+            agent_id="test-agent", pattern_id=pattern.id, requesting_namespace="test"
         )
 
         # Assert
@@ -752,7 +739,7 @@ class TestLearningServiceIntegration:
             namespace="test",
             trust_score=0.6,
             total_verifications=10,
-            accurate_verifications=6
+            accurate_verifications=6,
         )
         db_session.add(agent)
 
@@ -764,7 +751,7 @@ class TestLearningServiceIntegration:
             access_level="public",
             pattern_data={"test": "data"},
             success_rate=0.5,
-            usage_count=20
+            usage_count=20,
         )
         db_session.add(pattern)
         await db_session.flush()
@@ -778,14 +765,12 @@ class TestLearningServiceIntegration:
             using_agent_id="test-agent",
             execution_time=1.0,
             success=False,
-            context_data={"test": "context"}
+            context_data={"test": "context"},
         )
 
         # Manually call integration
         new_score = await integration.propagate_learning_failure(
-            agent_id="test-agent",
-            pattern_id=pattern.id,
-            requesting_namespace="test"
+            agent_id="test-agent", pattern_id=pattern.id, requesting_namespace="test"
         )
 
         # Assert
@@ -811,7 +796,7 @@ class TestLearningServiceIntegration:
             namespace="test",
             trust_score=0.5,
             total_verifications=10,
-            accurate_verifications=5
+            accurate_verifications=5,
         )
         db_session.add(agent)
 
@@ -823,7 +808,7 @@ class TestLearningServiceIntegration:
             access_level="public",
             pattern_data={"test": "data"},
             success_rate=0.9,
-            usage_count=20
+            usage_count=20,
         )
         db_session.add(pattern)
         await db_session.flush()
@@ -836,7 +821,7 @@ class TestLearningServiceIntegration:
             using_agent_id="test-agent",
             execution_time=0.5,
             success=True,
-            context_data={"test": "context"}
+            context_data={"test": "context"},
         )
 
         # Assert: Pattern usage recorded
@@ -849,6 +834,7 @@ class TestLearningServiceIntegration:
 # ============================================================================
 # Security Tests
 # ============================================================================
+
 
 class TestSecurityCompliance:
     """Test V-TRUST-1 and V-TRUST-4 compliance"""
@@ -866,7 +852,7 @@ class TestSecurityCompliance:
             namespace="test",
             trust_score=0.5,
             total_verifications=10,
-            accurate_verifications=5
+            accurate_verifications=5,
         )
         db_session.add(agent)
 
@@ -878,7 +864,7 @@ class TestSecurityCompliance:
             access_level="public",
             pattern_data={"test": "data"},
             success_rate=0.9,
-            usage_count=20
+            usage_count=20,
         )
         db_session.add(pattern)
         await db_session.flush()
@@ -889,7 +875,7 @@ class TestSecurityCompliance:
         new_score = await integration.propagate_learning_success(
             agent_id="test-agent",
             pattern_id=pattern.id,  # This becomes verification_id
-            requesting_namespace="test"
+            requesting_namespace="test",
         )
 
         # Assert: Update succeeds (verification_id provided)
@@ -906,7 +892,7 @@ class TestSecurityCompliance:
             namespace="namespace-A",
             trust_score=0.5,
             total_verifications=10,
-            accurate_verifications=5
+            accurate_verifications=5,
         )
         db_session.add(agent)
 
@@ -918,7 +904,7 @@ class TestSecurityCompliance:
             access_level="public",
             pattern_data={"test": "data"},
             success_rate=0.9,
-            usage_count=20
+            usage_count=20,
         )
         db_session.add(pattern)
         await db_session.flush()
@@ -930,7 +916,7 @@ class TestSecurityCompliance:
             await integration.propagate_learning_success(
                 agent_id="test-agent",
                 pattern_id=pattern.id,
-                requesting_namespace="namespace-B"  # Mismatched
+                requesting_namespace="namespace-B",  # Mismatched
             )
 
     @pytest.mark.asyncio
@@ -942,7 +928,7 @@ class TestSecurityCompliance:
             namespace="test",
             trust_score=0.5,
             total_verifications=10,
-            accurate_verifications=5
+            accurate_verifications=5,
         )
         db_session.add(agent)
         await db_session.flush()
@@ -954,5 +940,5 @@ class TestSecurityCompliance:
             await integration.propagate_learning_success(
                 agent_id="test-agent",
                 pattern_id="'; DROP TABLE learning_patterns; --",  # type: ignore
-                requesting_namespace="test"
+                requesting_namespace="test",
             )

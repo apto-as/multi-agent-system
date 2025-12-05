@@ -20,7 +20,9 @@ Security:
 """
 
 import time
+
 import pytest
+
 from src.domain.value_objects.tool_category import ToolCategory
 
 
@@ -58,7 +60,7 @@ class TestGoPythonCategorySync:
             "api_integration",
             "file_management",
             "security",
-            "monitoring"
+            "monitoring",
         }
 
         python_values = {category.value for category in ToolCategory}
@@ -83,7 +85,7 @@ class TestGoPythonCategorySync:
             ToolCategory.API_INTEGRATION: "api_client",
             ToolCategory.FILE_MANAGEMENT: "file_handler",
             ToolCategory.SECURITY: "auth_service",
-            ToolCategory.MONITORING: "monitoring_tool"
+            ToolCategory.MONITORING: "monitoring_tool",
         }
 
         for expected_category, test_name in test_cases.items():
@@ -106,9 +108,7 @@ class TestGoPythonCategorySync:
     def test_enum_member_count(self):
         """Verify enum has exactly 5 members (no hidden/deprecated members)."""
         members = list(ToolCategory.__members__.keys())
-        assert len(members) == 5, (
-            f"Expected 5 enum members, got {len(members)}: {members}"
-        )
+        assert len(members) == 5, f"Expected 5 enum members, got {len(members)}: {members}"
 
     def test_inference_deterministic(self):
         """Inference should be deterministic (same input = same output)."""
@@ -120,7 +120,7 @@ class TestGoPythonCategorySync:
             "monitoring_tool",
             "workflow_automation",
             "mcp_server",
-            "security_vault"
+            "security_vault",
         ]
 
         for name in test_names:
@@ -142,7 +142,7 @@ class TestGoPythonCategorySync:
             "api_client",
             "file_handler",
             "security_scanner",
-            "monitoring_service"
+            "monitoring_service",
         ] * 200  # 1000 inferences
 
         start = time.perf_counter()
@@ -156,8 +156,7 @@ class TestGoPythonCategorySync:
         avg_time_ms = ((end - start) / len(test_names)) * 1000
 
         assert avg_time_ms < 1.0, (
-            f"Category inference too slow: {avg_time_ms:.3f}ms per call "
-            f"(target: < 1.0ms)"
+            f"Category inference too slow: {avg_time_ms:.3f}ms per call (target: < 1.0ms)"
         )
 
     def test_all_categories_reachable_via_inference(self):
@@ -170,7 +169,7 @@ class TestGoPythonCategorySync:
             ("mcp_server", ToolCategory.API_INTEGRATION),
             ("file_handler", ToolCategory.FILE_MANAGEMENT),
             ("auth_service", ToolCategory.SECURITY),
-            ("monitoring_tool", ToolCategory.MONITORING)
+            ("monitoring_tool", ToolCategory.MONITORING),
         ]
 
         reachable_categories = set()
@@ -206,7 +205,7 @@ class TestGoPythonCategorySync:
             ToolCategory.API_INTEGRATION: "api_integration",
             ToolCategory.FILE_MANAGEMENT: "file_management",
             ToolCategory.SECURITY: "security",
-            ToolCategory.MONITORING: "monitoring"
+            ToolCategory.MONITORING: "monitoring",
         }
 
         for category, expected_value in expected_values.items():
@@ -219,24 +218,26 @@ class TestGoPythonCategorySync:
 class TestInferenceRules:
     """Test specific inference rules for edge cases."""
 
-    @pytest.mark.parametrize("tool_name,expected_category", [
-        ("data_transformer", ToolCategory.DATA_PROCESSING),
-        ("etl_processor", ToolCategory.DATA_PROCESSING),
-        ("api_client", ToolCategory.API_INTEGRATION),
-        ("rest_connector", ToolCategory.API_INTEGRATION),
-        ("file_reader", ToolCategory.FILE_MANAGEMENT),
-        ("storage_handler", ToolCategory.FILE_MANAGEMENT),
-        ("auth_validator", ToolCategory.SECURITY),
-        ("encryption_service", ToolCategory.SECURITY),
-        ("metrics_collector", ToolCategory.MONITORING),
-        ("health_checker", ToolCategory.MONITORING),
-    ])
+    @pytest.mark.parametrize(
+        "tool_name,expected_category",
+        [
+            ("data_transformer", ToolCategory.DATA_PROCESSING),
+            ("etl_processor", ToolCategory.DATA_PROCESSING),
+            ("api_client", ToolCategory.API_INTEGRATION),
+            ("rest_connector", ToolCategory.API_INTEGRATION),
+            ("file_reader", ToolCategory.FILE_MANAGEMENT),
+            ("storage_handler", ToolCategory.FILE_MANAGEMENT),
+            ("auth_validator", ToolCategory.SECURITY),
+            ("encryption_service", ToolCategory.SECURITY),
+            ("metrics_collector", ToolCategory.MONITORING),
+            ("health_checker", ToolCategory.MONITORING),
+        ],
+    )
     def test_inference_examples(self, tool_name: str, expected_category: ToolCategory):
         """Test inference for common tool naming patterns."""
         inferred = ToolCategory.infer_from_name(tool_name)
         assert inferred == expected_category, (
-            f"Tool '{tool_name}' inferred as {inferred.value}, "
-            f"expected {expected_category.value}"
+            f"Tool '{tool_name}' inferred as {inferred.value}, expected {expected_category.value}"
         )
 
     def test_inference_case_insensitive(self):
@@ -290,12 +291,8 @@ class TestDocumentation:
         """Each category enum member should have documentation."""
         for category in ToolCategory:
             # Check that the category itself exists and has a value
-            assert category.value is not None, (
-                f"Category {category.name} has no value"
-            )
-            assert len(category.value) > 0, (
-                f"Category {category.name} has empty value"
-            )
+            assert category.value is not None, f"Category {category.name} has no value"
+            assert len(category.value) > 0, f"Category {category.name} has empty value"
 
     def test_inference_method_documented(self):
         """The infer_from_name method should have comprehensive documentation."""

@@ -227,7 +227,10 @@ class RolePermissionMatrix:
 
     @classmethod
     def has_permission(
-        cls, user_roles: list[UserRole], resource: Resource, permission: Permission,
+        cls,
+        user_roles: list[UserRole],
+        resource: Resource,
+        permission: Permission,
     ) -> bool:
         """Check if any user role has permission on resource."""
         for role in user_roles:
@@ -353,7 +356,10 @@ class APIKeyScopeMapper:
 
     @classmethod
     def has_scope_permission(
-        cls, scopes: list[APIKeyScope], resource: Resource, permission: Permission,
+        cls,
+        scopes: list[APIKeyScope],
+        resource: Resource,
+        permission: Permission,
     ) -> bool:
         """Check if API key scopes allow permission on resource."""
         for scope in scopes:
@@ -390,7 +396,9 @@ class AuthorizationService:
 
         # Check role-based permissions
         if self.role_matrix.has_permission(
-            context.user.roles, context.resource, context.permission,
+            context.user.roles,
+            context.resource,
+            context.permission,
         ):
             # Additional context checks (async for database verification)
             return await self._check_additional_constraints(context)
@@ -398,7 +406,9 @@ class AuthorizationService:
         # Check API key scope permissions if applicable
         if context.api_key_scopes:
             return self.scope_mapper.has_scope_permission(
-                context.api_key_scopes, context.resource, context.permission,
+                context.api_key_scopes,
+                context.resource,
+                context.permission,
             )
 
         return False
@@ -497,7 +507,11 @@ class AuthorizationService:
 
             # Parse UUID (resource_id should be memory UUID)
             try:
-                memory_id = UUID(context.resource_id) if isinstance(context.resource_id, str) else context.resource_id
+                memory_id = (
+                    UUID(context.resource_id)
+                    if isinstance(context.resource_id, str)
+                    else context.resource_id
+                )
             except (ValueError, AttributeError):
                 return False
 
@@ -542,7 +556,9 @@ class AuthorizationService:
         return list(set(permissions))  # Remove duplicates
 
     def validate_api_key_scope(
-        self, required_scope: APIKeyScope, available_scopes: list[APIKeyScope],
+        self,
+        required_scope: APIKeyScope,
+        available_scopes: list[APIKeyScope],
     ) -> bool:
         """Validate API key has required scope."""
         if APIKeyScope.FULL in available_scopes:
@@ -565,7 +581,8 @@ def require_permission(resource: Resource, permission: Permission, check_ownersh
             user = kwargs.get("user") or kwargs.get("current_user")
             if not user:
                 raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required",
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Authentication required",
                 )
 
             # Extract additional context
@@ -586,7 +603,8 @@ def require_permission(resource: Resource, permission: Permission, check_ownersh
             # Check permission
             if not authorization_service.check_permission(auth_context):
                 raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions",
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Insufficient permissions",
                 )
 
             # Check ownership if required
@@ -612,7 +630,8 @@ def require_role(*required_roles: UserRole):
             user = kwargs.get("user") or kwargs.get("current_user")
             if not user:
                 raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required",
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Authentication required",
                 )
 
             if not any(role in user.roles for role in required_roles):
@@ -640,7 +659,8 @@ def require_permissions(resource: Resource, *permissions: Permission):
             user = kwargs.get("current_user")
             if not user:
                 raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required",
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Authentication required",
                 )
 
             # Check permissions

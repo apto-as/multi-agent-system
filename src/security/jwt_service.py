@@ -105,7 +105,10 @@ class JWTService:
 
         # Create database record
         refresh_token = RefreshToken(
-            token_id=token_id, token_hash=token_hash, expires_at=expires_at, user_id=user.id,
+            token_id=token_id,
+            token_hash=token_hash,
+            expires_at=expires_at,
+            user_id=user.id,
         )
 
         # Return token and record
@@ -113,7 +116,11 @@ class JWTService:
         return full_token, refresh_token
 
     def create_api_key_token(
-        self, api_key_id: str, user: User, scopes: list[str], expires_delta: timedelta | None = None,
+        self,
+        api_key_id: str,
+        user: User,
+        scopes: list[str],
+        expires_delta: timedelta | None = None,
     ) -> str:
         """Create JWT token for API key authentication."""
         now = datetime.now(timezone.utc)
@@ -170,7 +177,11 @@ class JWTService:
             if "sub" not in payload or "username" not in payload:
                 logger.error(
                     "⚠️  JWT token missing required claims",
-                    extra={"client_ip": client_ip, "has_sub": "sub" in payload, "has_username": "username" in payload},
+                    extra={
+                        "client_ip": client_ip,
+                        "has_sub": "sub" in payload,
+                        "has_username": "username" in payload,
+                    },
                 )
                 return None
 
@@ -261,7 +272,9 @@ class JWTService:
             )
             return None
 
-    def verify_refresh_token_hash(self, raw_token: str, stored_hash: str, client_ip: str | None = None) -> bool:
+    def verify_refresh_token_hash(
+        self, raw_token: str, stored_hash: str, client_ip: str | None = None
+    ) -> bool:
         """Verify raw refresh token against stored hash.
 
         Args:
@@ -285,7 +298,9 @@ class JWTService:
                 extra={
                     "client_ip": client_ip or "unknown",
                     "error_type": "hash_verification_failed",
-                    "stored_hash_prefix": stored_hash[:10] + "..." if len(stored_hash) > 10 else "***",
+                    "stored_hash_prefix": stored_hash[:10] + "..."
+                    if len(stored_hash) > 10
+                    else "***",
                 },
             )
             # FAIL-SECURE: On any error, deny access

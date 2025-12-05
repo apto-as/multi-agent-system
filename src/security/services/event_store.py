@@ -175,7 +175,7 @@ class EventStore:
                         "event_type": event_type,
                         "event_hash": event_hash,
                         "risk_score": risk_score,
-                    }
+                    },
                 )
 
                 return saved_event
@@ -346,9 +346,7 @@ class EventStore:
                 cutoff_time = datetime.utcnow() - timedelta(minutes=time_window_minutes)
 
                 # Build query
-                stmt = select(SecurityAuditLog).filter(
-                    SecurityAuditLog.timestamp >= cutoff_time
-                )
+                stmt = select(SecurityAuditLog).filter(SecurityAuditLog.timestamp >= cutoff_time)
 
                 # Apply filters
                 if event_type:

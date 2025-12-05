@@ -1,9 +1,10 @@
 """Unit tests for LearningService."""
-import pytest
-from datetime import datetime
+
 from uuid import uuid4
 
-from src.core.exceptions import NotFoundError, PermissionError, ValidationError
+import pytest
+
+from src.core.exceptions import PermissionError, ValidationError
 from src.models.learning_pattern import LearningPattern, PatternUsageHistory
 from src.services.learning_service import LearningService
 
@@ -22,7 +23,7 @@ class TestLearningService:
             pattern_data={"strategy": "index_optimization", "improvement": "90%"},
             agent_id="test-agent",
             namespace="test-namespace",
-            access_level="private"
+            access_level="private",
         )
 
         assert pattern.pattern_name == "test_pattern"
@@ -41,19 +42,13 @@ class TestLearningService:
         # Test empty pattern name
         with pytest.raises(ValidationError):
             await service.create_pattern(
-                pattern_name="",
-                category="test",
-                pattern_data={},
-                agent_id="test-agent"
+                pattern_name="", category="test", pattern_data={}, agent_id="test-agent"
             )
 
         # Test empty category
         with pytest.raises(ValidationError):
             await service.create_pattern(
-                pattern_name="test",
-                category="",
-                pattern_data={},
-                agent_id="test-agent"
+                pattern_name="test", category="", pattern_data={}, agent_id="test-agent"
             )
 
     async def test_get_pattern_success(self, db_session):
@@ -65,7 +60,7 @@ class TestLearningService:
             pattern_name="retrieval_test",
             category="test",
             pattern_data={"key": "value"},
-            agent_id="test-agent"
+            agent_id="test-agent",
         )
 
         # Retrieve pattern (must pass same agent_id for access control)
@@ -93,21 +88,21 @@ class TestLearningService:
             category="test",
             pattern_data={},
             agent_id="agent-1",
-            namespace="test"
+            namespace="test",
         )
         await service.create_pattern(
             pattern_name="agent1_pattern2",
             category="test",
             pattern_data={},
             agent_id="agent-1",
-            namespace="test"
+            namespace="test",
         )
         await service.create_pattern(
             pattern_name="agent2_pattern",
             category="test",
             pattern_data={},
             agent_id="agent-2",
-            namespace="test"
+            namespace="test",
         )
 
         # Get patterns for agent-1
@@ -126,21 +121,19 @@ class TestLearningService:
             category="optimization",
             pattern_data={},
             agent_id="test-agent",
-            namespace="test"
+            namespace="test",
         )
         await service.create_pattern(
             pattern_name="security1",
             category="security",
             pattern_data={},
             agent_id="test-agent",
-            namespace="test"
+            namespace="test",
         )
 
         # Search for optimization patterns (need requesting_agent_id for private patterns)
         results = await service.search_patterns(
-            requesting_agent_id="test-agent",
-            category="optimization",
-            namespace="test"
+            requesting_agent_id="test-agent", category="optimization", namespace="test"
         )
 
         assert len(results) >= 1
@@ -156,14 +149,11 @@ class TestLearningService:
             pattern_data={},
             agent_id="test-agent",
             namespace="test",
-            access_level="public"  # Make it public so search finds it
+            access_level="public",  # Make it public so search finds it
         )
 
         # Search with query_text (not pattern_name_pattern)
-        results = await service.search_patterns(
-            query_text="index",
-            namespace="test"
-        )
+        results = await service.search_patterns(query_text="index", namespace="test")
 
         assert len(results) >= 1
         assert any("index" in p.pattern_name for p in results)
@@ -179,7 +169,7 @@ class TestLearningService:
             pattern_data={"action": "test"},
             agent_id="owner-agent",
             namespace="test",
-            access_level="public"  # Allow all agents to use
+            access_level="public",  # Allow all agents to use
         )
 
         # Use pattern (execution_time, not execution_time_ms)
@@ -187,7 +177,7 @@ class TestLearningService:
             pattern_id=pattern.id,
             using_agent_id="user-agent",
             success=True,
-            execution_time=0.1505  # In seconds, not ms
+            execution_time=0.1505,  # In seconds, not ms
         )
 
         # Verify usage count increased (initial usage_count is 0)
@@ -205,16 +195,14 @@ class TestLearningService:
             category="test",
             pattern_data={},
             agent_id="test-agent",
-            namespace="test"
+            namespace="test",
         )
 
         initial_weight = pattern.learning_weight
 
         # Use pattern successfully
         updated = await service.use_pattern(
-            pattern_id=pattern.id,
-            using_agent_id="test-agent",
-            success=True
+            pattern_id=pattern.id, using_agent_id="test-agent", success=True
         )
 
         # Learning weight should increase on success
@@ -230,14 +218,12 @@ class TestLearningService:
             category="original",
             pattern_data={"version": 1},
             agent_id="owner-agent",
-            namespace="test"
+            namespace="test",
         )
 
         # Update pattern (pattern_name cannot be updated, only pattern_data)
         updated = await service.update_pattern(
-            pattern_id=pattern.id,
-            updating_agent_id="owner-agent",
-            pattern_data={"version": 2}
+            pattern_id=pattern.id, updating_agent_id="owner-agent", pattern_data={"version": 2}
         )
 
         assert updated.pattern_name == "update_test"  # Name unchanged
@@ -254,7 +240,7 @@ class TestLearningService:
             pattern_data={},
             agent_id="owner-agent",
             namespace="test",
-            access_level="private"
+            access_level="private",
         )
 
         # Try to update with different agent (only pattern_data can be updated)
@@ -262,7 +248,7 @@ class TestLearningService:
             await service.update_pattern(
                 pattern_id=pattern.id,
                 updating_agent_id="other-agent",
-                pattern_data={"hacked": True}
+                pattern_data={"hacked": True},
             )
 
     async def test_delete_pattern_success(self, db_session):
@@ -275,13 +261,12 @@ class TestLearningService:
             category="test",
             pattern_data={},
             agent_id="owner-agent",
-            namespace="test"
+            namespace="test",
         )
 
         # Delete pattern
         result = await service.delete_pattern(
-            pattern_id=pattern.id,
-            deleting_agent_id="owner-agent"
+            pattern_id=pattern.id, deleting_agent_id="owner-agent"
         )
 
         assert result is True
@@ -301,15 +286,12 @@ class TestLearningService:
             pattern_data={},
             agent_id="owner-agent",
             namespace="test",
-            access_level="private"
+            access_level="private",
         )
 
         # Try to delete with different agent
         with pytest.raises(PermissionError):
-            await service.delete_pattern(
-                pattern_id=pattern.id,
-                deleting_agent_id="other-agent"
-            )
+            await service.delete_pattern(pattern_id=pattern.id, deleting_agent_id="other-agent")
 
     async def test_get_pattern_analytics(self, db_session):
         """Test retrieving pattern analytics."""
@@ -321,22 +303,17 @@ class TestLearningService:
             category="test",
             pattern_data={},
             agent_id="test-agent",
-            namespace="test"
+            namespace="test",
         )
 
         # Use pattern multiple times
         for _ in range(3):
             await service.use_pattern(
-                pattern_id=pattern.id,
-                using_agent_id="test-agent",
-                success=True
+                pattern_id=pattern.id, using_agent_id="test-agent", success=True
             )
 
         # Get analytics (by agent_id and namespace)
-        analytics = await service.get_pattern_analytics(
-            agent_id="test-agent",
-            namespace="test"
-        )
+        analytics = await service.get_pattern_analytics(agent_id="test-agent", namespace="test")
 
         assert analytics["total_patterns"] >= 1
         assert len(analytics["top_patterns"]) >= 1
@@ -353,7 +330,7 @@ class TestLearningService:
             pattern_data={},
             agent_id="other-agent",  # Different agent
             namespace="test",
-            access_level="public"
+            access_level="public",
         )
         await service.create_pattern(
             pattern_name="security1",
@@ -361,14 +338,12 @@ class TestLearningService:
             pattern_data={},
             agent_id="other-agent",  # Different agent
             namespace="test",
-            access_level="public"
+            access_level="public",
         )
 
         # Get recommendations (returns list of (pattern, score) tuples)
         recommendations = await service.recommend_patterns(
-            agent_id="test-agent",
-            category="optimization",
-            limit=5
+            agent_id="test-agent", category="optimization", limit=5
         )
 
         assert len(recommendations) >= 1
@@ -386,16 +361,13 @@ class TestLearningService:
                 "category": "test",
                 "pattern_data": {"index": i},
                 "agent_id": "test-agent",
-                "namespace": "test"
+                "namespace": "test",
             }
             for i in range(3)
         ]
 
         # Batch create
-        created = await service.batch_create_patterns(
-            patterns_data,
-            agent_id="test-agent"
-        )
+        created = await service.batch_create_patterns(patterns_data, agent_id="test-agent")
 
         assert len(created) == 3
         assert all(p.agent_id == "test-agent" for p in created)
@@ -410,21 +382,18 @@ class TestLearningService:
             category="test",
             pattern_data={},
             agent_id="test-agent",
-            namespace="namespace1"
+            namespace="namespace1",
         )
         await service.create_pattern(
             pattern_name="ns2_pattern",
             category="test",
             pattern_data={},
             agent_id="test-agent",
-            namespace="namespace2"
+            namespace="namespace2",
         )
 
         # Search in namespace1
-        ns1_patterns = await service.get_patterns_by_agent(
-            "test-agent",
-            namespace="namespace1"
-        )
+        ns1_patterns = await service.get_patterns_by_agent("test-agent", namespace="namespace1")
 
         # Should only see namespace1 patterns
         assert len(ns1_patterns) == 1
@@ -441,7 +410,7 @@ class TestLearningService:
             pattern_data={},
             agent_id="owner-agent",
             namespace="test",
-            access_level="private"
+            access_level="private",
         )
 
         # Owner can retrieve pattern
@@ -452,8 +421,7 @@ class TestLearningService:
         # Other agent cannot access (pattern not visible in search)
         # Private patterns only visible to owner
         patterns = await service.search_patterns(
-            requesting_agent_id="other-agent",
-            namespace="test"
+            requesting_agent_id="other-agent", namespace="test"
         )
         # Should not include private pattern from owner-agent
         assert not any(p.id == pattern.id for p in patterns)
@@ -469,7 +437,7 @@ class TestLearningService:
             pattern_data={},
             agent_id="owner-agent",
             namespace="test",
-            access_level="public"
+            access_level="public",
         )
 
         # Any agent can retrieve pattern
@@ -478,10 +446,7 @@ class TestLearningService:
         assert retrieved.pattern_name == "public_pattern"
 
         # Public patterns visible to all in search
-        patterns = await service.search_patterns(
-            requesting_agent_id="any-agent",
-            namespace="test"
-        )
+        patterns = await service.search_patterns(requesting_agent_id="any-agent", namespace="test")
         assert any(p.id == pattern.id for p in patterns)
 
     async def test_cache_functionality(self, db_session):
@@ -494,7 +459,7 @@ class TestLearningService:
             category="test",
             pattern_data={"cached": True},
             agent_id="test-agent",
-            namespace="test"
+            namespace="test",
         )
 
         # First retrieval (cache miss)
@@ -518,7 +483,7 @@ class TestLearningPatternModel:
             pattern_data={"key": "value"},
             agent_id="test-agent",
             namespace="test",
-            access_level="private"
+            access_level="private",
         )
 
         # Add to session and flush to trigger defaults
@@ -544,7 +509,7 @@ class TestPatternUsageHistoryModel:
             category="test",
             pattern_data={},
             agent_id="test-agent",
-            namespace="test"
+            namespace="test",
         )
         test_session.add(pattern)
         await test_session.flush()
@@ -554,7 +519,7 @@ class TestPatternUsageHistoryModel:
             pattern_id=str(pattern.id),
             agent_id="test-agent",
             success=True,
-            execution_time=0.1255  # In seconds
+            execution_time=0.1255,  # In seconds
         )
 
         test_session.add(usage)

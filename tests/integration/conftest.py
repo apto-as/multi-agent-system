@@ -10,6 +10,13 @@ from unittest.mock import AsyncMock
 import pytest
 import pytest_asyncio
 
+# Import for dependency override
+from src.api.dependencies import User
+
+# Import app and memory service dependency for override
+from src.api.main import app  # noqa: E402
+from src.api.routers.memory import get_memory_service  # noqa: E402
+
 # Import all security fixtures for reuse in integration tests
 from tests.unit.security.conftest import (
     mock_jwt_service,
@@ -24,13 +31,6 @@ from tests.unit.security.conftest import (
     test_api_key_for_agent,
     test_expired_api_key,
 )
-
-# Import for dependency override
-from src.api.dependencies import User
-
-# Import app and memory service dependency for override
-from src.api.main import app  # noqa: E402
-from src.api.routers.memory import get_memory_service  # noqa: E402
 
 
 @pytest.fixture

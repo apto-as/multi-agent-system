@@ -160,7 +160,9 @@ class LearningService:
             return pattern
 
     async def get_pattern(
-        self, pattern_id: UUID, requesting_agent_id: str | None = None,
+        self,
+        pattern_id: UUID,
+        requesting_agent_id: str | None = None,
     ) -> LearningPattern | None:
         """Get learning pattern by ID with access control.
 
@@ -555,7 +557,10 @@ class LearningService:
             return True
 
     async def get_pattern_analytics(
-        self, agent_id: str | None = None, namespace: str | None = None, days: int = 30,
+        self,
+        agent_id: str | None = None,
+        namespace: str | None = None,
+        days: int = 30,
     ) -> dict[str, Any]:
         """Get comprehensive pattern analytics.
 
@@ -569,7 +574,10 @@ class LearningService:
 
         """
         cache_key = self._cache_key(
-            "get_pattern_analytics", agent_id=agent_id, namespace=namespace, days=days,
+            "get_pattern_analytics",
+            agent_id=agent_id,
+            namespace=namespace,
+            days=days,
         )
 
         cached = self._get_cached(cache_key)
@@ -647,12 +655,9 @@ class LearningService:
                 ],
                 # SQLite date() returns string (YYYY-MM-DD), not datetime
                 "recent_usage": [
-                    {"day": row.day, "usage_count": row.usage_count}
-                    for row in recent_usage
+                    {"day": row.day, "usage_count": row.usage_count} for row in recent_usage
                 ],
-                "success_statistics": dict(success_stats._asdict())
-                if success_stats
-                else {},
+                "success_statistics": dict(success_stats._asdict()) if success_stats else {},
             }
 
             self._set_cache(cache_key, analytics)
@@ -758,7 +763,9 @@ class LearningService:
             return recommendations[:limit]
 
     async def batch_create_patterns(
-        self, patterns_data: list[dict[str, Any]], agent_id: str | None = None,
+        self,
+        patterns_data: list[dict[str, Any]],
+        agent_id: str | None = None,
     ) -> list[LearningPattern]:
         """Create multiple patterns in a batch for optimal performance.
 

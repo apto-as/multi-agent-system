@@ -127,7 +127,10 @@ class BaseService:
             logger.error(
                 f"Error deleting record: {e}",
                 exc_info=True,
-                extra={"record_type": type(record).__name__, "record_id": getattr(record, 'id', None)},
+                extra={
+                    "record_type": type(record).__name__,
+                    "record_id": getattr(record, "id", None),
+                },
             )
             raise ValidationError(f"Failed to delete record: {str(e)}")
 

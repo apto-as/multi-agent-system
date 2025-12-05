@@ -354,7 +354,11 @@ class MCPAuthService:
                 if not is_valid:
                     logger.warning(
                         f"🚨 Authentication failed: Invalid API key for agent: {agent_id}",
-                        extra={"agent_id": agent_id, "tool_name": tool_name, "hash_format": hash_format},
+                        extra={
+                            "agent_id": agent_id,
+                            "tool_name": tool_name,
+                            "hash_format": hash_format,
+                        },
                     )
                     raise MCPAuthenticationError(
                         "Invalid API key",

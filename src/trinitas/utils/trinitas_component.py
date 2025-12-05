@@ -6,6 +6,7 @@ Provides standardized initialization and configuration loading
 Created: 2025-10-15 (Phase 1 Day 3)
 Purpose: Eliminate initialization code duplication across components
 """
+
 from __future__ import annotations
 
 import sys

@@ -155,9 +155,7 @@ class SystemHealthService:
         except Exception as e:
             latency = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
 
-            logger.error(
-                f"Database health check failed: {str(e)} (latency={latency:.2f}ms)"
-            )
+            logger.error(f"Database health check failed: {str(e)} (latency={latency:.2f}ms)")
 
             return {
                 "status": "unhealthy",
@@ -227,10 +225,7 @@ class SystemHealthService:
         elif disk_percent > 80:
             warnings.append(f"Elevated disk usage: {disk_percent}%")
 
-        logger.info(
-            f"Detailed health check: status={status}, "
-            f"warnings={len(warnings)}"
-        )
+        logger.info(f"Detailed health check: status={status}, warnings={len(warnings)}")
 
         return {
             "status": status,

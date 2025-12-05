@@ -1,1 +1,0 @@
-{"error":{"code":-32603,"message":"Tool execution failed: failed to get trust score: API request failed: Get \"http://localhost:8000/api/v1/trust/%27;%20rm%20-rf%20/\": read tcp [::1]:56882-\u003e[::1]:8000: read: connection reset by peer"},"id":6}

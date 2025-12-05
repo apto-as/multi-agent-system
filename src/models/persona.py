@@ -1,5 +1,4 @@
-"""Persona models for TMWS.
-"""
+"""Persona models for TMWS."""
 
 from datetime import datetime
 from enum import Enum
@@ -70,7 +69,9 @@ class Persona(TMWSBase, MetadataMixin):
 
     # Additional timestamps (created_at and updated_at come from TMWSBase)
     last_active_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True, index=True,
+        DateTime(timezone=True),
+        nullable=True,
+        index=True,
     )
 
     # Indexes for performance

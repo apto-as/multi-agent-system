@@ -1,0 +1,29 @@
+{
+  "description": "Minimal Hooks - Protocol Injection Only (v3.0)",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PROJECT_DIR:-.}/hooks/core/protocol_injector.py session_start",
+            "description": "Inject TRINITAS-CORE-PROTOCOL.md at session start"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PROJECT_DIR:-.}/hooks/core/protocol_injector.py pre_compact",
+            "description": "Inject protocol reminder before context compression"
+          }
+        ]
+      }
+    ]
+  }
+}

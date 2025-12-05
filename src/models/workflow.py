@@ -1,5 +1,4 @@
-"""Workflow models for TMWS.
-"""
+"""Workflow models for TMWS."""
 
 from __future__ import annotations
 
@@ -50,12 +49,18 @@ class Workflow(TMWSBase, MetadataMixin):
 
     # Workflow configuration
     workflow_type: Mapped[WorkflowType] = mapped_column(
-        sa.Enum(WorkflowType), nullable=False, default=WorkflowType.SEQUENTIAL, index=True,
+        sa.Enum(WorkflowType),
+        nullable=False,
+        default=WorkflowType.SEQUENTIAL,
+        index=True,
     )
 
     # Workflow status
     status: Mapped[WorkflowStatus] = mapped_column(
-        sa.Enum(WorkflowStatus), nullable=False, default=WorkflowStatus.DRAFT, index=True,
+        sa.Enum(WorkflowStatus),
+        nullable=False,
+        default=WorkflowStatus.DRAFT,
+        index=True,
     )
 
     # Workflow definition
@@ -63,22 +68,34 @@ class Workflow(TMWSBase, MetadataMixin):
 
     # Execution tracking
     current_step_index: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0, server_default=sa.text("0"),
+        Integer,
+        nullable=False,
+        default=0,
+        server_default=sa.text("0"),
     )
 
     execution_count: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0, server_default=sa.text("0"),
+        Integer,
+        nullable=False,
+        default=0,
+        server_default=sa.text("0"),
     )
 
     # Execution timestamps
     started_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True, index=True,
+        DateTime(timezone=True),
+        nullable=True,
+        index=True,
     )
     completed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True, index=True,
+        DateTime(timezone=True),
+        nullable=True,
+        index=True,
     )
     last_executed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True, index=True,
+        DateTime(timezone=True),
+        nullable=True,
+        index=True,
     )
 
     # Error tracking
@@ -96,10 +113,14 @@ class Workflow(TMWSBase, MetadataMixin):
 
     # Relationships
     executions: Mapped[list[WorkflowExecution]] = relationship(
-        "WorkflowExecution", back_populates="workflow", cascade="all, delete-orphan",
+        "WorkflowExecution",
+        back_populates="workflow",
+        cascade="all, delete-orphan",
     )
     schedules: Mapped[list[WorkflowSchedule]] = relationship(
-        "WorkflowSchedule", back_populates="workflow", cascade="all, delete-orphan",
+        "WorkflowSchedule",
+        back_populates="workflow",
+        cascade="all, delete-orphan",
     )
 
     # Indexes for performance

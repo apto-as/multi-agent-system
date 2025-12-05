@@ -57,9 +57,7 @@ async def pydantic_validation_error_handler(
     )
 
 
-async def validation_error_handler(
-    request: Request, exc: ValidationError
-) -> JSONResponse:
+async def validation_error_handler(request: Request, exc: ValidationError) -> JSONResponse:
     """Map ValidationError → 400 Bad Request
 
     This handles input validation failures from business logic.
@@ -80,9 +78,7 @@ async def validation_error_handler(
     )
 
 
-async def authorization_error_handler(
-    request: Request, exc: AuthorizationError
-) -> JSONResponse:
+async def authorization_error_handler(request: Request, exc: AuthorizationError) -> JSONResponse:
     """Map AuthorizationError → 403 Forbidden
 
     Security Critical:
@@ -107,9 +103,7 @@ async def authorization_error_handler(
     )
 
 
-async def not_found_error_handler(
-    request: Request, exc: AggregateNotFoundError
-) -> JSONResponse:
+async def not_found_error_handler(request: Request, exc: AggregateNotFoundError) -> JSONResponse:
     """Map AggregateNotFoundError → 404 Not Found
 
     Security Note:
@@ -159,9 +153,7 @@ async def external_service_error_handler(
     )
 
 
-async def domain_exception_handler(
-    request: Request, exc: DomainException
-) -> JSONResponse:
+async def domain_exception_handler(request: Request, exc: DomainException) -> JSONResponse:
     """Map generic DomainException → 400 Bad Request
 
     This is a catch-all for domain exceptions not handled by specific handlers.
@@ -184,9 +176,7 @@ async def domain_exception_handler(
     )
 
 
-async def application_error_handler(
-    request: Request, exc: ApplicationError
-) -> JSONResponse:
+async def application_error_handler(request: Request, exc: ApplicationError) -> JSONResponse:
     """Map generic ApplicationError → 500 Internal Server Error
 
     This is a catch-all for application errors not handled by specific handlers.
@@ -231,8 +221,8 @@ async def generic_exception_handler(request: Request, exc: Exception) -> JSONRes
     Returns:
         JSONResponse with 500 status and generic message
     """
-    # TODO: Log full exception with stack trace for debugging
-    # logger.exception("Unhandled exception", exc_info=exc)
+    # Log full exception with stack trace for debugging (sanitized)
+    logger.exception("Unhandled exception occurred", exc_info=exc)
 
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

@@ -153,7 +153,9 @@ class InputValidator:
 
         if len(value) > max_length:
             raise ValidationError(
-                f"{field_name} exceeds maximum length of {max_length} characters", field_name, value,
+                f"{field_name} exceeds maximum length of {max_length} characters",
+                field_name,
+                value,
             )
 
         # Check for dangerous patterns
@@ -275,7 +277,9 @@ class InputValidator:
         for protocol in dangerous_protocols:
             if url.lower().startswith(protocol):
                 raise ValidationError(
-                    f"{field_name} uses dangerous protocol: {protocol}", field_name, url,
+                    f"{field_name} uses dangerous protocol: {protocol}",
+                    field_name,
+                    url,
                 )
 
         # Parse URL
@@ -345,7 +349,9 @@ class InputValidator:
         # Check depth
         if self._get_dict_depth(data) > max_depth:
             raise ValidationError(
-                f"{field_name} exceeds maximum nesting depth of {max_depth}", field_name, data,
+                f"{field_name} exceeds maximum nesting depth of {max_depth}",
+                field_name,
+                data,
             )
 
         # Check required fields
@@ -353,7 +359,9 @@ class InputValidator:
             missing_fields = [field for field in required_fields if field not in data]
             if missing_fields:
                 raise ValidationError(
-                    f"{field_name} missing required fields: {missing_fields}", field_name, data,
+                    f"{field_name} missing required fields: {missing_fields}",
+                    field_name,
+                    data,
                 )
 
         # Recursively validate string values
@@ -365,7 +373,9 @@ class InputValidator:
             if re.search(pattern, value, re.IGNORECASE):
                 logger.warning(f"Dangerous pattern detected in {field_name}: {pattern}")
                 raise ValidationError(
-                    f"{field_name} contains potentially dangerous content", field_name, value,
+                    f"{field_name} contains potentially dangerous content",
+                    field_name,
+                    value,
                 )
 
     def _sanitize_text(self, text: str) -> str:
@@ -483,7 +493,9 @@ class SQLInjectionValidator:
         if re.search(r"\bUNION\b.*\bSELECT\b", value, re.IGNORECASE):
             logger.critical(f"UNION injection detected in {parameter_name}")
             raise ValidationError(
-                f"{parameter_name} contains UNION SQL injection", parameter_name, value,
+                f"{parameter_name} contains UNION SQL injection",
+                parameter_name,
+                value,
             )
 
     def _check_boolean_injection(self, value: str, parameter_name: str) -> None:
@@ -498,7 +510,9 @@ class SQLInjectionValidator:
             if re.search(pattern, value, re.IGNORECASE):
                 logger.critical(f"Boolean injection detected in {parameter_name}")
                 raise ValidationError(
-                    f"{parameter_name} contains boolean SQL injection", parameter_name, value,
+                    f"{parameter_name} contains boolean SQL injection",
+                    parameter_name,
+                    value,
                 )
 
 
@@ -511,7 +525,9 @@ class VectorValidator:
         self.max_dimensions = max_dimensions
 
     def validate_vector(
-        self, vector: list[float] | np.ndarray, expected_dimensions: int = None,
+        self,
+        vector: list[float] | np.ndarray,
+        expected_dimensions: int = None,
     ) -> list[float]:
         """Validate embedding vector.
 
@@ -581,7 +597,9 @@ class VectorValidator:
 
         if len(text) > max_length:
             raise ValidationError(
-                f"Text length ({len(text)}) exceeds maximum ({max_length})", "text", text,
+                f"Text length ({len(text)}) exceeds maximum ({max_length})",
+                "text",
+                text,
             )
 
         # Use InputValidator for basic sanitization
@@ -594,18 +612,24 @@ class VectorValidator:
             value = float(component)
         except (ValueError, TypeError):
             raise ValidationError(
-                f"Vector component at index {index} must be a number", f"vector[{index}]", component,
+                f"Vector component at index {index} must be a number",
+                f"vector[{index}]",
+                component,
             )
 
         # Check for NaN and infinite values
         if np.isnan(value):
             raise ValidationError(
-                f"Vector component at index {index} is NaN", f"vector[{index}]", value,
+                f"Vector component at index {index} is NaN",
+                f"vector[{index}]",
+                value,
             )
 
         if np.isinf(value):
             raise ValidationError(
-                f"Vector component at index {index} is infinite", f"vector[{index}]", value,
+                f"Vector component at index {index} is infinite",
+                f"vector[{index}]",
+                value,
             )
 
         # Check for reasonable bounds

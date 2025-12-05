@@ -33,7 +33,7 @@ from src.core.config import get_settings
 @pytest.fixture
 def alembic_config(tmp_path):
     """Create Alembic configuration for testing."""
-    settings = get_settings()
+    get_settings()
 
     # Use temporary database for migration tests
     test_db = tmp_path / "test_migration.db"
@@ -77,9 +77,15 @@ class TestLicenseKeyMigration:
             # Verify columns
             columns = {col["name"]: col for col in inspector.get_columns("license_keys")}
             expected_columns = [
-                "id", "agent_id", "tier", "license_key_hash",
-                "issued_at", "expires_at", "is_active",
-                "revoked_at", "revoked_reason"
+                "id",
+                "agent_id",
+                "tier",
+                "license_key_hash",
+                "issued_at",
+                "expires_at",
+                "is_active",
+                "revoked_at",
+                "revoked_reason",
             ]
 
             for col in expected_columns:
@@ -103,7 +109,7 @@ class TestLicenseKeyMigration:
         expected_indexes = [
             "idx_license_keys_hash_lookup",
             "idx_license_keys_expiration",
-            "idx_license_keys_agent"
+            "idx_license_keys_agent",
         ]
 
         for idx in expected_indexes:
@@ -122,10 +128,7 @@ class TestLicenseKeyMigration:
 
         # Verify columns
         columns = {col["name"]: col for col in inspector.get_columns("license_key_usage")}
-        expected_columns = [
-            "id", "license_key_id", "used_at",
-            "feature_accessed", "usage_metadata"
-        ]
+        expected_columns = ["id", "license_key_id", "used_at", "feature_accessed", "usage_metadata"]
 
         for col in expected_columns:
             assert col in columns, f"Column {col} missing from license_key_usage"
@@ -141,10 +144,7 @@ class TestLicenseKeyMigration:
         inspector = inspect(db_engine)
         indexes = {idx["name"]: idx for idx in inspector.get_indexes("license_key_usage")}
 
-        expected_indexes = [
-            "idx_license_key_usage_time",
-            "idx_license_key_usage_feature"
-        ]
+        expected_indexes = ["idx_license_key_usage_time", "idx_license_key_usage_feature"]
 
         for idx in expected_indexes:
             assert idx in indexes, f"Index {idx} missing from license_key_usage"
@@ -187,10 +187,12 @@ class TestLicenseKeyMigration:
         with Session(db_engine) as session:
             # Create test agent
             agent_id = str(uuid4())
-            session.execute(text(f"""
+            session.execute(
+                text(f"""
                 INSERT INTO agents (id, agent_id, display_name, namespace, status, health_score, tier)
                 VALUES ('{agent_id}', 'test-agent', 'Test Agent', 'default', 'active', 1.0, 'FREE')
-            """))
+            """)
+            )
             session.commit()
 
             # Try to insert license with expires_at < issued_at (should fail)
@@ -198,13 +200,15 @@ class TestLicenseKeyMigration:
             past = now - timedelta(days=1)
 
             with pytest.raises(Exception) as exc_info:
-                session.execute(text(f"""
+                session.execute(
+                    text(f"""
                     INSERT INTO license_keys (id, agent_id, tier, license_key_hash, issued_at, expires_at, is_active)
                     VALUES (
                         '{uuid4()}', '{agent_id}', 'FREE', 'test_hash_123',
                         '{now.isoformat()}', '{past.isoformat()}', 1
                     )
-                """))
+                """)
+                )
                 session.commit()
 
             assert "check_expiration_after_issuance" in str(exc_info.value).lower()
@@ -220,41 +224,71 @@ class TestLicenseKeyMigration:
         with Session(db_engine) as session:
             # Create test agent
             agent_id = str(uuid4())
-            session.execute(text(f"""
+            session.execute(
+                text(f"""
                 INSERT INTO agents (id, agent_id, display_name, namespace, status, health_score, tier)
                 VALUES ('{agent_id}', 'test-agent', 'Test Agent', 'default', 'active', 1.0, 'PRO')
-            """))
+            """)
+            )
 
             # Create license key
             license_id = str(uuid4())
-            session.execute(text(f"""
+            session.execute(
+                text(f"""
                 INSERT INTO license_keys (id, agent_id, tier, license_key_hash, issued_at, is_active)
                 VALUES (
                     '{license_id}', '{agent_id}', 'PRO', 'test_hash_456',
                     '{datetime.now(timezone.utc).isoformat()}', 1
                 )
-            """))
+            """)
+            )
 
             # Create usage record
-            session.execute(text(f"""
+            session.execute(
+                text(f"""
                 INSERT INTO license_key_usage (id, license_key_id, used_at)
                 VALUES (
                     '{uuid4()}', '{license_id}', '{datetime.now(timezone.utc).isoformat()}'
                 )
-            """))
+            """)
+            )
             session.commit()
 
             # Verify records exist
-            assert session.execute(text(f"SELECT COUNT(*) FROM license_keys WHERE agent_id = '{agent_id}'")).scalar() == 1
-            assert session.execute(text(f"SELECT COUNT(*) FROM license_key_usage WHERE license_key_id = '{license_id}'")).scalar() == 1
+            assert (
+                session.execute(
+                    text(f"SELECT COUNT(*) FROM license_keys WHERE agent_id = '{agent_id}'")
+                ).scalar()
+                == 1
+            )
+            assert (
+                session.execute(
+                    text(
+                        f"SELECT COUNT(*) FROM license_key_usage WHERE license_key_id = '{license_id}'"
+                    )
+                ).scalar()
+                == 1
+            )
 
             # Delete agent
             session.execute(text(f"DELETE FROM agents WHERE id = '{agent_id}'"))
             session.commit()
 
             # Verify cascade delete
-            assert session.execute(text(f"SELECT COUNT(*) FROM license_keys WHERE agent_id = '{agent_id}'")).scalar() == 0
-            assert session.execute(text(f"SELECT COUNT(*) FROM license_key_usage WHERE license_key_id = '{license_id}'")).scalar() == 0
+            assert (
+                session.execute(
+                    text(f"SELECT COUNT(*) FROM license_keys WHERE agent_id = '{agent_id}'")
+                ).scalar()
+                == 0
+            )
+            assert (
+                session.execute(
+                    text(
+                        f"SELECT COUNT(*) FROM license_key_usage WHERE license_key_id = '{license_id}'"
+                    )
+                ).scalar()
+                == 0
+            )
 
     def test_downgrade_removes_all_changes(self, alembic_config, db_engine):
         """Test that downgrade removes all migration changes."""
@@ -335,14 +369,18 @@ class TestLicenseKeyMigration:
         with Session(db_engine) as session:
             # Create test agent
             agent_id = str(uuid4())
-            session.execute(text(f"""
+            session.execute(
+                text(f"""
                 INSERT INTO agents (id, agent_id, display_name, namespace, status, health_score)
                 VALUES ('{agent_id}', 'test-agent', 'Test Agent', 'default', 'active', 1.0)
-            """))
+            """)
+            )
             session.commit()
 
             # Verify agent exists
-            count_before = session.execute(text(f"SELECT COUNT(*) FROM agents WHERE id = '{agent_id}'")).scalar()
+            count_before = session.execute(
+                text(f"SELECT COUNT(*) FROM agents WHERE id = '{agent_id}'")
+            ).scalar()
             assert count_before == 1
 
         # Run upgrade
@@ -350,7 +388,9 @@ class TestLicenseKeyMigration:
 
         with Session(db_engine) as session:
             # Verify agent still exists with tier
-            result = session.execute(text(f"SELECT tier FROM agents WHERE id = '{agent_id}'")).fetchone()
+            result = session.execute(
+                text(f"SELECT tier FROM agents WHERE id = '{agent_id}'")
+            ).fetchone()
             assert result is not None
             assert result[0] == "FREE"  # Default value
 
@@ -359,7 +399,9 @@ class TestLicenseKeyMigration:
 
         with Session(db_engine) as session:
             # Verify agent still exists (tier column removed)
-            count_after = session.execute(text(f"SELECT COUNT(*) FROM agents WHERE id = '{agent_id}'")).scalar()
+            count_after = session.execute(
+                text(f"SELECT COUNT(*) FROM agents WHERE id = '{agent_id}'")
+            ).scalar()
             assert count_after == 1
 
 
@@ -380,10 +422,12 @@ class TestLicenseKeyMigrationPerformance:
         with Session(db_engine) as session:
             # Create test agent
             agent_id = str(uuid4())
-            session.execute(text(f"""
+            session.execute(
+                text(f"""
                 INSERT INTO agents (id, agent_id, display_name, namespace, status, health_score, tier)
                 VALUES ('{agent_id}', 'test-agent', 'Test Agent', 'default', 'active', 1.0, 'PRO')
-            """))
+            """)
+            )
             session.commit()
 
             # Measure insert performance
@@ -393,13 +437,15 @@ class TestLicenseKeyMigrationPerformance:
                 start = time.perf_counter()
 
                 license_id = str(uuid4())
-                session.execute(text(f"""
+                session.execute(
+                    text(f"""
                     INSERT INTO license_keys (id, agent_id, tier, license_key_hash, issued_at, is_active)
                     VALUES (
                         '{license_id}', '{agent_id}', 'PRO', '{uuid4().hex}',
                         '{datetime.now(timezone.utc).isoformat()}', 1
                     )
-                """))
+                """)
+                )
                 session.commit()
 
                 duration = (time.perf_counter() - start) * 1000  # ms

@@ -25,12 +25,17 @@ class Memory(TMWSBase, MetadataMixin):
     content: Mapped[str] = mapped_column(Text, nullable=False, comment="The actual memory content")
 
     summary: Mapped[str | None] = mapped_column(
-        Text, nullable=True, comment="Auto-generated summary for long content",
+        Text,
+        nullable=True,
+        comment="Auto-generated summary for long content",
     )
 
     # Agent ownership and namespace
     agent_id: Mapped[str] = mapped_column(
-        Text, nullable=False, index=True, comment="Owner agent identifier",
+        Text,
+        nullable=False,
+        index=True,
+        comment="Owner agent identifier",
     )
 
     namespace: Mapped[str] = mapped_column(
@@ -66,47 +71,76 @@ class Memory(TMWSBase, MetadataMixin):
     )
 
     shared_with_agents: Mapped[list[str]] = mapped_column(
-        JSON, nullable=False, default=list, comment="List of agent_ids with explicit access",
+        JSON,
+        nullable=False,
+        default=list,
+        comment="List of agent_ids with explicit access",
     )
 
     # Metadata and context
     context: Mapped[dict[str, Any]] = mapped_column(
-        JSON, nullable=False, default=dict, comment="Flexible context metadata",
+        JSON,
+        nullable=False,
+        default=dict,
+        comment="Flexible context metadata",
     )
 
     tags: Mapped[list[str]] = mapped_column(
-        JSON, nullable=False, default=list, comment="Tags for categorization",
+        JSON,
+        nullable=False,
+        default=list,
+        comment="Tags for categorization",
     )
 
     source_url: Mapped[str | None] = mapped_column(
-        Text, nullable=True, comment="Source URL if applicable",
+        Text,
+        nullable=True,
+        comment="Source URL if applicable",
     )
 
     # Importance and relevance
     importance_score: Mapped[float] = mapped_column(
-        Float, nullable=False, default=0.5, comment="Importance score (0.0 - 1.0)",
+        Float,
+        nullable=False,
+        default=0.5,
+        comment="Importance score (0.0 - 1.0)",
     )
 
     relevance_score: Mapped[float] = mapped_column(
-        Float, nullable=False, default=0.5, comment="Current relevance score (0.0 - 1.0)",
+        Float,
+        nullable=False,
+        default=0.5,
+        comment="Current relevance score (0.0 - 1.0)",
     )
 
     # Learning support
     access_count: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0, comment="Number of times accessed",
+        Integer,
+        nullable=False,
+        default=0,
+        comment="Number of times accessed",
     )
 
     learning_weight: Mapped[float] = mapped_column(
-        Float, nullable=False, default=1.0, comment="Weight for learning algorithms",
+        Float,
+        nullable=False,
+        default=1.0,
+        comment="Weight for learning algorithms",
     )
 
     pattern_ids: Mapped[list[str]] = mapped_column(
-        JSON, nullable=False, default=list, comment="Associated learning pattern IDs",
+        JSON,
+        nullable=False,
+        default=list,
+        comment="Associated learning pattern IDs",
     )
 
     # Temporal aspects
     accessed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True, index=True, comment="Last access timestamp",
+        DateTime(timezone=True),
+        nullable=True,
+        index=True,
+        comment="Last access timestamp",
     )
 
     expires_at: Mapped[datetime | None] = mapped_column(
@@ -118,7 +152,10 @@ class Memory(TMWSBase, MetadataMixin):
 
     # Versioning for optimistic locking
     version: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=1, comment="Version for optimistic locking",
+        Integer,
+        nullable=False,
+        default=1,
+        comment="Version for optimistic locking",
     )
 
     # Parent-child relationships for memory consolidation
@@ -232,25 +269,37 @@ class MemorySharing(TMWSBase):
     __tablename__ = "memory_sharing"
 
     memory_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("memories.id"), nullable=False, primary_key=True,
+        String(36),
+        ForeignKey("memories.id"),
+        nullable=False,
+        primary_key=True,
     )
 
     shared_with_agent_id: Mapped[str] = mapped_column(Text, nullable=False, primary_key=True)
 
     permission: Mapped[str] = mapped_column(
-        Text, nullable=False, default="read", comment="Permission level: read, write, delete",
+        Text,
+        nullable=False,
+        default="read",
+        comment="Permission level: read, write, delete",
     )
 
     shared_by_agent_id: Mapped[str] = mapped_column(
-        Text, nullable=False, comment="Agent who shared the memory",
+        Text,
+        nullable=False,
+        comment="Agent who shared the memory",
     )
 
     shared_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=datetime.utcnow,
+        DateTime(timezone=True),
+        nullable=False,
+        default=datetime.utcnow,
     )
 
     expires_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True, comment="When the sharing expires",
+        DateTime(timezone=True),
+        nullable=True,
+        comment="When the sharing expires",
     )
 
     __table_args__ = (
@@ -265,35 +314,51 @@ class MemoryPattern(TMWSBase, MetadataMixin):
     __tablename__ = "memory_patterns"
 
     pattern_type: Mapped[str] = mapped_column(
-        Text, nullable=False, comment="Type: sequence, correlation, cluster, etc.",
+        Text,
+        nullable=False,
+        comment="Type: sequence, correlation, cluster, etc.",
     )
 
     agent_id: Mapped[str] = mapped_column(
-        Text, nullable=False, index=True, comment="Agent who owns this pattern",
+        Text,
+        nullable=False,
+        index=True,
+        comment="Agent who owns this pattern",
     )
 
     namespace: Mapped[str] = mapped_column(Text, nullable=False, index=True)
 
     pattern_data: Mapped[dict[str, Any]] = mapped_column(
-        JSON, nullable=False, comment="The actual pattern data",
+        JSON,
+        nullable=False,
+        comment="The actual pattern data",
     )
 
     confidence: Mapped[float] = mapped_column(
-        Float, nullable=False, comment="Confidence score (0.0 - 1.0)",
+        Float,
+        nullable=False,
+        comment="Confidence score (0.0 - 1.0)",
     )
 
     frequency: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=1, comment="Occurrence frequency",
+        Integer,
+        nullable=False,
+        default=1,
+        comment="Occurrence frequency",
     )
 
     memory_ids: Mapped[list[str]] = mapped_column(
-        JSON, nullable=False, default=list, comment="Associated memory IDs",
+        JSON,
+        nullable=False,
+        default=list,
+        comment="Associated memory IDs",
     )
 
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)
 
     last_triggered_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True,
+        DateTime(timezone=True),
+        nullable=True,
     )
 
     __table_args__ = (
@@ -308,7 +373,9 @@ class MemoryConsolidation(TMWSBase):
     __tablename__ = "memory_consolidations"
 
     source_memory_ids: Mapped[list[str]] = mapped_column(
-        JSON, nullable=False, comment="Source memory IDs that were consolidated",
+        JSON,
+        nullable=False,
+        comment="Source memory IDs that were consolidated",
     )
 
     consolidated_memory_id: Mapped[str] = mapped_column(
@@ -319,15 +386,21 @@ class MemoryConsolidation(TMWSBase):
     )
 
     consolidation_type: Mapped[str] = mapped_column(
-        Text, nullable=False, comment="Type: summary, merge, compress, etc.",
+        Text,
+        nullable=False,
+        comment="Type: summary, merge, compress, etc.",
     )
 
     agent_id: Mapped[str] = mapped_column(Text, nullable=False, index=True)
 
     consolidation_metadata: Mapped[dict[str, Any]] = mapped_column(
-        JSON, nullable=False, default=dict,
+        JSON,
+        nullable=False,
+        default=dict,
     )
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=datetime.utcnow,
+        DateTime(timezone=True),
+        nullable=False,
+        default=datetime.utcnow,
     )

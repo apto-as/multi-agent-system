@@ -66,7 +66,9 @@ class BaseTool(ABC):
             return self.format_error(str(e))
 
     def format_success(
-        self, data: Any, message: str = "Operation completed successfully",
+        self,
+        data: Any,
+        message: str = "Operation completed successfully",
     ) -> dict[str, Any]:
         """Format successful response."""
         return {"success": True, "message": message, "data": data}

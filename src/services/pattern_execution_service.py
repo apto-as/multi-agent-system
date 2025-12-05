@@ -172,7 +172,9 @@ class PatternRegistry:
         logger.info(f"Batch registered {len(patterns)} patterns")
 
     def find_matching_pattern(
-        self, query: str, pattern_type_filter: PatternType | None = None,
+        self,
+        query: str,
+        pattern_type_filter: PatternType | None = None,
     ) -> PatternDefinition | None:
         """Find best matching pattern for query
 
@@ -210,7 +212,9 @@ class PatternRegistry:
         # Regex scan with priority sorting
         if self._sorted_patterns is None:
             self._sorted_patterns = sorted(
-                self.patterns.values(), key=lambda p: p.priority, reverse=True,
+                self.patterns.values(),
+                key=lambda p: p.priority,
+                reverse=True,
             )
 
         # Scan patterns in priority order
@@ -279,13 +283,16 @@ class HybridDecisionRouter:
 
         # Pre-compiled keyword patterns for fast matching
         self.infrastructure_keywords = re.compile(
-            r"\b(tool|function|command|execute|run|install|setup)\b", re.IGNORECASE,
+            r"\b(tool|function|command|execute|run|install|setup)\b",
+            re.IGNORECASE,
         )
         self.memory_keywords = re.compile(
-            r"\b(remember|recall|memory|history|past|previous|stored)\b", re.IGNORECASE,
+            r"\b(remember|recall|memory|history|past|previous|stored)\b",
+            re.IGNORECASE,
         )
         self.hybrid_keywords = re.compile(
-            r"\b(analyze|compare|find|search|similar|related)\b", re.IGNORECASE,
+            r"\b(analyze|compare|find|search|similar|related)\b",
+            re.IGNORECASE,
         )
 
         # Statistics
@@ -634,7 +641,8 @@ class PatternExecutionEngine:
         # SECURITY: Authenticate and authorize request
         try:
             auth_context = await pattern_auth_manager.authenticate_request(
-                token=auth_token, pattern_name=pattern_name,
+                token=auth_token,
+                pattern_name=pattern_name,
             )
             agent_id = auth_context["agent_id"]
             logger.info(f"Authenticated execution: agent={agent_id} pattern={pattern_name}")
@@ -670,7 +678,8 @@ class PatternExecutionEngine:
                 # No specific pattern, route intelligently
                 routing_decision = await self.router.route(query, execution_mode, context)
                 pattern = self.registry.find_matching_pattern(
-                    query, pattern_type_filter=routing_decision.pattern_type,
+                    query,
+                    pattern_type_filter=routing_decision.pattern_type,
                 )
 
             if not pattern:
@@ -678,7 +687,10 @@ class PatternExecutionEngine:
 
             # Step 2: Execute pattern with agent context
             execution_result = await self._execute_pattern(
-                pattern, query, context, agent_id=agent_id,
+                pattern,
+                query,
+                context,
+                agent_id=agent_id,
             )
 
             # Step 3: Cache successful results
@@ -781,7 +793,10 @@ class PatternExecutionEngine:
         )
 
     async def _execute_infrastructure(
-        self, pattern: PatternDefinition, query: str, _context: dict[str, Any] | None,
+        self,
+        pattern: PatternDefinition,
+        query: str,
+        _context: dict[str, Any] | None,
     ) -> dict[str, Any]:
         """Execute infrastructure pattern (MCP tools, fast operations)
 
@@ -798,7 +813,10 @@ class PatternExecutionEngine:
         }
 
     async def _execute_memory(
-        self, pattern: PatternDefinition, query: str, _context: dict[str, Any] | None,
+        self,
+        pattern: PatternDefinition,
+        query: str,
+        _context: dict[str, Any] | None,
     ) -> dict[str, Any]:
         """Execute memory pattern (database queries)
 
@@ -832,7 +850,10 @@ class PatternExecutionEngine:
         }
 
     async def _execute_hybrid(
-        self, pattern: PatternDefinition, query: str, context: dict[str, Any] | None,
+        self,
+        pattern: PatternDefinition,
+        query: str,
+        context: dict[str, Any] | None,
     ) -> dict[str, Any]:
         """Execute hybrid pattern (infrastructure + memory)
 
@@ -843,7 +864,9 @@ class PatternExecutionEngine:
         memory_task = self._execute_memory(pattern, query, context)
 
         infra_result, memory_result = await asyncio.gather(
-            infra_task, memory_task, return_exceptions=True,
+            infra_task,
+            memory_task,
+            return_exceptions=True,
         )
 
         return {
@@ -905,7 +928,7 @@ async def create_pattern_execution_engine(
         engine = await create_pattern_execution_engine()
         result = await engine.execute("analyze codebase")
     """
-    settings = get_settings()
+    get_settings()
 
     # Initialize cache manager if not provided
     # v2.4.3: Using local-only caching (Redis removed)

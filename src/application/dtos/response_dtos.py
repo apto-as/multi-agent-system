@@ -83,14 +83,8 @@ class MCPConnectionDTO:
             "status": self.status,
             "tools": [tool.to_dict() for tool in self.tools],
             "created_at": self.created_at.isoformat(),
-            "connected_at": (
-                self.connected_at.isoformat() if self.connected_at else None
-            ),
-            "disconnected_at": (
-                self.disconnected_at.isoformat()
-                if self.disconnected_at
-                else None
-            ),
+            "connected_at": (self.connected_at.isoformat() if self.connected_at else None),
+            "disconnected_at": (self.disconnected_at.isoformat() if self.disconnected_at else None),
             "error_message": self.error_message,
         }
 
@@ -127,6 +121,7 @@ class DisconnectionResultDTO:
             "server_name": self.server_name,
             "disconnected_at": self.disconnected_at.isoformat(),
         }
+
 
 from pydantic import BaseModel, Field
 

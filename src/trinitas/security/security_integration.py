@@ -26,6 +26,7 @@ Example:
     >>> if result.result == AccessResult.GRANTED:
     ...     print("Access granted!")
 """
+
 from __future__ import annotations
 
 import functools
@@ -80,7 +81,6 @@ class SecurityIntegrationError(Exception):
         ... except SecurityIntegrationError as e:
         ...     print(f"Security error: {e}")
     """
-
 
 
 class TrinitasSecurityIntegration:
@@ -181,9 +181,7 @@ class TrinitasSecurityIntegration:
 
         try:
             if not config_path:
-                config_path = os.path.join(
-                    os.path.dirname(__file__), "tool-matrix.json"
-                )
+                config_path = os.path.join(os.path.dirname(__file__), "tool-matrix.json")
 
             self._validator = TrinitasSecurityValidator(config_path)
             self.initialized = True
@@ -191,19 +189,13 @@ class TrinitasSecurityIntegration:
             security_logger.info("Trinitas Security Integration initialized")
 
         except (FileNotFoundError, PermissionError, OSError) as e:
-            security_logger.exception(
-                f"セキュリティ初期化失敗 - ファイルアクセスエラー: {e}"
-            )
+            security_logger.exception(f"セキュリティ初期化失敗 - ファイルアクセスエラー: {e}")
             msg = f"セキュリティ初期化に失敗 (ファイルアクセス): {e}"
-            raise SecurityIntegrationError(
-                msg
-            )
+            raise SecurityIntegrationError(msg)
         except (json.JSONDecodeError, KeyError, ValueError) as e:
             security_logger.exception(f"セキュリティ初期化失敗 - 設定データエラー: {e}")
             msg = f"セキュリティ初期化に失敗 (設定データ): {e}"
-            raise SecurityIntegrationError(
-                msg
-            )
+            raise SecurityIntegrationError(msg)
 
     def set_current_persona(self, persona: str) -> None:
         """Set the active persona for subsequent security validations.
@@ -324,8 +316,7 @@ class TrinitasSecurityIntegration:
         # ログ記録
         if result.result == AccessResult.GRANTED:
             security_logger.info(
-                f"アクセス許可: {self._current_persona} -> {tool} "
-                f"(リスク: {result.risk_level}/10)"
+                f"アクセス許可: {self._current_persona} -> {tool} (リスク: {result.risk_level}/10)"
             )
         else:
             security_logger.warning(
@@ -379,9 +370,7 @@ class TrinitasSecurityIntegration:
 
             if result.result != AccessResult.GRANTED:
                 msg = f"アクセス拒否: {result.reason} (リスク: {result.risk_level}/10)"
-                raise SecurityIntegrationError(
-                    msg
-                )
+                raise SecurityIntegrationError(msg)
 
             # 高リスクな操作の場合は警告
             if result.risk_level >= HIGH_RISK_WARNING:
@@ -450,9 +439,8 @@ class TrinitasSecurityIntegration:
             Manages persona switching for the duration of a context block,
             automatically restoring the previous persona on exit.
             """
-            def __init__(
-                self, integration: TrinitasSecurityIntegration, persona: str
-            ):
+
+            def __init__(self, integration: TrinitasSecurityIntegration, persona: str):
                 self.integration = integration
                 self.persona = persona
                 self.previous_persona = None
@@ -932,9 +920,7 @@ if __name__ == "__main__":
 
             # 書き込みツールの検証（拒否されるはず）
             result = validate_access("Write", target_path="./src/main.py")
-            print(
-                f"Write アクセス: {result.result.value} (リスク: {result.risk_level})"
-            )
+            print(f"Write アクセス: {result.result.value} (リスク: {result.risk_level})")
 
         # Artemisとしてコード編集
         with persona_context("artemis"):

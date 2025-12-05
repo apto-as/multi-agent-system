@@ -51,9 +51,7 @@ class SecureQueryBuilder:
 
     @staticmethod
     def safe_like_pattern(
-        user_input: str,
-        escape_char: str = "\\",
-        allow_wildcards: bool = False
+        user_input: str, escape_char: str = "\\", allow_wildcards: bool = False
     ) -> tuple[str, str]:
         """Escape LIKE wildcards in user input.
 
@@ -105,9 +103,7 @@ class SecureQueryBuilder:
 
     @staticmethod
     async def build_filter_query(
-        model: type[DeclarativeBase],
-        filters: dict[str, Any],
-        session: AsyncSession
+        model: type[DeclarativeBase], filters: dict[str, Any], session: AsyncSession
     ):
         """Build parameterized filter query with schema validation.
 
@@ -141,10 +137,7 @@ class SecureQueryBuilder:
                 raise ValueError(msg)
 
         # Build filter conditions
-        conditions = [
-            getattr(model, col_name) == value
-            for col_name, value in filters.items()
-        ]
+        conditions = [getattr(model, col_name) == value for col_name, value in filters.items()]
 
         # Execute parameterized query
         query = select(model).where(and_(*conditions))
@@ -157,7 +150,7 @@ class SecureQueryBuilder:
         search_columns: list[str],
         search_term: str,
         session: AsyncSession,
-        case_insensitive: bool = True
+        case_insensitive: bool = True,
     ):
         """Build parameterized search query with wildcard escaping.
 

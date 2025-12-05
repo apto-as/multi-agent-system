@@ -26,10 +26,12 @@ class HealthCheckRequest(BaseModel):
     """Health check parameters."""
 
     include_detailed_metrics: bool = Field(
-        default=False, description="Include detailed system metrics",
+        default=False,
+        description="Include detailed system metrics",
     )
     check_external_services: bool = Field(
-        default=True, description="Check external service connectivity",
+        default=True,
+        description="Check external service connectivity",
     )
     performance_test: bool = Field(default=False, description="Run performance tests")
 
@@ -180,6 +182,7 @@ class SystemTools(BaseTool):
                     raise
                 except Exception as e:
                     import logging
+
                     logger = logging.getLogger(__name__)
                     logger.error(
                         f"Database health check failed: {type(e).__name__}",
@@ -206,6 +209,7 @@ class SystemTools(BaseTool):
                     raise
                 except Exception as e:
                     import logging
+
                     logger = logging.getLogger(__name__)
                     logger.error(
                         f"Memory service health check failed: {type(e).__name__}",
@@ -231,6 +235,7 @@ class SystemTools(BaseTool):
                     raise
                 except Exception as e:
                     import logging
+
                     logger = logging.getLogger(__name__)
                     logger.warning(
                         f"Vectorization service health check failed: {type(e).__name__}",
@@ -280,6 +285,7 @@ class SystemTools(BaseTool):
                         raise
                     except Exception as e:
                         import logging
+
                         logger = logging.getLogger(__name__)
                         logger.warning(
                             f"Performance test failed: {type(e).__name__}",
@@ -377,6 +383,7 @@ class SystemTools(BaseTool):
                         raise
                     except Exception as e:
                         import logging
+
                         logger = logging.getLogger(__name__)
                         logger.error(
                             f"Vector optimization failed: {type(e).__name__}",
@@ -419,6 +426,7 @@ class SystemTools(BaseTool):
                         raise
                     except Exception as e:
                         import logging
+
                         logger = logging.getLogger(__name__)
                         logger.warning(
                             f"Log cleanup skipped: {type(e).__name__}",
@@ -471,6 +479,7 @@ class SystemTools(BaseTool):
                         raise
                     except Exception as e:
                         import logging
+
                         logger = logging.getLogger(__name__)
                         logger.error(
                             f"Performance analysis failed: {type(e).__name__}",
@@ -502,6 +511,7 @@ class SystemTools(BaseTool):
                         raise
                     except Exception as e:
                         import logging
+
                         logger = logging.getLogger(__name__)
                         logger.error(
                             f"Database vacuum failed: {type(e).__name__}",
@@ -526,7 +536,8 @@ class SystemTools(BaseTool):
 
         @mcp.tool()
         async def get_performance_metrics(
-            time_window_hours: int = 24, include_query_stats: bool = True,
+            time_window_hours: int = 24,
+            include_query_stats: bool = True,
         ) -> dict[str, Any]:
             """Get detailed system performance metrics.
 
@@ -605,6 +616,7 @@ class SystemTools(BaseTool):
                     raise
                 except Exception as e:
                     import logging
+
                     logger = logging.getLogger(__name__)
                     logger.warning(
                         f"Database activity metrics failed: {type(e).__name__}",
@@ -661,6 +673,7 @@ class SystemTools(BaseTool):
                         raise
                     except Exception as e:
                         import logging
+
                         logger = logging.getLogger(__name__)
                         logger.warning(
                             f"Query performance metrics failed: {type(e).__name__}",
@@ -699,11 +712,16 @@ class SystemTools(BaseTool):
                         raise
                     except Exception as e:
                         import logging
+
                         logger = logging.getLogger(__name__)
                         logger.warning(
                             f"Service health check failed for {service_name}: {type(e).__name__}",
                             exc_info=True,
-                            extra={"operation": "service_health_check", "service": service_name, "error": str(e)},
+                            extra={
+                                "operation": "service_health_check",
+                                "service": service_name,
+                                "error": str(e),
+                            },
                         )
                         services_health[service_name] = {"status": "unhealthy", "error": str(e)}
 
@@ -810,11 +828,16 @@ class SystemTools(BaseTool):
                             raise
                         except Exception as e:
                             import logging
+
                             logger = logging.getLogger(__name__)
                             logger.error(
                                 f"Service restart failed for {service_name}: {type(e).__name__}",
                                 exc_info=True,
-                                extra={"operation": "restart_service", "service": service_name, "error": str(e)},
+                                extra={
+                                    "operation": "restart_service",
+                                    "service": service_name,
+                                    "error": str(e),
+                                },
                             )
                             restart_results["services"][service_name] = {
                                 "status": "failed",

@@ -316,9 +316,7 @@ class SkillVersion(TMWSBase):
     skill: Mapped[Skill] = relationship("Skill", back_populates="versions")
 
     # Indexes
-    __table_args__ = (
-        Index("ix_skill_versions_skill_version", "skill_id", "version", unique=True),
-    )
+    __table_args__ = (Index("ix_skill_versions_skill_version", "skill_id", "version", unique=True),)
 
     @staticmethod
     def compute_content_hash(content: str) -> str:
@@ -440,9 +438,7 @@ class SkillActivation(TMWSBase):
     skill: Mapped[Skill] = relationship("Skill", back_populates="activations")
 
     # Indexes
-    __table_args__ = (
-        Index("ix_skill_activations_agent_time", "agent_id", "activated_at"),
-    )
+    __table_args__ = (Index("ix_skill_activations_agent_time", "agent_id", "activated_at"),)
 
     def __repr__(self) -> str:
         return f"<SkillActivation(skill_id='{self.skill_id}', agent_id='{self.agent_id}', layer={self.layer_loaded})>"

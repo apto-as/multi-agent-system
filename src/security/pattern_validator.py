@@ -93,7 +93,8 @@ class PatternDataValidator:
 
     def __init__(self):
         self.dangerous_python_regex = re.compile(
-            "|".join(self.DANGEROUS_PYTHON_PATTERNS), re.IGNORECASE,
+            "|".join(self.DANGEROUS_PYTHON_PATTERNS),
+            re.IGNORECASE,
         )
 
     def validate_pattern_definition(self, pattern_data: dict[str, Any]) -> ValidationResult:

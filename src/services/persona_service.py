@@ -105,7 +105,10 @@ class PersonaService:
         return True
 
     async def list_personas(
-        self, active_only: bool = True, limit: int = 50, offset: int = 0,
+        self,
+        active_only: bool = True,
+        limit: int = 50,
+        offset: int = 0,
     ) -> list[Persona]:
         """List all personas."""
         stmt = select(Persona)
@@ -123,7 +126,10 @@ class PersonaService:
         return personas
 
     async def get_persona_memories(
-        self, persona_id: UUID, memory_type: str = None, limit: int = 100,
+        self,
+        persona_id: UUID,
+        memory_type: str = None,
+        limit: int = 100,
     ) -> list[Memory]:
         """Get memories associated with a persona."""
         stmt = select(Memory).where(Memory.persona_id == persona_id)

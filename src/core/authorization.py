@@ -129,9 +129,7 @@ async def verify_namespace_access(
         >>> namespace = await verify_namespace_access(session, user, "agent-123")
     """
     # Fetch agent from database (SECURITY: Verify namespace)
-    result = await session.execute(
-        select(Agent).where(Agent.agent_id == agent_id)
-    )
+    result = await session.execute(select(Agent).where(Agent.agent_id == agent_id))
     agent = result.scalar_one_or_none()
 
     if agent is None:
@@ -151,9 +149,7 @@ async def verify_namespace_access(
 
     # Regular users must be in the same namespace
     if user.agent_id:
-        user_result = await session.execute(
-            select(Agent).where(Agent.agent_id == user.agent_id)
-        )
+        user_result = await session.execute(select(Agent).where(Agent.agent_id == user.agent_id))
         user_agent = user_result.scalar_one_or_none()
 
         if user_agent and user_agent.namespace == agent.namespace:

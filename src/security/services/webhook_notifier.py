@@ -77,21 +77,21 @@ class WebhookNotifier:
 
             logger.info(
                 f"✅ Security alert webhook sent: {subject}",
-                extra={"subject": subject, "webhook_url": webhook_url[:50] + "..."}
+                extra={"subject": subject, "webhook_url": webhook_url[:50] + "..."},
             )
             return True
 
         except httpx.TimeoutException:
             logger.error(
                 f"⏱️ Webhook timeout for alert: {subject}",
-                extra={"subject": subject, "timeout": self.timeout}
+                extra={"subject": subject, "timeout": self.timeout},
             )
             return False
 
         except httpx.HTTPStatusError as e:
             logger.error(
                 f"❌ Webhook HTTP error for alert: {subject} - Status {e.response.status_code}",
-                extra={"subject": subject, "status_code": e.response.status_code}
+                extra={"subject": subject, "status_code": e.response.status_code},
             )
             return False
 

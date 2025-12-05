@@ -8,7 +8,7 @@ and REQ-5 (RBAC) security requirements.
 import secrets
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 import pytest_asyncio
@@ -16,7 +16,6 @@ from passlib.context import CryptContext
 
 from src.models.agent import Agent
 from src.models.user import APIKey, APIKeyScope, User, UserRole, UserStatus
-from src.utils.security import hash_password_with_salt
 
 # Note: Lazy import to avoid global initialization issues
 # from src.security.mcp_auth import MCPAuthContext, MCPRole

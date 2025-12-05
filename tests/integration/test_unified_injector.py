@@ -17,10 +17,9 @@ Test Categories:
 4. Event Handlers: Session events trigger correct injections
 """
 
-import os
 import sys
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -160,8 +159,18 @@ class TestMCPToolsSummaryFormatting:
         summary = {
             "total_count": 10,
             "frequently_used": [
-                {"server": "tmws", "tool": "create_memory", "description": "Create memory", "usage_count": 50},
-                {"server": "tmws", "tool": "search_memory", "description": "Search memory", "usage_count": 30},
+                {
+                    "server": "tmws",
+                    "tool": "create_memory",
+                    "description": "Create memory",
+                    "usage_count": 50,
+                },
+                {
+                    "server": "tmws",
+                    "tool": "search_memory",
+                    "description": "Search memory",
+                    "usage_count": 30,
+                },
             ],
             "servers": ["tmws", "context7"],
             "token_estimate": 500,

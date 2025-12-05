@@ -19,22 +19,20 @@ Created: 2025-11-12 (Phase 1-1: Day 1 Afternoon)
 Status: RED (tests will fail until implementation)
 """
 
-import pytest
 from uuid import uuid4
-from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 # Domain imports
 from src.domain.aggregates.mcp_connection import MCPConnection
-from src.domain.value_objects.connection_config import ConnectionConfig
-from src.domain.value_objects.connection_status import ConnectionStatus
 from src.domain.entities.tool import Tool
+from src.domain.value_objects.connection_config import ConnectionConfig
 from src.domain.value_objects.tool_category import ToolCategory
 
 # Infrastructure imports (to be implemented)
 try:
+    from src.infrastructure.exceptions import AggregateNotFoundError, RepositoryError
     from src.infrastructure.repositories.mcp_connection_repository import MCPConnectionRepository
-    from src.infrastructure.exceptions import RepositoryError, AggregateNotFoundError
 except ImportError:
     # Expected in TDD RED phase
     pass
@@ -59,13 +57,12 @@ class TestMCPConnectionRepository:
         And: Should return the same aggregate with persistence metadata
         """
         # Arrange
-        from src.infrastructure.repositories.mcp_connection_repository import MCPConnectionRepository
+        from src.infrastructure.repositories.mcp_connection_repository import (
+            MCPConnectionRepository,
+        )
 
         config = ConnectionConfig(
-            server_name="test_server",
-            url="http://localhost:8080/mcp",
-            timeout=30,
-            retry_attempts=3
+            server_name="test_server", url="http://localhost:8080/mcp", timeout=30, retry_attempts=3
         )
 
         connection = MCPConnection(
@@ -73,7 +70,7 @@ class TestMCPConnectionRepository:
             server_name="test_server",
             config=config,
             namespace="test-namespace",
-            agent_id="test-agent"
+            agent_id="test-agent",
         )
 
         # Act
@@ -97,7 +94,7 @@ class TestMCPConnectionRepository:
         And: All domain properties should be restored
         """
         # Arrange
-        connection_id = uuid4()
+        uuid4()
         # Assume connection was previously saved
 
         # Act
@@ -123,7 +120,7 @@ class TestMCPConnectionRepository:
         Then: Should raise AggregateNotFoundError
         """
         # Arrange
-        nonexistent_id = uuid4()
+        uuid4()
 
         # Act & Assert
         # repository = MCPConnectionRepository(db_session)
@@ -144,8 +141,6 @@ class TestMCPConnectionRepository:
         And: Results should be namespace-isolated (security)
         """
         # Arrange
-        namespace = "project-x"
-        agent_id = "agent-a"
 
         # Mock data: 3 connections, only 2 match
         # Connection 1: project-x, agent-a ✓
@@ -173,7 +168,6 @@ class TestMCPConnectionRepository:
         Then: Should return only ACTIVE connections
         """
         # Arrange
-        status = ConnectionStatus.ACTIVE
 
         # Act
         # repository = MCPConnectionRepository(db_session)
@@ -220,7 +214,7 @@ class TestMCPConnectionRepository:
         And: Subsequent get_by_id() should raise AggregateNotFoundError
         """
         # Arrange
-        connection_id = uuid4()
+        uuid4()
         # Assume connection exists
 
         # Act
@@ -249,26 +243,19 @@ class TestMCPConnectionRepository:
                 name="search_memory",
                 description="Search memories",
                 input_schema={"type": "object"},
-                category=ToolCategory.API_INTEGRATION
+                category=ToolCategory.API_INTEGRATION,
             ),
             Tool(
                 name="create_task",
                 description="Create task",
                 input_schema={"type": "object"},
-                category=ToolCategory.API_INTEGRATION
-            )
+                category=ToolCategory.API_INTEGRATION,
+            ),
         ]
 
-        config = ConnectionConfig(
-            server_name="test_server",
-            url="http://localhost:8080/mcp"
-        )
+        config = ConnectionConfig(server_name="test_server", url="http://localhost:8080/mcp")
 
-        connection = MCPConnection(
-            id=uuid4(),
-            server_name="test_server",
-            config=config
-        )
+        connection = MCPConnection(id=uuid4(), server_name="test_server", config=config)
         connection.mark_as_active(tools)
 
         # Act
@@ -296,17 +283,17 @@ class TestMCPConnectionRepository:
         And: Retrieved connection should have empty events list
         """
         # Arrange
-        config = ConnectionConfig(
-            server_name="test_server",
-            url="http://localhost:8080/mcp"
-        )
+        config = ConnectionConfig(server_name="test_server", url="http://localhost:8080/mcp")
 
-        connection = MCPConnection(
-            id=uuid4(),
-            server_name="test_server",
-            config=config
-        )
-        tools = [Tool(name="tool1", description="Tool 1", input_schema={}, category=ToolCategory.DATA_PROCESSING)]
+        connection = MCPConnection(id=uuid4(), server_name="test_server", config=config)
+        tools = [
+            Tool(
+                name="tool1",
+                description="Tool 1",
+                input_schema={},
+                category=ToolCategory.DATA_PROCESSING,
+            )
+        ]
         connection.mark_as_active(tools)
 
         assert len(connection.domain_events) > 0  # Has events
@@ -333,9 +320,6 @@ class TestMCPConnectionRepository:
         Then: Should never return connections from other namespaces
         """
         # Arrange
-        namespace_a = "project-a"
-        namespace_b = "project-b"
-        agent_id = "agent-1"
 
         # Mock data:
         # Connection 1: namespace_a, agent_id
@@ -366,16 +350,9 @@ class TestMCPConnectionRepository:
         And: No partial data should be committed
         """
         # Arrange
-        config = ConnectionConfig(
-            server_name="test_server",
-            url="http://localhost:8080/mcp"
-        )
+        config = ConnectionConfig(server_name="test_server", url="http://localhost:8080/mcp")
 
-        connection = MCPConnection(
-            id=uuid4(),
-            server_name="test_server",
-            config=config
-        )
+        MCPConnection(id=uuid4(), server_name="test_server", config=config)
 
         # Mock database error
         # with patch('sqlalchemy.ext.asyncio.AsyncSession.commit', side_effect=Exception("DB Error")):
@@ -435,9 +412,6 @@ class TestRepositoryPerformance:
         And: Should include total count
         """
         # Arrange
-        namespace = "large-namespace"
-        page_size = 20
-        page_number = 1
 
         # Act
         # repository = MCPConnectionRepository(db_session)

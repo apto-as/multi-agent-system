@@ -106,9 +106,7 @@ async def check_permission(
     agent = result.scalar_one_or_none()
 
     if not agent:
-        await _audit_log(
-            db_session, agent_id, operation, "DENY", "Agent not found"
-        )
+        await _audit_log(db_session, agent_id, operation, "DENY", "Agent not found")
         return False
 
     # Step 2: Get agent's role (default: viewer, fail-secure)
@@ -140,7 +138,11 @@ async def check_permission(
         return False
 
     # Step 4: Ownership check (if applicable)
-    if operation in OWNERSHIP_REQUIRED_OPERATIONS and role != Role.ADMIN and resource_owner_id != agent_id:
+    if (
+        operation in OWNERSHIP_REQUIRED_OPERATIONS
+        and role != Role.ADMIN
+        and resource_owner_id != agent_id
+    ):
         await _audit_log(
             db_session,
             agent_id,
@@ -151,9 +153,7 @@ async def check_permission(
         return False
 
     # Step 5: Audit log success (V-RBAC-2)
-    await _audit_log(
-        db_session, agent_id, operation, "ALLOW", f"Role {role.value}"
-    )
+    await _audit_log(db_session, agent_id, operation, "ALLOW", f"Role {role.value}")
     return True
 
 
@@ -214,9 +214,7 @@ def require_permission(operation: str):
                 )
 
             # Check permission
-            allowed = await check_permission(
-                db_session, agent_id, operation, resource_owner_id
-            )
+            allowed = await check_permission(db_session, agent_id, operation, resource_owner_id)
 
             if not allowed:
                 log_and_raise(

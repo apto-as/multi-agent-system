@@ -5,16 +5,17 @@ This module tests the ConnectMCPServerUseCase in isolation with all dependencies
 Tests follow TDD RED phase methodology - expecting failures until implementation exists.
 """
 
-import pytest
 from datetime import datetime
-from uuid import uuid4, UUID
 from unittest.mock import AsyncMock, MagicMock
+from uuid import uuid4
 
+import pytest
+
+from src.application.dtos.request_dtos import CreateConnectionRequest
+from src.application.dtos.response_dtos import MCPConnectionDTO
 from src.application.use_cases.connect_mcp_server_use_case import (
     ConnectMCPServerUseCase,
 )
-from src.application.dtos.request_dtos import CreateConnectionRequest
-from src.application.dtos.response_dtos import MCPConnectionDTO
 
 
 @pytest.mark.asyncio
@@ -155,7 +156,12 @@ class TestConnectMCPServerUseCase:
         from src.domain.value_objects.tool_category import ToolCategory
 
         mock_tools = [
-            Tool(name="tool1", description="Tool 1", input_schema={}, category=ToolCategory.DATA_PROCESSING)
+            Tool(
+                name="tool1",
+                description="Tool 1",
+                input_schema={},
+                category=ToolCategory.DATA_PROCESSING,
+            )
         ]
         mock_adapter.discover_tools.return_value = mock_tools
 
@@ -218,7 +224,7 @@ class TestConnectMCPServerUseCase:
         from pydantic import ValidationError
 
         with pytest.raises(ValidationError) as exc_info:
-            invalid_request = CreateConnectionRequest(
+            CreateConnectionRequest(
                 server_name=valid_request.server_name,
                 url="not-a-valid-url",  # Invalid URL - Pydantic raises here
                 namespace=valid_request.namespace,
@@ -258,7 +264,10 @@ class TestConnectMCPServerUseCase:
             await use_case.execute(valid_request)
 
         # Should raise AuthorizationError
-        assert "authorization" in str(exc_info.value).lower() or "namespace" in str(exc_info.value).lower()
+        assert (
+            "authorization" in str(exc_info.value).lower()
+            or "namespace" in str(exc_info.value).lower()
+        )
 
         # Verify no repository operations performed
         mock_repository.add.assert_not_called()
@@ -294,7 +303,10 @@ class TestConnectMCPServerUseCase:
             await use_case.execute(valid_request)
 
         # Should raise ValidationError with "already exists"
-        assert "already exists" in str(exc_info.value).lower() or "duplicate" in str(exc_info.value).lower()
+        assert (
+            "already exists" in str(exc_info.value).lower()
+            or "duplicate" in str(exc_info.value).lower()
+        )
 
         # Verify no add operation
         mock_repository.add.assert_not_called()

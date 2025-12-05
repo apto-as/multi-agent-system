@@ -28,24 +28,18 @@ Security Principles Validated:
 7. Expiration enforcement
 """
 
-import hashlib
-import hmac
 import re
 import statistics
 import time
-from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
 
 import pytest
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.services.license_service import (
     LicenseFeature,
     LicenseService,
     TierEnum,
 )
-
 
 # ============================================================================
 # V-LIC-1: License Key Forgery Prevention (CVSS 8.1 HIGH)
@@ -213,7 +207,7 @@ async def test_constant_time_comparison():
     assert variation < 0.10, (
         f"Timing variation {variation:.2%} exceeds 10% threshold. "
         f"Potential timing attack vulnerability. "
-        f"avg1={avg1*1000:.3f}ms, avg2={avg2*1000:.3f}ms"
+        f"avg1={avg1 * 1000:.3f}ms, avg2={avg2 * 1000:.3f}ms"
     )
 
 
@@ -257,7 +251,7 @@ async def test_timing_attack_statistical_analysis():
         all_times[checksum] = times
 
     # Calculate standard deviations
-    std_devs = [statistics.stdev(times) for times in all_times.values()]
+    [statistics.stdev(times) for times in all_times.values()]
 
     # Check that mean times are similar across different checksums
     # (Less sensitive to noise than standard deviation comparison)
@@ -271,7 +265,7 @@ async def test_timing_attack_statistical_analysis():
     # The important property is that hmac.compare_digest() is used (V-LIC-2.1)
     assert time_variation < 0.50, (
         f"Mean timing varies {time_variation:.2%} across checksums. "
-        f"Potential timing leak. min={min_mean*1e6:.2f}μs, max={max_mean*1e6:.2f}μs"
+        f"Potential timing leak. min={min_mean * 1e6:.2f}μs, max={max_mean * 1e6:.2f}μs"
     )
 
 
@@ -304,6 +298,7 @@ async def test_expired_license_rejected():
 
     # Wait 1 second to ensure expiration
     import asyncio
+
     await asyncio.sleep(1.1)
 
     # Attempt validation
@@ -347,7 +342,7 @@ async def test_expiration_timestamp_manipulation():
     # Parse perpetual key
     parts = perpetual_key.rsplit("-", 1)
     prefix = parts[0]
-    checksum = parts[1]
+    parts[1]
 
     # Extract UUID
     prefix_parts = prefix.split("-")
@@ -365,8 +360,7 @@ async def test_expiration_timestamp_manipulation():
 
     # Security assertion
     assert perpetual_checksum != time_limited_checksum, (
-        "Perpetual and time-limited checksums must differ "
-        "(prevents expiration manipulation)"
+        "Perpetual and time-limited checksums must differ (prevents expiration manipulation)"
     )
 
 
@@ -411,9 +405,7 @@ async def test_sql_injection_license_key_input():
         result = await service.validate_license_key(malicious_key)
 
         # Security assertions
-        assert result.valid is False, (
-            f"Malicious SQL input should be rejected: {malicious_key}"
-        )
+        assert result.valid is False, f"Malicious SQL input should be rejected: {malicious_key}"
         # Should fail with format validation, not SQL error
         assert "Invalid" in result.error_message or "format" in result.error_message.lower()
 
@@ -443,30 +435,28 @@ def test_code_review_parameterized_queries():
     """
     # Read license_service.py and verify safe query patterns
     import inspect
+
     from src.services.license_service import LicenseService
 
     source = inspect.getsource(LicenseService)
 
     # Dangerous patterns (should NOT exist)
     dangerous_patterns = [
-        r'f"SELECT.*FROM',           # f-string SQL
-        r'"SELECT.*\+',               # String concatenation SQL
-        r'\.execute\(f"',             # Execute with f-string
-        r'raw_sql\s*=',              # Raw SQL variable
+        r'f"SELECT.*FROM',  # f-string SQL
+        r'"SELECT.*\+',  # String concatenation SQL
+        r'\.execute\(f"',  # Execute with f-string
+        r"raw_sql\s*=",  # Raw SQL variable
     ]
 
     for pattern in dangerous_patterns:
         matches = re.findall(pattern, source, re.IGNORECASE)
-        assert len(matches) == 0, (
-            f"Dangerous SQL pattern detected: {pattern}\n"
-            f"Matches: {matches}"
-        )
+        assert len(matches) == 0, f"Dangerous SQL pattern detected: {pattern}\nMatches: {matches}"
 
     # Safe patterns (should exist)
     safe_patterns = [
-        r'select\(.*\)\.where\(',    # SQLAlchemy ORM
-        r'LicenseKey\.id\s*==',       # Column comparison
-        r'Agent\.id\s*==',            # Column comparison
+        r"select\(.*\)\.where\(",  # SQLAlchemy ORM
+        r"LicenseKey\.id\s*==",  # Column comparison
+        r"Agent\.id\s*==",  # Column comparison
     ]
 
     safe_pattern_found = False
@@ -518,9 +508,7 @@ async def test_tier_upgrade_bypass_prevention():
 
         # Verify feature check
         has_access = service.is_feature_enabled(TierEnum.FREE, feature)
-        assert has_access is False, (
-            f"FREE tier should not have access to {feature}"
-        )
+        assert has_access is False, f"FREE tier should not have access to {feature}"
 
 
 @pytest.mark.security
@@ -551,9 +539,7 @@ async def test_feature_access_enforcement():
 
     # Validate tier hierarchy (higher tiers include lower tier features)
     for feature in free_limits.features:
-        assert feature in pro_limits.features, (
-            f"PRO tier missing FREE feature: {feature}"
-        )
+        assert feature in pro_limits.features, f"PRO tier missing FREE feature: {feature}"
         assert feature in enterprise_limits.features, (
             f"ENTERPRISE tier missing FREE feature: {feature}"
         )
@@ -623,24 +609,24 @@ def test_code_review_no_dynamic_execution():
     CONCLUSION: No code injection vulnerabilities detected
     """
     import inspect
+
     from src.services.license_service import LicenseService
 
     source = inspect.getsource(LicenseService)
 
     # Dangerous functions (should NOT exist)
     dangerous_functions = [
-        r'\beval\s*\(',
-        r'\bexec\s*\(',
-        r'\b__import__\s*\(',
-        r'\bcompile\s*\(',
+        r"\beval\s*\(",
+        r"\bexec\s*\(",
+        r"\b__import__\s*\(",
+        r"\bcompile\s*\(",
         r'\bgetattr\s*\(.*,\s*["\']',  # getattr with string input
     ]
 
     for pattern in dangerous_functions:
         matches = re.findall(pattern, source)
         assert len(matches) == 0, (
-            f"Dangerous code execution pattern detected: {pattern}\n"
-            f"Matches: {matches}"
+            f"Dangerous code execution pattern detected: {pattern}\nMatches: {matches}"
         )
 
 
@@ -700,12 +686,12 @@ async def test_malformed_input_handling():
     service = LicenseService()
 
     malformed_inputs = [
-        "",                          # Empty string
-        "TMWS",                      # Missing components
-        "TMWS-PRO",                  # Missing UUID and checksum
-        "TMWS-PRO-invalid",          # Invalid UUID
+        "",  # Empty string
+        "TMWS",  # Missing components
+        "TMWS-PRO",  # Missing UUID and checksum
+        "TMWS-PRO-invalid",  # Invalid UUID
         "TMWS-INVALID-550e8400-e29b-41d4-a716-446655440000-abc",  # Invalid tier
-        "\x00" * 100,                # Null bytes
+        "\x00" * 100,  # Null bytes
         "TMWS-PRO-" + "\uffff" * 50,  # Unicode characters
     ]
 

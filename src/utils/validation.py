@@ -121,7 +121,9 @@ def validate_url(url: str, allowed_schemes: list[str] = None) -> tuple[bool, lis
 
 
 def validate_json_object(
-    obj: Any, max_depth: int = 10, current_depth: int = 0,
+    obj: Any,
+    max_depth: int = 10,
+    current_depth: int = 0,
 ) -> tuple[bool, list[str]]:
     """Validate JSON object structure and prevent deeply nested objects.
 

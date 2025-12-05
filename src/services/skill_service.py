@@ -141,9 +141,7 @@ class SkillService:
 
             # Validate access level
             if isinstance(access_level, str):
-                validated_access_level = self.validation_service.validate_access_level(
-                    access_level
-                )
+                validated_access_level = self.validation_service.validate_access_level(access_level)
             else:
                 validated_access_level = access_level
 
@@ -178,9 +176,7 @@ class SkillService:
                 )
 
             # 3. Parse Progressive Disclosure layers
-            layers = self.validation_service.parse_progressive_disclosure_layers(
-                validated_content
-            )
+            layers = self.validation_service.parse_progressive_disclosure_layers(validated_content)
 
             # 4. Create Skill record (master table)
             skill_id = str(uuid.uuid4())  # SQLite requires string, not UUID object
@@ -242,9 +238,7 @@ class SkillService:
             except IntegrityError as e:
                 await self.session.rollback()
                 # Duplicate skill name in same namespace
-                if "UNIQUE constraint failed" in str(e) or "unique constraint" in str(
-                    e
-                ).lower():
+                if "UNIQUE constraint failed" in str(e) or "unique constraint" in str(e).lower():
                     log_and_raise(
                         ValidationError,
                         f"Skill name already exists in namespace: {validated_name}",
@@ -559,9 +553,7 @@ class SkillService:
                 tags = self.validation_service.validate_tags(tags)
 
             if access_level is not None and isinstance(access_level, str):
-                access_level = self.validation_service.validate_access_level(
-                    access_level
-                )
+                access_level = self.validation_service.validate_access_level(access_level)
 
             if content is not None:
                 content = self.validation_service.validate_content(content)
@@ -571,9 +563,7 @@ class SkillService:
 
             if create_new_version:
                 # Parse Progressive Disclosure layers
-                layers = self.validation_service.parse_progressive_disclosure_layers(
-                    content
-                )
+                layers = self.validation_service.parse_progressive_disclosure_layers(content)
 
                 # Create new SkillVersion
                 new_version_number = skill.active_version + 1
@@ -585,9 +575,7 @@ class SkillService:
                     version=new_version_number,
                     content=content,
                     metadata_json=(
-                        None
-                        if not layers["metadata"]
-                        else json.dumps(layers["metadata"])
+                        None if not layers["metadata"] else json.dumps(layers["metadata"])
                     ),
                     core_instructions=layers["core_instructions"],
                     auxiliary_content=layers["auxiliary_content"],
@@ -639,9 +627,7 @@ class SkillService:
             except IntegrityError as e:
                 await self.session.rollback()
                 # Duplicate skill name in same namespace
-                if "UNIQUE constraint failed" in str(e) or "unique constraint" in str(
-                    e
-                ).lower():
+                if "UNIQUE constraint failed" in str(e) or "unique constraint" in str(e).lower():
                     log_and_raise(
                         ValidationError,
                         f"Skill name already exists in namespace: {name}",
@@ -869,9 +855,7 @@ class SkillService:
             shared_condition = and_(
                 Skill.access_level == AccessLevel.SHARED,
                 Skill.id.in_(
-                    select(SkillSharedAgent.skill_id).where(
-                        SkillSharedAgent.agent_id == agent_id
-                    )
+                    select(SkillSharedAgent.skill_id).where(SkillSharedAgent.agent_id == agent_id)
                 ),
                 Skill.namespace == namespace,  # Additional namespace check for SHARED
             )
@@ -1499,7 +1483,9 @@ class SkillService:
             # Check if latest activation is still active
             # Active = success is None (not yet completed) or success is True (completed successfully)
             # Deactivated = success is False
-            if latest_activation and (latest_activation.success is None or latest_activation.success is True):
+            if latest_activation and (
+                latest_activation.success is None or latest_activation.success is True
+            ):
                 logger.info(
                     f"Skill {skill.name} (ID: {skill_id}) is already active (idempotent)",
                     extra={

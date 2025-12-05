@@ -10,8 +10,6 @@ Security Requirements:
 4. Prevent empty origin strings
 """
 
-import os
-
 import pytest
 from pydantic import ValidationError
 

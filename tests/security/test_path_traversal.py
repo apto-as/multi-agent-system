@@ -144,9 +144,9 @@ class TestNamespaceSanitizationCompliance:
         """Verify only alphanumeric, hyphens, underscores allowed."""
         namespace = sanitize_namespace("project@#$%test")
         allowed_chars = set("abcdefghijklmnopqrstuvwxyz0123456789-_")
-        assert all(
-            c in allowed_chars for c in namespace
-        ), f"Invalid characters in namespace: {namespace}"
+        assert all(c in allowed_chars for c in namespace), (
+            f"Invalid characters in namespace: {namespace}"
+        )
 
     def test_no_leading_slash(self):
         """Verify leading slash is rejected (V-1 fix verified)."""

@@ -118,34 +118,43 @@ class ToolCategory(str, Enum):
                 cls.DATA_PROCESSING,
                 [
                     # Data operations (original)
-                    "data", "process", "transform", "analys", "etl",
+                    "data",
+                    "process",
+                    "transform",
+                    "analys",
+                    "etl",
                     # Workflow operations (from removed WORKFLOW_AUTOMATION)
-                    "workflow", "task", "automation", "orchestrat"
-                ]
+                    "workflow",
+                    "task",
+                    "automation",
+                    "orchestrat",
+                ],
             ),
             (
                 cls.API_INTEGRATION,
                 [
                     # API operations (original)
-                    "api", "rest", "graphql", "client", "sdk",
+                    "api",
+                    "rest",
+                    "graphql",
+                    "client",
+                    "sdk",
                     # MCP operations (from removed MCP_SERVER)
-                    "mcp", "server", "connection",
+                    "mcp",
+                    "server",
+                    "connection",
                     # Communication APIs (from removed COMMUNICATION)
-                    "message", "email", "notify", "chat", "slack", "webhook"
-                ]
+                    "message",
+                    "email",
+                    "notify",
+                    "chat",
+                    "slack",
+                    "webhook",
+                ],
             ),
-            (
-                cls.FILE_MANAGEMENT,
-                ["file", "document", "storage", "upload", "download"]
-            ),
-            (
-                cls.SECURITY,
-                ["auth", "security", "encrypt", "vault", "secret"]
-            ),
-            (
-                cls.MONITORING,
-                ["monitor", "log", "metric", "health", "observ"]
-            ),
+            (cls.FILE_MANAGEMENT, ["file", "document", "storage", "upload", "download"]),
+            (cls.SECURITY, ["auth", "security", "encrypt", "vault", "secret"]),
+            (cls.MONITORING, ["monitor", "log", "metric", "health", "observ"]),
         ]
 
         for category, patterns in INFERENCE_RULES:

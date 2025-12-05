@@ -128,7 +128,9 @@ class DatabaseEncryptionService:
         key = key_path.read_text(encoding="utf-8").strip()
 
         if len(key) != self.KEY_LENGTH_HEX:
-            error_msg = f"Invalid key length in {key_path}: {len(key)} (expected {self.KEY_LENGTH_HEX})"
+            error_msg = (
+                f"Invalid key length in {key_path}: {len(key)} (expected {self.KEY_LENGTH_HEX})"
+            )
             logger.error(error_msg)
             raise ValueError(error_msg)
 

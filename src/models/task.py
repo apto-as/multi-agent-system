@@ -52,21 +52,32 @@ class Task(TMWSBase, MetadataMixin):
     title: Mapped[str] = mapped_column(Text, nullable=False, comment="Task title")
 
     description: Mapped[str] = mapped_column(
-        Text, nullable=False, comment="Detailed task description",
+        Text,
+        nullable=False,
+        comment="Detailed task description",
     )
 
     task_type: Mapped[str] = mapped_column(
-        Text, nullable=False, default="general", index=True, comment="Task type for categorization",
+        Text,
+        nullable=False,
+        default="general",
+        index=True,
+        comment="Task type for categorization",
     )
 
     # Agent assignment (replaces persona assignment)
     assigned_agent_id: Mapped[str | None] = mapped_column(
-        Text, nullable=True, index=True, comment="Primary agent assigned to this task",
+        Text,
+        nullable=True,
+        index=True,
+        comment="Primary agent assigned to this task",
     )
 
     # Collaborative assignment support
     collaborating_agents: Mapped[list[str]] = mapped_column(
-        JSON, default=list, comment="Additional agents collaborating on this task",
+        JSON,
+        default=list,
+        comment="Additional agents collaborating on this task",
     )
 
     # Namespace and access control
@@ -105,24 +116,34 @@ class Task(TMWSBase, MetadataMixin):
 
     # Scheduling and timing
     scheduled_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True, comment="Scheduled execution time",
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Scheduled execution time",
     )
 
     started_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True, comment="Task start time",
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Task start time",
     )
 
     completed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True, comment="Task completion time",
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Task completion time",
     )
 
     due_date: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True, comment="Task due date",
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Task due date",
     )
 
     # Task dependencies and relationships
     dependencies: Mapped[list[str]] = mapped_column(
-        JSON, default=list, comment="List of task IDs that must complete before this task",
+        JSON,
+        default=list,
+        comment="List of task IDs that must complete before this task",
     )
 
     parent_task_id: Mapped[str | None] = mapped_column(
@@ -133,79 +154,114 @@ class Task(TMWSBase, MetadataMixin):
     )
 
     workflow_id: Mapped[str | None] = mapped_column(
-        String(36), nullable=True, index=True, comment="Associated workflow ID",
+        String(36),
+        nullable=True,
+        index=True,
+        comment="Associated workflow ID",
     )
 
     # Task configuration and parameters
     task_config: Mapped[dict[str, Any]] = mapped_column(
-        JSON, default=dict, comment="Task-specific configuration parameters",
+        JSON,
+        default=dict,
+        comment="Task-specific configuration parameters",
     )
 
     input_data: Mapped[dict[str, Any]] = mapped_column(
-        JSON, default=dict, comment="Input data for task execution",
+        JSON,
+        default=dict,
+        comment="Input data for task execution",
     )
 
     output_data: Mapped[dict[str, Any]] = mapped_column(
-        JSON, default=dict, comment="Output data from task execution",
+        JSON,
+        default=dict,
+        comment="Output data from task execution",
     )
 
     # Progress and performance tracking
     progress_percentage: Mapped[float] = mapped_column(
-        Float, default=0.0, comment="Task completion percentage (0.0 to 100.0)",
+        Float,
+        default=0.0,
+        comment="Task completion percentage (0.0 to 100.0)",
     )
 
     estimated_duration: Mapped[int | None] = mapped_column(
-        Integer, nullable=True, comment="Estimated duration in seconds",
+        Integer,
+        nullable=True,
+        comment="Estimated duration in seconds",
     )
 
     actual_duration: Mapped[int | None] = mapped_column(
-        Integer, nullable=True, comment="Actual duration in seconds",
+        Integer,
+        nullable=True,
+        comment="Actual duration in seconds",
     )
 
     retry_count: Mapped[int] = mapped_column(Integer, default=0, comment="Number of retry attempts")
 
     max_retries: Mapped[int] = mapped_column(
-        Integer, default=3, comment="Maximum number of retry attempts",
+        Integer,
+        default=3,
+        comment="Maximum number of retry attempts",
     )
 
     # Error handling and logging
     error_message: Mapped[str | None] = mapped_column(
-        Text, nullable=True, comment="Error message if task failed",
+        Text,
+        nullable=True,
+        comment="Error message if task failed",
     )
 
     error_details: Mapped[dict[str, Any]] = mapped_column(
-        JSON, default=dict, comment="Detailed error information",
+        JSON,
+        default=dict,
+        comment="Detailed error information",
     )
 
     execution_log: Mapped[list[dict[str, Any]]] = mapped_column(
-        JSON, default=list, comment="Execution log entries",
+        JSON,
+        default=list,
+        comment="Execution log entries",
     )
 
     # Tags and categorization
     tags: Mapped[list[str]] = mapped_column(
-        JSON, default=list, comment="User-defined tags for categorization",
+        JSON,
+        default=list,
+        comment="User-defined tags for categorization",
     )
 
     context_tags: Mapped[list[str]] = mapped_column(
-        JSON, default=list, comment="Contextual tags for enhanced organization",
+        JSON,
+        default=list,
+        comment="Contextual tags for enhanced organization",
     )
 
     # Resource management
     resource_requirements: Mapped[dict[str, Any]] = mapped_column(
-        JSON, default=dict, comment="Required resources (CPU, memory, etc.)",
+        JSON,
+        default=dict,
+        comment="Required resources (CPU, memory, etc.)",
     )
 
     resource_usage: Mapped[dict[str, Any]] = mapped_column(
-        JSON, default=dict, comment="Actual resource usage during execution",
+        JSON,
+        default=dict,
+        comment="Actual resource usage during execution",
     )
 
     # Quality and success metrics
     quality_score: Mapped[float | None] = mapped_column(
-        Float, nullable=True, comment="Task execution quality score (0.0 to 10.0)",
+        Float,
+        nullable=True,
+        comment="Task execution quality score (0.0 to 10.0)",
     )
 
     success_criteria: Mapped[dict[str, Any]] = mapped_column(
-        JSON, default=dict, comment="Criteria for determining task success",
+        JSON,
+        default=dict,
+        comment="Criteria for determining task success",
     )
 
     # Relationships
@@ -218,7 +274,10 @@ class Task(TMWSBase, MetadataMixin):
 
     # Self-referential relationship for hierarchical tasks
     children = relationship(
-        "Task", backref="parent", remote_side="Task.id", foreign_keys="[Task.parent_task_id]",
+        "Task",
+        backref="parent",
+        remote_side="Task.id",
+        foreign_keys="[Task.parent_task_id]",
     )
 
     # Table constraints and indexes
@@ -228,11 +287,13 @@ class Task(TMWSBase, MetadataMixin):
         CheckConstraint("LENGTH(description) >= 1", name="description_not_empty"),
         # Access level validation
         CheckConstraint(
-            "access_level IN ('private', 'shared', 'public', 'system')", name="access_level_check",
+            "access_level IN ('private', 'shared', 'public', 'system')",
+            name="access_level_check",
         ),
         # Progress validation
         CheckConstraint(
-            "progress_percentage >= 0.0 AND progress_percentage <= 100.0", name="progress_bounds",
+            "progress_percentage >= 0.0 AND progress_percentage <= 100.0",
+            name="progress_bounds",
         ),
         # Duration validation
         CheckConstraint(
@@ -240,7 +301,8 @@ class Task(TMWSBase, MetadataMixin):
             name="estimated_duration_positive",
         ),
         CheckConstraint(
-            "actual_duration IS NULL OR actual_duration >= 0", name="actual_duration_non_negative",
+            "actual_duration IS NULL OR actual_duration >= 0",
+            name="actual_duration_non_negative",
         ),
         # Retry validation
         CheckConstraint("retry_count >= 0", name="retry_count_non_negative"),
@@ -325,7 +387,9 @@ class Task(TMWSBase, MetadataMixin):
         self.add_log_entry("task_started", {"agent_id": agent_id or self.assigned_agent_id})
 
     def complete_execution(
-        self, output_data: dict[str, Any] = None, quality_score: float = None,
+        self,
+        output_data: dict[str, Any] = None,
+        quality_score: float = None,
     ) -> None:
         """Mark task as completed."""
         if self.status != TaskStatus.RUNNING:
@@ -469,7 +533,10 @@ class Task(TMWSBase, MetadataMixin):
             self.context_tags.append(tag)
 
     def can_access(
-        self, agent_id: str, agent_namespace: str, agent_access_level: str = "standard",
+        self,
+        agent_id: str,
+        agent_namespace: str,
+        agent_access_level: str = "standard",
     ) -> bool:
         """Check if an agent can access this task."""
         # System level access
@@ -511,35 +578,52 @@ class TaskTemplate(TMWSBase):
 
     # Template identification
     template_id: Mapped[str] = mapped_column(
-        Text, nullable=False, unique=True, index=True, comment="Unique template identifier",
+        Text,
+        nullable=False,
+        unique=True,
+        index=True,
+        comment="Unique template identifier",
     )
 
     name: Mapped[str] = mapped_column(Text, nullable=False, comment="Human-readable template name")
 
     description: Mapped[str | None] = mapped_column(
-        Text, nullable=True, comment="Template description and usage guidelines",
+        Text,
+        nullable=True,
+        comment="Template description and usage guidelines",
     )
 
     # Template structure
     title_template: Mapped[str] = mapped_column(
-        Text, nullable=False, comment="Template title with placeholders",
+        Text,
+        nullable=False,
+        comment="Template title with placeholders",
     )
 
     description_template: Mapped[str] = mapped_column(
-        Text, nullable=False, comment="Template description with placeholders",
+        Text,
+        nullable=False,
+        comment="Template description with placeholders",
     )
 
     required_fields: Mapped[list[str]] = mapped_column(
-        JSON, default=list, comment="Required fields for template instantiation",
+        JSON,
+        default=list,
+        comment="Required fields for template instantiation",
     )
 
     optional_fields: Mapped[list[str]] = mapped_column(
-        JSON, default=list, comment="Optional fields for template instantiation",
+        JSON,
+        default=list,
+        comment="Optional fields for template instantiation",
     )
 
     # Template defaults
     default_task_type: Mapped[str] = mapped_column(
-        Text, nullable=False, default="templated", comment="Default task type for instances",
+        Text,
+        nullable=False,
+        default="templated",
+        comment="Default task type for instances",
     )
 
     default_priority: Mapped[TaskPriority] = mapped_column(
@@ -550,36 +634,56 @@ class TaskTemplate(TMWSBase):
     )
 
     default_access_level: Mapped[str] = mapped_column(
-        Text, nullable=False, default="private", comment="Default access level for instances",
+        Text,
+        nullable=False,
+        default="private",
+        comment="Default access level for instances",
     )
 
     default_config: Mapped[dict[str, Any]] = mapped_column(
-        JSON, default=dict, comment="Default task configuration",
+        JSON,
+        default=dict,
+        comment="Default task configuration",
     )
 
     estimated_duration: Mapped[int | None] = mapped_column(
-        Integer, nullable=True, comment="Estimated duration in seconds for template instances",
+        Integer,
+        nullable=True,
+        comment="Estimated duration in seconds for template instances",
     )
 
     # Template metadata
     namespace: Mapped[str] = mapped_column(
-        Text, nullable=False, index=True, default="default", comment="Template namespace",
+        Text,
+        nullable=False,
+        index=True,
+        default="default",
+        comment="Template namespace",
     )
 
     created_by: Mapped[str | None] = mapped_column(
-        Text, nullable=True, comment="Agent ID of template creator",
+        Text,
+        nullable=True,
+        comment="Agent ID of template creator",
     )
 
     is_active: Mapped[bool] = mapped_column(
-        Boolean, default=True, index=True, comment="Whether template is active and available",
+        Boolean,
+        default=True,
+        index=True,
+        comment="Whether template is active and available",
     )
 
     usage_count: Mapped[int] = mapped_column(
-        Integer, default=0, comment="Number of times template has been used",
+        Integer,
+        default=0,
+        comment="Number of times template has been used",
     )
 
     success_rate: Mapped[float] = mapped_column(
-        Float, default=0.0, comment="Success rate of tasks created from this template",
+        Float,
+        default=0.0,
+        comment="Success rate of tasks created from this template",
     )
 
     __table_args__ = (

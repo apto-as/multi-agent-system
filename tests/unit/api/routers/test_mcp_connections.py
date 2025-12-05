@@ -165,9 +165,7 @@ def test_create_connection_unauthorized_403(
     - Response: 403 Forbidden
     """
     # Arrange
-    mock_connect_use_case.execute = AsyncMock(
-        side_effect=AuthorizationError("Namespace mismatch")
-    )
+    mock_connect_use_case.execute = AsyncMock(side_effect=AuthorizationError("Namespace mismatch"))
 
     request_body = {
         "server_name": "test_server",
@@ -379,9 +377,7 @@ def test_execute_tool_success_200(
     """
     # Arrange
     tool_name = "test_tool"
-    request_body = {
-        "arguments": {"param1": "value1", "param2": "value2"}
-    }
+    request_body = {"arguments": {"param1": "value1", "param2": "value2"}}
 
     # Act
     response = test_client.post(

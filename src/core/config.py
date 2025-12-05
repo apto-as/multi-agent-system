@@ -73,7 +73,6 @@ class Settings(BaseSettings):
     ws_host: str = Field(default="127.0.0.1", description="WebSocket server host")
     ws_port: int = Field(default=8001, ge=1024, le=65535, description="WebSocket server port")
 
-
     # ==== JWT & AUTHENTICATION ====
     # Authentication mode control (404 Security Standard)
     auth_enabled: bool = Field(
@@ -165,7 +164,8 @@ class Settings(BaseSettings):
 
     # Ollama server configuration
     ollama_base_url: str = Field(
-        default="http://localhost:11434", description="Ollama server URL for embedding generation",
+        default="http://localhost:11434",
+        description="Ollama server URL for embedding generation",
     )
 
     # ==== LICENSE VERIFICATION (v2.4.1 - Ed25519 Public Key) ====
@@ -445,15 +445,13 @@ class Settings(BaseSettings):
             if origin != "*":
                 if not origin.startswith(("http://", "https://")):
                     raise ValueError(
-                        f"Invalid CORS origin '{origin}': "
-                        f"Must start with 'http://' or 'https://'"
+                        f"Invalid CORS origin '{origin}': Must start with 'http://' or 'https://'"
                     )
 
                 # No trailing slash
                 if origin.endswith("/"):
                     raise ValueError(
-                        f"Invalid CORS origin '{origin}': "
-                        f"Must not end with trailing slash"
+                        f"Invalid CORS origin '{origin}': Must not end with trailing slash"
                     )
 
         # Check for localhost origins in production
@@ -527,7 +525,8 @@ class Settings(BaseSettings):
 
         if errors:
             raise ValueError(
-                "CRITICAL PRODUCTION SECURITY VIOLATIONS:\n" + "\n".join(f"  - {e}" for e in errors),
+                "CRITICAL PRODUCTION SECURITY VIOLATIONS:\n"
+                + "\n".join(f"  - {e}" for e in errors),
             )
 
         return self

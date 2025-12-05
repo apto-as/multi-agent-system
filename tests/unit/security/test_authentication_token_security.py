@@ -25,12 +25,11 @@ Security Requirements:
 
 import secrets
 from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock, patch
-from uuid import UUID, uuid4
+from unittest.mock import MagicMock
+from uuid import uuid4
 
 import jwt
 import pytest
-from jwt.exceptions import DecodeError, ExpiredSignatureError, InvalidTokenError
 
 from src.security.jwt_service import JWTService, TokenBlacklist
 
@@ -84,9 +83,9 @@ class TestAuthenticationTokenSecurity:
 
         decoded_header = json.loads(base64.urlsafe_b64decode(header + "=="))
         decoded_header["alg"] = "none"
-        malicious_header = base64.urlsafe_b64encode(
-            json.dumps(decoded_header).encode()
-        ).decode().rstrip("=")
+        malicious_header = (
+            base64.urlsafe_b64encode(json.dumps(decoded_header).encode()).decode().rstrip("=")
+        )
 
         # Create unsigned token
         unsigned_token = f"{malicious_header}.{payload}."
@@ -137,9 +136,9 @@ class TestAuthenticationTokenSecurity:
         decoded_payload["agent_namespace"] = "admin-namespace"  # Namespace bypass
 
         # Re-encode manipulated payload
-        malicious_payload = base64.urlsafe_b64encode(
-            json.dumps(decoded_payload).encode()
-        ).decode().rstrip("=")
+        malicious_payload = (
+            base64.urlsafe_b64encode(json.dumps(decoded_payload).encode()).decode().rstrip("=")
+        )
 
         # Create token with manipulated payload but original signature
         forged_token = f"{header}.{malicious_payload}.{signature}"
@@ -168,6 +167,7 @@ class TestAuthenticationTokenSecurity:
 
         # Wait for token to expire
         import asyncio
+
         await asyncio.sleep(2)
 
         # Verify token is REJECTED after expiration
@@ -235,9 +235,9 @@ class TestAuthenticationTokenSecurity:
 
         # Attack: Change algorithm to 'none'
         decoded_header["alg"] = "none"
-        malicious_header = base64.urlsafe_b64encode(
-            json.dumps(decoded_header).encode()
-        ).decode().rstrip("=")
+        malicious_header = (
+            base64.urlsafe_b64encode(json.dumps(decoded_header).encode()).decode().rstrip("=")
+        )
         forged_token = f"{malicious_header}.{payload}."
 
         result = jwt_service.verify_token(forged_token)
@@ -245,9 +245,9 @@ class TestAuthenticationTokenSecurity:
 
         # Attack 2: Change algorithm to RS256 (if server expects HS256)
         decoded_header["alg"] = "RS256"
-        malicious_header_rs256 = base64.urlsafe_b64encode(
-            json.dumps(decoded_header).encode()
-        ).decode().rstrip("=")
+        malicious_header_rs256 = (
+            base64.urlsafe_b64encode(json.dumps(decoded_header).encode()).decode().rstrip("=")
+        )
         forged_token_rs256 = f"{malicious_header_rs256}.{payload}.{signature}"
 
         result = jwt_service.verify_token(forged_token_rs256)
@@ -334,13 +334,11 @@ class TestAuthenticationTokenSecurity:
             "aud": jwt_service.audience,
         }
 
-        future_token = jwt.encode(
-            claims, jwt_service.secret_key, algorithm=jwt_service.algorithm
-        )
+        future_token = jwt.encode(claims, jwt_service.secret_key, algorithm=jwt_service.algorithm)
 
         # Verify token is rejected (future iat)
         # Note: PyJWT verifies 'iat' with verify_iat option
-        result = jwt_service.verify_token(future_token)
+        jwt_service.verify_token(future_token)
         # Token may be accepted if 'iat' verification is not strict
         # This test documents expected behavior
         # In production, add clock skew tolerance (e.g., 30 seconds)
@@ -443,7 +441,7 @@ class TestRefreshTokenSecurity:
 
         for invalid_id in invalid_token_ids:
             fake_token = f"{invalid_id}.{secrets.token_urlsafe(64)}"
-            result = jwt_service.verify_refresh_token(fake_token)
+            jwt_service.verify_refresh_token(fake_token)
             # Should be rejected due to invalid token_id format
             # Note: Current implementation may be lenient, test documents expected behavior
 
@@ -462,12 +460,9 @@ class TestRefreshTokenSecurity:
 
         # Attack: Use correct token_id but WRONG raw_token
         wrong_raw_token = secrets.token_urlsafe(64)
-        forged_token = f"{token_id}.{wrong_raw_token}"
 
         # Verify hash mismatch
-        is_valid = jwt_service.verify_refresh_token_hash(
-            wrong_raw_token, refresh_record.token_hash
-        )
+        is_valid = jwt_service.verify_refresh_token_hash(wrong_raw_token, refresh_record.token_hash)
         assert not is_valid, "SECURITY FAILURE: Wrong refresh token hash accepted!"
 
     @pytest.mark.asyncio
@@ -484,9 +479,7 @@ class TestRefreshTokenSecurity:
         token_id, raw_token = full_token.split(".", 1)
 
         # First use - should succeed
-        is_valid_first = jwt_service.verify_refresh_token_hash(
-            raw_token, refresh_record.token_hash
-        )
+        is_valid_first = jwt_service.verify_refresh_token_hash(raw_token, refresh_record.token_hash)
         assert is_valid_first, "First use should be valid"
 
         # Second use - should be invalidated (token rotation)
@@ -565,9 +558,9 @@ class TestAPIKeyTokenSecurity:
         decoded_payload["scopes"] = ["read", "write", "admin"]  # Escalate privileges
 
         # Re-encode
-        malicious_payload = base64.urlsafe_b64encode(
-            json.dumps(decoded_payload).encode()
-        ).decode().rstrip("=")
+        malicious_payload = (
+            base64.urlsafe_b64encode(json.dumps(decoded_payload).encode()).decode().rstrip("=")
+        )
 
         # Create forged token
         forged_token = f"{header}.{malicious_payload}.{signature}"
@@ -626,7 +619,7 @@ class TestTokenTimingAttacks:
         # Timing should be similar (within 50% tolerance)
         # Note: Exact constant-time is hard to achieve in Python
         # This test documents expected behavior
-        time_ratio = max(time_valid, time_invalid) / min(time_valid, time_invalid)
+        max(time_valid, time_invalid) / min(time_valid, time_invalid)
         # Allow 10x difference (lenient for testing purposes)
         # In production, use constant-time comparison libraries
 

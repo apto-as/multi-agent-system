@@ -129,7 +129,7 @@ class AlertManager:
         if self._is_in_cooldown(alert_key):
             logger.debug(
                 f"Alert suppressed (cooldown active): {alert_reason}",
-                extra={"alert_key": alert_key}
+                extra={"alert_key": alert_key},
             )
             return
 
@@ -157,7 +157,7 @@ class AlertManager:
 ║
 ║ Target:
 ║   Endpoint: {endpoint}
-║   Blocked:  {'✅ YES' if blocked else '❌ NO'}
+║   Blocked:  {"✅ YES" if blocked else "❌ NO"}
 ║
 ║ Message:    {message}
 """
@@ -188,7 +188,7 @@ class AlertManager:
                 "endpoint": endpoint,
                 "blocked": blocked,
                 "brute_force_info": brute_force_info,
-            }
+            },
         )
         print(alert_message)  # Also print to console for immediate visibility
 
@@ -276,7 +276,7 @@ class AlertManager:
         self.risk_score_threshold = threshold
         logger.info(
             f"Risk score threshold updated: {old_threshold} → {threshold}",
-            extra={"old_threshold": old_threshold, "new_threshold": threshold}
+            extra={"old_threshold": old_threshold, "new_threshold": threshold},
         )
 
     def set_cooldown(self, cooldown_seconds: int) -> None:
@@ -293,5 +293,5 @@ class AlertManager:
         self.alert_cooldown = cooldown_seconds
         logger.info(
             f"Alert cooldown updated: {old_cooldown}s → {cooldown_seconds}s",
-            extra={"old_cooldown": old_cooldown, "new_cooldown": cooldown_seconds}
+            extra={"old_cooldown": old_cooldown, "new_cooldown": cooldown_seconds},
         )

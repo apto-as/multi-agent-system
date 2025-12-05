@@ -5,12 +5,10 @@ Phase 3 of Hestia's 4-phase verification protocol.
 """
 
 import asyncio
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
-from sqlalchemy import select
 
-from src.core.exceptions import AuthorizationException, ValidationException
 from src.models.agent import Agent
 from src.models.verification import VerificationRecord
 from src.services.trust_service import TrustService

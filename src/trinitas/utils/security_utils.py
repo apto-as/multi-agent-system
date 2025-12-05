@@ -105,10 +105,7 @@ class AlertRateLimiter:
         cutoff = now - timedelta(seconds=self.window_seconds)
 
         # Remove old entries
-        while (
-            self._suppressions[alert_type]
-            and self._suppressions[alert_type][0] < cutoff
-        ):
+        while self._suppressions[alert_type] and self._suppressions[alert_type][0] < cutoff:
             self._suppressions[alert_type].popleft()
 
     def get_suppression_count(self, alert_type: str) -> int:
@@ -173,14 +170,14 @@ def constant_time_compare(a: str, b: str) -> bool:
         ...     pass
     """
     # Convert to bytes for hmac.compare_digest
-    a_bytes = a.encode('utf-8') if isinstance(a, str) else a
-    b_bytes = b.encode('utf-8') if isinstance(b, str) else b
+    a_bytes = a.encode("utf-8") if isinstance(a, str) else a
+    b_bytes = b.encode("utf-8") if isinstance(b, str) else b
 
     # Use hmac.compare_digest for constant-time comparison
     return hmac.compare_digest(a_bytes, b_bytes)
 
 
-def constant_time_hash_compare(a: str, b_hash: str, algorithm: str = 'sha256') -> bool:
+def constant_time_hash_compare(a: str, b_hash: str, algorithm: str = "sha256") -> bool:
     """
     Constant-time hash comparison (WK-5).
 
@@ -204,7 +201,7 @@ def constant_time_hash_compare(a: str, b_hash: str, algorithm: str = 'sha256') -
     """
     # Compute hash of input
     hash_func = getattr(hashlib, algorithm)
-    a_hash = hash_func(a.encode('utf-8')).hexdigest()
+    a_hash = hash_func(a.encode("utf-8")).hexdigest()
 
     # Constant-time compare the hashes
     return constant_time_compare(a_hash, b_hash)

@@ -107,7 +107,10 @@ class SQLAlchemyMCPConnectionRepository(MCPConnectionRepositoryInterface):
             await self._session.rollback()
             raise RepositoryError(
                 message=f"Failed to save MCPConnection: {e}",
-                details={"connection_id": str(connection.id), "server_name": connection.server_name},
+                details={
+                    "connection_id": str(connection.id),
+                    "server_name": connection.server_name,
+                },
             ) from e
 
     async def get_by_id(self, connection_id: UUID, namespace: str) -> MCPConnection:
@@ -135,7 +138,7 @@ class SQLAlchemyMCPConnectionRepository(MCPConnectionRepositoryInterface):
         try:
             stmt = select(MCPConnectionModel).where(
                 MCPConnectionModel.id == str(connection_id),
-                MCPConnectionModel.namespace == namespace  # ✅ Namespace isolation
+                MCPConnectionModel.namespace == namespace,  # ✅ Namespace isolation
             )
             result = await self._session.execute(stmt)
             model = result.scalar_one_or_none()
@@ -298,7 +301,7 @@ class SQLAlchemyMCPConnectionRepository(MCPConnectionRepositoryInterface):
             stmt = select(MCPConnectionModel).where(
                 MCPConnectionModel.id == str(connection_id),
                 MCPConnectionModel.namespace == namespace,  # ✅ Namespace isolation
-                MCPConnectionModel.agent_id == agent_id     # ✅ Ownership verification
+                MCPConnectionModel.agent_id == agent_id,  # ✅ Ownership verification
             )
             result = await self._session.execute(stmt)
             model = result.scalar_one_or_none()

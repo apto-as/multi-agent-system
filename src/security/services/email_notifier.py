@@ -111,7 +111,7 @@ class EmailNotifier:
 
             logger.info(
                 f"✅ Security alert email sent: {subject}",
-                extra={"subject": subject, "to": self.settings.alert_email_to}
+                extra={"subject": subject, "to": self.settings.alert_email_to},
             )
             return True
 
@@ -226,13 +226,13 @@ class EmailNotifier:
 
         <div class="metric">
             <strong>Action Blocked:</strong>
-            <span class="{'blocked-yes' if blocked else 'blocked-no'}">
-                {'✅ YES' if blocked else '❌ NO'}
+            <span class="{"blocked-yes" if blocked else "blocked-no"}">
+                {"✅ YES" if blocked else "❌ NO"}
             </span>
         </div>
 
         <div class="metric">
-            <strong>Timestamp:</strong> {alert_data.get('timestamp', 'N/A')}
+            <strong>Timestamp:</strong> {alert_data.get("timestamp", "N/A")}
         </div>
 
         <hr>

@@ -267,7 +267,9 @@ class WorkflowTools(BaseTool):
 
         @mcp.tool()
         async def list_workflows(
-            status: str | None = None, workflow_type: str | None = None, limit: int = 50,
+            status: str | None = None,
+            workflow_type: str | None = None,
+            limit: int = 50,
         ) -> dict[str, Any]:
             """List workflows with optional filtering.
 
@@ -298,7 +300,8 @@ class WorkflowTools(BaseTool):
                 for workflow in workflows:
                     # Get execution summary
                     recent_executions = await workflow_service.get_workflow_executions(
-                        str(workflow.id), limit=3,
+                        str(workflow.id),
+                        limit=3,
                     )
 
                     workflow_data = {
@@ -443,7 +446,8 @@ class WorkflowTools(BaseTool):
 
         @mcp.tool()
         async def get_workflow_execution_logs(
-            execution_id: str, limit: int = 100,
+            execution_id: str,
+            limit: int = 100,
         ) -> dict[str, Any]:
             """Get detailed execution logs for a workflow run.
 
@@ -540,10 +544,12 @@ class WorkflowTools(BaseTool):
                     "performance": {
                         "avg_execution_time_seconds": round(avg_execution_time, 2),
                         "fastest_execution_seconds": execution_stats.get(
-                            "min_execution_time_seconds", 0,
+                            "min_execution_time_seconds",
+                            0,
                         ),
                         "slowest_execution_seconds": execution_stats.get(
-                            "max_execution_time_seconds", 0,
+                            "max_execution_time_seconds",
+                            0,
                         ),
                     },
                     "workflow_types": workflow_types,

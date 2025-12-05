@@ -416,9 +416,7 @@ async def create_skill(
         agent = agent_result.scalar_one_or_none()
 
         if not agent:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found")
 
         verified_namespace = agent.namespace
 
@@ -448,9 +446,7 @@ async def create_skill(
         # Re-raise HTTPException as-is (404, 400, etc.)
         raise
     except ValidationError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
-        ) from e
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -469,12 +465,8 @@ async def list_skills(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
     skill_service: Annotated[SkillService, Depends(get_skill_service)],
-    tags: Annotated[
-        list[str] | None, Query(description="Filter by tags (AND logic)")
-    ] = None,
-    access_level: Annotated[
-        str | None, Query(description="Filter by access level")
-    ] = None,
+    tags: Annotated[list[str] | None, Query(description="Filter by tags (AND logic)")] = None,
+    access_level: Annotated[str | None, Query(description="Filter by access level")] = None,
     detail_level: Annotated[
         int,
         Query(
@@ -536,9 +528,7 @@ async def list_skills(
         agent = agent_result.scalar_one_or_none()
 
         if not agent:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found")
 
         verified_namespace = agent.namespace
 
@@ -572,9 +562,7 @@ async def list_skills(
         )
 
     except ValidationError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
-        ) from e
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -635,9 +623,7 @@ async def get_skill(
         agent = agent_result.scalar_one_or_none()
 
         if not agent:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found")
 
         verified_namespace = agent.namespace
 
@@ -657,9 +643,7 @@ async def get_skill(
             detail="Skill not found",  # No information leak
         ) from e
     except ValidationError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
-        ) from e
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -722,9 +706,7 @@ async def update_skill(
         agent = agent_result.scalar_one_or_none()
 
         if not agent:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found")
 
         verified_namespace = agent.namespace
 
@@ -753,13 +735,9 @@ async def update_skill(
         return SkillResponse(skill=skill_dto)
 
     except NotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Skill not found"
-        ) from e
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Skill not found") from e
     except ValidationError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
-        ) from e
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -820,9 +798,7 @@ async def delete_skill(
         agent = agent_result.scalar_one_or_none()
 
         if not agent:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found")
 
         verified_namespace = agent.namespace
 
@@ -840,18 +816,15 @@ async def delete_skill(
         )
 
     except NotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Skill not found"
-        ) from e
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Skill not found") from e
     except ValidationError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
-        ) from e
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error",
         ) from e
+
 
 # ============================================================================
 # Endpoints - Advanced Operations
@@ -924,9 +897,7 @@ async def share_skill(
         agent = agent_result.scalar_one_or_none()
 
         if not agent:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found")
 
         verified_namespace = agent.namespace
 
@@ -952,13 +923,9 @@ async def share_skill(
         )
 
     except NotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Skill not found"
-        ) from e
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Skill not found") from e
     except ValidationError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
-        ) from e
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -1031,9 +998,7 @@ async def activate_skill(
         agent = agent_result.scalar_one_or_none()
 
         if not agent:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found")
 
         verified_namespace = agent.namespace
 
@@ -1052,13 +1017,9 @@ async def activate_skill(
         )
 
     except NotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Skill not found"
-        ) from e
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Skill not found") from e
     except ValidationError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
-        ) from e
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -1129,9 +1090,7 @@ async def deactivate_skill(
         agent = agent_result.scalar_one_or_none()
 
         if not agent:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found")
 
         verified_namespace = agent.namespace
 
@@ -1150,13 +1109,9 @@ async def deactivate_skill(
         )
 
     except NotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Skill not found"
-        ) from e
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Skill not found") from e
     except ValidationError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
-        ) from e
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

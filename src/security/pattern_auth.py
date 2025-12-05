@@ -137,7 +137,10 @@ class PatternAuthManager:
         return {"agent_id": agent_id, "agent_role": agent_role}
 
     def _check_rate_limit(
-        self, agent_id: str, pattern_name: str, permission: PatternPermission,
+        self,
+        agent_id: str,
+        pattern_name: str,
+        permission: PatternPermission,
     ) -> bool:
         """Check if agent is within rate limits"""
         key = f"{agent_id}:{pattern_name}"

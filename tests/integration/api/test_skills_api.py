@@ -23,17 +23,16 @@ Author: Artemis (Technical Perfectionist)
 Created: 2025-11-26 (Day 3: Integration Tests)
 """
 
-import pytest
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.agent import AccessLevel, Agent, AgentStatus
 from src.models.skill import Skill, SkillActivation, SkillSharedAgent, SkillVersion
-
 
 # ============================================================================
 # Test Data Constants
@@ -130,7 +129,9 @@ class TestEndpointConnectivity:
             },
         )
 
-        assert response.status_code == 201, f"Expected 201, got {response.status_code}: {response.json()}"
+        assert response.status_code == 201, (
+            f"Expected 201, got {response.status_code}: {response.json()}"
+        )
         assert "skill" in response.json()
 
     async def test_list_skills_endpoint_connectivity(

@@ -23,7 +23,6 @@ import pytest
 
 from src.models.user import APIKey, APIKeyScope, User, UserRole, UserStatus
 from src.security.jwt_service import jwt_service
-from src.utils.security import hash_password
 from src.services.auth_service import (
     AccountDisabledError,
     AccountLockedError,
@@ -31,6 +30,7 @@ from src.services.auth_service import (
     InvalidCredentialsError,
     TokenExpiredError,
 )
+from src.utils.security import hash_password
 
 
 @pytest.mark.unit

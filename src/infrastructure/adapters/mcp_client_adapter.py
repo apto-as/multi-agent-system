@@ -102,7 +102,7 @@ class MCPClientAdapter:
                 if attempt == self.config.retry_attempts - 1:
                     raise MCPConnectionError(
                         f"Connection failed with status {response.status_code}",
-                        details={"url": self.config.url, "status": response.status_code}
+                        details={"url": self.config.url, "status": response.status_code},
                     )
 
             except TimeoutError as e:
@@ -123,7 +123,7 @@ class MCPClientAdapter:
                 if attempt == self.config.retry_attempts - 1:
                     raise MCPConnectionError(
                         f"Connection failed: {str(e)}",
-                        details={"url": self.config.url, "error": str(e)}
+                        details={"url": self.config.url, "error": str(e)},
                     )
                 await asyncio.sleep(0.5 * (attempt + 1))
 
@@ -161,8 +161,7 @@ class MCPClientAdapter:
         """
         if not self._client:
             raise MCPConnectionError(
-                "Not connected to MCP server",
-                details={"server_name": self.config.server_name}
+                "Not connected to MCP server", details={"server_name": self.config.server_name}
             )
 
         # Get tools from MCP server
@@ -171,7 +170,7 @@ class MCPClientAdapter:
         if response.status_code != 200:
             raise MCPProtocolError(
                 f"Failed to discover tools: HTTP {response.status_code}",
-                details={"status_code": response.status_code}
+                details={"status_code": response.status_code},
             )
 
         # Parse response
@@ -182,9 +181,7 @@ class MCPClientAdapter:
 
         return tools
 
-    async def execute_tool(
-        self, tool_name: str, tool_args: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def execute_tool(self, tool_name: str, tool_args: dict[str, Any]) -> dict[str, Any]:
         """Execute a tool on the MCP server.
 
         Args:
@@ -208,20 +205,14 @@ class MCPClientAdapter:
         """
         if not self._client:
             raise MCPConnectionError(
-                "Not connected to MCP server",
-                details={"server_name": self.config.server_name}
+                "Not connected to MCP server", details={"server_name": self.config.server_name}
             )
 
         # Use ACL to convert domain request to MCP protocol format
-        mcp_request = self._translator.domain_tool_execution_to_mcp(
-            tool_name, tool_args
-        )
+        mcp_request = self._translator.domain_tool_execution_to_mcp(tool_name, tool_args)
 
         # Execute tool via POST request
-        response = await self._client.post(
-            f"{self.config.url}/tools/execute",
-            json=mcp_request
-        )
+        response = await self._client.post(f"{self.config.url}/tools/execute", json=mcp_request)
 
         # Handle error responses
         if response.status_code == 404:
@@ -230,15 +221,12 @@ class MCPClientAdapter:
                 # Use ACL to convert MCP error to exception
                 exc = self._translator.mcp_error_to_exception(error_data)
                 raise exc
-            raise MCPToolNotFoundError(
-                tool_name,
-                available_tools=[]
-            )
+            raise MCPToolNotFoundError(tool_name, available_tools=[])
 
         if response.status_code != 200:
             raise MCPProtocolError(
                 f"Tool execution failed: HTTP {response.status_code}",
-                details={"tool_name": tool_name, "status_code": response.status_code}
+                details={"tool_name": tool_name, "status_code": response.status_code},
             )
 
         # Return result

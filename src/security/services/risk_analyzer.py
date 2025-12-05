@@ -98,7 +98,7 @@ class RiskAnalyzer:
             score += 50
             logger.warning(
                 f"🚨 High-risk IP detected: {client_ip}",
-                extra={"client_ip": client_ip, "event_type": event_type}
+                extra={"client_ip": client_ip, "event_type": event_type},
             )
 
         # Factor 3: Suspicious user agent
@@ -110,7 +110,7 @@ class RiskAnalyzer:
                     score += 30
                     logger.warning(
                         f"⚠️  Suspicious user agent detected: {pattern}",
-                        extra={"user_agent": user_agent, "pattern": pattern}
+                        extra={"user_agent": user_agent, "pattern": pattern},
                     )
                     break
 
@@ -123,7 +123,7 @@ class RiskAnalyzer:
                     score += 20
                     logger.warning(
                         f"⚠️  Attack endpoint accessed: {pattern}",
-                        extra={"endpoint": endpoint, "pattern": pattern}
+                        extra={"endpoint": endpoint, "pattern": pattern},
                     )
                     break
 
@@ -131,8 +131,7 @@ class RiskAnalyzer:
         if event_type.upper() in self.attack_event_types:
             score += 40
             logger.warning(
-                f"🚨 Attack attempt detected: {event_type}",
-                extra={"event_type": event_type}
+                f"🚨 Attack attempt detected: {event_type}", extra={"event_type": event_type}
             )
 
         # Cap score at 100
@@ -168,7 +167,7 @@ class RiskAnalyzer:
         if not self.session_maker:
             logger.warning(
                 "⚠️  Brute force check skipped (database unavailable)",
-                extra={"agent_id": agent_id, "client_ip": client_ip}
+                extra={"agent_id": agent_id, "client_ip": client_ip},
             )
             return {
                 "is_brute_force": False,
@@ -213,7 +212,7 @@ class RiskAnalyzer:
                             "agent_id": agent_id,
                             "attempt_count": attempt_count,
                             "time_window": time_window,
-                        }
+                        },
                     )
 
                 return {
@@ -281,8 +280,7 @@ class RiskAnalyzer:
         """
         self.risk_patterns["high_risk_ips"].add(ip_address)
         logger.warning(
-            f"🚨 IP added to high-risk list: {ip_address}",
-            extra={"ip_address": ip_address}
+            f"🚨 IP added to high-risk list: {ip_address}", extra={"ip_address": ip_address}
         )
 
     def remove_high_risk_ip(self, ip_address: str) -> bool:
@@ -298,8 +296,7 @@ class RiskAnalyzer:
         if ip_address in self.risk_patterns["high_risk_ips"]:
             self.risk_patterns["high_risk_ips"].discard(ip_address)
             logger.info(
-                f"✅ IP removed from high-risk list: {ip_address}",
-                extra={"ip_address": ip_address}
+                f"✅ IP removed from high-risk list: {ip_address}", extra={"ip_address": ip_address}
             )
             return True
         return False

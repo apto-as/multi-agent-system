@@ -33,8 +33,7 @@ Date: 2025-11-05
 import asyncio
 import time
 from datetime import datetime, timedelta, timezone
-from typing import Any
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import pytest
 from sqlalchemy import select
@@ -97,7 +96,7 @@ class TestMemoryCRUDIntegration:
             importance_score=0.8,
             access_level=AccessLevel.TEAM,
             tags=["architecture", "semantic-search", "v2.3.1"],
-            context={"test_phase": "create", "version": "2.3.1"}
+            context={"test_phase": "create", "version": "2.3.1"},
         )
 
         create_time = (time.perf_counter() - start_create) * 1000  # Convert to ms
@@ -120,13 +119,16 @@ class TestMemoryCRUDIntegration:
         memory = result.scalar_one_or_none()
 
         assert memory is not None, "Memory not found in SQLite"
-        assert memory.content == "TMWS is a multi-agent memory system with semantic search capabilities"
+        assert (
+            memory.content
+            == "TMWS is a multi-agent memory system with semantic search capabilities"
+        )
         assert memory.access_level == AccessLevel.TEAM
         assert memory.importance_score == 0.8
         assert "architecture" in memory.tags
         assert memory.context["version"] == "2.3.1"
 
-        print(f"✅ SQLite persistence verified")
+        print("✅ SQLite persistence verified")
 
         # ===================================================================
         # Phase 2: SEARCH - Semantic search retrieval from ChromaDB
@@ -141,7 +143,7 @@ class TestMemoryCRUDIntegration:
             agent_id=test_agent.agent_id,
             namespace=test_agent.namespace,
             limit=5,
-            min_similarity=0.5
+            min_similarity=0.5,
         )
 
         search_time = (time.perf_counter() - start_search) * 1000
@@ -163,7 +165,7 @@ class TestMemoryCRUDIntegration:
         found_memory = next(r for r in search_results if str(r["id"]) == str(memory_id))
         assert found_memory["content"] == memory.content
 
-        print(f"✅ ChromaDB vector search verified")
+        print("✅ ChromaDB vector search verified")
 
         # ===================================================================
         # Phase 3: UPDATE - Memory modification with re-embedding
@@ -175,7 +177,7 @@ class TestMemoryCRUDIntegration:
             content="TMWS v2.3.1 - Enhanced multi-agent memory with vector search and ChromaDB",
             importance_score=0.9,
             tags=["architecture", "semantic-search", "v2.3.1", "chromadb"],
-            context={"test_phase": "update", "version": "2.3.1", "updated": True}
+            context={"test_phase": "update", "version": "2.3.1", "updated": True},
         )
 
         update_time = (time.perf_counter() - start_update) * 1000
@@ -197,7 +199,7 @@ class TestMemoryCRUDIntegration:
         assert "chromadb" in updated_memory.tags
         assert updated_memory.context["updated"] is True
 
-        print(f"✅ SQLite update verified")
+        print("✅ SQLite update verified")
 
         # Verify: Re-embedded in ChromaDB (search with new content)
         await asyncio.sleep(0.1)  # Allow ChromaDB to re-index
@@ -207,14 +209,14 @@ class TestMemoryCRUDIntegration:
             agent_id=test_agent.agent_id,
             namespace=test_agent.namespace,
             limit=5,
-            min_similarity=0.5
+            min_similarity=0.5,
         )
 
         # Our updated memory should still be found with new query
         updated_ids = [str(r["id"]) for r in updated_search]
         assert str(memory_id) in updated_ids, "Updated memory not found in re-embedding search"
 
-        print(f"✅ ChromaDB re-embedding verified")
+        print("✅ ChromaDB re-embedding verified")
 
         # ===================================================================
         # Phase 4: DELETE - Soft delete and access control
@@ -247,19 +249,19 @@ class TestMemoryCRUDIntegration:
             query="semantic search system",
             agent_id=test_agent.agent_id,
             namespace=test_agent.namespace,
-            limit=10
+            limit=10,
         )
 
         post_delete_ids = [str(r["id"]) for r in post_delete_search]
         assert str(memory_id) not in post_delete_ids, "Soft deleted memory still in search results"
 
-        print(f"✅ Search exclusion verified (deleted memory not found)")
+        print("✅ Search exclusion verified (deleted memory not found)")
 
         # ===================================================================
         # Performance Summary
         # ===================================================================
         total_time = create_time + search_time + update_time + delete_time
-        print(f"\n📊 Performance Summary:")
+        print("\n📊 Performance Summary:")
         print(f"   CREATE: {create_time:6.2f}ms")
         print(f"   SEARCH: {search_time:6.2f}ms")
         print(f"   UPDATE: {update_time:6.2f}ms")
@@ -272,9 +274,7 @@ class TestMemoryCRUDIntegration:
         print(f"✅ Full lifecycle workflow PASSED ({total_time:.2f}ms)")
 
     @pytest.mark.asyncio
-    async def test_concurrent_memory_writes(
-        self, test_session: AsyncSession, test_agent: Agent
-    ):
+    async def test_concurrent_memory_writes(self, test_session: AsyncSession, test_agent: Agent):
         """
         Test concurrent memory creation handles race conditions correctly.
 
@@ -307,7 +307,7 @@ class TestMemoryCRUDIntegration:
                 importance_score=0.5 + (i * 0.05),  # Vary importance
                 access_level=AccessLevel.TEAM,
                 tags=[f"concurrent-{i}", "race-test"],
-                context={"test_number": i, "concurrent_batch": "batch_001"}
+                context={"test_number": i, "concurrent_batch": "batch_001"},
             )
             tasks.append(task)
 
@@ -324,7 +324,9 @@ class TestMemoryCRUDIntegration:
             print(f"❌ Failed results: {failed_results}")
 
         assert len(failed_results) == 0, f"{len(failed_results)} concurrent writes failed"
-        assert len(successful_results) == 10, f"Expected 10 successful writes, got {len(successful_results)}"
+        assert len(successful_results) == 10, (
+            f"Expected 10 successful writes, got {len(successful_results)}"
+        )
 
         print(f"✅ Concurrent writes: {concurrent_time:.2f}ms (10 memories)")
 
@@ -334,16 +336,18 @@ class TestMemoryCRUDIntegration:
 
         assert len(unique_ids) == 10, f"Duplicate IDs detected: {len(unique_ids)}/10 unique"
 
-        print(f"✅ Unique ID generation verified (10 unique IDs)")
+        print("✅ Unique ID generation verified (10 unique IDs)")
 
         # Validate: All persisted to SQLite
         stmt = select(Memory).where(Memory.id.in_(memory_ids))
         result = await test_session.execute(stmt)
         persisted_memories = result.scalars().all()
 
-        assert len(persisted_memories) == 10, f"Only {len(persisted_memories)}/10 memories persisted"
+        assert len(persisted_memories) == 10, (
+            f"Only {len(persisted_memories)}/10 memories persisted"
+        )
 
-        print(f"✅ SQLite persistence verified (10 memories)")
+        print("✅ SQLite persistence verified (10 memories)")
 
         # Validate: All searchable in ChromaDB
         await asyncio.sleep(0.2)  # Allow ChromaDB to index all
@@ -353,7 +357,7 @@ class TestMemoryCRUDIntegration:
             agent_id=test_agent.agent_id,
             namespace=test_agent.namespace,
             limit=20,  # Retrieve more than 10 to ensure all are found
-            min_similarity=0.3
+            min_similarity=0.3,
         )
 
         found_ids = {str(r["id"]) for r in search_results}
@@ -366,16 +370,15 @@ class TestMemoryCRUDIntegration:
         print(f"✅ ChromaDB indexing verified ({found_count} memories searchable)")
 
         # Performance validation: < 1s for 10 concurrent writes
-        assert concurrent_time < 1000, f"Concurrent writes took {concurrent_time:.2f}ms (target: <1000ms)"
+        assert concurrent_time < 1000, (
+            f"Concurrent writes took {concurrent_time:.2f}ms (target: <1000ms)"
+        )
 
         print(f"✅ Concurrent writes test PASSED ({concurrent_time:.2f}ms)")
 
     @pytest.mark.asyncio
     async def test_access_control_enforcement_integration(
-        self,
-        test_session: AsyncSession,
-        test_agent: Agent,
-        test_agent_different_namespace: Agent
+        self, test_session: AsyncSession, test_agent: Agent, test_agent_different_namespace: Agent
     ):
         """
         Test access control enforcement across services (real DB validation).
@@ -408,7 +411,7 @@ class TestMemoryCRUDIntegration:
             access_level=AccessLevel.TEAM,
             importance_score=0.8,
             tags=["confidential", "team-only"],
-            context={"classification": "internal"}
+            context={"classification": "internal"},
         )
 
         assert team_memory is not None
@@ -423,14 +426,14 @@ class TestMemoryCRUDIntegration:
             agent_id=test_agent_different_namespace.agent_id,
             namespace=test_agent_different_namespace.namespace,  # Different namespace
             limit=10,
-            min_similarity=0.3
+            min_similarity=0.3,
         )
 
         # TEAM memory should NOT be in results (namespace isolation)
         found_team_memory = any(str(r["id"]) == str(team_memory.id) for r in other_namespace_search)
         assert not found_team_memory, "TEAM memory leaked to different namespace!"
 
-        print(f"✅ Namespace isolation verified (TEAM memory not accessible across namespaces)")
+        print("✅ Namespace isolation verified (TEAM memory not accessible across namespaces)")
 
         # ===================================================================
         # Test 2: PUBLIC memory - Cross-namespace access
@@ -442,7 +445,7 @@ class TestMemoryCRUDIntegration:
             access_level=AccessLevel.PUBLIC,
             importance_score=0.6,
             tags=["public", "knowledge-base"],
-            context={"classification": "public"}
+            context={"classification": "public"},
         )
 
         assert public_memory is not None
@@ -456,14 +459,14 @@ class TestMemoryCRUDIntegration:
             agent_id=test_agent_different_namespace.agent_id,
             namespace=test_agent_different_namespace.namespace,
             limit=10,
-            min_similarity=0.3
+            min_similarity=0.3,
         )
 
         # PUBLIC memory SHOULD be in results (cross-namespace access allowed)
         found_public_memory = any(str(r["id"]) == str(public_memory.id) for r in public_search)
         assert found_public_memory, "PUBLIC memory not accessible across namespaces"
 
-        print(f"✅ Cross-namespace access verified (PUBLIC memory accessible)")
+        print("✅ Cross-namespace access verified (PUBLIC memory accessible)")
 
         # ===================================================================
         # Test 3: PRIVATE memory - Owner-only access
@@ -475,7 +478,7 @@ class TestMemoryCRUDIntegration:
             access_level=AccessLevel.PRIVATE,
             importance_score=0.9,
             tags=["private", "personal"],
-            context={"classification": "private"}
+            context={"classification": "private"},
         )
 
         assert private_memory is not None
@@ -490,19 +493,19 @@ class TestMemoryCRUDIntegration:
             agent_id=test_agent.agent_id,  # Owner
             namespace=test_agent.namespace,
             limit=10,
-            min_similarity=0.3
+            min_similarity=0.3,
         )
 
         found_private_by_owner = any(str(r["id"]) == str(private_memory.id) for r in owner_search)
         assert found_private_by_owner, "PRIVATE memory not accessible by owner"
 
-        print(f"✅ Owner access verified (PRIVATE memory accessible by owner)")
+        print("✅ Owner access verified (PRIVATE memory accessible by owner)")
 
         # Different agent in SAME namespace should NOT see PRIVATE memory
         # (This would require creating another agent in the same namespace)
         # For now, we've validated the key access control scenarios
 
-        print(f"✅ Access control enforcement test PASSED")
+        print("✅ Access control enforcement test PASSED")
 
     @pytest.mark.asyncio
     async def test_memory_ttl_expiration_integration(
@@ -538,7 +541,7 @@ class TestMemoryCRUDIntegration:
             ttl_days=1,  # Expires in 1 day
             importance_score=0.5,
             access_level=AccessLevel.TEAM,
-            tags=["ephemeral", "cache", "ttl-test"]
+            tags=["ephemeral", "cache", "ttl-test"],
         )
 
         assert ttl_memory is not None
@@ -570,13 +573,13 @@ class TestMemoryCRUDIntegration:
             query="ephemeral cache testing",
             agent_id=test_agent.agent_id,
             namespace=test_agent.namespace,
-            limit=10
+            limit=10,
         )
 
         found_before_expiry = any(str(r["id"]) == str(ttl_memory.id) for r in current_search)
         assert found_before_expiry, "TTL memory not found before expiration"
 
-        print(f"✅ Pre-expiration search verified (memory found)")
+        print("✅ Pre-expiration search verified (memory found)")
 
         # ===================================================================
         # Phase 2: Simulate expiration (manual)
@@ -596,14 +599,14 @@ class TestMemoryCRUDIntegration:
             query="ephemeral cache testing",
             agent_id=test_agent.agent_id,
             namespace=test_agent.namespace,
-            limit=10
+            limit=10,
         )
 
         # Expired memory should NOT be in results
         found_after_expiry = any(str(r["id"]) == str(ttl_memory.id) for r in expired_search)
         assert not found_after_expiry, "Expired memory still in search results!"
 
-        print(f"✅ Post-expiration search verified (expired memory excluded)")
+        print("✅ Post-expiration search verified (expired memory excluded)")
 
         # Verify: Expired memory still in SQLite (soft expiration)
         stmt = select(Memory).where(Memory.id == ttl_memory.id)
@@ -613,9 +616,9 @@ class TestMemoryCRUDIntegration:
         assert expired_in_db is not None, "Expired memory deleted from SQLite (should be soft)"
         assert expired_in_db.expires_at < datetime.now(timezone.utc), "Memory not actually expired"
 
-        print(f"✅ Soft expiration verified (memory still in SQLite)")
+        print("✅ Soft expiration verified (memory still in SQLite)")
 
-        print(f"✅ TTL expiration test PASSED")
+        print("✅ TTL expiration test PASSED")
 
 
 # =====================================================================

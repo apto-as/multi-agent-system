@@ -31,7 +31,10 @@ class AgentAuthService:
         return generate_api_key()
 
     def create_access_token(
-        self, agent_id: str, namespace: str = "default", expires_delta: timedelta | None = None,
+        self,
+        agent_id: str,
+        namespace: str = "default",
+        expires_delta: timedelta | None = None,
     ) -> str:
         """Create a JWT access token for an agent."""
         if expires_delta:
@@ -66,7 +69,8 @@ class AgentAuthService:
             from fastapi import HTTPException, status
 
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token",
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired token",
             )
         # Add session_id if not present
         if "session_id" not in payload:

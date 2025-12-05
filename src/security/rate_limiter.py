@@ -101,22 +101,32 @@ class RateLimiter:
                 "per_ip": RateLimit(30, 60, burst=5),  # 30 requests per minute per IP
                 "per_user": RateLimit(60, 60, burst=10),  # 60 requests per minute per user
                 "login": RateLimit(
-                    3, 60, block_duration=1800,
+                    3,
+                    60,
+                    block_duration=1800,
                 ),  # 3 login attempts per minute, 30min block
                 "register": RateLimit(
-                    1, 60, block_duration=600,
+                    1,
+                    60,
+                    block_duration=600,
                 ),  # 1 registration per minute, 10min block
                 "search": RateLimit(20, 60),  # 20 searches per minute
                 "embedding": RateLimit(5, 60),  # 5 embedding requests per minute
                 # Phase 1 Memory Management (v2.4.0)
                 "memory_cleanup": RateLimit(
-                    5, 60, block_duration=300,
+                    5,
+                    60,
+                    block_duration=300,
                 ),  # 5 cleanup calls per minute, 5min block
                 "memory_prune": RateLimit(
-                    5, 60, block_duration=300,
+                    5,
+                    60,
+                    block_duration=300,
                 ),  # 5 prune calls per minute, 5min block
                 "memory_ttl": RateLimit(
-                    30, 60, block_duration=60,
+                    30,
+                    60,
+                    block_duration=60,
                 ),  # 30 TTL updates per minute, 1min block
             }
         else:
@@ -131,13 +141,19 @@ class RateLimiter:
                 "embedding": RateLimit(10, 60),  # 10 embedding requests per minute
                 # Phase 1 Memory Management (v2.4.0)
                 "memory_cleanup": RateLimit(
-                    10, 60, block_duration=180,
+                    10,
+                    60,
+                    block_duration=180,
                 ),  # 10 cleanup calls per minute, 3min block
                 "memory_prune": RateLimit(
-                    10, 60, block_duration=180,
+                    10,
+                    60,
+                    block_duration=180,
                 ),  # 10 prune calls per minute, 3min block
                 "memory_ttl": RateLimit(
-                    60, 60, block_duration=30,
+                    60,
+                    60,
+                    block_duration=30,
                 ),  # 60 TTL updates per minute, 30s block
             }
 
@@ -178,7 +194,10 @@ class RateLimiter:
         self.user_rate_limits: dict[str, deque] = {}
 
     async def check_rate_limit(
-        self, request: Request, endpoint_type: str = "default", user_id: str | None = None,
+        self,
+        request: Request,
+        endpoint_type: str = "default",
+        user_id: str | None = None,
     ) -> bool:
         """Check if request is within rate limits.
         Implements fail-secure principle: Any error = deny access.
@@ -222,7 +241,10 @@ class RateLimiter:
             )
 
     async def _check_rate_limit_internal(
-        self, request: Request, endpoint_type: str = "default", user_id: str | None = None,
+        self,
+        request: Request,
+        endpoint_type: str = "default",
+        user_id: str | None = None,
     ) -> bool:
         """Internal rate limit check implementation."""
         client_ip = self._get_client_ip(request)
@@ -239,7 +261,8 @@ class RateLimiter:
         if client_ip in self.permanent_bans:
             logger.critical(f"Permanently banned IP attempted access: {client_ip}")
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="Access permanently denied",
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access permanently denied",
             )
 
         # Get or create client stats
@@ -320,7 +343,8 @@ class RateLimiter:
         """Get or create client statistics."""
         if ip_address not in self.local_storage:
             self.local_storage[ip_address] = ClientStats(
-                ip_address=ip_address, user_agent=request.headers.get("User-Agent", "Unknown"),
+                ip_address=ip_address,
+                user_agent=request.headers.get("User-Agent", "Unknown"),
             )
 
         return self.local_storage[ip_address]
@@ -355,7 +379,8 @@ class RateLimiter:
                 )
 
                 raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN, detail="Access forbidden",
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access forbidden",
                 )
 
         # Check for bot-like behavior
@@ -404,7 +429,8 @@ class RateLimiter:
                 )
 
                 raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN, detail="Access forbidden",
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access forbidden",
                 )
 
         return False
@@ -474,8 +500,7 @@ class RateLimiter:
 
         # Count recent requests (v2.4.4: fixed .seconds → .total_seconds() bug)
         recent_count = sum(
-            1 for req_time in user_requests
-            if (now - req_time).total_seconds() < limit.period
+            1 for req_time in user_requests if (now - req_time).total_seconds() < limit.period
         )
 
         if recent_count >= limit.requests + limit.burst:
@@ -491,7 +516,10 @@ class RateLimiter:
         return True
 
     async def _check_endpoint_limit(
-        self, client_stats: ClientStats, endpoint_type: str, request: Request,
+        self,
+        client_stats: ClientStats,
+        endpoint_type: str,
+        request: Request,
     ) -> bool:
         """Check endpoint-specific rate limits using local storage."""
         if endpoint_type == "default":
@@ -698,7 +726,9 @@ class RateLimiter:
                     "total_requests": stats.total_requests,
                 }
                 for stats in sorted(
-                    self.local_storage.values(), key=lambda s: s.violations, reverse=True,
+                    self.local_storage.values(),
+                    key=lambda s: s.violations,
+                    reverse=True,
                 )[:10]
             ],
         }
@@ -797,7 +827,10 @@ class DDoSProtection:
         return "slowloris_attack", False
 
     async def _handle_ddos_detection(
-        self, attack_type: str, client_ip: str, request: Request,
+        self,
+        attack_type: str,
+        client_ip: str,
+        request: Request,
     ) -> None:
         """Handle detected DDoS attack."""
         logger.critical(f"DDoS attack detected: {attack_type} from {client_ip}")
@@ -814,7 +847,10 @@ class DDoSProtection:
 
         # Log security event
         await self.rate_limiter._log_security_event(
-            f"ddos_{attack_type}", client_ip, request, {"auto_blocked": self.auto_block_enabled},
+            f"ddos_{attack_type}",
+            client_ip,
+            request,
+            {"auto_blocked": self.auto_block_enabled},
         )
 
     async def _network_level_block(self, ip_address: str, attack_type: str) -> None:

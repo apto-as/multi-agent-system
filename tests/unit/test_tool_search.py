@@ -13,9 +13,10 @@ Author: Artemis (Implementation)
 Created: 2025-12-04
 """
 
-import pytest
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from src.models.tool_search import (
     MCPServerMetadata,

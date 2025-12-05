@@ -78,6 +78,7 @@ class OrchestrationTools(BaseTool):
                 )
 
             """
+
             async def _create(session, _services):
                 engine = self._get_engine(session)
 
@@ -134,6 +135,7 @@ class OrchestrationTools(BaseTool):
                 start_orchestration(orchestration_id="abc123...")
 
             """
+
             async def _start(session, _services):
                 engine = self._get_engine(session)
                 task = await engine.start_orchestration(UUID(orchestration_id))
@@ -188,10 +190,12 @@ class OrchestrationTools(BaseTool):
                 )
 
             """
+
             async def _execute(session, _services):
                 engine = self._get_engine(session)
                 result = await engine.execute_phase(
-                    UUID(orchestration_id), outputs,
+                    UUID(orchestration_id),
+                    outputs,
                 )
 
                 return {
@@ -202,8 +206,7 @@ class OrchestrationTools(BaseTool):
                     "approval_status": result.approval_status.value,
                     "started_at": result.started_at.isoformat(),
                     "completed_at": (
-                        result.completed_at.isoformat()
-                        if result.completed_at else None
+                        result.completed_at.isoformat() if result.completed_at else None
                     ),
                 }
 
@@ -254,6 +257,7 @@ class OrchestrationTools(BaseTool):
                 )
 
             """
+
             async def _approve(session, _services):
                 engine = self._get_engine(session)
                 task = await engine.approve_phase(
@@ -273,7 +277,8 @@ class OrchestrationTools(BaseTool):
                     "status": task.status,
                     "approval_status": (
                         last_result.approval_status.value
-                        if last_result else ApprovalStatus.PENDING.value
+                        if last_result
+                        else ApprovalStatus.PENDING.value
                     ),
                     "approval_notes": notes,
                     "approved_by": agent_id,
@@ -313,6 +318,7 @@ class OrchestrationTools(BaseTool):
                 get_orchestration_status(orchestration_id="abc123...")
 
             """
+
             async def _status(session, _services):
                 engine = self._get_engine(session)
                 return await engine.get_orchestration_status(UUID(orchestration_id))
@@ -345,6 +351,7 @@ class OrchestrationTools(BaseTool):
                 list_orchestrations(status_filter="in_progress")
 
             """
+
             async def _list(session, _services):
                 engine = self._get_engine(session)
                 # list_orchestrations is synchronous
@@ -403,6 +410,7 @@ class OrchestrationTools(BaseTool):
                 get_phase_config()  # Returns all phases
 
             """
+
             async def _get_config(session, _services):
                 engine = self._get_engine(session)
 

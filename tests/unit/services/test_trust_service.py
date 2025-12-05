@@ -1,11 +1,12 @@
 """Unit tests for trust score calculation and management"""
-import pytest
-from datetime import datetime
+
 from uuid import uuid4
 
-from src.core.exceptions import AgentNotFoundError, DatabaseError
+import pytest
+
+from src.core.exceptions import AgentNotFoundError
 from src.models.agent import Agent
-from src.models.verification import TrustScoreHistory, VerificationRecord
+from src.models.verification import TrustScoreHistory
 from src.services.trust_service import TrustScoreCalculator, TrustService
 
 
@@ -129,7 +130,7 @@ class TestTrustService:
             namespace="test",
             trust_score=0.5,
             total_verifications=0,
-            accurate_verifications=0
+            accurate_verifications=0,
         )
         db_session.add(agent)
         await db_session.commit()
@@ -137,9 +138,7 @@ class TestTrustService:
         # Update trust score
         service = TrustService(db_session)
         new_score = await service.update_trust_score(
-            agent_id="test-agent",
-            accurate=True,
-            verification_id=str(uuid4())
+            agent_id="test-agent", accurate=True, verification_id=str(uuid4())
         )
 
         # Verify score increased
@@ -161,7 +160,7 @@ class TestTrustService:
             namespace="test",
             trust_score=0.5,
             total_verifications=0,
-            accurate_verifications=0
+            accurate_verifications=0,
         )
         db_session.add(agent)
         await db_session.commit()
@@ -169,9 +168,7 @@ class TestTrustService:
         # Update trust score
         service = TrustService(db_session)
         new_score = await service.update_trust_score(
-            agent_id="test-agent",
-            accurate=False,
-            verification_id=str(uuid4())
+            agent_id="test-agent", accurate=False, verification_id=str(uuid4())
         )
 
         # Verify score decreased
@@ -188,10 +185,7 @@ class TestTrustService:
         """Test trust score update with verification record"""
         # Create agent
         agent = Agent(
-            agent_id="test-agent",
-            display_name="Test Agent",
-            namespace="test",
-            trust_score=0.5
+            agent_id="test-agent", display_name="Test Agent", namespace="test", trust_score=0.5
         )
         db_session.add(agent)
         await db_session.commit()
@@ -203,14 +197,14 @@ class TestTrustService:
             agent_id="test-agent",
             accurate=True,
             verification_id=verification_id,
-            reason="test_verification"
+            reason="test_verification",
         )
 
         # Verify history record created
         from sqlalchemy import select
+
         result = await db_session.execute(
-            select(TrustScoreHistory)
-            .where(TrustScoreHistory.agent_id == "test-agent")
+            select(TrustScoreHistory).where(TrustScoreHistory.agent_id == "test-agent")
         )
         history = result.scalar_one()
 
@@ -227,6 +221,7 @@ class TestTrustService:
         checking if agent exists (security-first design).
         """
         from src.core.exceptions import AuthorizationError
+
         service = TrustService(db_session)
 
         # Without verification_id, should fail with AuthorizationError
@@ -234,7 +229,7 @@ class TestTrustService:
         with pytest.raises(AuthorizationError, match="verification_id required"):
             await service.update_trust_score(
                 agent_id="nonexistent",
-                accurate=True
+                accurate=True,
                 # No verification_id provided
             )
 
@@ -247,7 +242,7 @@ class TestTrustService:
             namespace="test",
             trust_score=0.7,
             total_verifications=10,
-            accurate_verifications=7
+            accurate_verifications=7,
         )
         db_session.add(agent)
         await db_session.commit()
@@ -273,7 +268,7 @@ class TestTrustService:
             namespace="test",
             trust_score=0.4,
             total_verifications=3,
-            accurate_verifications=1
+            accurate_verifications=1,
         )
         db_session.add(agent)
         await db_session.commit()
@@ -290,10 +285,7 @@ class TestTrustService:
         """Test retrieving trust score history"""
         # Create agent
         agent = Agent(
-            agent_id="test-agent",
-            display_name="Test Agent",
-            namespace="test",
-            trust_score=0.5
+            agent_id="test-agent", display_name="Test Agent", namespace="test", trust_score=0.5
         )
         db_session.add(agent)
         await db_session.commit()
@@ -317,10 +309,7 @@ class TestTrustService:
         """Test history retrieval with limit"""
         # Create agent
         agent = Agent(
-            agent_id="test-agent",
-            display_name="Test Agent",
-            namespace="test",
-            trust_score=0.5
+            agent_id="test-agent", display_name="Test Agent", namespace="test", trust_score=0.5
         )
         db_session.add(agent)
         await db_session.commit()
@@ -328,7 +317,9 @@ class TestTrustService:
         # Create many history records
         service = TrustService(db_session)
         for _ in range(10):
-            await service.update_trust_score("test-agent", accurate=True, verification_id=str(uuid4()))
+            await service.update_trust_score(
+                "test-agent", accurate=True, verification_id=str(uuid4())
+            )
 
         # Get limited history
         history = await service.get_trust_history("test-agent", limit=5)
@@ -340,10 +331,7 @@ class TestTrustService:
         # Create multiple agents
         agents = [
             Agent(
-                agent_id=f"agent-{i}",
-                display_name=f"Agent {i}",
-                namespace="test",
-                trust_score=0.5
+                agent_id=f"agent-{i}", display_name=f"Agent {i}", namespace="test", trust_score=0.5
             )
             for i in range(3)
         ]
@@ -360,7 +348,7 @@ class TestTrustService:
         results = await service.batch_update_trust_scores(
             updates,
             user=None,  # Automated update (requires verification_id)
-            requesting_namespace="test"
+            requesting_namespace="test",
         )
 
         assert len(results) == 3
@@ -372,10 +360,7 @@ class TestTrustService:
         """Test trust score converges with multiple updates"""
         # Create agent
         agent = Agent(
-            agent_id="test-agent",
-            display_name="Test Agent",
-            namespace="test",
-            trust_score=0.5
+            agent_id="test-agent", display_name="Test Agent", namespace="test", trust_score=0.5
         )
         db_session.add(agent)
         await db_session.commit()
@@ -383,7 +368,9 @@ class TestTrustService:
         # Multiple accurate verifications
         service = TrustService(db_session)
         for _ in range(20):
-            await service.update_trust_score("test-agent", accurate=True, verification_id=str(uuid4()))
+            await service.update_trust_score(
+                "test-agent", accurate=True, verification_id=str(uuid4())
+            )
 
         # Score should converge toward 1.0
         result = await service.get_trust_score("test-agent")
@@ -396,7 +383,7 @@ class TestTrustService:
             agent_id="perf-agent",
             display_name="Performance Test Agent",
             namespace="test",
-            trust_score=0.5
+            trust_score=0.5,
         )
         db_session.add(agent)
         await db_session.commit()
@@ -405,7 +392,9 @@ class TestTrustService:
 
         # Benchmark single update
         async def update():
-            return await service.update_trust_score("perf-agent", accurate=True, verification_id=str(uuid4()))
+            return await service.update_trust_score(
+                "perf-agent", accurate=True, verification_id=str(uuid4())
+            )
 
         result = await benchmark(update)
         assert result > 0.5  # Sanity check
@@ -417,15 +406,11 @@ class TestTrustService:
 
     async def test_batch_update_namespace_isolation_same_namespace(self, db_session):
         """Test successful batch update when all agents in same namespace (V-TRUST-11)"""
-        from src.core.exceptions import AuthorizationError
 
         # Create multiple agents in same namespace
         agents = [
             Agent(
-                agent_id=f"agent-{i}",
-                display_name=f"Agent {i}",
-                namespace="prod",
-                trust_score=0.5
+                agent_id=f"agent-{i}", display_name=f"Agent {i}", namespace="prod", trust_score=0.5
             )
             for i in range(3)
         ]
@@ -442,7 +427,7 @@ class TestTrustService:
         results = await service.batch_update_trust_scores(
             updates,
             user=None,  # Automated update
-            requesting_namespace="prod"
+            requesting_namespace="prod",
         )
 
         # All updates should succeed
@@ -457,16 +442,10 @@ class TestTrustService:
 
         # Create agents in different namespaces
         agent_prod = Agent(
-            agent_id="agent-prod",
-            display_name="Prod Agent",
-            namespace="prod",
-            trust_score=0.5
+            agent_id="agent-prod", display_name="Prod Agent", namespace="prod", trust_score=0.5
         )
         agent_dev = Agent(
-            agent_id="agent-dev",
-            display_name="Dev Agent",
-            namespace="dev",
-            trust_score=0.5
+            agent_id="agent-dev", display_name="Dev Agent", namespace="dev", trust_score=0.5
         )
         db_session.add_all([agent_prod, agent_dev])
         await db_session.commit()
@@ -480,14 +459,10 @@ class TestTrustService:
 
         # Should fail when mixing namespaces
         with pytest.raises(AuthorizationError, match="not found in namespace"):
-            await service.batch_update_trust_scores(
-                updates,
-                user=None,
-                requesting_namespace="prod"
-            )
+            await service.batch_update_trust_scores(updates, user=None, requesting_namespace="prod")
 
         # Verify first agent was processed before error
-        agent_prod_updated = await db_session.get(Agent, "agent-prod")
+        await db_session.get(Agent, "agent-prod")
         # Due to isolation, first agent may or may not be updated depending on transaction semantics
         # The important thing is the error is raised
 
@@ -498,10 +473,7 @@ class TestTrustService:
         # Create agents
         agents = [
             Agent(
-                agent_id=f"agent-{i}",
-                display_name=f"Agent {i}",
-                namespace="test",
-                trust_score=0.5
+                agent_id=f"agent-{i}", display_name=f"Agent {i}", namespace="test", trust_score=0.5
             )
             for i in range(2)
         ]
@@ -517,11 +489,7 @@ class TestTrustService:
 
         # First update should fail due to missing verification_id
         with pytest.raises(AuthorizationError, match="verification_id required"):
-            await service.batch_update_trust_scores(
-                updates,
-                user=None,
-                requesting_namespace="test"
-            )
+            await service.batch_update_trust_scores(updates, user=None, requesting_namespace="test")
 
     async def test_batch_update_authorization_system_user_with_verification(self, db_session):
         """Test SYSTEM user can update with verification_id (V-TRUST-7)"""
@@ -530,10 +498,7 @@ class TestTrustService:
         # Create agents
         agents = [
             Agent(
-                agent_id=f"agent-{i}",
-                display_name=f"Agent {i}",
-                namespace="test",
-                trust_score=0.5
+                agent_id=f"agent-{i}", display_name=f"Agent {i}", namespace="test", trust_score=0.5
             )
             for i in range(2)
         ]
@@ -558,7 +523,7 @@ class TestTrustService:
             results = await service.batch_update_trust_scores(
                 updates,
                 user=system_user,  # SYSTEM user
-                requesting_namespace="test"
+                requesting_namespace="test",
             )
 
             # Both updates should succeed
@@ -571,9 +536,7 @@ class TestTrustService:
         service = TrustService(db_session)
 
         results = await service.batch_update_trust_scores(
-            [],
-            user=None,
-            requesting_namespace="test"
+            [], user=None, requesting_namespace="test"
         )
 
         # Should return empty dict
@@ -581,7 +544,6 @@ class TestTrustService:
 
     async def test_batch_update_nonexistent_agent(self, db_session):
         """Test batch update with nonexistent agent in list"""
-        from src.core.exceptions import AgentNotFoundError
 
         service = TrustService(db_session)
         updates = [
@@ -590,11 +552,7 @@ class TestTrustService:
 
         # Should fail with AgentNotFoundError
         with pytest.raises(AgentNotFoundError, match="Agent not found"):
-            await service.batch_update_trust_scores(
-                updates,
-                user=None,
-                requesting_namespace="test"
-            )
+            await service.batch_update_trust_scores(updates, user=None, requesting_namespace="test")
 
     async def test_batch_update_namespace_none(self, db_session):
         """Test batch update with namespace=None (all agents accessible)"""
@@ -606,7 +564,7 @@ class TestTrustService:
                     agent_id=f"agent-prod-{i}",
                     display_name=f"Prod Agent {i}",
                     namespace="prod",
-                    trust_score=0.5
+                    trust_score=0.5,
                 )
             )
             agents.append(
@@ -614,7 +572,7 @@ class TestTrustService:
                     agent_id=f"agent-dev-{i}",
                     display_name=f"Dev Agent {i}",
                     namespace="dev",
-                    trust_score=0.5
+                    trust_score=0.5,
                 )
             )
         db_session.add_all(agents)
@@ -630,7 +588,7 @@ class TestTrustService:
         results = await service.batch_update_trust_scores(
             updates,
             user=None,
-            requesting_namespace=None  # No namespace isolation
+            requesting_namespace=None,  # No namespace isolation
         )
 
         # Both updates should succeed
@@ -646,7 +604,7 @@ class TestTrustService:
                 agent_id=f"perf-agent-{i}",
                 display_name=f"Performance Agent {i}",
                 namespace="perf",
-                trust_score=0.5
+                trust_score=0.5,
             )
             for i in range(100)
         ]
@@ -665,9 +623,7 @@ class TestTrustService:
         start_time = time.perf_counter()
 
         results = await service.batch_update_trust_scores(
-            updates,
-            user=None,
-            requesting_namespace="perf"
+            updates, user=None, requesting_namespace="perf"
         )
 
         elapsed_ms = (time.perf_counter() - start_time) * 1000
@@ -683,15 +639,11 @@ class TestTrustService:
 
     async def test_batch_update_transaction_consistency(self, db_session):
         """Test transaction consistency: all or nothing semantics (V-TRUST-ATOMICITY)"""
-        from src.core.exceptions import AgentNotFoundError
 
         # Create some agents and prepare batch with one nonexistent
         agents = [
             Agent(
-                agent_id=f"agent-{i}",
-                display_name=f"Agent {i}",
-                namespace="test",
-                trust_score=0.5
+                agent_id=f"agent-{i}", display_name=f"Agent {i}", namespace="test", trust_score=0.5
             )
             for i in range(2)
         ]
@@ -709,11 +661,7 @@ class TestTrustService:
 
         # Batch should fail on nonexistent agent
         with pytest.raises(AgentNotFoundError):
-            await service.batch_update_trust_scores(
-                updates,
-                user=None,
-                requesting_namespace="test"
-            )
+            await service.batch_update_trust_scores(updates, user=None, requesting_namespace="test")
 
         # Due to per-agent error handling in current implementation,
         # first agent may be updated before error. This test documents the behavior.
@@ -731,7 +679,7 @@ class TestAgentModel:
             display_name="Test",
             namespace="test",
             total_verifications=0,
-            accurate_verifications=0
+            accurate_verifications=0,
         )
 
         assert agent.verification_accuracy == 0.5  # Neutral starting point
@@ -743,30 +691,20 @@ class TestAgentModel:
             display_name="Test",
             namespace="test",
             total_verifications=10,
-            accurate_verifications=7
+            accurate_verifications=7,
         )
 
         assert agent.verification_accuracy == 0.7
 
     def test_requires_verification_trusted(self):
         """Test trusted agent doesn't require verification"""
-        agent = Agent(
-            agent_id="test-agent",
-            display_name="Test",
-            namespace="test",
-            trust_score=0.8
-        )
+        agent = Agent(agent_id="test-agent", display_name="Test", namespace="test", trust_score=0.8)
 
         assert agent.requires_verification is False
 
     def test_requires_verification_untrusted(self):
         """Test untrusted agent requires verification"""
-        agent = Agent(
-            agent_id="test-agent",
-            display_name="Test",
-            namespace="test",
-            trust_score=0.5
-        )
+        agent = Agent(agent_id="test-agent", display_name="Test", namespace="test", trust_score=0.5)
 
         assert agent.requires_verification is True
 
@@ -774,18 +712,12 @@ class TestAgentModel:
         """Test verification requirement at exact threshold"""
         # At threshold (0.7)
         agent_at_threshold = Agent(
-            agent_id="test-1",
-            display_name="Test",
-            namespace="test",
-            trust_score=0.7
+            agent_id="test-1", display_name="Test", namespace="test", trust_score=0.7
         )
         assert agent_at_threshold.requires_verification is False
 
         # Just below threshold
         agent_below = Agent(
-            agent_id="test-2",
-            display_name="Test",
-            namespace="test",
-            trust_score=0.69
+            agent_id="test-2", display_name="Test", namespace="test", trust_score=0.69
         )
         assert agent_below.requires_verification is True

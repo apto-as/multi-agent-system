@@ -57,6 +57,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class HubConnectionStats:
     """Statistics for hub connection status."""
+
     total_servers: int = 0
     connected_servers: int = 0
     total_tools: int = 0
@@ -228,14 +229,16 @@ class MCPHubManager:
         servers = []
         for name, preset in presets.servers.items():
             connection = self._mcp_manager.get_connection(name)
-            servers.append({
-                "server_id": name,
-                "name": preset.name,
-                "transport": preset.transport_type.value,
-                "auto_connect": preset.auto_connect,
-                "is_connected": connection.is_connected if connection else False,
-                "tool_count": len(connection.tools) if connection else 0,
-            })
+            servers.append(
+                {
+                    "server_id": name,
+                    "name": preset.name,
+                    "transport": preset.transport_type.value,
+                    "auto_connect": preset.auto_connect,
+                    "is_connected": connection.is_connected if connection else False,
+                    "tool_count": len(connection.tools) if connection else 0,
+                }
+            )
 
         return servers
 
@@ -333,9 +336,7 @@ class MCPHubManager:
             try:
                 validate_tool_input(arguments, tool_schema, tool_name)
             except InputValidationError as e:
-                logger.warning(
-                    f"Input validation failed for {server_id}:{tool_name}: {e}"
-                )
+                logger.warning(f"Input validation failed for {server_id}:{tool_name}: {e}")
                 raise MCPConnectionError(
                     f"Input validation failed: {e}",
                     details={
@@ -357,8 +358,7 @@ class MCPHubManager:
             )
         except asyncio.TimeoutError:
             logger.error(
-                f"Tool execution timeout ({self.DEFAULT_TIMEOUT}s) for "
-                f"{server_id}:{tool_name}"
+                f"Tool execution timeout ({self.DEFAULT_TIMEOUT}s) for {server_id}:{tool_name}"
             )
             raise MCPConnectionError(
                 f"Tool execution timeout ({self.DEFAULT_TIMEOUT}s)",
@@ -489,12 +489,14 @@ class MCPHubManager:
         # Convert to ToolMetadata
         tool_metadata = []
         for tool in connection.tools:
-            tool_metadata.append(ToolMetadata(
-                name=tool.name,
-                description=tool.description or "",
-                input_schema=tool.input_schema if hasattr(tool, "input_schema") else {},
-                tags=[],
-            ))
+            tool_metadata.append(
+                ToolMetadata(
+                    name=tool.name,
+                    description=tool.description or "",
+                    input_schema=tool.input_schema if hasattr(tool, "input_schema") else {},
+                    tags=[],
+                )
+            )
 
         # Create server metadata
         transport = ToolSearchTransportType.STDIO
@@ -519,9 +521,7 @@ class MCPHubManager:
         # Track registration
         self._registered_servers[preset.name] = server_metadata
 
-        logger.info(
-            f"Indexed {len(tool_metadata)} tools from {preset.name}"
-        )
+        logger.info(f"Indexed {len(tool_metadata)} tools from {preset.name}")
 
 
 # Singleton instance

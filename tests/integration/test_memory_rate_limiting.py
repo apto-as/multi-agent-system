@@ -42,7 +42,6 @@ class TestMemoryCleanupRateLimiting:
         self,
         async_client_with_mocked_memory: AsyncClient,
         auth_headers: dict,
-        
     ):
         """Test cleanup requests within rate limit succeed."""
         request_data = {
@@ -69,7 +68,6 @@ class TestMemoryCleanupRateLimiting:
         self,
         async_client_with_mocked_memory: AsyncClient,
         auth_headers: dict,
-        
     ):
         """Test that rate limiting is bypassed in test environment.
 
@@ -107,7 +105,6 @@ class TestMemoryPruneRateLimiting:
         self,
         async_client_with_mocked_memory: AsyncClient,
         auth_headers: dict,
-        
     ):
         """Test prune requests within rate limit succeed."""
         request_data = {
@@ -132,7 +129,6 @@ class TestMemoryPruneRateLimiting:
         self,
         async_client_with_mocked_memory: AsyncClient,
         auth_headers: dict,
-        
     ):
         """Test that rate limiting is bypassed in test environment.
 
@@ -168,7 +164,6 @@ class TestMemoryTTLRateLimiting:
         self,
         async_client_with_mocked_memory: AsyncClient,
         auth_headers: dict,
-        
     ):
         """Test set-ttl requests within rate limit succeed."""
         from uuid import uuid4
@@ -198,7 +193,6 @@ class TestMemoryTTLRateLimiting:
         self,
         async_client_with_mocked_memory: AsyncClient,
         auth_headers: dict,
-        
     ):
         """Test that rate limiting is bypassed in test environment.
 

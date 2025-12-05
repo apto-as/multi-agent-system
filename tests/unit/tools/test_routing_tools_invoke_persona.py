@@ -5,8 +5,6 @@ Trinitas Orchestration Layer.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from pathlib import Path
 
 from src.tools.routing_tools import RoutingTools
 
@@ -27,7 +25,12 @@ class TestInvokePersona:
         valid_personas = {
             "athena-conductor": {
                 "tier": "STRATEGIC",
-                "capabilities": ["orchestration", "workflow_automation", "resource_optimization", "parallel_execution"],
+                "capabilities": [
+                    "orchestration",
+                    "workflow_automation",
+                    "resource_optimization",
+                    "parallel_execution",
+                ],
             },
         }
         assert "athena-conductor" in valid_personas
@@ -131,7 +134,19 @@ class TestPersonaNormalization:
             "aurora-researcher",
         ]
         for full_id in full_ids:
-            assert full_id.endswith(("-conductor", "-optimizer", "-auditor", "-coordinator", "-strategist", "-documenter", "-designer", "-developer", "-researcher"))
+            assert full_id.endswith(
+                (
+                    "-conductor",
+                    "-optimizer",
+                    "-auditor",
+                    "-coordinator",
+                    "-strategist",
+                    "-documenter",
+                    "-designer",
+                    "-developer",
+                    "-researcher",
+                )
+            )
 
 
 class TestPersonaCapabilities:
@@ -139,17 +154,32 @@ class TestPersonaCapabilities:
 
     def test_athena_has_orchestration_capability(self):
         """Test Athena has orchestration capability."""
-        capabilities = ["orchestration", "workflow_automation", "resource_optimization", "parallel_execution"]
+        capabilities = [
+            "orchestration",
+            "workflow_automation",
+            "resource_optimization",
+            "parallel_execution",
+        ]
         assert "orchestration" in capabilities
 
     def test_hestia_has_security_capability(self):
         """Test Hestia has security capability."""
-        capabilities = ["security_analysis", "vulnerability_assessment", "risk_management", "threat_modeling"]
+        capabilities = [
+            "security_analysis",
+            "vulnerability_assessment",
+            "risk_management",
+            "threat_modeling",
+        ]
         assert "security_analysis" in capabilities
 
     def test_artemis_has_optimization_capability(self):
         """Test Artemis has optimization capability."""
-        capabilities = ["performance_optimization", "code_quality", "algorithm_design", "efficiency_improvement"]
+        capabilities = [
+            "performance_optimization",
+            "code_quality",
+            "algorithm_design",
+            "efficiency_improvement",
+        ]
         assert "performance_optimization" in capabilities
 
 

@@ -86,9 +86,7 @@ class JSONSchemaValidator:
         """
         self.max_string_length = max_string_length or self.DEFAULT_MAX_STRING_LENGTH
         self.max_array_items = max_array_items or self.DEFAULT_MAX_ARRAY_ITEMS
-        self.max_object_properties = (
-            max_object_properties or self.DEFAULT_MAX_OBJECT_PROPERTIES
-        )
+        self.max_object_properties = max_object_properties or self.DEFAULT_MAX_OBJECT_PROPERTIES
         self.max_depth = max_depth or self.DEFAULT_MAX_DEPTH
 
         logger.debug(

@@ -202,6 +202,7 @@ class ExecutionTrace(TMWSBase):
     def calculate_expiration(self) -> datetime:
         """Calculate expiration timestamp based on TTL."""
         from datetime import timedelta
+
         return datetime.utcnow() + timedelta(days=self.ttl_days)
 
     def mark_as_pattern_member(self, pattern_id: str) -> None:
@@ -233,18 +234,20 @@ class ExecutionTrace(TMWSBase):
         }
 
         if include_sensitive:
-            result.update({
-                "agent_id": self.agent_id,
-                "namespace": self.namespace,
-                "input_params": self.input_params,
-                "output_result": self.output_result,
-                "error_message": self.error_message,
-                "error_type": self.error_type,
-                "context_snapshot": self.context_snapshot,
-                "pattern_id": self.pattern_id,
-                "ttl_days": self.ttl_days,
-                "expires_at": self.expires_at.isoformat() if self.expires_at else None,
-            })
+            result.update(
+                {
+                    "agent_id": self.agent_id,
+                    "namespace": self.namespace,
+                    "input_params": self.input_params,
+                    "output_result": self.output_result,
+                    "error_message": self.error_message,
+                    "error_type": self.error_type,
+                    "context_snapshot": self.context_snapshot,
+                    "pattern_id": self.pattern_id,
+                    "ttl_days": self.ttl_days,
+                    "expires_at": self.expires_at.isoformat() if self.expires_at else None,
+                }
+            )
 
         return result
 
@@ -475,7 +478,9 @@ class DetectedPattern(TMWSBase):
             "state": self.state,
             "skill_id": self.skill_id,
             "detected_at": self.detected_at.isoformat() if self.detected_at else None,
-            "last_occurrence_at": self.last_occurrence_at.isoformat() if self.last_occurrence_at else None,
+            "last_occurrence_at": self.last_occurrence_at.isoformat()
+            if self.last_occurrence_at
+            else None,
             "validated_at": self.validated_at.isoformat() if self.validated_at else None,
             "approved_at": self.approved_at.isoformat() if self.approved_at else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,

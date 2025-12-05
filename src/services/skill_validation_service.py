@@ -55,7 +55,9 @@ class SkillValidationService:
 
         # Field length limits (from config)
         self.max_field_length = self.settings.skills_max_field_length  # 255
-        self.max_core_instructions_length = self.settings.skills_core_instructions_max_length  # 8000
+        self.max_core_instructions_length = (
+            self.settings.skills_core_instructions_max_length
+        )  # 8000
 
         # Content layer token budgets (Progressive Disclosure)
         self.layer_1_token_budget = 100  # Metadata

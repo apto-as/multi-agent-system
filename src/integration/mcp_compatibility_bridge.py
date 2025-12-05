@@ -154,7 +154,12 @@ class MCPCompatibilityBridge:
                     logger.error(
                         f"Tool {tool_name} execution error: {e}",
                         exc_info=True,
-                        extra={"tool_name": tool_name, "connection_mode": "websocket" if self.connection_established else "stdio"},
+                        extra={
+                            "tool_name": tool_name,
+                            "connection_mode": "websocket"
+                            if self.connection_established
+                            else "stdio",
+                        },
                     )
                     return {"error": f"Tool execution failed: {str(e)}"}
 

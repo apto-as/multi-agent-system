@@ -26,7 +26,7 @@ from uuid import uuid4
 
 import pytest
 
-from src.models.execution_trace import DetectedPattern, SkillSuggestion
+from src.models.execution_trace import DetectedPattern
 from src.services.learning_loop_service import (
     FeedbackResult,
     LearningLoopService,
@@ -158,7 +158,9 @@ class TestValidatePattern:
         assert result.passed is False
         assert any("Success rate too low" in e for e in result.errors)
 
-    async def test_validate_pattern_security_sensitive_tools(self, learning_service, sample_pattern):
+    async def test_validate_pattern_security_sensitive_tools(
+        self, learning_service, sample_pattern
+    ):
         """Test validation fails with security-sensitive tools."""
         sample_pattern.tool_sequence = ["delete_file", "analyze", "report"]
 
@@ -548,9 +550,7 @@ class TestLearningCycle:
 
         assert result.validated >= 0  # Depends on validation result
 
-    async def test_learning_cycle_handles_errors(
-        self, learning_service, mock_pattern_service
-    ):
+    async def test_learning_cycle_handles_errors(self, learning_service, mock_pattern_service):
         """Test learning cycle handles errors gracefully."""
         mock_pattern_service.get_patterns_by_state.side_effect = Exception("DB error")
 
@@ -588,9 +588,7 @@ class TestLearningCycle:
         # Should only validate up to limit
         assert mock_validate.call_count <= 5
 
-    async def test_learning_cycle_collects_feedback(
-        self, learning_service, mock_pattern_service
-    ):
+    async def test_learning_cycle_collects_feedback(self, learning_service, mock_pattern_service):
         """Test learning cycle collects feedback."""
         mock_pattern_service.get_patterns_by_state.return_value = []
 
@@ -617,9 +615,9 @@ class TestQuotaEnforcement:
         learning_service._promotion_count["test-namespace"] = (
             learning_service.MAX_PROMOTIONS_PER_HOUR
         )
-        learning_service._promotion_reset_time["test-namespace"] = (
-            datetime.now(timezone.utc) + timedelta(hours=1)
-        )
+        learning_service._promotion_reset_time["test-namespace"] = datetime.now(
+            timezone.utc
+        ) + timedelta(hours=1)
 
         result = await learning_service.promote_to_skill(
             pattern=approved_pattern,

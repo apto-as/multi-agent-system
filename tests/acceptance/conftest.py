@@ -11,8 +11,8 @@ Security Note:
 """
 
 import asyncio
-from typing import AsyncGenerator, Dict, List
-from uuid import uuid4, UUID
+from collections.abc import AsyncGenerator
+from uuid import UUID, uuid4
 
 import pytest
 import pytest_asyncio
@@ -27,14 +27,13 @@ from sqlalchemy.pool import StaticPool
 # Domain imports
 from src.domain.aggregates.mcp_connection import (
     MCPConnection,
-    ConnectionStatus,
 )
 from src.domain.entities.tool import Tool, ToolCategory
 from src.domain.value_objects.connection_config import ConnectionConfig
+from src.models.agent import Agent as AgentModel
 
 # Infrastructure imports (use existing TMWS models)
 from src.models.base import TMWSBase as Base
-from src.models.agent import Agent as AgentModel
 
 
 class MockMCPServer:
@@ -50,8 +49,8 @@ class MockMCPServer:
     """
 
     def __init__(self):
-        self._connections: Dict[UUID, Dict] = {}
-        self._tools: Dict[UUID, List[Tool]] = {}
+        self._connections: dict[UUID, dict] = {}
+        self._tools: dict[UUID, list[Tool]] = {}
 
     async def connect(
         self,
@@ -74,15 +73,15 @@ class MockMCPServer:
             raise ConnectionError(f"Connection {connection_id} already exists")
 
         self._connections[connection_id] = {
-            'url': url,
-            'config': config,
-            'connected_at': asyncio.get_event_loop().time(),
+            "url": url,
+            "config": config,
+            "connected_at": asyncio.get_event_loop().time(),
         }
 
         # Simulate network delay
         await asyncio.sleep(0.01)
 
-    async def discover_tools(self, connection_id: UUID) -> List[Tool]:
+    async def discover_tools(self, connection_id: UUID) -> list[Tool]:
         """
         Return mock tools list for testing
 
@@ -386,6 +385,7 @@ def connection_builder():
     Returns:
         Builder function for creating test connections
     """
+
     def build(
         server_name: str = "test-server",
         url: str = "http://localhost:8080/mcp",

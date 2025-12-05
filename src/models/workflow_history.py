@@ -22,7 +22,9 @@ class WorkflowExecution(Base):
     started_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     completed_at = Column(DateTime)
     status = Column(
-        String(50), nullable=False, default="running",
+        String(50),
+        nullable=False,
+        default="running",
     )  # running, completed, failed, cancelled
 
     # Execution context
@@ -49,10 +51,14 @@ class WorkflowExecution(Base):
     # Relationships
     workflow = relationship("Workflow", back_populates="executions")
     step_executions = relationship(
-        "WorkflowStepExecution", back_populates="workflow_execution", cascade="all, delete-orphan",
+        "WorkflowStepExecution",
+        back_populates="workflow_execution",
+        cascade="all, delete-orphan",
     )
     logs = relationship(
-        "WorkflowExecutionLog", back_populates="workflow_execution", cascade="all, delete-orphan",
+        "WorkflowExecutionLog",
+        back_populates="workflow_execution",
+        cascade="all, delete-orphan",
     )
 
     # Indexes for performance
@@ -81,7 +87,9 @@ class WorkflowStepExecution(Base):
     started_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     completed_at = Column(DateTime)
     status = Column(
-        String(50), nullable=False, default="running",
+        String(50),
+        nullable=False,
+        default="running",
     )  # running, completed, failed, skipped
 
     # Input/Output

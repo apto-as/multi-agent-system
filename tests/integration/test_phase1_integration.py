@@ -97,7 +97,10 @@ class TestMemoryFieldEncryptionIntegration:
 
     @pytest.mark.asyncio
     async def test_memory_encryption_basic_flow(
-        self, test_agents, memory_encryption, db_session: AsyncSession,
+        self,
+        test_agents,
+        memory_encryption,
+        db_session: AsyncSession,
     ):
         """Test complete memory encryption and decryption flow."""
         owner = test_agents["owner"]
@@ -113,7 +116,8 @@ class TestMemoryFieldEncryptionIntegration:
 
         # Encrypt memory
         encrypted_data = await memory_encryption.encrypt_memory(
-            memory_data, owner.agent_id,
+            memory_data,
+            owner.agent_id,
         )
 
         # Verify encryption
@@ -123,7 +127,9 @@ class TestMemoryFieldEncryptionIntegration:
 
         # Decrypt memory (owner access)
         decrypted_data = await memory_encryption.decrypt_memory(
-            encrypted_data, owner.agent_id, owner.namespace,
+            encrypted_data,
+            owner.agent_id,
+            owner.namespace,
         )
 
         # Verify decryption
@@ -137,7 +143,9 @@ class TestMemoryFieldEncryptionIntegration:
 
     @pytest.mark.asyncio
     async def test_memory_access_control_private(
-        self, test_agents, db_session: AsyncSession,
+        self,
+        test_agents,
+        db_session: AsyncSession,
     ):
         """Test PRIVATE memory access control."""
         owner = test_agents["owner"]
@@ -166,7 +174,9 @@ class TestMemoryFieldEncryptionIntegration:
 
     @pytest.mark.asyncio
     async def test_memory_access_control_team(
-        self, test_agents, db_session: AsyncSession,
+        self,
+        test_agents,
+        db_session: AsyncSession,
     ):
         """Test TEAM memory access control."""
         owner = test_agents["owner"]
@@ -199,7 +209,9 @@ class TestMemoryFieldEncryptionIntegration:
 
     @pytest.mark.asyncio
     async def test_memory_access_control_shared(
-        self, test_agents, db_session: AsyncSession,
+        self,
+        test_agents,
+        db_session: AsyncSession,
     ):
         """Test SHARED memory access control."""
         owner = test_agents["owner"]
@@ -237,7 +249,9 @@ class TestMemoryFieldEncryptionIntegration:
 
     @pytest.mark.asyncio
     async def test_memory_access_control_public(
-        self, test_agents, db_session: AsyncSession,
+        self,
+        test_agents,
+        db_session: AsyncSession,
     ):
         """Test PUBLIC memory access control."""
         owner = test_agents["owner"]
@@ -270,7 +284,10 @@ class TestMemoryFieldEncryptionIntegration:
 
     @pytest.mark.asyncio
     async def test_e2e_encrypted_memory_team_access(
-        self, test_agents, field_encryption, db_session: AsyncSession,
+        self,
+        test_agents,
+        field_encryption,
+        db_session: AsyncSession,
     ):
         """Test end-to-end encrypted memory with TEAM access."""
         owner = test_agents["owner"]
@@ -303,19 +320,26 @@ class TestMemoryFieldEncryptionIntegration:
 
         # Step 3: Owner can decrypt
         decrypted_owner = await field_encryption.decrypt_field(
-            encrypted_field, owner.agent_id, owner.namespace,
+            encrypted_field,
+            owner.agent_id,
+            owner.namespace,
         )
         assert decrypted_owner == "Confidential team strategy"
 
         # Step 4: Teammate can decrypt (TEAM access)
         decrypted_teammate = await field_encryption.decrypt_field(
-            encrypted_field, teammate.agent_id, teammate.namespace,
+            encrypted_field,
+            teammate.agent_id,
+            teammate.namespace,
         )
         assert decrypted_teammate == "Confidential team strategy"
 
     @pytest.mark.asyncio
     async def test_e2e_encrypted_memory_shared_access(
-        self, test_agents, field_encryption, db_session: AsyncSession,
+        self,
+        test_agents,
+        field_encryption,
+        db_session: AsyncSession,
     ):
         """Test end-to-end encrypted memory with SHARED access."""
         owner = test_agents["owner"]
@@ -350,7 +374,9 @@ class TestMemoryFieldEncryptionIntegration:
 
         # Step 3: Shared agent can decrypt
         decrypted = await field_encryption.decrypt_field(
-            encrypted_field, shared.agent_id, shared.namespace,
+            encrypted_field,
+            shared.agent_id,
+            shared.namespace,
         )
         assert decrypted["password"] == "secret123"
         assert decrypted["api_key"] == "key_abc"
@@ -358,7 +384,9 @@ class TestMemoryFieldEncryptionIntegration:
         # Step 4: Teammate cannot decrypt (not in shared list)
         with pytest.raises(PermissionError, match="Not in shared agent list"):
             await field_encryption.decrypt_field(
-                encrypted_field, teammate.agent_id, teammate.namespace,
+                encrypted_field,
+                teammate.agent_id,
+                teammate.namespace,
             )
 
     # =====================================================
@@ -422,7 +450,9 @@ class TestMemoryFieldEncryptionIntegration:
             start = time.perf_counter()
 
             await field_encryption.decrypt_field(
-                encrypted, agent_id, namespace,
+                encrypted,
+                agent_id,
+                namespace,
             )
 
             duration = (time.perf_counter() - start) * 1000  # ms
@@ -480,7 +510,10 @@ class TestMemoryFieldEncryptionIntegration:
 
     @pytest.mark.asyncio
     async def test_namespace_isolation_enforcement(
-        self, test_agents, field_encryption, db_session: AsyncSession,
+        self,
+        test_agents,
+        field_encryption,
+        db_session: AsyncSession,
     ):
         """Test strict namespace isolation prevents cross-namespace access."""
         owner = test_agents["owner"]  # team-alpha
@@ -498,12 +531,16 @@ class TestMemoryFieldEncryptionIntegration:
         # Outsider from team-beta cannot decrypt
         with pytest.raises(PermissionError, match="Different namespace"):
             await field_encryption.decrypt_field(
-                encrypted, outsider.agent_id, outsider.namespace,
+                encrypted,
+                outsider.agent_id,
+                outsider.namespace,
             )
 
     @pytest.mark.asyncio
     async def test_namespace_spoofing_prevention(
-        self, test_agents, field_encryption,
+        self,
+        test_agents,
+        field_encryption,
     ):
         """Test that namespace spoofing is prevented."""
         owner = test_agents["owner"]  # team-alpha
@@ -525,7 +562,9 @@ class TestMemoryFieldEncryptionIntegration:
 
         with pytest.raises(PermissionError, match="Different namespace"):
             await field_encryption.decrypt_field(
-                encrypted, attacker_id, actual_attacker_namespace,
+                encrypted,
+                attacker_id,
+                actual_attacker_namespace,
             )
 
 
@@ -539,7 +578,7 @@ class TestCrossAgentAccessPolicyConsistency:
         namespace = "team-alpha"
 
         # Memory model check
-        memory_result = (owner_id == owner_id)  # Owner check
+        memory_result = owner_id == owner_id  # Owner check
 
         # Policy check
         is_allowed, _ = CrossAgentAccessPolicy.check_access(

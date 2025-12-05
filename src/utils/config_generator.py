@@ -21,57 +21,63 @@ logger = logging.getLogger(__name__)
 
 class ConfigGeneratorError(Exception):
     """Raised when configuration generation fails."""
+
     pass
 
 
 class CommandValidationError(ConfigGeneratorError):
     """Raised when command validation fails (R-2 security)."""
+
     pass
 
 
 # R-2: Allowed commands whitelist for MCP server configuration
 # Only these commands can be used in generated MCP configs
-ALLOWED_COMMANDS = frozenset({
-    # Python package managers
-    "uv",
-    "uvx",
-    "pip",
-    "pipx",
-    "python",
-    "python3",
-    # Node.js package managers
-    "npm",
-    "npx",
-    "node",
-    "yarn",
-    "pnpm",
-    # Docker commands
-    "docker",
-    "docker-compose",
-    # TMWS specific
-    "tmws",
-    "tmws-mcp-server",
-})
+ALLOWED_COMMANDS = frozenset(
+    {
+        # Python package managers
+        "uv",
+        "uvx",
+        "pip",
+        "pipx",
+        "python",
+        "python3",
+        # Node.js package managers
+        "npm",
+        "npx",
+        "node",
+        "yarn",
+        "pnpm",
+        # Docker commands
+        "docker",
+        "docker-compose",
+        # TMWS specific
+        "tmws",
+        "tmws-mcp-server",
+    }
+)
 
 # R-2: Dangerous command patterns that should never be allowed
-DANGEROUS_COMMAND_PATTERNS = frozenset({
-    "rm",
-    "del",
-    "rmdir",
-    "sudo",
-    "su",
-    "chmod",
-    "chown",
-    "curl",
-    "wget",
-    "sh",
-    "bash",
-    "zsh",
-    "powershell",
-    "cmd",
-    "eval",
-    "exec",
-})
+DANGEROUS_COMMAND_PATTERNS = frozenset(
+    {
+        "rm",
+        "del",
+        "rmdir",
+        "sudo",
+        "su",
+        "chmod",
+        "chown",
+        "curl",
+        "wget",
+        "sh",
+        "bash",
+        "zsh",
+        "powershell",
+        "cmd",
+        "eval",
+        "exec",
+    }
+)
 
 
 def validate_command(command: str, strict: bool = True) -> bool:
@@ -362,6 +368,7 @@ class ConfigGenerator:
         except (OSError, TypeError, ValueError) as e:
             # Clean up temp file if it exists
             import contextlib
+
             if temp_path.exists():
                 with contextlib.suppress(OSError):
                     temp_path.unlink()

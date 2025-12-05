@@ -345,8 +345,12 @@ class TestTaskRoutingService:
         def test_includes_approval_gates(self, routing_service):
             """Each phase includes approval gate."""
             plan = routing_service.get_trinitas_full_mode_routing("test")
-            for phase_key in ["phase_1_strategic", "phase_2_implementation",
-                             "phase_3_verification", "phase_4_documentation"]:
+            for phase_key in [
+                "phase_1_strategic",
+                "phase_2_implementation",
+                "phase_3_verification",
+                "phase_4_documentation",
+            ]:
                 phase = plan["execution_plan"][phase_key]
                 assert "approval_gate" in phase
 
@@ -362,7 +366,7 @@ class TestTaskRoutingService:
 
         def test_capabilities_are_lists(self):
             """Each agent's capabilities is a non-empty list."""
-            for agent_id, caps in TaskRoutingService.AGENT_CAPABILITIES.items():
+            for _agent_id, caps in TaskRoutingService.AGENT_CAPABILITIES.items():
                 assert isinstance(caps, list)
                 assert len(caps) > 0
 
@@ -373,15 +377,19 @@ class TestTaskRoutingService:
             """Matrix includes common task types."""
             matrix = TaskRoutingService.COLLABORATION_MATRIX
             expected = [
-                "architecture", "implementation", "security_audit",
-                "documentation", "debugging", "research",
+                "architecture",
+                "implementation",
+                "security_audit",
+                "documentation",
+                "debugging",
+                "research",
             ]
             for task_type in expected:
                 assert task_type in matrix
 
         def test_matrix_structure(self):
             """Each entry is (primary, support_list, reviewer) tuple."""
-            for task_type, entry in TaskRoutingService.COLLABORATION_MATRIX.items():
+            for _task_type, entry in TaskRoutingService.COLLABORATION_MATRIX.items():
                 assert len(entry) == 3
                 primary, support, reviewer = entry
                 assert isinstance(primary, str)

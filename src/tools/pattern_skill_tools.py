@@ -121,8 +121,7 @@ class PatternSkillTools:
                     )
 
                     logger.info(
-                        f"find_mature_patterns: agent={agent_id}, "
-                        f"found={len(result['patterns'])}"
+                        f"find_mature_patterns: agent={agent_id}, found={len(result['patterns'])}"
                     )
 
                     return result

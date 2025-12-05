@@ -105,9 +105,7 @@ class SecureLogWriter:
                     f"{oct(current_permissions)} -> {oct(self.SECURE_PERMISSIONS)}"
                 )
         except Exception as e:
-            raise PermissionError(
-                f"Failed to enforce permissions on {self.log_file}: {e}"
-            ) from e
+            raise PermissionError(f"Failed to enforce permissions on {self.log_file}: {e}") from e
 
     def _validate_permissions(self) -> bool:
         """
@@ -141,10 +139,10 @@ class SecureLogWriter:
             self._enforce_permissions()
 
         try:
-            with open(self.log_file, 'a', encoding='utf-8') as f:
+            with open(self.log_file, "a", encoding="utf-8") as f:
                 f.write(message)
-                if not message.endswith('\n'):
-                    f.write('\n')
+                if not message.endswith("\n"):
+                    f.write("\n")
         except Exception as e:
             logger.error(f"Failed to write to log file {self.log_file}: {e}")
             raise
@@ -171,18 +169,14 @@ class SecureLogWriter:
             raise ValueError("No encryption key available")
 
         try:
-            encrypted = cipher.encrypt(message.encode('utf-8'))
-            encrypted_str = encrypted.decode('ascii')
+            encrypted = cipher.encrypt(message.encode("utf-8"))
+            encrypted_str = encrypted.decode("ascii")
             self.write(f"[ENCRYPTED] {encrypted_str}")
         except Exception as e:
             logger.error(f"Failed to encrypt and write message: {e}")
             raise
 
-    def read_encrypted(
-        self,
-        line: str,
-        encryption_key: bytes | None = None
-    ) -> str | None:
+    def read_encrypted(self, line: str, encryption_key: bytes | None = None) -> str | None:
         """
         Decrypt an encrypted log line.
 
@@ -210,9 +204,9 @@ class SecureLogWriter:
 
         try:
             encrypted_str = line[12:].strip()
-            encrypted = encrypted_str.encode('ascii')
+            encrypted = encrypted_str.encode("ascii")
             decrypted = cipher.decrypt(encrypted)
-            return decrypted.decode('utf-8')
+            return decrypted.decode("utf-8")
         except Exception as e:
             logger.error(f"Failed to decrypt message: {e}")
             return None
@@ -235,7 +229,7 @@ class SecureLogWriter:
             return False
 
         # Rotate: log.txt -> log.txt.1, log.txt.1 -> log.txt.2, etc.
-        backup_path = self.log_file.with_suffix(self.log_file.suffix + '.1')
+        backup_path = self.log_file.with_suffix(self.log_file.suffix + ".1")
 
         try:
             if backup_path.exists():

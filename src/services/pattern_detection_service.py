@@ -128,9 +128,7 @@ class PatternDetectionService(BaseService):
             - is_new: Whether pattern was newly created
         """
         # Validate parameters
-        min_occurrences = max(
-            self.MIN_OCCURRENCES, min(self.MAX_OCCURRENCES, min_occurrences)
-        )
+        min_occurrences = max(self.MIN_OCCURRENCES, min(self.MAX_OCCURRENCES, min_occurrences))
         window_hours = max(1, min(8760, window_hours))
         min_success_rate = max(0.0, min(1.0, min_success_rate))
         max_sequence_length = max(1, min(50, max_sequence_length))
@@ -197,16 +195,18 @@ class PatternDetectionService(BaseService):
                         avg_execution_time_ms=avg_execution_time,
                     )
 
-                    detected_patterns.append({
-                        "tool_sequence": data["tool_sequence"],
-                        "pattern_hash": pattern_hash,
-                        "frequency": data["frequency"],
-                        "avg_success_rate": avg_success_rate,
-                        "avg_execution_time_ms": avg_execution_time,
-                        "is_new": is_new,
-                        "pattern_id": str(pattern.id),
-                        "state": pattern.state,
-                    })
+                    detected_patterns.append(
+                        {
+                            "tool_sequence": data["tool_sequence"],
+                            "pattern_hash": pattern_hash,
+                            "frequency": data["frequency"],
+                            "avg_success_rate": avg_success_rate,
+                            "avg_execution_time_ms": avg_execution_time,
+                            "is_new": is_new,
+                            "pattern_id": str(pattern.id),
+                            "state": pattern.state,
+                        }
+                    )
 
         # Sort by frequency descending
         detected_patterns.sort(key=lambda x: x["frequency"], reverse=True)
@@ -286,9 +286,7 @@ class PatternDetectionService(BaseService):
             else:
                 # Update statistics
                 pattern.frequency = max(pattern.frequency, frequency)
-                pattern.avg_success_rate = (
-                    pattern.avg_success_rate + avg_success_rate
-                ) / 2
+                pattern.avg_success_rate = (pattern.avg_success_rate + avg_success_rate) / 2
                 if avg_execution_time_ms:
                     if pattern.avg_execution_time_ms:
                         pattern.avg_execution_time_ms = (
@@ -326,9 +324,7 @@ class PatternDetectionService(BaseService):
 
         return new_pattern, True
 
-    async def get_pattern_by_id(
-        self, pattern_id: str | UUID, namespace: str
-    ) -> DetectedPattern:
+    async def get_pattern_by_id(self, pattern_id: str | UUID, namespace: str) -> DetectedPattern:
         """Get a pattern by ID with namespace validation.
 
         Args:
@@ -375,8 +371,7 @@ class PatternDetectionService(BaseService):
         # Validate state
         if state not in self.VALID_TRANSITIONS:
             raise ValidationError(
-                f"Invalid state: {state}. "
-                f"Valid states: {list(self.VALID_TRANSITIONS.keys())}"
+                f"Invalid state: {state}. Valid states: {list(self.VALID_TRANSITIONS.keys())}"
             )
 
         limit = max(1, min(1000, limit))
@@ -501,7 +496,7 @@ This SOP was automatically generated from a detected tool execution pattern.
 - **Success Rate:** {success_rate:.1%}
 - **Average Execution Time:** {exec_time:.1f}ms
 - **Namespace:** {pattern.namespace}
-- **Detected At:** {pattern.detected_at.isoformat() if pattern.detected_at else 'N/A'}
+- **Detected At:** {pattern.detected_at.isoformat() if pattern.detected_at else "N/A"}
 
 ## Tool Sequence
 
@@ -695,9 +690,7 @@ After execution, verify:
 
         await self.session.flush()
 
-        logger.info(
-            f"Linked pattern {pattern_id} to skill {skill_id} in namespace {namespace}"
-        )
+        logger.info(f"Linked pattern {pattern_id} to skill {skill_id} in namespace {namespace}")
 
         return pattern
 
@@ -744,8 +737,6 @@ After execution, verify:
             delete(DetectedPattern).where(DetectedPattern.id.in_(pattern_ids))
         )
 
-        logger.info(
-            f"Cleaned up {len(pattern_ids)} rejected patterns in namespace {namespace}"
-        )
+        logger.info(f"Cleaned up {len(pattern_ids)} rejected patterns in namespace {namespace}")
 
         return len(pattern_ids)

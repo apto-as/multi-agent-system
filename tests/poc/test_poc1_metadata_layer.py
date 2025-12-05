@@ -21,25 +21,25 @@ from src.services.skill_service_poc import SkillServicePOC
 @pytest.mark.asyncio
 async def test_poc1_metadata_layer_performance():
     """POC 1: Metadata layer query performance validation."""
-    
+
     # Setup: Create in-memory test database
     engine = create_async_engine(
         "sqlite+aiosqlite:///:memory:",
         echo=False,
     )
     async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-    
+
     # Create tables from migration
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    
+
     print("\n" + "=" * 80)
     print("POC 1: Metadata Layer Performance Test")
     print("=" * 80)
-    
+
     # Insert 1,000 test skills (simulating 10,000 in production)
     async with async_session() as session:
-        print(f"\nInserting 1,000 test skills...")
+        print("\nInserting 1,000 test skills...")
         skills = [
             Skill(
                 id=str(uuid4()),
@@ -54,24 +54,24 @@ async def test_poc1_metadata_layer_performance():
         ]
         session.add_all(skills)
         await session.commit()
-        print(f"✅ Inserted 1,000 skills")
-    
+        print("✅ Inserted 1,000 skills")
+
     # Benchmark: 100 queries
-    print(f"\nExecuting 100 metadata queries...")
+    print("\nExecuting 100 metadata queries...")
     async with async_session() as session:
         service = SkillServicePOC(session)
         latencies = []
-        
-        for i in range(100):
+
+        for _i in range(100):
             start = time.perf_counter()
             results = await service.list_skills_metadata("test-namespace", limit=100)
             end = time.perf_counter()
             latencies.append((end - start) * 1000)  # Convert to ms
-            
+
             # Verify results
             assert len(results) == 100, f"Expected 100 results, got {len(results)}"
             assert results[0]["namespace"] == "test-namespace"
-    
+
     # Calculate statistics
     p50 = statistics.median(latencies)
     p95 = statistics.quantiles(latencies, n=20)[18]  # 95th percentile
@@ -79,7 +79,7 @@ async def test_poc1_metadata_layer_performance():
     avg = statistics.mean(latencies)
     min_lat = min(latencies)
     max_lat = max(latencies)
-    
+
     # Print results
     print("\n" + "-" * 80)
     print("Results:")
@@ -92,13 +92,13 @@ async def test_poc1_metadata_layer_performance():
     print(f"  P99:        {p99:7.3f} ms")
     print(f"  Max:        {max_lat:7.3f} ms")
     print("-" * 80)
-    print(f"  Target:     < 10ms P95")
+    print("  Target:     < 10ms P95")
     print(f"  Status:     {'✅ PASS' if p95 < 10 else '❌ FAIL'}")
     print("=" * 80 + "\n")
-    
+
     # Assert success criteria
     assert p95 < 10, f"POC 1 FAILED: P95 {p95:.3f}ms exceeds target 10ms"
-    
+
     await engine.dispose()
 
 
@@ -148,13 +148,15 @@ async def test_integration_1_1_namespace_scoped_listing():
         # Validations
         assert len(results) == 100, f"Expected 100 skills, got {len(results)}"
         for result in results:
-            assert result["namespace"] == "test-namespace", f"Namespace mismatch"
+            assert result["namespace"] == "test-namespace", "Namespace mismatch"
 
         # Performance check
         print(f"  Results:        {len(results)} skills")
         print(f"  Latency:        {latency_ms:.3f} ms")
-        print(f"  Target:         < 2.5ms P95")
-        print(f"  Status:         {'✅ PASS' if latency_ms < 2.5 else '⚠️  WARN (acceptable for integration)'}")
+        print("  Target:         < 2.5ms P95")
+        print(
+            f"  Status:         {'✅ PASS' if latency_ms < 2.5 else '⚠️  WARN (acceptable for integration)'}"
+        )
         print("=" * 80)
 
         # Integration test allows 2× tolerance
@@ -224,7 +226,7 @@ async def test_integration_1_2_pagination():
         # Verify completeness
         assert len(all_skill_ids) == 60, f"Expected 60 unique skills, got {len(all_skill_ids)}"
         print(f"  Total skills:   {len(all_skill_ids)}")
-        print(f"  Status:         ✅ PASS (no duplicates, complete)")
+        print("  Status:         ✅ PASS (no duplicates, complete)")
         print("=" * 80)
 
     await engine.dispose()
@@ -295,9 +297,9 @@ async def test_integration_1_3_cross_namespace_isolation():
         assert len(results_b) == 30, f"Expected 30 skills in namespace-b, got {len(results_b)}"
 
         for result in results_a:
-            assert result["namespace"] == "namespace-a", f"Namespace leakage detected"
+            assert result["namespace"] == "namespace-a", "Namespace leakage detected"
         for result in results_b:
-            assert result["namespace"] == "namespace-b", f"Namespace leakage detected"
+            assert result["namespace"] == "namespace-b", "Namespace leakage detected"
 
         # Check no overlap
         ids_a = {r["id"] for r in results_a}
@@ -306,8 +308,8 @@ async def test_integration_1_3_cross_namespace_isolation():
 
         print(f"  Namespace A:    {len(results_a)} skills, {latency_a:.3f} ms")
         print(f"  Namespace B:    {len(results_b)} skills, {latency_b:.3f} ms")
-        print(f"  Leakage:        0 (✅ PASS)")
-        print(f"  Status:         ✅ PASS (P0-1 security validated)")
+        print("  Leakage:        0 (✅ PASS)")
+        print("  Status:         ✅ PASS (P0-1 security validated)")
         print("=" * 80)
 
     await engine.dispose()
@@ -328,10 +330,9 @@ async def test_phase2_scenario_2_1_sequential_layer_execution():
     - Layer 2 query returns correct core_instructions
     - Total flow <10ms P95
     """
-    from datetime import datetime, timezone
-    from src.models.memory import Memory
-    from src.models.skill import SkillVersion
     from sqlalchemy.pool import StaticPool
+
+    from src.models.memory import Memory
 
     print("\n" + "=" * 80)
     print("Phase 2 Scenario 2.1: Sequential Layer Execution (1→2→3)")
@@ -343,9 +344,7 @@ async def test_phase2_scenario_2_1_sequential_layer_execution():
         poolclass=StaticPool,
         connect_args={"check_same_thread": False},
     )
-    async_session_maker = async_sessionmaker(
-        engine, class_=AsyncSession, expire_on_commit=False
-    )
+    async_session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -445,8 +444,10 @@ async def test_phase2_scenario_2_1_sequential_layer_execution():
     total_latency = step2_latency + step3_latency + step4_latency
 
     print(f"\n  Total Flow Latency:       {total_latency:.3f} ms")
-    print(f"  Target:                   < 10ms P95")
-    print(f"  Status:                   {'✅ PASS' if total_latency < 15.0 else '⚠️  WARN (acceptable for integration)'}")
+    print("  Target:                   < 10ms P95")
+    print(
+        f"  Status:                   {'✅ PASS' if total_latency < 15.0 else '⚠️  WARN (acceptable for integration)'}"
+    )
     print("=" * 80)
 
     # Integration test allows 1.5× tolerance

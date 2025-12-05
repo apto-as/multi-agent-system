@@ -278,6 +278,7 @@ def get_mcp_manager() -> "MCPManager":
 
     if _mcp_manager is None:
         from src.infrastructure.mcp.manager import MCPManager
+
         _mcp_manager = MCPManager()
 
     return _mcp_manager
@@ -324,42 +325,46 @@ def get_rate_limiter() -> RateLimiter:
         env = settings.environment
         if env == "production":
             # Production: Strict limits
-            _rate_limiter.rate_limits.update({
-                "mcp_create_connection": RateLimit(10, 60, burst=2),    # 10/min
-                "mcp_execute_tool": RateLimit(100, 60, burst=20),       # 100/min
-                "mcp_discover_tools": RateLimit(50, 60, burst=10),      # 50/min
-                "mcp_disconnect": RateLimit(20, 60, burst=5),           # 20/min
-                "mcp_tools_summary": RateLimit(30, 60, burst=10),       # 30/min (Push API)
-                # Skills API (Phase 2E-1)
-                "skill_create": RateLimit(20, 3600, burst=5),           # 20/hour
-                "skill_list": RateLimit(100, 3600, burst=20),           # 100/hour
-                "skill_get": RateLimit(200, 3600, burst=40),            # 200/hour
-                "skill_update": RateLimit(30, 3600, burst=10),          # 30/hour
-                "skill_delete": RateLimit(10, 3600, burst=2),           # 10/hour
-                "skill_share": RateLimit(30, 3600, burst=10),           # 30/hour
-                "skill_activate": RateLimit(20, 3600, burst=5),         # 20/hour
-                # Health API (Hestia Security Audit - Priority 1)
-                "health_detailed": RateLimit(60, 60, burst=10),           # 60/min
-            })
+            _rate_limiter.rate_limits.update(
+                {
+                    "mcp_create_connection": RateLimit(10, 60, burst=2),  # 10/min
+                    "mcp_execute_tool": RateLimit(100, 60, burst=20),  # 100/min
+                    "mcp_discover_tools": RateLimit(50, 60, burst=10),  # 50/min
+                    "mcp_disconnect": RateLimit(20, 60, burst=5),  # 20/min
+                    "mcp_tools_summary": RateLimit(30, 60, burst=10),  # 30/min (Push API)
+                    # Skills API (Phase 2E-1)
+                    "skill_create": RateLimit(20, 3600, burst=5),  # 20/hour
+                    "skill_list": RateLimit(100, 3600, burst=20),  # 100/hour
+                    "skill_get": RateLimit(200, 3600, burst=40),  # 200/hour
+                    "skill_update": RateLimit(30, 3600, burst=10),  # 30/hour
+                    "skill_delete": RateLimit(10, 3600, burst=2),  # 10/hour
+                    "skill_share": RateLimit(30, 3600, burst=10),  # 30/hour
+                    "skill_activate": RateLimit(20, 3600, burst=5),  # 20/hour
+                    # Health API (Hestia Security Audit - Priority 1)
+                    "health_detailed": RateLimit(60, 60, burst=10),  # 60/min
+                }
+            )
         else:
             # Development: Lenient limits
-            _rate_limiter.rate_limits.update({
-                "mcp_create_connection": RateLimit(30, 60, burst=10),   # 30/min
-                "mcp_execute_tool": RateLimit(200, 60, burst=50),       # 200/min
-                "mcp_discover_tools": RateLimit(100, 60, burst=20),     # 100/min
-                "mcp_disconnect": RateLimit(50, 60, burst=10),          # 50/min
-                "mcp_tools_summary": RateLimit(60, 60, burst=20),       # 60/min (Push API)
-                # Skills API (Phase 2E-1)
-                "skill_create": RateLimit(60, 3600, burst=15),          # 60/hour
-                "skill_list": RateLimit(300, 3600, burst=60),           # 300/hour
-                "skill_get": RateLimit(600, 3600, burst=120),           # 600/hour
-                "skill_update": RateLimit(100, 3600, burst=30),         # 100/hour
-                "skill_delete": RateLimit(30, 3600, burst=10),          # 30/hour
-                "skill_share": RateLimit(100, 3600, burst=30),          # 100/hour
-                "skill_activate": RateLimit(60, 3600, burst=15),        # 60/hour
-                # Health API (Hestia Security Audit - Priority 1)
-                "health_detailed": RateLimit(120, 60, burst=20),          # 120/min
-            })
+            _rate_limiter.rate_limits.update(
+                {
+                    "mcp_create_connection": RateLimit(30, 60, burst=10),  # 30/min
+                    "mcp_execute_tool": RateLimit(200, 60, burst=50),  # 200/min
+                    "mcp_discover_tools": RateLimit(100, 60, burst=20),  # 100/min
+                    "mcp_disconnect": RateLimit(50, 60, burst=10),  # 50/min
+                    "mcp_tools_summary": RateLimit(60, 60, burst=20),  # 60/min (Push API)
+                    # Skills API (Phase 2E-1)
+                    "skill_create": RateLimit(60, 3600, burst=15),  # 60/hour
+                    "skill_list": RateLimit(300, 3600, burst=60),  # 300/hour
+                    "skill_get": RateLimit(600, 3600, burst=120),  # 600/hour
+                    "skill_update": RateLimit(100, 3600, burst=30),  # 100/hour
+                    "skill_delete": RateLimit(30, 3600, burst=10),  # 30/hour
+                    "skill_share": RateLimit(100, 3600, burst=30),  # 100/hour
+                    "skill_activate": RateLimit(60, 3600, burst=15),  # 60/hour
+                    # Health API (Hestia Security Audit - Priority 1)
+                    "health_detailed": RateLimit(120, 60, burst=20),  # 120/min
+                }
+            )
 
     return _rate_limiter
 

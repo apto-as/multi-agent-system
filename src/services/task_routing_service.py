@@ -173,7 +173,11 @@ class TaskRoutingService:
 
     # Default collaboration patterns (Primary, Support, Review)
     COLLABORATION_MATRIX = {
-        "architecture": ("athena-conductor", ["hera-strategist", "aurora-researcher"], "hestia-auditor"),
+        "architecture": (
+            "athena-conductor",
+            ["hera-strategist", "aurora-researcher"],
+            "hestia-auditor",
+        ),
         "implementation": ("artemis-optimizer", ["metis-developer"], "hestia-auditor"),
         "security_audit": ("hestia-auditor", ["aurora-researcher"], "artemis-optimizer"),
         "ui_design": ("aphrodite-designer", ["aurora-researcher"], "athena-conductor"),

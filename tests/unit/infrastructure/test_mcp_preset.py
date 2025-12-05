@@ -12,10 +12,11 @@ Created: 2025-11-27 (Phase: MCP Preset Integration)
 
 import json
 import os
-import pytest
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from unittest.mock import patch
+
+import pytest
 
 from src.infrastructure.mcp.preset_config import (
     MCPPresetConfig,
@@ -337,7 +338,7 @@ class TestMCPPresetLoader:
                 "valid": {
                     "type": "stdio",
                     "command": "echo",
-                }
+                },
             }
         }
 

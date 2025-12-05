@@ -234,10 +234,16 @@ class HTMLSanitizer:
 
         # Remove script and style elements completely
         html_content = re.sub(
-            r"<script[^>]*>.*?</script>", "", html_content, flags=re.DOTALL | re.IGNORECASE,
+            r"<script[^>]*>.*?</script>",
+            "",
+            html_content,
+            flags=re.DOTALL | re.IGNORECASE,
         )
         html_content = re.sub(
-            r"<style[^>]*>.*?</style>", "", html_content, flags=re.DOTALL | re.IGNORECASE,
+            r"<style[^>]*>.*?</style>",
+            "",
+            html_content,
+            flags=re.DOTALL | re.IGNORECASE,
         )
 
         # Remove dangerous event handlers

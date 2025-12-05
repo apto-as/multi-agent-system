@@ -18,29 +18,22 @@ Security Philosophy:
 ...最悪のケースを想定して、徹底的にテストします。
 """
 
-import asyncio
 import logging
-import secrets
-from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, patch
+from datetime import datetime, timezone
 
 import pytest
-from passlib.context import CryptContext
-from sqlalchemy import select
 
 from src.models.agent import Agent, AgentStatus
 from src.models.memory import AccessLevel, Memory
-from src.models.user import APIKey, APIKeyScope, User, UserRole, UserStatus
 from src.security.mcp_auth import (
     MCPAuthContext,
-    MCPAuthenticationError,
     MCPAuthorizationError,
     MCPAuthService,
     MCPOperation,
     MCPRole,
 )
-from src.security.mcp_rate_limiter import MCPRateLimiter, MCP_RATE_LIMITS
-from src.security.rate_limiter import RateLimit, RateLimiter
+from src.security.mcp_rate_limiter import MCP_RATE_LIMITS, MCPRateLimiter
+from src.security.rate_limiter import RateLimiter
 
 logger = logging.getLogger(__name__)
 
@@ -131,8 +124,8 @@ class TestCriticalSecurity:
         # Step 6: SECURITY ASSERTION
         assert can_access is False, (
             "🚨 CRITICAL SECURITY FAILURE: Cross-tenant access was ALLOWED! "
-            f"Agent in tenant-a accessed memory in tenant-b. "
-            f"This is a CVSS 8.7 HIGH vulnerability."
+            "Agent in tenant-a accessed memory in tenant-b. "
+            "This is a CVSS 8.7 HIGH vulnerability."
         )
 
         # Step 7: Verify positive case - Agent B CAN access their own memory
@@ -157,7 +150,9 @@ class TestCriticalSecurity:
             requesting_agent_id="teammate-agent",
             requesting_agent_namespace="tenant-b",  # SAME namespace
         )
-        assert can_teammate_access is True, "Teammate in same namespace should have access (TEAM level)"
+        assert can_teammate_access is True, (
+            "Teammate in same namespace should have access (TEAM level)"
+        )
 
         logger.info("✅ Namespace isolation test PASSED - Cross-tenant attack blocked")
 
@@ -212,9 +207,13 @@ class TestCriticalSecurity:
             )
 
         error = exc_info.value
-        assert "not allowed for operation" in str(error), "Error message should mention role restriction"
+        assert "not allowed for operation" in str(error), (
+            "Error message should mention role restriction"
+        )
         assert error.details.get("role") == "agent", "Error should include actual role"
-        assert error.details.get("operation") == "scheduler:configure", "Error should include operation"
+        assert error.details.get("operation") == "scheduler:configure", (
+            "Error should include operation"
+        )
 
         logger.info("✅ RBAC test 1/2 PASSED - Regular agent blocked from scheduler config")
 
@@ -334,7 +333,9 @@ class TestCriticalSecurity:
 
         # This SHOULD succeed in role determination (capabilities have higher priority)
         # BUT authorization should still fail because namespace isolation
-        assert escalated_role == MCPRole.SYSTEM_ADMIN, "Capabilities-based role determination should work"
+        assert escalated_role == MCPRole.SYSTEM_ADMIN, (
+            "Capabilities-based role determination should work"
+        )
 
         # Now create context with escalated role
         escalated_context = MCPAuthContext(
@@ -352,7 +353,9 @@ class TestCriticalSecurity:
         # So we can't test namespace isolation for admins
         # Instead, test role hierarchy: SYSTEM_ADMIN cannot do SUPER_ADMIN operations
 
-        logger.info("✅ Privilege escalation test 2/3 PASSED - Capabilities-based role determination works")
+        logger.info(
+            "✅ Privilege escalation test 2/3 PASSED - Capabilities-based role determination works"
+        )
 
         # Step 5: ATTACK 3 - Try to perform SUPER_ADMIN operation with SYSTEM_ADMIN role
         with pytest.raises(MCPAuthorizationError) as exc_info:
@@ -470,9 +473,9 @@ class TestCriticalSecurity:
         for i in range(effective_limit):
             try:
                 await mcp_rate_limiter.check_rate_limit(context, tool_name)
-                logger.info(f"✅ Request {i+1}/{effective_limit} allowed")
+                logger.info(f"✅ Request {i + 1}/{effective_limit} allowed")
             except MCPAuthorizationError:
-                pytest.fail(f"Request {i+1} should be allowed (within FAIL-SECURE limit)")
+                pytest.fail(f"Request {i + 1} should be allowed (within FAIL-SECURE limit)")
 
         logger.info("✅ All requests within effective limit PASSED")
 
@@ -498,7 +501,9 @@ class TestCriticalSecurity:
         # So remaining calculation is: (5 + 0) - 3 = 2 (where 3 is current count after 3 requests)
         # This is correct behavior - the method reports against normal limit
         assert remaining["limit"] == rate_limit.requests + rate_limit.burst, "Limit matches config"
-        logger.info(f"Remaining requests: {remaining['remaining']}/{remaining['limit']} (normal limit, not FAIL-SECURE)")
+        logger.info(
+            f"Remaining requests: {remaining['remaining']}/{remaining['limit']} (normal limit, not FAIL-SECURE)"
+        )
 
         logger.info("✅ Rate limiting test PASSED - DoS attack blocked")
 
@@ -586,11 +591,17 @@ class TestCriticalSecurity:
             "🚨 COMPLIANCE FAILURE: Authorization failure not logged"
         )
 
-        authz_logs = [r for r in caplog.records if "Authorization denied" in r.message or "not allowed for operation" in r.message]
+        authz_logs = [
+            r
+            for r in caplog.records
+            if "Authorization denied" in r.message or "not allowed for operation" in r.message
+        ]
         assert len(authz_logs) > 0, "At least one authorization failure log should exist"
 
         authz_log = authz_logs[0]
-        assert authz_log.levelname in ("WARNING", "ERROR"), "Authorization failure should be WARNING or ERROR"
+        assert authz_log.levelname in ("WARNING", "ERROR"), (
+            "Authorization failure should be WARNING or ERROR"
+        )
 
         logger.info("✅ Audit logging test 2/4 PASSED - Authorization failure logged")
 

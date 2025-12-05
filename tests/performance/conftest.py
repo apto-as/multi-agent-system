@@ -52,6 +52,7 @@ async def test_engine():
     # CRITICAL: Use StaticPool for SQLite :memory: database
     # This ensures all connections see the same in-memory database
     from sqlalchemy.pool import StaticPool
+
     engine = create_async_engine(
         settings.database_url_async,
         poolclass=StaticPool,  # Required for :memory: databases

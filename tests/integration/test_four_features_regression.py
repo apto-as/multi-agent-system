@@ -15,10 +15,9 @@ Author: Artemis (Implementation) + Hestia (Verification)
 Created: 2025-12-04
 """
 
-import pytest
-import asyncio
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 from src.models.tool_search import (
     ToolSearchResult,
@@ -260,12 +259,12 @@ class TestNoRegressionInExistingFeatures:
     def test_weighted_score_calculation(self):
         """重み付けスコア計算が正確."""
         test_cases = [
-            (ToolSourceType.SKILL, 0.5, 1.0),      # 0.5 * 2.0
+            (ToolSourceType.SKILL, 0.5, 1.0),  # 0.5 * 2.0
             (ToolSourceType.INTERNAL, 0.5, 0.75),  # 0.5 * 1.5
-            (ToolSourceType.EXTERNAL, 0.5, 0.5),   # 0.5 * 1.0
-            (ToolSourceType.SKILL, 1.0, 2.0),      # 1.0 * 2.0
-            (ToolSourceType.INTERNAL, 1.0, 1.5),   # 1.0 * 1.5
-            (ToolSourceType.EXTERNAL, 1.0, 1.0),   # 1.0 * 1.0
+            (ToolSourceType.EXTERNAL, 0.5, 0.5),  # 0.5 * 1.0
+            (ToolSourceType.SKILL, 1.0, 2.0),  # 1.0 * 2.0
+            (ToolSourceType.INTERNAL, 1.0, 1.5),  # 1.0 * 1.5
+            (ToolSourceType.EXTERNAL, 1.0, 1.0),  # 1.0 * 1.0
         ]
 
         for source_type, relevance, expected in test_cases:

@@ -107,9 +107,7 @@ async def create_connection(
 async def disconnect(
     connection_id: UUID,
     current_user: Annotated[User, Depends(get_current_user)],
-    use_case: Annotated[
-        DisconnectMCPServerUseCase, Depends(get_disconnect_use_case)
-    ],
+    use_case: Annotated[DisconnectMCPServerUseCase, Depends(get_disconnect_use_case)],
     _rate_limit: Annotated[None, Depends(check_rate_limit_mcp_disconnect)],
 ) -> Response:
     """Disconnect MCP server

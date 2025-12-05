@@ -6,11 +6,11 @@ from .agent_communication_service import AgentCommunicationService
 from .execution_trace_service import ExecutionTraceService
 from .learning_loop_service import LearningLoopService
 from .memory_service import HybridMemoryService, get_memory_service
-from .proactive_context_service import ProactiveContextService
 from .ollama_embedding_service import get_ollama_embedding_service
 from .orchestration_engine import OrchestrationEngine
 from .pattern_detection_service import PatternDetectionService
 from .persona_service import PersonaService
+from .proactive_context_service import ProactiveContextService
 from .task_routing_service import TaskRoutingService
 from .task_service import TaskService
 from .workflow_service import WorkflowService

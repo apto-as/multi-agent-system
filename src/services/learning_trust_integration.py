@@ -171,9 +171,7 @@ class LearningTrustIntegration:
         try:
             # Validate pattern eligibility
             pattern = await self._get_and_validate_pattern(
-                pattern_id=pattern_id,
-                agent_id=agent_id,
-                operation="propagate_success"
+                pattern_id=pattern_id, agent_id=agent_id, operation="propagate_success"
             )
 
             # Update trust score via TrustService
@@ -184,7 +182,7 @@ class LearningTrustIntegration:
                 verification_id=pattern_id,  # Pattern usage is implicit verification
                 reason=f"pattern_success:{pattern.pattern_name}",
                 user=None,  # Automated update (not manual)
-                requesting_namespace=requesting_namespace
+                requesting_namespace=requesting_namespace,
             )
 
             logger.info(
@@ -209,8 +207,8 @@ class LearningTrustIntegration:
                 details={
                     "agent_id": agent_id,
                     "pattern_id": str(pattern_id),
-                    "requesting_namespace": requesting_namespace
-                }
+                    "requesting_namespace": requesting_namespace,
+                },
             )
 
     async def propagate_learning_failure(
@@ -263,9 +261,7 @@ class LearningTrustIntegration:
         try:
             # Validate pattern eligibility
             pattern = await self._get_and_validate_pattern(
-                pattern_id=pattern_id,
-                agent_id=agent_id,
-                operation="propagate_failure"
+                pattern_id=pattern_id, agent_id=agent_id, operation="propagate_failure"
             )
 
             # Update trust score via TrustService
@@ -276,7 +272,7 @@ class LearningTrustIntegration:
                 verification_id=pattern_id,  # Pattern usage is implicit verification
                 reason=f"pattern_failure:{pattern.pattern_name}",
                 user=None,  # Automated update (not manual)
-                requesting_namespace=requesting_namespace
+                requesting_namespace=requesting_namespace,
             )
 
             logger.info(
@@ -301,14 +297,11 @@ class LearningTrustIntegration:
                 details={
                     "agent_id": agent_id,
                     "pattern_id": str(pattern_id),
-                    "requesting_namespace": requesting_namespace
-                }
+                    "requesting_namespace": requesting_namespace,
+                },
             )
 
-    async def evaluate_pattern_reliability(
-        self,
-        pattern_id: UUID
-    ) -> dict[str, Any]:
+    async def evaluate_pattern_reliability(self, pattern_id: UUID) -> dict[str, Any]:
         """Evaluate pattern reliability for trust scoring decisions
 
         Analyzes pattern usage statistics to determine if it's eligible for
@@ -359,11 +352,7 @@ class LearningTrustIntegration:
             pattern = result.scalar_one_or_none()
 
             if not pattern:
-                log_and_raise(
-                    NotFoundError,
-                    "LearningPattern",
-                    str(pattern_id)
-                )
+                log_and_raise(NotFoundError, "LearningPattern", str(pattern_id))
 
             # Calculate reliability metrics
             usage_count = pattern.usage_count
@@ -380,17 +369,13 @@ class LearningTrustIntegration:
             # Factors: usage count (40%), success rate (40%), access level (20%)
             usage_factor = min(usage_count / (self.MIN_USAGE_FOR_RELIABILITY * 2), 1.0)
             reliability_score = (
-                usage_factor * 0.4 +
-                success_rate * 0.4 +
-                (1.0 if is_public_or_system else 0.5) * 0.2
+                usage_factor * 0.4
+                + success_rate * 0.4
+                + (1.0 if is_public_or_system else 0.5) * 0.2
             )
 
             # Overall reliability judgment
-            is_reliable = (
-                has_sufficient_usage and
-                is_high_success and
-                is_public_or_system
-            )
+            is_reliable = has_sufficient_usage and is_high_success and is_public_or_system
 
             # Eligibility for trust propagation
             eligible_for_trust = is_public_or_system  # Minimum requirement
@@ -417,7 +402,7 @@ class LearningTrustIntegration:
                 "access_level": access_level,
                 "eligible_for_trust": eligible_for_trust,
                 "has_sufficient_usage": has_sufficient_usage,
-                "recommendation": recommendation
+                "recommendation": recommendation,
             }
 
         except NotFoundError:
@@ -427,7 +412,7 @@ class LearningTrustIntegration:
                 DatabaseError,
                 f"Failed to evaluate pattern reliability for {pattern_id}",
                 original_exception=e,
-                details={"pattern_id": str(pattern_id)}
+                details={"pattern_id": str(pattern_id)},
             )
 
     async def batch_update_from_patterns(
@@ -477,33 +462,31 @@ class LearningTrustIntegration:
                     new_score = await self.propagate_learning_success(
                         agent_id=agent_id,
                         pattern_id=pattern_id,
-                        requesting_namespace=requesting_namespace
+                        requesting_namespace=requesting_namespace,
                     )
                 else:
                     new_score = await self.propagate_learning_failure(
                         agent_id=agent_id,
                         pattern_id=pattern_id,
-                        requesting_namespace=requesting_namespace
+                        requesting_namespace=requesting_namespace,
                     )
 
                 results[agent_id] = new_score
 
             except Exception as e:
                 # Graceful degradation: Log error but continue with other updates
-                errors.append({
-                    "agent_id": agent_id,
-                    "pattern_id": str(pattern_id),
-                    "success": success,
-                    "error": str(e)
-                })
-                logger.warning(
-                    f"Failed to update trust for {agent_id} (pattern {pattern_id}): {e}"
+                errors.append(
+                    {
+                        "agent_id": agent_id,
+                        "pattern_id": str(pattern_id),
+                        "success": success,
+                        "error": str(e),
+                    }
                 )
+                logger.warning(f"Failed to update trust for {agent_id} (pattern {pattern_id}): {e}")
 
         # Log summary
-        logger.info(
-            f"Batch update complete: {len(results)} successful, {len(errors)} failed"
-        )
+        logger.info(f"Batch update complete: {len(results)} successful, {len(errors)} failed")
 
         if errors:
             logger.warning(f"Batch update errors: {errors}")
@@ -511,10 +494,7 @@ class LearningTrustIntegration:
         return results
 
     async def _get_and_validate_pattern(
-        self,
-        pattern_id: UUID,
-        agent_id: str,
-        operation: str
+        self, pattern_id: UUID, agent_id: str, operation: str
     ) -> LearningPattern:
         """Internal: Fetch and validate pattern for trust propagation
 
@@ -556,8 +536,8 @@ class LearningTrustIntegration:
                     "pattern_name": pattern.pattern_name,
                     "access_level": pattern.access_level,
                     "operation": operation,
-                    "reason": "Only public/system patterns affect trust (prevents gaming)"
-                }
+                    "reason": "Only public/system patterns affect trust (prevents gaming)",
+                },
             )
 
         # Validate not self-owned (prevent self-boosting)
@@ -570,8 +550,8 @@ class LearningTrustIntegration:
                     "pattern_name": pattern.pattern_name,
                     "agent_id": agent_id,
                     "operation": operation,
-                    "reason": "Prevents self-gaming trust scores via owned patterns"
-                }
+                    "reason": "Prevents self-gaming trust scores via owned patterns",
+                },
             )
 
         return pattern

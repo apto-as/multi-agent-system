@@ -129,9 +129,7 @@ class MCPManager:
             # Discover tools
             try:
                 connection.tools = await self._list_tools(connection)
-                logger.info(
-                    f"Connected to {preset.name}: {len(connection.tools)} tools available"
-                )
+                logger.info(f"Connected to {preset.name}: {len(connection.tools)} tools available")
             except Exception as e:
                 logger.warning(f"Failed to discover tools from {preset.name}: {e}")
 
@@ -157,9 +155,7 @@ class MCPManager:
                 await self._disconnect_connection(connection)
 
     async def auto_connect_from_config(
-        self,
-        project_dir: Path | None = None,
-        parallel: bool = True
+        self, project_dir: Path | None = None, parallel: bool = True
     ) -> list[str]:
         """Auto-connect to all servers with autoConnect=true.
 
@@ -173,11 +169,7 @@ class MCPManager:
         presets = load_mcp_presets(project_dir)
         return await self.auto_connect(presets, parallel=parallel)
 
-    async def auto_connect(
-        self,
-        config: MCPPresetConfig,
-        parallel: bool = True
-    ) -> list[str]:
+    async def auto_connect(self, config: MCPPresetConfig, parallel: bool = True) -> list[str]:
         """Connect to all servers with autoConnect=true in config.
 
         Args:
@@ -246,23 +238,19 @@ class MCPManager:
         if not connection:
             raise MCPConnectionError(
                 f"Server not found: {server_name}",
-                details={"available_servers": list(self.connections.keys())}
+                details={"available_servers": list(self.connections.keys())},
             )
 
         if not connection.is_connected:
             raise MCPConnectionError(
-                f"Server not connected: {server_name}",
-                details={"server_name": server_name}
+                f"Server not connected: {server_name}", details={"server_name": server_name}
             )
 
         connection.tools = await self._list_tools(connection)
         return connection.tools
 
     async def call_tool(
-        self,
-        server_name: str,
-        tool_name: str,
-        arguments: dict[str, Any]
+        self, server_name: str, tool_name: str, arguments: dict[str, Any]
     ) -> dict[str, Any]:
         """Execute a tool on a specific server.
 
@@ -281,13 +269,12 @@ class MCPManager:
         if not connection:
             raise MCPConnectionError(
                 f"Server not found: {server_name}",
-                details={"available_servers": list(self.connections.keys())}
+                details={"available_servers": list(self.connections.keys())},
             )
 
         if not connection.is_connected:
             raise MCPConnectionError(
-                f"Server not connected: {server_name}",
-                details={"server_name": server_name}
+                f"Server not connected: {server_name}", details={"server_name": server_name}
             )
 
         return await self._call_tool(connection, tool_name, arguments)
@@ -346,8 +333,7 @@ class MCPManager:
         """
         if not preset.url:
             raise MCPConnectionError(
-                f"HTTP preset {preset.name} missing URL",
-                details={"server_name": preset.name}
+                f"HTTP preset {preset.name} missing URL", details={"server_name": preset.name}
             )
 
         # Get API key if auth required
@@ -373,7 +359,7 @@ class MCPManager:
             connection: Connection to disconnect
         """
         try:
-            if isinstance(connection.transport, (STDIOTransport, MCPClientAdapter)):
+            if isinstance(connection.transport, STDIOTransport | MCPClientAdapter):
                 await connection.transport.disconnect()
         except Exception as e:
             logger.warning(f"Error disconnecting {connection.server_name}: {e}")
@@ -396,10 +382,7 @@ class MCPManager:
         return []
 
     async def _call_tool(
-        self,
-        connection: MCPConnection,
-        tool_name: str,
-        arguments: dict[str, Any]
+        self, connection: MCPConnection, tool_name: str, arguments: dict[str, Any]
     ) -> dict[str, Any]:
         """Execute a tool on a connection.
 

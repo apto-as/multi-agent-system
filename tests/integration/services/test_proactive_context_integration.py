@@ -15,12 +15,11 @@ Test Coverage:
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.execution_trace import SkillSuggestion
@@ -197,7 +196,7 @@ class TestEffectivenessReporting:
         assert report.activated_count == 2
         assert report.helpful_count == 1
         assert report.unhelpful_count == 1
-        assert report.activation_rate == pytest.approx(2/3, rel=0.01)
+        assert report.activation_rate == pytest.approx(2 / 3, rel=0.01)
         assert report.helpfulness_rate == pytest.approx(0.5, rel=0.01)
 
     @pytest.mark.asyncio
@@ -289,6 +288,7 @@ class TestPerformance:
         mock_vector_search_service.search.return_value = []
 
         import time
+
         start = time.perf_counter()
 
         await service.suggest_skills(
@@ -312,6 +312,7 @@ class TestPerformance:
         mock_vector_search_service.search.return_value = []
 
         import time
+
         start = time.perf_counter()
 
         await service.inject_context(

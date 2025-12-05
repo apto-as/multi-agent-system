@@ -26,6 +26,7 @@ class ToolSourceType(str, Enum):
     2. INTERNAL (1.5x weight) - Built-in TMWS tools
     3. EXTERNAL (1.0x weight) - External MCP server tools
     """
+
     SKILL = "skill"
     INTERNAL = "internal"
     EXTERNAL = "external"
@@ -33,6 +34,7 @@ class ToolSourceType(str, Enum):
 
 class MCPTransportType(str, Enum):
     """Transport type for MCP connections."""
+
     STDIO = "stdio"
     HTTP = "http"
     SSE = "sse"
@@ -44,6 +46,7 @@ class ToolSearchResult:
 
     Includes all metadata needed for tool selection and execution.
     """
+
     tool_name: str
     server_id: str  # "tmws" for internal, "mcp__{server}" for external
     description: str
@@ -76,6 +79,7 @@ class ToolMetadata:
 
     Used for both internal and external tools.
     """
+
     name: str
     description: str
     input_schema: dict[str, Any] = field(default_factory=dict)
@@ -100,6 +104,7 @@ class MCPServerMetadata:
 
     Supports both STDIO and HTTP/SSE transports.
     """
+
     server_id: str  # Unique identifier (e.g., "context7", "serena")
     name: str  # Display name
     description: str
@@ -136,6 +141,7 @@ class ToolUsageRecord:
     - Success/failure outcomes
     - Usage patterns over time
     """
+
     tool_name: str
     server_id: str
     query: str
@@ -166,6 +172,7 @@ class ToolSearchQuery:
 
     Supports filtering by source, tags, and other criteria.
     """
+
     query: str
     source: str = "all"  # "all" | "skills" | "mcp_servers" | "registry"
     limit: int = 10
@@ -181,6 +188,7 @@ class ToolSearchResponse:
 
     Includes metadata about the search for debugging and analytics.
     """
+
     results: list[ToolSearchResult]
     query: str
     total_found: int

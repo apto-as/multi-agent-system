@@ -111,7 +111,10 @@ class TestAccessTrackingAuditLogs:
 
         # Act - Access within 5-second window
         current_time = base_time  # Same time = within window
-        with patch("src.services.memory_service.datetime") as mock_dt, caplog.at_level(logging.INFO):
+        with (
+            patch("src.services.memory_service.datetime") as mock_dt,
+            caplog.at_level(logging.INFO),
+        ):
             mock_dt.now.return_value = current_time
             mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
 

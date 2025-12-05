@@ -21,7 +21,7 @@ Updated: 2025-11-15 (DB integration)
 """
 
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
 import pytest
@@ -32,9 +32,7 @@ from src.models.agent import Agent
 from src.services.license_service import (
     LicenseFeature,
     LicenseService,
-    LicenseValidationResult,
     TierEnum,
-    TierLimits,
 )
 
 
@@ -64,7 +62,9 @@ class TestLicenseKeyGeneration:
     """Test suite for license key generation."""
 
     @pytest.mark.asyncio
-    async def test_generate_free_license(self, license_service: LicenseService, test_agent: Agent, db_session: AsyncSession):
+    async def test_generate_free_license(
+        self, license_service: LicenseService, test_agent: Agent, db_session: AsyncSession
+    ):
         """Test FREE tier license generation."""
         # Ensure agent is in session
         await db_session.refresh(test_agent)
@@ -99,7 +99,9 @@ class TestLicenseKeyGeneration:
         assert "PRO" in key
 
     @pytest.mark.asyncio
-    async def test_generate_enterprise_license(self, license_service: LicenseService, test_agent: Agent):
+    async def test_generate_enterprise_license(
+        self, license_service: LicenseService, test_agent: Agent
+    ):
         """Test ENTERPRISE tier license generation."""
         key = await license_service.generate_license_key(
             agent_id=UUID(test_agent.id), tier=TierEnum.ENTERPRISE, expires_days=365
@@ -123,7 +125,9 @@ class TestLicenseKeyGeneration:
         assert len(parts) == 8  # TMWS + TIER + UUID (5 parts) + CHECKSUM
 
     @pytest.mark.asyncio
-    async def test_generate_perpetual_license(self, license_service: LicenseService, test_agent: Agent):
+    async def test_generate_perpetual_license(
+        self, license_service: LicenseService, test_agent: Agent
+    ):
         """Test perpetual (never expires) license generation."""
         perpetual_key = await license_service.generate_perpetual_key(
             agent_id=UUID(test_agent.id), tier=TierEnum.ENTERPRISE
@@ -134,17 +138,24 @@ class TestLicenseKeyGeneration:
         assert len(parts) == 8  # TMWS + TIER + UUID (5 parts) + CHECKSUM
 
     @pytest.mark.asyncio
-    async def test_generate_with_custom_uuid(self, license_service: LicenseService, test_agent: Agent):
+    async def test_generate_with_custom_uuid(
+        self, license_service: LicenseService, test_agent: Agent
+    ):
         """Test license generation with custom UUID."""
         custom_uuid = uuid4()
         key = await license_service.generate_license_key(
-            agent_id=UUID(test_agent.id), tier=TierEnum.PRO, expires_days=365, license_id=custom_uuid
+            agent_id=UUID(test_agent.id),
+            tier=TierEnum.PRO,
+            expires_days=365,
+            license_id=custom_uuid,
         )
 
         assert str(custom_uuid) in key
 
     @pytest.mark.asyncio
-    async def test_generate_multiple_unique_keys(self, license_service: LicenseService, test_agent: Agent):
+    async def test_generate_multiple_unique_keys(
+        self, license_service: LicenseService, test_agent: Agent
+    ):
         """Test that multiple generated keys are unique."""
         keys = [
             await license_service.generate_license_key(
@@ -157,7 +168,9 @@ class TestLicenseKeyGeneration:
         assert len(keys) == len(set(keys))
 
     @pytest.mark.asyncio
-    async def test_generate_updates_agent_tier(self, license_service: LicenseService, test_agent: Agent, db_session: AsyncSession):
+    async def test_generate_updates_agent_tier(
+        self, license_service: LicenseService, test_agent: Agent, db_session: AsyncSession
+    ):
         """Test that generating a license updates agent's tier."""
         # Initial tier is FREE
         assert test_agent.tier == "FREE"
@@ -198,7 +211,9 @@ class TestLicenseKeyValidation:
     """Test suite for license key validation."""
 
     @pytest.mark.asyncio
-    async def test_validate_perpetual_key_success(self, license_service: LicenseService, test_agent: Agent):
+    async def test_validate_perpetual_key_success(
+        self, license_service: LicenseService, test_agent: Agent
+    ):
         """Test validation of valid perpetual license key."""
         perpetual_key = await license_service.generate_perpetual_key(
             agent_id=UUID(test_agent.id), tier=TierEnum.PRO
@@ -247,7 +262,9 @@ class TestLicenseKeyValidation:
         assert "Invalid UUID" in result.error_message
 
     @pytest.mark.asyncio
-    async def test_validate_invalid_checksum(self, license_service: LicenseService, test_agent: Agent):
+    async def test_validate_invalid_checksum(
+        self, license_service: LicenseService, test_agent: Agent
+    ):
         """Test validation of license key with invalid checksum."""
         # Generate valid key, then tamper with checksum
         valid_key = await license_service.generate_perpetual_key(
@@ -307,7 +324,9 @@ class TestLicenseRevocation:
     """Test suite for license key revocation."""
 
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="Revocation validation requires DB lookup in validate_license_key() - TODO Phase 2C")
+    @pytest.mark.skip(
+        reason="Revocation validation requires DB lookup in validate_license_key() - TODO Phase 2C"
+    )
     async def test_revoke_license_key(self, license_service: LicenseService, test_agent: Agent):
         """Test license key revocation."""
         # Generate a license
@@ -351,7 +370,9 @@ class TestLicenseUsageHistory:
     """Test suite for license usage history."""
 
     @pytest.mark.asyncio
-    async def test_get_license_usage_history(self, license_service: LicenseService, test_agent: Agent):
+    async def test_get_license_usage_history(
+        self, license_service: LicenseService, test_agent: Agent
+    ):
         """Test fetching license usage history."""
         # Generate license
         key = await license_service.generate_perpetual_key(
@@ -378,7 +399,9 @@ class TestLicenseUsageHistory:
         assert "memory_store" in features_accessed
 
     @pytest.mark.asyncio
-    async def test_get_usage_history_limit(self, license_service: LicenseService, test_agent: Agent):
+    async def test_get_usage_history_limit(
+        self, license_service: LicenseService, test_agent: Agent
+    ):
         """Test usage history limit parameter."""
         # Generate license
         key = await license_service.generate_perpetual_key(
@@ -459,9 +482,7 @@ class TestTierLimits:
         )
 
         # FREE tier should NOT have ENTERPRISE features
-        assert not license_service.is_feature_enabled(
-            TierEnum.FREE, LicenseFeature.SCHEDULER_START
-        )
+        assert not license_service.is_feature_enabled(TierEnum.FREE, LicenseFeature.SCHEDULER_START)
 
     def test_feature_enabled_pro_tier(self, license_service: LicenseService):
         """Test feature access for PRO tier."""
@@ -473,32 +494,28 @@ class TestTierLimits:
         assert license_service.is_feature_enabled(TierEnum.PRO, LicenseFeature.MEMORY_TTL)
 
         # PRO tier should NOT have ENTERPRISE features
-        assert not license_service.is_feature_enabled(
-            TierEnum.PRO, LicenseFeature.SCHEDULER_START
-        )
+        assert not license_service.is_feature_enabled(TierEnum.PRO, LicenseFeature.SCHEDULER_START)
 
     def test_feature_enabled_enterprise_tier(self, license_service: LicenseService):
         """Test feature access for ENTERPRISE tier."""
         # ENTERPRISE tier should have all features
-        assert license_service.is_feature_enabled(
-            TierEnum.ENTERPRISE, LicenseFeature.MEMORY_STORE
-        )
+        assert license_service.is_feature_enabled(TierEnum.ENTERPRISE, LicenseFeature.MEMORY_STORE)
         assert license_service.is_feature_enabled(
             TierEnum.ENTERPRISE, LicenseFeature.EXPIRATION_PRUNE
         )
         assert license_service.is_feature_enabled(
             TierEnum.ENTERPRISE, LicenseFeature.SCHEDULER_START
         )
-        assert license_service.is_feature_enabled(
-            TierEnum.ENTERPRISE, LicenseFeature.TRUST_SCORE
-        )
+        assert license_service.is_feature_enabled(TierEnum.ENTERPRISE, LicenseFeature.TRUST_SCORE)
 
 
 class TestSecurityProperties:
     """Test suite for security properties."""
 
     @pytest.mark.asyncio
-    async def test_timing_attack_resistance(self, license_service: LicenseService, test_agent: Agent):
+    async def test_timing_attack_resistance(
+        self, license_service: LicenseService, test_agent: Agent
+    ):
         """Test constant-time comparison for timing attack resistance."""
         valid_key = await license_service.generate_perpetual_key(
             agent_id=UUID(test_agent.id), tier=TierEnum.PRO
@@ -531,9 +548,9 @@ class TestSecurityProperties:
 
         # Variation should be <10% (constant-time comparison)
         variation = abs(avg1 - avg2) / max(avg1, avg2)
-        assert (
-            variation < 0.10
-        ), f"Timing variation: {variation:.2%} (should be <10% for constant-time)"
+        assert variation < 0.10, (
+            f"Timing variation: {variation:.2%} (should be <10% for constant-time)"
+        )
 
     @pytest.mark.asyncio
     async def test_signature_uniqueness(self, license_service: LicenseService, test_agent: Agent):
@@ -551,7 +568,10 @@ class TestSecurityProperties:
         # Different tiers with same UUID should produce different keys
         license_uuid = uuid4()
         key_pro = await license_service.generate_license_key(
-            agent_id=UUID(test_agent.id), tier=TierEnum.PRO, expires_days=365, license_id=license_uuid
+            agent_id=UUID(test_agent.id),
+            tier=TierEnum.PRO,
+            expires_days=365,
+            license_id=license_uuid,
         )
         # Need a new UUID for ENTERPRISE (can't reuse due to DB unique constraint)
         key_enterprise = await license_service.generate_license_key(
@@ -579,8 +599,12 @@ class TestEdgeCases:
             await license_service.validate_license_key(None)
 
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="Time-limited license validation requires DB lookup for expires_at - TODO Phase 2C")
-    async def test_generate_one_day_expiration(self, license_service: LicenseService, test_agent: Agent):
+    @pytest.mark.skip(
+        reason="Time-limited license validation requires DB lookup for expires_at - TODO Phase 2C"
+    )
+    async def test_generate_one_day_expiration(
+        self, license_service: LicenseService, test_agent: Agent
+    ):
         """Test license generation with 1 day expiration."""
         # 1 day expiration should create a valid key
         key = await license_service.generate_license_key(
@@ -594,7 +618,6 @@ class TestEdgeCases:
         assert result.valid is True
         assert result.expires_at is not None
         # Should expire in ~24 hours
-        from datetime import datetime, timezone
         now = datetime.now(timezone.utc)
         time_until_expiry = (result.expires_at - now).total_seconds()
         assert 86000 < time_until_expiry < 86500  # ~24 hours (with some margin)

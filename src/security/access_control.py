@@ -108,7 +108,9 @@ class PolicyEngine(ABC):
 
     @abstractmethod
     async def evaluate(
-        self, context: AccessContext, policies: list[AccessPolicy],
+        self,
+        context: AccessContext,
+        policies: list[AccessPolicy],
     ) -> AccessDecision:
         """Evaluate access request against policies."""
         pass
@@ -151,7 +153,9 @@ class RBACEngine(PolicyEngine):
         }
 
     async def evaluate(
-        self, context: AccessContext, _policies: list[AccessPolicy],
+        self,
+        context: AccessContext,
+        _policies: list[AccessPolicy],
     ) -> AccessDecision:
         """Evaluate using RBAC rules."""
         # Get agent role (simplified - in real implementation, would query database)
@@ -194,7 +198,9 @@ class ABACEngine(PolicyEngine):
         self.request_history: dict[str, list[datetime]] = {}
 
     async def evaluate(
-        self, context: AccessContext, policies: list[AccessPolicy],
+        self,
+        context: AccessContext,
+        policies: list[AccessPolicy],
     ) -> AccessDecision:
         """Evaluate using attribute-based rules."""
         for policy in sorted(policies, key=lambda p: p.priority, reverse=True):
@@ -229,7 +235,9 @@ class ABACEngine(PolicyEngine):
         return any(re.match(pattern, context.requesting_agent) for pattern in policy.agent_patterns)
 
     async def _evaluate_conditions(
-        self, conditions: list[dict[str, Any]], context: AccessContext,
+        self,
+        conditions: list[dict[str, Any]],
+        context: AccessContext,
     ) -> bool:
         """Evaluate policy conditions."""
         if not conditions:
@@ -248,7 +256,9 @@ class ABACEngine(PolicyEngine):
         return True
 
     async def _evaluate_time_of_day(
-        self, condition: dict[str, Any], context: AccessContext,
+        self,
+        condition: dict[str, Any],
+        context: AccessContext,
     ) -> bool:
         """Evaluate time-of-day condition."""
         start_hour = condition.get("start_hour", 0)
@@ -258,7 +268,9 @@ class ABACEngine(PolicyEngine):
         return start_hour <= current_hour < end_hour
 
     async def _evaluate_agent_namespace(
-        self, condition: dict[str, Any], context: AccessContext,
+        self,
+        condition: dict[str, Any],
+        context: AccessContext,
     ) -> bool:
         """Evaluate agent namespace condition."""
         allowed_namespaces = condition.get("allowed_namespaces", [])
@@ -267,7 +279,9 @@ class ABACEngine(PolicyEngine):
         return agent_namespace in allowed_namespaces
 
     async def _evaluate_resource_owner(
-        self, condition: dict[str, Any], context: AccessContext,
+        self,
+        condition: dict[str, Any],
+        context: AccessContext,
     ) -> bool:
         """Evaluate resource ownership condition."""
         require_ownership = condition.get("require_ownership", False)
@@ -281,7 +295,9 @@ class ABACEngine(PolicyEngine):
         return resource_owner == context.requesting_agent
 
     async def _evaluate_data_classification(
-        self, condition: dict[str, Any], context: AccessContext,
+        self,
+        condition: dict[str, Any],
+        context: AccessContext,
     ) -> bool:
         """Evaluate data classification condition."""
         max_classification = condition.get("max_classification", "confidential")
@@ -302,7 +318,9 @@ class ABACEngine(PolicyEngine):
         return resource_level <= max_level
 
     async def _evaluate_request_frequency(
-        self, condition: dict[str, Any], context: AccessContext,
+        self,
+        condition: dict[str, Any],
+        context: AccessContext,
     ) -> bool:
         """Evaluate request frequency condition."""
         max_requests = condition.get("max_requests_per_hour", 100)
@@ -331,7 +349,9 @@ class CompositePolicyEngine(PolicyEngine):
         self.engines = engines
 
     async def evaluate(
-        self, context: AccessContext, policies: list[AccessPolicy],
+        self,
+        context: AccessContext,
+        policies: list[AccessPolicy],
     ) -> AccessDecision:
         """Evaluate using all engines, apply strictest decision."""
         decisions = []
@@ -469,7 +489,8 @@ class AccessControlManager:
             elif decision == AccessDecision.REQUIRE_APPROVAL:
                 await self._request_approval(context)
                 raise HTTPException(
-                    status_code=status.HTTP_202_ACCEPTED, detail="Access request pending approval",
+                    status_code=status.HTTP_202_ACCEPTED,
+                    detail="Access request pending approval",
                 )
             else:  # DENY
                 await self._handle_access_denied(context)

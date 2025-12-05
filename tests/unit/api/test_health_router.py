@@ -24,8 +24,7 @@ in src.api.routers.health.py which already implements caching and health checks.
 """
 
 import time
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -110,7 +109,7 @@ class TestHealthPerformance:
         assert response.status_code == 200
         data = response.json()
         assert "response_time_ms" in data
-        assert isinstance(data["response_time_ms"], (int, float))
+        assert isinstance(data["response_time_ms"], int | float)
         assert data["response_time_ms"] > 0
 
 

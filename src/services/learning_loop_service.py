@@ -116,20 +116,22 @@ class LearningLoopService(BaseService):
     DEFAULT_RELEVANCE_THRESHOLD = 0.6
 
     # Security-sensitive tools to exclude
-    SECURITY_SENSITIVE_TOOLS = frozenset([
-        "delete_file",
-        "delete_directory",
-        "rm",
-        "rmdir",
-        "drop_table",
-        "truncate_table",
-        "execute_raw_sql",
-        "eval",
-        "exec",
-        "system",
-        "shell_exec",
-        "subprocess",
-    ])
+    SECURITY_SENSITIVE_TOOLS = frozenset(
+        [
+            "delete_file",
+            "delete_directory",
+            "rm",
+            "rmdir",
+            "drop_table",
+            "truncate_table",
+            "execute_raw_sql",
+            "eval",
+            "exec",
+            "system",
+            "shell_exec",
+            "subprocess",
+        ]
+    )
 
     def __init__(
         self,
@@ -346,8 +348,7 @@ class LearningLoopService(BaseService):
         scores["success_rate"] = success_rate
         if success_rate < self._thresholds["success_rate"]:
             errors.append(
-                f"Success rate too low: {success_rate:.1%} < "
-                f"{self._thresholds['success_rate']:.1%}"
+                f"Success rate too low: {success_rate:.1%} < {self._thresholds['success_rate']:.1%}"
             )
 
         # 2. Check stability (frequency threshold)
@@ -358,8 +359,7 @@ class LearningLoopService(BaseService):
         scores["stability"] = stability
         if stability < self._thresholds["stability"]:
             errors.append(
-                f"Pattern not stable enough: {stability:.1%} < "
-                f"{self._thresholds['stability']:.1%}"
+                f"Pattern not stable enough: {stability:.1%} < {self._thresholds['stability']:.1%}"
             )
 
         # 3. Security check
@@ -429,8 +429,7 @@ class LearningLoopService(BaseService):
 
         if pattern.state != "VALIDATED":
             raise ValidationError(
-                f"Pattern must be in VALIDATED state to approve. "
-                f"Current state: {pattern.state}"
+                f"Pattern must be in VALIDATED state to approve. Current state: {pattern.state}"
             )
 
         # Transition to APPROVED
@@ -543,8 +542,7 @@ class LearningLoopService(BaseService):
                 elapsed = (time.monotonic() - start) * 1000
 
                 logger.info(
-                    f"Pattern {pattern_id_str[:8]} promoted to skill {skill_id} "
-                    f"in {elapsed:.1f}ms"
+                    f"Pattern {pattern_id_str[:8]} promoted to skill {skill_id} in {elapsed:.1f}ms"
                 )
 
                 return PromotionResult(
@@ -630,9 +628,7 @@ class LearningLoopService(BaseService):
                     # Update validation_metadata with feedback
                     current_metadata = pattern.validation_metadata or {}
                     current_metadata["feedback"] = metrics
-                    current_metadata["feedback_updated_at"] = datetime.now(
-                        timezone.utc
-                    ).isoformat()
+                    current_metadata["feedback_updated_at"] = datetime.now(timezone.utc).isoformat()
                     pattern.validation_metadata = current_metadata
                     patterns_updated += 1
             except Exception as e:
@@ -733,12 +729,8 @@ class LearningLoopService(BaseService):
         result = await self.session.execute(
             select(
                 func.count(SkillSuggestion.id).label("total"),
-                func.sum(
-                    func.cast(SkillSuggestion.was_activated, Integer)
-                ).label("activated"),
-                func.sum(
-                    func.cast(SkillSuggestion.was_helpful, Integer)
-                ).label("helpful"),
+                func.sum(func.cast(SkillSuggestion.was_activated, Integer)).label("activated"),
+                func.sum(func.cast(SkillSuggestion.was_helpful, Integer)).label("helpful"),
             ).where(
                 and_(
                     SkillSuggestion.namespace == namespace,
@@ -850,7 +842,7 @@ class LearningLoopService(BaseService):
 
 ## Tool Sequence
 
-{chr(10).join(f'{i+1}. `{tool}`' for i, tool in enumerate(tools))}
+{chr(10).join(f"{i + 1}. `{tool}`" for i, tool in enumerate(tools))}
 
 ## Usage
 

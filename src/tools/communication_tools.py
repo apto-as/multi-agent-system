@@ -61,6 +61,7 @@ class CommunicationTools(BaseTool):
                 )
 
             """
+
             async def _send_message(session, _services):
                 comm_service = AgentCommunicationService(session)
 
@@ -136,6 +137,7 @@ class CommunicationTools(BaseTool):
                 )
 
             """
+
             async def _broadcast(session, _services):
                 comm_service = AgentCommunicationService(session)
 
@@ -220,6 +222,7 @@ class CommunicationTools(BaseTool):
                 )
 
             """
+
             async def _delegate(session, _services):
                 comm_service = AgentCommunicationService(session)
 
@@ -293,6 +296,7 @@ class CommunicationTools(BaseTool):
                 )
 
             """
+
             async def _respond(session, _services):
                 comm_service = AgentCommunicationService(session)
 
@@ -346,6 +350,7 @@ class CommunicationTools(BaseTool):
                 )
 
             """
+
             async def _complete(session, _services):
                 comm_service = AgentCommunicationService(session)
 
@@ -474,6 +479,7 @@ class CommunicationTools(BaseTool):
                 )
 
             """
+
             async def _handoff(session, _services):
                 comm_service = AgentCommunicationService(session)
 
@@ -526,6 +532,7 @@ class CommunicationTools(BaseTool):
                 get_communication_stats(agent_id="athena-conductor")
 
             """
+
             async def _get_stats(session, _services):
                 comm_service = AgentCommunicationService(session)
                 return await comm_service.get_agent_communication_stats(agent_id)

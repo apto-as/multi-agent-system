@@ -139,7 +139,15 @@ class ServiceManager:
             logger.error(
                 f"Service initialization failed: {e}",
                 exc_info=True,
-                extra={"services_initialized": len([s for s in self.registry.get_service_names() if self.registry.is_initialized(s)])},
+                extra={
+                    "services_initialized": len(
+                        [
+                            s
+                            for s in self.registry.get_service_names()
+                            if self.registry.is_initialized(s)
+                        ]
+                    )
+                },
             )
             await self.shutdown_all()
             raise ServiceError(f"Service initialization failed: {e}") from e
@@ -173,7 +181,11 @@ class ServiceManager:
                     logger.error(
                         f"Shutdown handler error: {e}",
                         exc_info=True,
-                        extra={"handler": handler.__name__ if hasattr(handler, '__name__') else str(handler)},
+                        extra={
+                            "handler": handler.__name__
+                            if hasattr(handler, "__name__")
+                            else str(handler)
+                        },
                     )
 
             # Shutdown services in reverse dependency order
@@ -194,7 +206,15 @@ class ServiceManager:
             logger.error(
                 f"Error during shutdown: {e}",
                 exc_info=True,
-                extra={"services_remaining": len([s for s in self.registry.get_service_names() if self.registry.is_initialized(s)])},
+                extra={
+                    "services_remaining": len(
+                        [
+                            s
+                            for s in self.registry.get_service_names()
+                            if self.registry.is_initialized(s)
+                        ]
+                    )
+                },
             )
             raise ServiceError(f"Shutdown failed: {e}") from e
 
@@ -245,7 +265,9 @@ class ServiceManager:
                 health_result = await self._health_check_service(service_name)
                 health_results[service_name] = health_result
                 self.registry.update_health_status(
-                    service_name, health_result["status"], health_result.get("error"),
+                    service_name,
+                    health_result["status"],
+                    health_result.get("error"),
                 )
             except (KeyboardInterrupt, SystemExit):
                 logger.warning(f"User interrupt during health check of {service_name}")
@@ -390,8 +412,12 @@ class ServiceManager:
             logger.info(f"Service '{service_name}' shut down successfully")
 
         except (KeyboardInterrupt, SystemExit):
-            logger.warning(f"User interrupt during '{service_name}' shutdown - service may be in inconsistent state")
-            self.registry.update_health_status(service_name, "interrupted", "User interrupt during shutdown")
+            logger.warning(
+                f"User interrupt during '{service_name}' shutdown - service may be in inconsistent state"
+            )
+            self.registry.update_health_status(
+                service_name, "interrupted", "User interrupt during shutdown"
+            )
             raise
         except Exception as e:
             logger.error(

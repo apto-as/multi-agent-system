@@ -31,8 +31,10 @@ class GeoIPService:
             geoip_db_path: Path to GeoLite2-City.mmdb file.
                           If None, uses default path /usr/local/share/GeoIP/GeoLite2-City.mmdb
         """
-        self.geoip_db_path = Path(geoip_db_path) if geoip_db_path else Path(
-            "/usr/local/share/GeoIP/GeoLite2-City.mmdb"
+        self.geoip_db_path = (
+            Path(geoip_db_path)
+            if geoip_db_path
+            else Path("/usr/local/share/GeoIP/GeoLite2-City.mmdb")
         )
         self.geoip_reader: geoip2.database.Reader | None = None
         self._initialized = False
@@ -112,9 +114,7 @@ class GeoIPService:
         try:
             # Run GeoIP lookup in thread pool to avoid blocking
             loop = asyncio.get_event_loop()
-            response = await loop.run_in_executor(
-                None, self.geoip_reader.city, ip_address
-            )
+            response = await loop.run_in_executor(None, self.geoip_reader.city, ip_address)
 
             return {
                 "country": response.country.name or "Unknown",
@@ -122,14 +122,10 @@ class GeoIPService:
                 "city": response.city.name or "Unknown",
                 "region": response.subdivisions.most_specific.name or "Unknown",
                 "latitude": (
-                    str(response.location.latitude)
-                    if response.location.latitude
-                    else None
+                    str(response.location.latitude) if response.location.latitude else None
                 ),
                 "longitude": (
-                    str(response.location.longitude)
-                    if response.location.longitude
-                    else None
+                    str(response.location.longitude) if response.location.longitude else None
                 ),
             }
 
@@ -139,7 +135,7 @@ class GeoIPService:
             # Expected errors for private/invalid IPs
             logger.debug(
                 f"IP address not found in GeoIP database: {ip_address}",
-                extra={"ip_address": ip_address}
+                extra={"ip_address": ip_address},
             )
             return {"country": "Unknown", "country_code": "XX"}
         except Exception as e:
