@@ -3,17 +3,20 @@
 Specification: docs/specifications/tool-search-mcp-hub/SPECIFICATION_v1.0.0.md
 Phase: 1.2 - MCP Tool Registration
 Phase: 4.1 - Adaptive Ranking Integration
+Phase: 4.2 - Tool Promotion
 
 Provides MCP tools for:
 - search_tools: Semantic tool discovery with personalized ranking
 - get_tool_stats: Tool search statistics
 - record_tool_outcome: Record tool usage for learning
+- get_promotion_candidates: Find tools eligible for promotion
+- promote_tool: Promote a tool to a Skill
 
 Performance target: < 100ms P95 latency
 
 Author: Artemis (Implementation)
 Created: 2025-12-04
-Updated: 2025-12-05 (Phase 4.1)
+Updated: 2025-12-05 (Phase 4.1, 4.2)
 """
 
 import logging
@@ -221,7 +224,124 @@ async def register_tools(mcp: FastMCP, **kwargs: Any) -> None:
                 "tool_name": tool_name,
             }
 
-    logger.info("Tool Search MCP tools registered (3 tools)")
+    # Phase 4.2: Tool Promotion tools
+    # Initialize promotion service (lazy)
+    promotion_service = None
+
+    def _get_promotion_service():
+        nonlocal promotion_service
+        if promotion_service is None:
+            from ..services.tool_promotion_service import ToolPromotionService
+
+            promotion_service = ToolPromotionService()
+            # Try to connect to adaptive ranker if available
+            if hasattr(service, "_adaptive_ranker") and service._adaptive_ranker:
+                promotion_service.set_adaptive_ranker(service._adaptive_ranker)
+        return promotion_service
+
+    @mcp.tool(
+        name="get_promotion_candidates",
+        description="Get tools that are candidates for promotion to Skills. Shows tools with high usage and success rates that could become Skills.",
+    )
+    async def get_promotion_candidates(
+        agent_id: str | None = None,
+        limit: int = 10,
+    ) -> dict[str, Any]:
+        """Get tools eligible for promotion to Skills.
+
+        Phase 4.2: Tool → Skill Promotion
+
+        Tools can be promoted to Skills when they meet criteria:
+        - Minimum 50 uses
+        - Minimum 85% success rate
+        - Used across at least 5 different query contexts
+
+        Args:
+            agent_id: Optional agent ID to filter candidates
+            limit: Maximum candidates to return (default: 10)
+
+        Returns:
+            Dictionary with:
+            - candidates: List of promotion candidates
+            - criteria: Current promotion criteria
+            - total_candidates: Total eligible candidates
+
+        Examples:
+            >>> get_promotion_candidates(agent_id="artemis")
+            {"candidates": [{"tool_name": "grep", "promotion_score": 0.92, ...}], ...}
+        """
+        try:
+            promo = _get_promotion_service()
+            candidates = await promo.get_promotion_candidates(
+                agent_id=agent_id,
+                limit=limit,
+            )
+            stats = await promo.get_promotion_stats()
+
+            return {
+                "candidates": [c.to_dict() for c in candidates],
+                "criteria": stats["criteria"],
+                "total_candidates": len(candidates),
+            }
+        except Exception as e:
+            logger.error(f"Failed to get promotion candidates: {e}")
+            return {"error": str(e), "candidates": []}
+
+    @mcp.tool(
+        name="promote_tool",
+        description="Promote a frequently-used tool to a Skill. This creates a new Skill based on the tool's usage patterns.",
+    )
+    async def promote_tool(
+        tool_name: str,
+        server_id: str,
+        agent_id: str,
+        skill_name: str | None = None,
+        description: str | None = None,
+        force: bool = False,
+    ) -> dict[str, Any]:
+        """Promote a tool to a Skill.
+
+        Phase 4.2: Integrates with TMWS Skills (3rd core feature).
+
+        Args:
+            tool_name: Name of the tool to promote
+            server_id: Server ID where the tool resides
+            agent_id: Agent requesting the promotion
+            skill_name: Optional custom name for the skill
+            description: Optional description for the skill
+            force: Skip criteria check if True (admin only)
+
+        Returns:
+            Dictionary with:
+            - success: True if promotion succeeded
+            - skill_id: ID of the created skill (if successful)
+            - skill_name: Name of the created skill
+            - error: Error message (if failed)
+
+        Examples:
+            >>> promote_tool("grep", "tmws", "artemis")
+            {"success": True, "skill_id": "skill_123", "skill_name": "Promoted: grep"}
+        """
+        try:
+            promo = _get_promotion_service()
+            result = await promo.promote_tool(
+                tool_name=tool_name,
+                server_id=server_id,
+                agent_id=agent_id,
+                skill_name=skill_name,
+                description=description,
+                force=force,
+            )
+            return result.to_dict()
+        except Exception as e:
+            logger.error(f"Failed to promote tool: {e}")
+            return {
+                "success": False,
+                "tool_name": tool_name,
+                "error": str(e),
+            }
+
+    logger.info("Tool Search MCP tools registered (5 tools)")
 
 
 def _get_sources(source: str) -> list[str]:
