@@ -1,7 +1,7 @@
 # Trinitas Multi-Agent System
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-2.4.14-blue.svg" alt="Version">
+  <img src="https://img.shields.io/badge/Version-2.4.15-blue.svg" alt="Version">
   <img src="https://img.shields.io/badge/License-ENTERPRISE-green.svg" alt="License">
   <img src="https://img.shields.io/badge/Platform-Ubuntu%20%7C%20macOS%20%7C%20WSL2-lightgrey.svg" alt="Platform">
 </p>
@@ -362,7 +362,7 @@ This is a proprietary system. For bug reports and feature requests, please conta
 
 ## Version History
 
-- **v2.4.14** (2025-12-05): Tool Search + MCP Hub, Adaptive Ranking, Security Hardening
+- **v2.4.15** (2025-12-05): Tool Search + MCP Hub, Adaptive Ranking, Security Hardening
 - **v2.4.12** (2025-12-03): Option B distribution, OpenCode support, WSL installer, upgrade support
 - **v2.4.8** (2025-12-01): Orchestration layer, 128 tests
 - **v2.4.0** (2025-11-24): Memory management API
@@ -373,5 +373,5 @@ This is a proprietary system. For bug reports and feature requests, please conta
 <p align="center">
   <strong>Trinitas Multi-Agent System</strong><br>
   9 Agents • 42 MCP Tools • Semantic Memory<br>
-  <em>Powered by TMWS v2.4.14</em>
+  <em>Powered by TMWS v2.4.15</em>
 </p>
