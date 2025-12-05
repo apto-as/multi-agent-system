@@ -40,7 +40,7 @@ MAGENTA='\033[0;35m'
 NC='\033[0m' # No Color
 
 # Configuration
-TMWS_IMAGE="ghcr.io/apto-as/tmws:${TMWS_VERSION}"
+TMWS_IMAGE="ghcr.io/apto-as/tmws:latest"
 TRINITAS_CONFIG_DIR="${HOME}/.trinitas"
 CLAUDE_CONFIG_DIR="${HOME}/.claude"
 BACKUP_DIR="${HOME}/.trinitas-backup"
