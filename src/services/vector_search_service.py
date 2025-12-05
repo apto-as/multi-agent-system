@@ -89,15 +89,10 @@ class VectorSearchService:
         logger.info(f"🚀 VectorSearchService initialized (persist: {persist_directory})")
 
     async def initialize(self) -> None:
-        """Initialize or get collection with HNSW index (async).
+        """Initialize or get collection for vector search (async).
 
-        HNSW Parameters:
-        - space: cosine (for normalized embeddings)
-        - M: 16 (number of bi-directional links per node)
-        - ef_construction: 200 (search breadth during construction)
-        - ef_search: 100 (search breadth during query)
-
-        Note: ChromaDB operations run in thread pool to avoid blocking event loop.
+        Note: HNSW index parameters are managed automatically by ChromaDB.
+        ChromaDB operations run in thread pool to avoid blocking event loop.
         """
         try:
             # Run sync ChromaDB operation in thread pool
@@ -106,10 +101,8 @@ class VectorSearchService:
                 name=self.COLLECTION_NAME,
                 metadata={
                     "description": "TMWS v2.2.6 semantic memory search (1024-dim)",
-                    "hnsw:space": "cosine",
-                    "hnsw:M": 16,
-                    "hnsw:construction_ef": 200,
-                    "hnsw:search_ef": 100,
+                    # Note: HNSW parameters are managed by ChromaDB automatically
+                    # to avoid compatibility issues across versions
                 },
             )
             count = await asyncio.to_thread(self._collection.count)
