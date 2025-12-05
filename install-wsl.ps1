@@ -36,7 +36,7 @@ $INSTALLER_VERSION = "2.4.15"
 $TMWS_VERSION = "2.4.15"
 
 # Configuration
-$TMWS_IMAGE = "ghcr.io/apto-as/tmws:$TMWS_VERSION"
+$TMWS_IMAGE = "ghcr.io/apto-as/tmws:latest"
 $DEFAULT_LICENSE_KEY = "TMWS-ENTERPRISE-020d8e77-de36-48a1-b585-7f66aef78c06-20260303-Tp9UYRt6ucUB21hPF9lqZoH.FjSslvfr~if1ThD75L.ro~Kx5glyVyGPm0n4xuziJ~Qmc87PZipJWCefj2HEAA"
 
 # Colors
