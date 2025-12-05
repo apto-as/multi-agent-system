@@ -130,16 +130,14 @@ class ToolSearchService:
     async def initialize(self) -> None:
         """Initialize ChromaDB collection for tools.
 
-        Creates or gets the tmws_tools collection with HNSW index.
+        Creates or gets the tmws_tools collection.
+        Note: HNSW parameters are managed by ChromaDB automatically.
         """
         try:
             self._collection = await asyncio.to_thread(
                 self._client.get_or_create_collection,
                 name=self.config.collection_name,
                 metadata={
-                    "hnsw:space": "cosine",
-                    "hnsw:M": 16,
-                    "hnsw:ef_construction": 200,
                     "description": "TMWS Tool Discovery Engine",
                 },
             )
