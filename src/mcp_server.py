@@ -21,6 +21,7 @@ import logging
 import os
 import sys
 from datetime import datetime
+from pathlib import Path
 from uuid import uuid4
 
 from fastmcp import FastMCP
@@ -529,6 +530,15 @@ class HybridMCPServer:
             pattern_skill_tools = PatternSkillTools()
             await pattern_skill_tools.register_tools(self.mcp, get_session)
             logger.info("Pattern-skill tools registered (4 MCP tools for pattern-to-skill promotion)")
+
+            # Register tool search tools (v2.5.0+ Tool Search + MCP Hub)
+            from src.tools import tool_search_tools
+            await tool_search_tools.register_tools(
+                self.mcp,
+                embedding_service=self.embedding_service,
+                persist_directory=str(Path(self.settings.data_dir) / "chromadb"),
+            )
+            logger.info("Tool search tools registered (2 MCP tools for semantic tool discovery)")
 
             # Phase 3: Trinitas Agent File Loading (v2.4.0+, license-gated, OPTIONAL)
             # This phase generates agent markdown files for Claude Desktop
