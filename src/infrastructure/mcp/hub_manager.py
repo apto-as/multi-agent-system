@@ -2,6 +2,7 @@
 
 Specification: docs/specifications/tool-search-mcp-hub/SPECIFICATION_v1.0.0.md
 Phase: 1.4 - MCP Hub Manager
+Phase: 2.1-2.2 - Security Foundation
 
 Extends the existing MCPManager with:
 - Integration with ToolSearchService
@@ -9,8 +10,14 @@ Extends the existing MCPManager with:
 - Connection pooling (max 10 servers)
 - Tool metadata aggregation
 
-Author: Artemis (Implementation)
+Security (Phase 2):
+- S-P0-3: JSON Schema validation for tool inputs
+- S-P0-6: Response size limits (10MB)
+- S-P0-7: Timeout enforcement (30s)
+
+Author: Artemis (Implementation) + Hestia (Security Review)
 Created: 2025-12-04
+Updated: 2025-12-05 (Phase 2 Security)
 """
 
 import asyncio
@@ -31,6 +38,12 @@ from ...services.tool_search_service import (
     get_tool_search_service,
 )
 from ..exceptions import MCPConnectionError
+from ..security import (
+    InputValidationError,
+    ResponseLimitError,
+    check_response_size,
+    validate_tool_input,
+)
 from .manager import MCPConnection, MCPManager, get_mcp_manager
 from .preset_config import (
     MCPServerPreset,
@@ -279,6 +292,11 @@ class MCPHubManager:
     ) -> dict[str, Any]:
         """Execute a tool on a specific MCP server.
 
+        Security (Phase 2):
+        - S-P0-3: Validates arguments against tool schema
+        - S-P0-6: Enforces 10MB response size limit
+        - S-P0-7: Enforces 30s timeout
+
         Args:
             server_id: Server identifier
             tool_name: Tool name
@@ -286,6 +304,12 @@ class MCPHubManager:
 
         Returns:
             Tool execution result
+
+        Raises:
+            MCPConnectionError: If tool execution fails
+            InputValidationError: If arguments fail validation (S-P0-3)
+            ResponseLimitError: If response exceeds limit (S-P0-6)
+            asyncio.TimeoutError: If execution exceeds timeout (S-P0-7)
         """
         await self._ensure_initialized()
 
@@ -303,11 +327,94 @@ class MCPHubManager:
         else:
             actual_server_id = server_id
 
-        return await self._mcp_manager.call_tool(
-            server_name=actual_server_id,
-            tool_name=tool_name,
-            arguments=arguments,
-        )
+        # S-P0-3: Validate arguments against schema
+        tool_schema = self._get_tool_schema(actual_server_id, tool_name)
+        if tool_schema:
+            try:
+                validate_tool_input(arguments, tool_schema, tool_name)
+            except InputValidationError as e:
+                logger.warning(
+                    f"Input validation failed for {server_id}:{tool_name}: {e}"
+                )
+                raise MCPConnectionError(
+                    f"Input validation failed: {e}",
+                    details={
+                        "server_id": server_id,
+                        "tool_name": tool_name,
+                        "validation_error": str(e),
+                    },
+                )
+
+        # S-P0-7: Execute with timeout enforcement
+        try:
+            result = await asyncio.wait_for(
+                self._mcp_manager.call_tool(
+                    server_name=actual_server_id,
+                    tool_name=tool_name,
+                    arguments=arguments,
+                ),
+                timeout=self.DEFAULT_TIMEOUT,
+            )
+        except asyncio.TimeoutError:
+            logger.error(
+                f"Tool execution timeout ({self.DEFAULT_TIMEOUT}s) for "
+                f"{server_id}:{tool_name}"
+            )
+            raise MCPConnectionError(
+                f"Tool execution timeout ({self.DEFAULT_TIMEOUT}s)",
+                details={
+                    "server_id": server_id,
+                    "tool_name": tool_name,
+                    "timeout": self.DEFAULT_TIMEOUT,
+                },
+            )
+
+        # S-P0-6: Check response size limit
+        try:
+            check_response_size(result, server_id, tool_name)
+        except ResponseLimitError as e:
+            logger.error(f"Response size limit exceeded for {server_id}:{tool_name}")
+            raise MCPConnectionError(
+                f"Response size limit exceeded: {e}",
+                details={
+                    "server_id": server_id,
+                    "tool_name": tool_name,
+                    "size_bytes": e.size_bytes,
+                    "limit_bytes": e.limit_bytes,
+                },
+            )
+
+        return result
+
+    def _get_tool_schema(
+        self,
+        server_id: str,
+        tool_name: str,
+    ) -> dict[str, Any] | None:
+        """Get JSON schema for a tool.
+
+        Args:
+            server_id: Server identifier
+            tool_name: Tool name
+
+        Returns:
+            Tool input schema or None if not found
+        """
+        # Check registered servers first
+        server_metadata = self._registered_servers.get(server_id)
+        if server_metadata:
+            for tool in server_metadata.tools:
+                if tool.name == tool_name:
+                    return tool.input_schema
+
+        # Try to get from connection
+        connection = self._mcp_manager.get_connection(server_id)
+        if connection and connection.tools:
+            for tool in connection.tools:
+                if tool.name == tool_name:
+                    return tool.input_schema if hasattr(tool, "input_schema") else None
+
+        return None
 
     async def refresh_server_tools(self, server_id: str) -> int:
         """Refresh tools from a connected server.
