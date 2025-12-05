@@ -335,12 +335,21 @@ class TestSecurityModuleIntegration:
     def test_all_modules_importable(self):
         """Test all security modules can be imported."""
         from src.infrastructure.security import (
+            # S-P0-1: HMAC Authentication
             HMACAuthenticator,
             HMACAuthError,
+            # S-P0-3: Input Validation
             InputValidationError,
             JSONSchemaValidator,
+            # S-P0-4: Code Validation
+            CodeValidator,
+            CodeValidationError,
+            # S-P0-6: Response Limits
             ResponseLimiter,
             ResponseLimitError,
+            # S-P0-8: Audit Logging
+            SecurityAuditLogger,
+            AuditEventType,
         )
 
         # Verify all exports exist
@@ -348,8 +357,12 @@ class TestSecurityModuleIntegration:
         assert HMACAuthError is not None
         assert JSONSchemaValidator is not None
         assert InputValidationError is not None
+        assert CodeValidator is not None
+        assert CodeValidationError is not None
         assert ResponseLimiter is not None
         assert ResponseLimitError is not None
+        assert SecurityAuditLogger is not None
+        assert AuditEventType is not None
 
     def test_security_flow_end_to_end(self):
         """Test complete security validation flow."""
