@@ -13,12 +13,28 @@ Author: Artemis (Implementation)
 Created: 2025-12-05
 """
 
+import hashlib
 import logging
+import os
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-from .adaptive_ranker import AdaptiveRanker, ToolUsagePattern
+from .adaptive_ranker import (
+    AdaptiveRanker,
+    ToolUsagePattern,
+    validate_agent_id,
+    validate_server_id,
+    validate_tool_name,
+)
+
+# Admin agents that can use force promotion (H-2 security fix)
+ADMIN_AGENTS = frozenset([
+    "athena-conductor",
+    "hera-strategist",
+    "system",
+    "admin",
+])
 
 logger = logging.getLogger(__name__)
 
@@ -218,11 +234,34 @@ class ToolPromotionService:
             agent_id: Agent requesting promotion
             skill_name: Optional custom skill name
             description: Optional skill description
-            force: Skip criteria check if True
+            force: Skip criteria check if True (requires admin agent)
 
         Returns:
             PromotionResult with success status
+
+        Raises:
+            ValueError: If parameters are invalid
+            PermissionError: If force=True without admin privileges
         """
+        # H-1 Security Fix: Validate inputs
+        tool_name = validate_tool_name(tool_name)
+        server_id = validate_server_id(server_id)
+        agent_id = validate_agent_id(agent_id)
+
+        # H-2 Security Fix: Force requires admin privileges
+        if force:
+            if agent_id not in ADMIN_AGENTS:
+                logger.warning(
+                    f"SECURITY: Unauthorized force promotion attempt by {agent_id}"
+                )
+                raise PermissionError(
+                    f"Force promotion requires admin privileges. "
+                    f"Agent '{agent_id}' is not authorized."
+                )
+            logger.info(
+                f"AUDIT: Force promotion authorized for {agent_id} on {tool_name}"
+            )
+
         pattern_key = f"{server_id}:{tool_name}"
 
         # Check if already promoted

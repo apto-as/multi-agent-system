@@ -16,6 +16,7 @@ Created: 2025-12-05
 """
 
 import logging
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -24,7 +25,118 @@ from uuid import UUID
 
 from ..models.tool_search import ToolSearchResult, ToolSourceType
 
+# Security constants
+MAX_AGENT_ID_LENGTH = 64
+MAX_QUERY_LENGTH = 1000
+MAX_TOOL_NAME_LENGTH = 128
+MAX_SERVER_ID_LENGTH = 128
+VALID_ID_PATTERN = re.compile(r'^[a-zA-Z0-9_-]+$')
+
 logger = logging.getLogger(__name__)
+
+
+def validate_agent_id(agent_id: str) -> str:
+    """Validate and sanitize agent ID.
+
+    Args:
+        agent_id: Agent identifier to validate
+
+    Returns:
+        Sanitized agent ID
+
+    Raises:
+        ValueError: If agent_id is invalid
+    """
+    if not agent_id:
+        raise ValueError("agent_id cannot be empty")
+
+    if not isinstance(agent_id, str):
+        raise ValueError("agent_id must be a string")
+
+    agent_id = agent_id.strip()
+
+    if len(agent_id) > MAX_AGENT_ID_LENGTH:
+        raise ValueError(f"agent_id exceeds maximum length of {MAX_AGENT_ID_LENGTH}")
+
+    if not VALID_ID_PATTERN.match(agent_id):
+        raise ValueError("agent_id contains invalid characters (allowed: alphanumeric, dash, underscore)")
+
+    return agent_id
+
+
+def validate_tool_name(tool_name: str) -> str:
+    """Validate and sanitize tool name.
+
+    Args:
+        tool_name: Tool name to validate
+
+    Returns:
+        Sanitized tool name
+
+    Raises:
+        ValueError: If tool_name is invalid
+    """
+    if not tool_name:
+        raise ValueError("tool_name cannot be empty")
+
+    tool_name = tool_name.strip()
+
+    if len(tool_name) > MAX_TOOL_NAME_LENGTH:
+        raise ValueError(f"tool_name exceeds maximum length of {MAX_TOOL_NAME_LENGTH}")
+
+    if not VALID_ID_PATTERN.match(tool_name):
+        raise ValueError("tool_name contains invalid characters")
+
+    return tool_name
+
+
+def validate_server_id(server_id: str) -> str:
+    """Validate and sanitize server ID.
+
+    Args:
+        server_id: Server ID to validate
+
+    Returns:
+        Sanitized server ID
+
+    Raises:
+        ValueError: If server_id is invalid
+    """
+    if not server_id:
+        raise ValueError("server_id cannot be empty")
+
+    server_id = server_id.strip()
+
+    if len(server_id) > MAX_SERVER_ID_LENGTH:
+        raise ValueError(f"server_id exceeds maximum length of {MAX_SERVER_ID_LENGTH}")
+
+    if not VALID_ID_PATTERN.match(server_id):
+        raise ValueError("server_id contains invalid characters")
+
+    return server_id
+
+
+def validate_query(query: str) -> str:
+    """Validate and sanitize query string.
+
+    Args:
+        query: Query to validate
+
+    Returns:
+        Sanitized query
+
+    Raises:
+        ValueError: If query is invalid
+    """
+    if not query:
+        return ""
+
+    query = query.strip()
+
+    if len(query) > MAX_QUERY_LENGTH:
+        raise ValueError(f"query exceeds maximum length of {MAX_QUERY_LENGTH}")
+
+    return query
 
 
 class ToolOutcome(str, Enum):
@@ -156,9 +268,15 @@ class AdaptiveRanker:
 
         Returns:
             Re-ranked results with personalization applied
+
+        Raises:
+            ValueError: If agent_id is invalid
         """
         if not results:
             return results
+
+        # H-1 Security Fix: Validate agent_id
+        agent_id = validate_agent_id(agent_id)
 
         # Get agent's usage patterns
         patterns = await self._get_agent_patterns(agent_id)
@@ -212,7 +330,16 @@ class AdaptiveRanker:
             outcome: Outcome of the tool execution
             latency_ms: Execution latency in milliseconds
             context: Additional context data
+
+        Raises:
+            ValueError: If any input parameter is invalid
         """
+        # H-1 Security Fix: Validate all inputs
+        agent_id = validate_agent_id(agent_id)
+        tool_name = validate_tool_name(tool_name)
+        server_id = validate_server_id(server_id)
+        query = validate_query(query)
+
         # Update local cache immediately
         await self._update_local_pattern(
             agent_id=agent_id,
