@@ -367,19 +367,41 @@ class TestPromoteTool:
         assert "Does not meet criteria" in result.error
 
     @pytest.mark.asyncio
-    async def test_force_promotion(
+    async def test_force_promotion_requires_admin(
         self, promotion_service, mock_ranker, mock_skill_service, ineligible_pattern
     ):
-        """Should promote ineligible tool with force=True."""
+        """Should reject force=True from non-admin agent (H-2 security fix)."""
         mock_ranker._agent_patterns["artemis"] = {
             "tmws:read_file": ineligible_pattern,
         }
         mock_ranker._cache_timestamps["artemis"] = time.time()
 
+        # Non-admin agents cannot use force=True
+        with pytest.raises(PermissionError, match="Force promotion requires admin"):
+            await promotion_service.promote_tool(
+                tool_name="read_file",
+                server_id="tmws",
+                agent_id="artemis",
+                force=True,
+            )
+
+    @pytest.mark.asyncio
+    async def test_force_promotion_with_admin(
+        self, promotion_service, mock_ranker, mock_skill_service, ineligible_pattern
+    ):
+        """Should allow force=True from admin agent (H-2 security fix)."""
+        # Update pattern for admin agent
+        ineligible_pattern.agent_id = "athena-conductor"
+        mock_ranker._agent_patterns["athena-conductor"] = {
+            "tmws:read_file": ineligible_pattern,
+        }
+        mock_ranker._cache_timestamps["athena-conductor"] = time.time()
+
+        # Admin agents can use force=True
         result = await promotion_service.promote_tool(
             tool_name="read_file",
             server_id="tmws",
-            agent_id="artemis",
+            agent_id="athena-conductor",  # Admin agent
             force=True,
         )
 

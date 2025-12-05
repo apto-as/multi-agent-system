@@ -97,8 +97,27 @@ async def register_tools(mcp: FastMCP, **kwargs: Any) -> None:
             >>> search_tools("database operations", source="skills", agent_id="artemis")
             {"results": [{"tool_name": "sql_query_skill", "personalization_boost": 0.15, ...}], ...}
         """
+        # M-4 Security Fix: Validate all inputs
+        # Validate query length
+        if not query or not query.strip():
+            return {"error": "Query cannot be empty", "results": [], "query": query, "total_found": 0}
+        if len(query) > 1000:
+            return {"error": "Query exceeds maximum length of 1000 characters", "results": [], "query": query[:50] + "...", "total_found": 0}
+        query = query.strip()
+
+        # Validate source (whitelist)
+        valid_sources = {"all", "skills", "internal", "external", "mcp_servers"}
+        if source not in valid_sources:
+            return {"error": f"Invalid source: {source}", "results": [], "query": query, "total_found": 0}
+
         # Validate limit
         limit = max(1, min(limit, 50))
+
+        # Validate agent_id if provided (will be validated in service layer too)
+        if agent_id:
+            import re
+            if len(agent_id) > 64 or not re.match(r'^[a-zA-Z0-9_-]+$', agent_id):
+                return {"error": "Invalid agent_id format", "results": [], "query": query, "total_found": 0}
 
         try:
             results = await service.search_tools(

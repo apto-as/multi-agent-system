@@ -727,13 +727,13 @@ class TestEdgeCases:
 
     @pytest.mark.asyncio
     async def test_handles_none_agent_id(self, ranker, sample_results):
-        """Should handle None agent_id gracefully."""
-        # Should not raise
-        ranked = await ranker.rank_for_agent(
-            results=sample_results,
-            agent_id=None,
-        )
-        assert len(ranked) == len(sample_results)
+        """Should reject None agent_id with validation error (H-1 security fix)."""
+        # After H-1 security fix, None agent_id should raise ValueError
+        with pytest.raises(ValueError, match="agent_id cannot be empty"):
+            await ranker.rank_for_agent(
+                results=sample_results,
+                agent_id=None,
+            )
 
     @pytest.mark.asyncio
     async def test_handles_concurrent_updates(self, ranker):
