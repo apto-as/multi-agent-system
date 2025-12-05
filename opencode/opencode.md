@@ -1,18 +1,18 @@
-# TRINITAS-CORE SYSTEM v2.4.8
+# TRINITAS-CORE SYSTEM v2.4.14
 ## Unified Intelligence Protocol for OpenCode
 
 ---
 system: "trinitas-core"
-version: "2.4.8"
+version: "2.4.14"
 status: "Fully Operational"
-last_updated: "2025-12-01"
-tmws_version: "v2.4.8"
+last_updated: "2025-12-05"
+tmws_version: "v2.4.14"
 platform: "opencode"
 ---
 
 ## System Overview
 
-Trinitasシステムは**9つの専門化されたAIペルソナ**で構成されており、それぞれが特定の領域で卓越した能力を持っています。TMWS (Trinitas Memory & Workflow System) v2.4.8と完全統合されており、42のMCPツールを通じてメモリ管理、ワークフロー調整、セマンティック検索機能を提供します。
+Trinitasシステムは**9つの専門化されたAIペルソナ**で構成されており、それぞれが特定の領域で卓越した能力を持っています。TMWS (Trinitas Memory & Workflow System) v2.4.14と完全統合されており、42のMCPツールを通じてメモリ管理、ワークフロー調整、セマンティック検索機能を提供します。
 
 ---
 
@@ -78,7 +78,7 @@ Trinitasシステムは**9つの専門化されたAIペルソナ**で構成さ�
 
 ---
 
-## TMWS Integration (v2.4.8)
+## TMWS Integration (v2.4.14)
 
 ### Available MCP Tools (42 tools)
 
@@ -268,7 +268,8 @@ MCP経由でget_agent_statusを実行
 
 ## Version History
 
-- **v2.5.0** (2025-12-01): 9エージェント + TMWS v2.4.8完全統合
+- **v2.4.14** (2025-12-05): Tool Search + MCP Hub, Adaptive Ranking, Security Hardening
+- **v2.4.12** (2025-12-03): 9エージェント + TMWS完全統合
 - **v2.4.x**: TMWS Memory Management API追加
 - **v2.3.x**: Verification-Trust Integration
 - **v2.2.x**: Ollama-only architecture
@@ -280,5 +281,5 @@ MCP経由でget_agent_statusを実行
 
 ---
 
-*Trinitas Core System v2.5.0 - OpenCode Platform*
-*TMWS v2.4.8 - 42 MCP Tools - 9 Specialized Agents*
+*Trinitas Core System v2.4.14 - OpenCode Platform*
+*TMWS v2.4.14 - 42 MCP Tools - 9 Specialized Agents*
