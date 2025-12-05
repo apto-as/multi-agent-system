@@ -558,7 +558,7 @@ class HybridMCPServer:
             await tool_search_tools.register_tools(
                 self.mcp,
                 embedding_service=self.embedding_service,
-                persist_directory=str(Path(self.settings.data_dir) / "chromadb"),
+                persist_directory=self.settings.chroma_persist_directory,
             )
             logger.info("Tool search tools registered (2 MCP tools for semantic tool discovery)")
 
