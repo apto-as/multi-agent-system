@@ -2,15 +2,18 @@
 
 Specification: docs/specifications/tool-search-mcp-hub/SPECIFICATION_v1.0.0.md
 Phase: 1.2 - MCP Tool Registration
+Phase: 4.1 - Adaptive Ranking Integration
 
 Provides MCP tools for:
-- search_tools: Semantic tool discovery
+- search_tools: Semantic tool discovery with personalized ranking
 - get_tool_stats: Tool search statistics
+- record_tool_outcome: Record tool usage for learning
 
 Performance target: < 100ms P95 latency
 
 Author: Artemis (Implementation)
 Created: 2025-12-04
+Updated: 2025-12-05 (Phase 4.1)
 """
 
 import logging
@@ -48,19 +51,20 @@ async def register_tools(mcp: FastMCP, **kwargs: Any) -> None:
 
     @mcp.tool(
         name="search_tools",
-        description="Search for available tools using semantic search. Skills are prioritized (2.0x weight), followed by internal tools (1.5x), then external MCP tools (1.0x). Returns ranked results with relevance scores.",
+        description="Search for available tools using semantic search. Skills are prioritized (2.0x weight), followed by internal tools (1.5x), then external MCP tools (1.0x). Provides personalized ranking when agent_id is provided.",
     )
     async def search_tools(
         query: str,
         source: str = "all",
         limit: int = 10,
+        agent_id: str | None = None,
     ) -> dict[str, Any]:
         """Search for tools using semantic search.
 
         Integrates with TMWS 4 core features:
         - Skills: Prioritized in search results (2.0x weight)
         - Memory: Tool usage history considered
-        - Learning: Adaptive ranking based on usage patterns
+        - Learning: Adaptive ranking based on usage patterns (Phase 4.1)
 
         Args:
             query: Natural language search query (e.g., "search code", "file operations")
@@ -71,21 +75,24 @@ async def register_tools(mcp: FastMCP, **kwargs: Any) -> None:
                    - "external": Only search external MCP server tools
                    - "mcp_servers": Alias for "external"
             limit: Maximum number of results (default: 10, max: 50)
+            agent_id: Optional agent identifier for personalized ranking.
+                     When provided, results are ranked based on agent's usage history.
 
         Returns:
             Dictionary with:
-            - results: List of matching tools with scores
+            - results: List of matching tools with scores and personalization_boost
             - query: Original query
             - total_found: Total matches found
             - search_latency_ms: Search time in milliseconds
             - sources_searched: Which sources were queried
+            - personalized: Whether personalization was applied
 
         Examples:
             >>> search_tools("search code repository")
             {"results": [{"tool_name": "grep", "weighted_score": 0.95, ...}], ...}
 
-            >>> search_tools("database operations", source="skills")
-            {"results": [{"tool_name": "sql_query_skill", ...}], ...}
+            >>> search_tools("database operations", source="skills", agent_id="artemis")
+            {"results": [{"tool_name": "sql_query_skill", "personalization_boost": 0.15, ...}], ...}
         """
         # Validate limit
         limit = max(1, min(limit, 50))
@@ -95,6 +102,7 @@ async def register_tools(mcp: FastMCP, **kwargs: Any) -> None:
                 query=query,
                 source=source,
                 limit=limit,
+                agent_id=agent_id,
             )
 
             stats = await service.get_stats()
@@ -105,6 +113,7 @@ async def register_tools(mcp: FastMCP, **kwargs: Any) -> None:
                 "total_found": len(results),
                 "search_latency_ms": 0,  # Will be added from response
                 "sources_searched": _get_sources(source),
+                "personalized": agent_id is not None,
                 "stats": {
                     "total_indexed": stats["total_indexed"],
                     "skills_count": 0,  # Will be populated when skills are registered
@@ -143,7 +152,76 @@ async def register_tools(mcp: FastMCP, **kwargs: Any) -> None:
             logger.error(f"Failed to get stats: {e}")
             return {"error": str(e)}
 
-    logger.info("Tool Search MCP tools registered (2 tools)")
+    @mcp.tool(
+        name="record_tool_outcome",
+        description="Record the outcome of a tool execution for learning. This enables personalized ranking in future searches. Call after executing any tool.",
+    )
+    async def record_tool_outcome(
+        tool_name: str,
+        server_id: str,
+        query: str,
+        outcome: str,
+        agent_id: str,
+        latency_ms: float = 0.0,
+    ) -> dict[str, Any]:
+        """Record tool execution outcome for adaptive learning.
+
+        Phase 4.1: Integrates with TMWS Learning system for personalized ranking.
+        Recording outcomes helps improve future search results for this agent.
+
+        Args:
+            tool_name: Name of the tool that was executed
+            server_id: Server ID where the tool resides (e.g., "tmws", "mcp__context7")
+            query: Original search query that led to this tool
+            outcome: Execution outcome - one of:
+                    - "success": Tool executed successfully
+                    - "error": Tool execution failed
+                    - "timeout": Tool execution timed out
+                    - "abandoned": User abandoned before completion
+            agent_id: ID of the agent that used the tool
+            latency_ms: Execution time in milliseconds (optional)
+
+        Returns:
+            Dictionary with:
+            - recorded: True if outcome was recorded
+            - tool_name: Name of the tool
+            - outcome: The recorded outcome
+
+        Examples:
+            >>> record_tool_outcome("grep", "tmws", "search code", "success", "artemis", 45.2)
+            {"recorded": True, "tool_name": "grep", "outcome": "success"}
+        """
+        from datetime import datetime
+
+        from ..models.tool_search import ToolUsageRecord
+
+        try:
+            record = ToolUsageRecord(
+                tool_name=tool_name,
+                server_id=server_id,
+                query=query,
+                outcome=outcome,
+                latency_ms=latency_ms,
+                timestamp=datetime.now(),
+            )
+
+            await service.record_usage(record, agent_id=agent_id)
+
+            return {
+                "recorded": True,
+                "tool_name": tool_name,
+                "outcome": outcome,
+                "agent_id": agent_id,
+            }
+        except Exception as e:
+            logger.error(f"Failed to record tool outcome: {e}")
+            return {
+                "recorded": False,
+                "error": str(e),
+                "tool_name": tool_name,
+            }
+
+    logger.info("Tool Search MCP tools registered (3 tools)")
 
 
 def _get_sources(source: str) -> list[str]:
