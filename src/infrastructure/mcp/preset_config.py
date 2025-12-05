@@ -102,7 +102,7 @@ class MCPServerPreset:
             {'API_KEY': 'secret123'}
         """
         resolved = {}
-        pattern = re.compile(r'\$\{([^}]+)\}')
+        pattern = re.compile(r"\$\{([^}]+)\}")
 
         for key, value in self.env.items():
             # Replace ${VAR_NAME} with actual environment variable value
@@ -198,12 +198,7 @@ class MCPPresetConfig:
         Returns:
             Dictionary in .mcp.json format
         """
-        return {
-            "mcpServers": {
-                name: preset.to_dict()
-                for name, preset in self.servers.items()
-            }
-        }
+        return {"mcpServers": {name: preset.to_dict() for name, preset in self.servers.items()}}
 
 
 class MCPPresetLoader:
@@ -267,12 +262,7 @@ class MCPPresetLoader:
 
         return config
 
-    def _load_from_file(
-        self,
-        config: MCPPresetConfig,
-        path: Path,
-        merge: bool = False
-    ) -> None:
+    def _load_from_file(self, config: MCPPresetConfig, path: Path, merge: bool = False) -> None:
         """Load configuration from a JSON file.
 
         Args:
@@ -378,25 +368,25 @@ class MCPPresetLoader:
                     "type": "stdio",
                     "command": "npx",
                     "args": ["-y", "@upstash/context7-mcp@latest"],
-                    "autoConnect": True
+                    "autoConnect": True,
                 },
                 "playwright": {
                     "type": "stdio",
                     "command": "npx",
                     "args": ["-y", "@anthropic/mcp-playwright@latest"],
-                    "autoConnect": True
+                    "autoConnect": True,
                 },
                 "serena": {
                     "type": "stdio",
                     "command": "uvx",
                     "args": ["--from", "serena-mcp-server", "serena"],
-                    "autoConnect": True
+                    "autoConnect": True,
                 },
                 "chrome-devtools": {
                     "type": "stdio",
                     "command": "npx",
                     "args": ["-y", "@anthropic/mcp-chrome-devtools@latest"],
-                    "autoConnect": False
+                    "autoConnect": False,
                 },
                 "custom-http-server": {
                     "type": "http",
@@ -405,8 +395,8 @@ class MCPPresetLoader:
                     "retryAttempts": 3,
                     "authRequired": True,
                     "apiKeyEnv": "CUSTOM_SERVER_API_KEY",
-                    "autoConnect": False
-                }
+                    "autoConnect": False,
+                },
             }
         }
 

@@ -20,22 +20,20 @@ Created: 2025-11-19
 Version: 2.3.3
 """
 
-import pytest
-import tempfile
-from pathlib import Path
-import os
-
 # Direct import to avoid config dependencies
 import importlib.util
+import os
 import sys
+from pathlib import Path
+
+import pytest
 
 # Get project root
 project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 spec = importlib.util.spec_from_file_location(
-    "db_encryption",
-    project_root / "src" / "security" / "db_encryption.py"
+    "db_encryption", project_root / "src" / "security" / "db_encryption.py"
 )
 db_encryption_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(db_encryption_module)
@@ -213,10 +211,7 @@ class TestEncryptedEngine:
         key = encryption_service.generate_encryption_key()
 
         # Act
-        engine = await encryption_service.create_encrypted_engine(
-            ":memory:",
-            encryption_key=key
-        )
+        engine = await encryption_service.create_encrypted_engine(":memory:", encryption_key=key)
 
         # Assert
         assert engine is not None, "Engine should be created"

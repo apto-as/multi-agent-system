@@ -18,7 +18,8 @@ class PersonaCreateRequest(BaseModel):
     description: str = Field(..., description="Persona description")
     capabilities: list[str] = Field(..., description="List of persona capabilities")
     personality_traits: dict[str, Any] = Field(
-        default_factory=dict, description="Personality traits",
+        default_factory=dict,
+        description="Personality traits",
     )
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
@@ -150,7 +151,9 @@ class PersonaTools(BaseTool):
 
         @mcp.tool()
         async def list_personas(
-            active_only: bool = True, include_stats: bool = False, limit: int = 50,
+            active_only: bool = True,
+            include_stats: bool = False,
+            limit: int = 50,
         ) -> dict[str, Any]:
             """List all available personas.
 
@@ -344,7 +347,9 @@ class PersonaTools(BaseTool):
 
                 # Sort by usage frequency
                 sorted_capabilities = sorted(
-                    capability_usage.items(), key=lambda x: x[1]["count"], reverse=True,
+                    capability_usage.items(),
+                    key=lambda x: x[1]["count"],
+                    reverse=True,
                 )
 
                 return {

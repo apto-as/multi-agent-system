@@ -16,9 +16,7 @@ Updated: 2025-11-24 (Phase 2D-2: SQLite migration)
 Phase: 2D-2 - V-2 Progressive Disclosure Testing (SQLite-Only)
 """
 
-import asyncio
-from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
@@ -26,7 +24,7 @@ import pytest
 from src.core.exceptions import AuthorizationError
 from src.models.token_consumption import TokenConsumption
 from src.services.license_service import LicenseService, TierEnum, TierLimits
-from src.services.token_budget_service import TokenBudgetService, TokenBudgetStatus
+from src.services.token_budget_service import TokenBudgetService
 
 
 @pytest.fixture
@@ -229,9 +227,7 @@ class TestBudgetValidation:
     ):
         """ADMINISTRATOR tier: Unlimited tokens, should never fail."""
         agent_id = uuid4()
-        mock_license_service.get_agent_tier = AsyncMock(
-            return_value=TierEnum.ADMINISTRATOR
-        )
+        mock_license_service.get_agent_tier = AsyncMock(return_value=TierEnum.ADMINISTRATOR)
 
         # Mock database to return very high consumption
         mock_result = AsyncMock()
@@ -261,14 +257,10 @@ class TestTokenConsumption:
         assert mock_db_session.commit.called
 
     @pytest.mark.asyncio
-    async def test_track_consumption_database_failure(
-        self, budget_service, mock_db_session
-    ):
+    async def test_track_consumption_database_failure(self, budget_service, mock_db_session):
         """Token consumption tracking should not fail operation on database error."""
         agent_id = uuid4()
-        mock_db_session.execute = AsyncMock(
-            side_effect=Exception("Database connection failed")
-        )
+        mock_db_session.execute = AsyncMock(side_effect=Exception("Database connection failed"))
 
         # Should not raise - tracking failure is logged but doesn't fail operation
         await budget_service.track_consumption(agent_id=agent_id, actual_tokens=1500)
@@ -406,9 +398,7 @@ class TestFailSecure:
         """Budget validation should fail-secure on database errors."""
         agent_id = uuid4()
         mock_license_service.get_agent_tier = AsyncMock(return_value=TierEnum.FREE)
-        mock_db_session.execute = AsyncMock(
-            side_effect=Exception("Database connection failed")
-        )
+        mock_db_session.execute = AsyncMock(side_effect=Exception("Database connection failed"))
 
         # Should raise AuthorizationError (fail-secure)
         with pytest.raises(AuthorizationError) as exc_info:
@@ -425,9 +415,7 @@ class TestFailSecure:
         """Budget status query should fail on database errors."""
         agent_id = uuid4()
         mock_license_service.get_agent_tier = AsyncMock(return_value=TierEnum.FREE)
-        mock_db_session.execute = AsyncMock(
-            side_effect=Exception("Database connection failed")
-        )
+        mock_db_session.execute = AsyncMock(side_effect=Exception("Database connection failed"))
 
         # Should raise AuthorizationError
         with pytest.raises(AuthorizationError):

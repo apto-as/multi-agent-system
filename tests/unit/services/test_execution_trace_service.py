@@ -10,16 +10,16 @@ Tests the core functionality of the ExecutionTraceService including:
 Target: 15+ tests, 90%+ coverage
 """
 
-import pytest
 from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
+import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models.execution_trace import ExecutionTrace, DetectedPattern, SkillSuggestion
-from src.services.execution_trace_service import ExecutionTraceService
 from src.core.exceptions import NotFoundError
+from src.models.execution_trace import ExecutionTrace
+from src.services.execution_trace_service import ExecutionTraceService
 
 
 @pytest.fixture
@@ -65,7 +65,7 @@ class TestRecordExecution:
         # Arrange
         mock_trace = MagicMock(spec=ExecutionTrace)
         mock_trace.id = str(uuid4())
-        mock_session.refresh = AsyncMock(side_effect=lambda x: setattr(x, 'id', str(uuid4())))
+        mock_session.refresh = AsyncMock(side_effect=lambda x: setattr(x, "id", str(uuid4())))
 
         # Act
         result = await trace_service.record_execution(**sample_trace_data)
@@ -90,7 +90,7 @@ class TestRecordExecution:
         }
 
         # Act
-        result = await trace_service.record_execution(**error_data)
+        await trace_service.record_execution(**error_data)
 
         # Assert
         mock_session.add.assert_called_once()
@@ -323,10 +323,7 @@ class TestGetOrchestrationSequence:
     async def test_get_sequence_returns_ordered(self, trace_service, mock_session):
         """Test that sequence is returned in order."""
         # Arrange
-        traces = [
-            MagicMock(spec=ExecutionTrace, sequence_number=i)
-            for i in range(5)
-        ]
+        traces = [MagicMock(spec=ExecutionTrace, sequence_number=i) for i in range(5)]
         mock_result = MagicMock()
         mock_result.scalars.return_value.all.return_value = traces
         mock_session.execute.return_value = mock_result

@@ -12,25 +12,23 @@ Test Coverage:
 - Performance (<550ms P95 total verification time)
 - Integration with existing verification flow (zero regression)
 """
+
 import asyncio
-from datetime import datetime
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.database import Base
-from src.core.exceptions import ValidationError, NotFoundError, DatabaseError
-from src.models.agent import Agent, AccessLevel
+from src.models.agent import AccessLevel, Agent
 from src.models.learning_pattern import LearningPattern
 from src.models.verification import VerificationRecord
-from src.services.verification_service import VerificationService, ClaimType
-
+from src.services.verification_service import ClaimType, VerificationService
 
 # =============================================================================
 # Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 async def verification_service(db_session: AsyncSession) -> VerificationService:
@@ -47,7 +45,7 @@ async def test_agent(db_session: AsyncSession) -> Agent:
         namespace="test-namespace",
         trust_score=0.5,
         total_verifications=0,
-        accurate_verifications=0
+        accurate_verifications=0,
     )
     db_session.add(agent)
     await db_session.commit()
@@ -64,7 +62,7 @@ async def verifier_agent(db_session: AsyncSession) -> Agent:
         namespace="verifier-namespace",
         trust_score=0.8,
         total_verifications=10,
-        accurate_verifications=9
+        accurate_verifications=9,
     )
     db_session.add(agent)
     await db_session.commit()
@@ -81,7 +79,7 @@ async def other_agent(db_session: AsyncSession) -> Agent:
         namespace="other-namespace",
         trust_score=0.7,
         total_verifications=5,
-        accurate_verifications=4
+        accurate_verifications=4,
     )
     db_session.add(agent)
     await db_session.commit()
@@ -97,10 +95,14 @@ async def public_pattern(db_session: AsyncSession, other_agent: Agent) -> Learni
         namespace=other_agent.namespace,
         pattern_name="Public optimization pattern",
         category="optimization",
-        pattern_data={"strategy": "optimization", "context": "testing", "description": "Public pattern for testing"},
+        pattern_data={
+            "strategy": "optimization",
+            "context": "testing",
+            "description": "Public pattern for testing",
+        },
         access_level=AccessLevel.PUBLIC.value,
         usage_count=12,
-        success_rate=0.833  # 10 successes / 12 total = 83.3%
+        success_rate=0.833,  # 10 successes / 12 total = 83.3%
     )
     db_session.add(pattern)
     await db_session.commit()
@@ -116,10 +118,14 @@ async def system_pattern(db_session: AsyncSession, other_agent: Agent) -> Learni
         namespace=other_agent.namespace,
         pattern_name="System best practice",
         category="best_practice",
-        pattern_data={"best_practice": "always_verify", "context": "system", "description": "System-wide best practice"},
+        pattern_data={
+            "best_practice": "always_verify",
+            "context": "system",
+            "description": "System-wide best practice",
+        },
         access_level=AccessLevel.SYSTEM.value,
         usage_count=100,
-        success_rate=1.0  # 100% success rate
+        success_rate=1.0,  # 100% success rate
     )
     db_session.add(pattern)
     await db_session.commit()
@@ -135,10 +141,14 @@ async def private_pattern(db_session: AsyncSession, other_agent: Agent) -> Learn
         namespace=other_agent.namespace,
         pattern_name="Private optimization",
         category="optimization",
-        pattern_data={"strategy": "private", "context": "testing", "description": "Private pattern for testing"},
+        pattern_data={
+            "strategy": "private",
+            "context": "testing",
+            "description": "Private pattern for testing",
+        },
         access_level=AccessLevel.PRIVATE.value,
         usage_count=6,
-        success_rate=0.833  # 5 successes / 6 total
+        success_rate=0.833,  # 5 successes / 6 total
     )
     db_session.add(pattern)
     await db_session.commit()
@@ -150,12 +160,13 @@ async def private_pattern(db_session: AsyncSession, other_agent: Agent) -> Learn
 # Pattern Linkage Detection Tests
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_verification_without_pattern_linkage(
     verification_service: VerificationService,
     test_agent: Agent,
     verifier_agent: Agent,
-    db_session: AsyncSession
+    db_session: AsyncSession,
 ):
     """Test verification without pattern_id (normal verification flow)"""
     # Get initial trust score
@@ -165,12 +176,9 @@ async def test_verification_without_pattern_linkage(
     result = await verification_service.verify_claim(
         agent_id=test_agent.agent_id,
         claim_type=ClaimType.TEST_RESULT,
-        claim_content={
-            "return_code": 0,
-            "output_contains": "test"
-        },
+        claim_content={"return_code": 0, "output_contains": "test"},
         verification_command="echo test",
-        verified_by_agent_id=verifier_agent.agent_id
+        verified_by_agent_id=verifier_agent.agent_id,
     )
 
     # Verification should succeed
@@ -192,16 +200,13 @@ async def test_verification_with_pattern_linkage_public(
     test_agent: Agent,
     verifier_agent: Agent,
     public_pattern: LearningPattern,
-    db_session: AsyncSession
+    db_session: AsyncSession,
 ):
     """Test verification with pattern_id linking to public pattern"""
     # Get initial state
-    result = await db_session.execute(
-        select(Agent).where(Agent.agent_id == test_agent.agent_id)
-    )
+    result = await db_session.execute(select(Agent).where(Agent.agent_id == test_agent.agent_id))
     agent_before = result.scalar_one()
     initial_trust = agent_before.trust_score
-    initial_usage = public_pattern.usage_count
 
     # Verify a claim with pattern linkage
     result = await verification_service.verify_claim(
@@ -210,10 +215,10 @@ async def test_verification_with_pattern_linkage_public(
         claim_content={
             "return_code": 0,
             "output_contains": "test",
-            "pattern_id": str(public_pattern.id)  # Link to public pattern
+            "pattern_id": str(public_pattern.id),  # Link to public pattern
         },
         verification_command="echo test",
-        verified_by_agent_id=verifier_agent.agent_id
+        verified_by_agent_id=verifier_agent.agent_id,
     )
 
     # Verification should succeed
@@ -239,13 +244,11 @@ async def test_verification_with_pattern_linkage_system(
     test_agent: Agent,
     verifier_agent: Agent,
     system_pattern: LearningPattern,
-    db_session: AsyncSession
+    db_session: AsyncSession,
 ):
     """Test verification with pattern_id linking to system pattern"""
     # Get initial state
-    result = await db_session.execute(
-        select(Agent).where(Agent.agent_id == test_agent.agent_id)
-    )
+    result = await db_session.execute(select(Agent).where(Agent.agent_id == test_agent.agent_id))
     agent_before = result.scalar_one()
     initial_trust = agent_before.trust_score
 
@@ -253,12 +256,9 @@ async def test_verification_with_pattern_linkage_system(
     result = await verification_service.verify_claim(
         agent_id=test_agent.agent_id,
         claim_type=ClaimType.CUSTOM,
-        claim_content={
-            "return_code": 0,
-            "pattern_id": str(system_pattern.id)
-        },
+        claim_content={"return_code": 0, "pattern_id": str(system_pattern.id)},
         verification_command="true",
-        verified_by_agent_id=verifier_agent.agent_id
+        verified_by_agent_id=verifier_agent.agent_id,
     )
 
     # Verification should succeed
@@ -272,9 +272,7 @@ async def test_verification_with_pattern_linkage_system(
 
 @pytest.mark.asyncio
 async def test_verification_with_invalid_pattern_id_format(
-    verification_service: VerificationService,
-    test_agent: Agent,
-    verifier_agent: Agent
+    verification_service: VerificationService, test_agent: Agent, verifier_agent: Agent
 ):
     """Test verification with malformed pattern_id (graceful degradation)"""
     # Verify with invalid UUID format
@@ -283,10 +281,10 @@ async def test_verification_with_invalid_pattern_id_format(
         claim_type=ClaimType.TEST_RESULT,
         claim_content={
             "return_code": 0,
-            "pattern_id": "invalid-uuid-format"  # Malformed UUID
+            "pattern_id": "invalid-uuid-format",  # Malformed UUID
         },
         verification_command="true",
-        verified_by_agent_id=verifier_agent.agent_id
+        verified_by_agent_id=verifier_agent.agent_id,
     )
 
     # Verification should STILL SUCCEED (graceful degradation)
@@ -298,9 +296,7 @@ async def test_verification_with_invalid_pattern_id_format(
 
 @pytest.mark.asyncio
 async def test_verification_with_nonexistent_pattern_id(
-    verification_service: VerificationService,
-    test_agent: Agent,
-    verifier_agent: Agent
+    verification_service: VerificationService, test_agent: Agent, verifier_agent: Agent
 ):
     """Test verification with pattern_id that doesn't exist (graceful degradation)"""
     nonexistent_id = str(uuid4())
@@ -309,12 +305,9 @@ async def test_verification_with_nonexistent_pattern_id(
     result = await verification_service.verify_claim(
         agent_id=test_agent.agent_id,
         claim_type=ClaimType.TEST_RESULT,
-        claim_content={
-            "return_code": 0,
-            "pattern_id": nonexistent_id
-        },
+        claim_content={"return_code": 0, "pattern_id": nonexistent_id},
         verification_command="true",
-        verified_by_agent_id=verifier_agent.agent_id
+        verified_by_agent_id=verifier_agent.agent_id,
     )
 
     # Verification should STILL SUCCEED (graceful degradation)
@@ -326,13 +319,14 @@ async def test_verification_with_nonexistent_pattern_id(
 # Success Propagation Tests
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_accurate_verification_propagates_success(
     verification_service: VerificationService,
     test_agent: Agent,
     verifier_agent: Agent,
     public_pattern: LearningPattern,
-    db_session: AsyncSession
+    db_session: AsyncSession,
 ):
     """Test that accurate verification propagates success to learning pattern"""
     # initial_success = public_pattern.success_count
@@ -342,12 +336,9 @@ async def test_accurate_verification_propagates_success(
     result = await verification_service.verify_claim(
         agent_id=test_agent.agent_id,
         claim_type=ClaimType.TEST_RESULT,
-        claim_content={
-            "return_code": 0,
-            "pattern_id": str(public_pattern.id)
-        },
+        claim_content={"return_code": 0, "pattern_id": str(public_pattern.id)},
         verification_command="true",
-        verified_by_agent_id=verifier_agent.agent_id
+        verified_by_agent_id=verifier_agent.agent_id,
     )
 
     assert result.accurate is True
@@ -364,22 +355,19 @@ async def test_multiple_accurate_verifications_accumulate(
     test_agent: Agent,
     verifier_agent: Agent,
     public_pattern: LearningPattern,
-    db_session: AsyncSession
+    db_session: AsyncSession,
 ):
     """Test multiple accurate verifications accumulate pattern success"""
     # initial_success = public_pattern.success_count
 
     # Perform 3 accurate verifications
-    for i in range(3):
+    for _i in range(3):
         await verification_service.verify_claim(
             agent_id=test_agent.agent_id,
             claim_type=ClaimType.TEST_RESULT,
-            claim_content={
-                "return_code": 0,
-                "pattern_id": str(public_pattern.id)
-            },
+            claim_content={"return_code": 0, "pattern_id": str(public_pattern.id)},
             verification_command="true",
-            verified_by_agent_id=verifier_agent.agent_id
+            verified_by_agent_id=verifier_agent.agent_id,
         )
 
     # Pattern success count should increase by 3
@@ -391,13 +379,14 @@ async def test_multiple_accurate_verifications_accumulate(
 # Failure Propagation Tests
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_inaccurate_verification_propagates_failure(
     verification_service: VerificationService,
     test_agent: Agent,
     verifier_agent: Agent,
     public_pattern: LearningPattern,
-    db_session: AsyncSession
+    db_session: AsyncSession,
 ):
     """Test that inaccurate verification propagates failure to learning pattern"""
     # initial_success = public_pattern.success_count
@@ -409,10 +398,10 @@ async def test_inaccurate_verification_propagates_failure(
         claim_type=ClaimType.TEST_RESULT,
         claim_content={
             "return_code": 0,  # Claim: return_code should be 0
-            "pattern_id": str(public_pattern.id)
+            "pattern_id": str(public_pattern.id),
         },
         verification_command="false",  # Actual: return_code is 1
-        verified_by_agent_id=verifier_agent.agent_id
+        verified_by_agent_id=verifier_agent.agent_id,
     )
 
     assert result.accurate is False  # Verification failed
@@ -429,7 +418,7 @@ async def test_mixed_verifications_update_pattern_correctly(
     test_agent: Agent,
     verifier_agent: Agent,
     public_pattern: LearningPattern,
-    db_session: AsyncSession
+    db_session: AsyncSession,
 ):
     """Test mixed accurate/inaccurate verifications update pattern correctly"""
     # initial_success = public_pattern.success_count
@@ -441,7 +430,7 @@ async def test_mixed_verifications_update_pattern_correctly(
         claim_type=ClaimType.TEST_RESULT,
         claim_content={"return_code": 0, "pattern_id": str(public_pattern.id)},
         verification_command="true",
-        verified_by_agent_id=verifier_agent.agent_id
+        verified_by_agent_id=verifier_agent.agent_id,
     )
 
     await verification_service.verify_claim(
@@ -449,7 +438,7 @@ async def test_mixed_verifications_update_pattern_correctly(
         claim_type=ClaimType.TEST_RESULT,
         claim_content={"return_code": 1, "pattern_id": str(public_pattern.id)},
         verification_command="false",
-        verified_by_agent_id=verifier_agent.agent_id
+        verified_by_agent_id=verifier_agent.agent_id,
     )
 
     await verification_service.verify_claim(
@@ -457,7 +446,7 @@ async def test_mixed_verifications_update_pattern_correctly(
         claim_type=ClaimType.TEST_RESULT,
         claim_content={"return_code": 0, "pattern_id": str(public_pattern.id)},
         verification_command="true",
-        verified_by_agent_id=verifier_agent.agent_id
+        verified_by_agent_id=verifier_agent.agent_id,
     )
 
     # Pattern counts should reflect all verifications
@@ -470,11 +459,10 @@ async def test_mixed_verifications_update_pattern_correctly(
 # Graceful Degradation Tests
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_pattern_propagation_error_doesnt_block_verification(
-    verification_service: VerificationService,
-    test_agent: Agent,
-    verifier_agent: Agent
+    verification_service: VerificationService, test_agent: Agent, verifier_agent: Agent
 ):
     """Test that pattern propagation errors don't block verification success"""
     # Verify with a pattern_id that will cause propagation error
@@ -482,12 +470,9 @@ async def test_pattern_propagation_error_doesnt_block_verification(
     result = await verification_service.verify_claim(
         agent_id=test_agent.agent_id,
         claim_type=ClaimType.TEST_RESULT,
-        claim_content={
-            "return_code": 0,
-            "pattern_id": "this-will-cause-error"
-        },
+        claim_content={"return_code": 0, "pattern_id": "this-will-cause-error"},
         verification_command="true",
-        verified_by_agent_id=verifier_agent.agent_id
+        verified_by_agent_id=verifier_agent.agent_id,
     )
 
     # Verification MUST succeed despite propagation error
@@ -503,13 +488,14 @@ async def test_pattern_propagation_error_doesnt_block_verification(
 # Security Tests (V-VERIFY-4)
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_private_pattern_not_accessible_to_other_agents(
     verification_service: VerificationService,
     test_agent: Agent,
     verifier_agent: Agent,
     private_pattern: LearningPattern,
-    db_session: AsyncSession
+    db_session: AsyncSession,
 ):
     """Test V-VERIFY-4: Private patterns not accessible to other agents"""
     # initial_success = private_pattern.success_count
@@ -519,12 +505,9 @@ async def test_private_pattern_not_accessible_to_other_agents(
     result = await verification_service.verify_claim(
         agent_id=test_agent.agent_id,
         claim_type=ClaimType.TEST_RESULT,
-        claim_content={
-            "return_code": 0,
-            "pattern_id": str(private_pattern.id)
-        },
+        claim_content={"return_code": 0, "pattern_id": str(private_pattern.id)},
         verification_command="true",
-        verified_by_agent_id=verifier_agent.agent_id
+        verified_by_agent_id=verifier_agent.agent_id,
     )
 
     # Verification succeeds (graceful degradation)
@@ -544,7 +527,7 @@ async def test_self_owned_pattern_not_eligible(
     other_agent: Agent,
     verifier_agent: Agent,
     private_pattern: LearningPattern,
-    db_session: AsyncSession
+    db_session: AsyncSession,
 ):
     """Test V-VERIFY-4: Self-owned patterns not eligible (prevents self-boosting)"""
     # initial_success = private_pattern.success_count
@@ -553,12 +536,9 @@ async def test_self_owned_pattern_not_eligible(
     result = await verification_service.verify_claim(
         agent_id=other_agent.agent_id,
         claim_type=ClaimType.TEST_RESULT,
-        claim_content={
-            "return_code": 0,
-            "pattern_id": str(private_pattern.id)
-        },
+        claim_content={"return_code": 0, "pattern_id": str(private_pattern.id)},
         verification_command="true",
-        verified_by_agent_id=verifier_agent.agent_id
+        verified_by_agent_id=verifier_agent.agent_id,
     )
 
     # Verification succeeds (graceful degradation)
@@ -573,12 +553,13 @@ async def test_self_owned_pattern_not_eligible(
 # Performance Tests
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_verification_performance_with_pattern_propagation(
     verification_service: VerificationService,
     test_agent: Agent,
     verifier_agent: Agent,
-    public_pattern: LearningPattern
+    public_pattern: LearningPattern,
 ):
     """Test verification with pattern propagation meets <550ms P95 target"""
     start_time = asyncio.get_event_loop().time()
@@ -587,12 +568,9 @@ async def test_verification_performance_with_pattern_propagation(
     result = await verification_service.verify_claim(
         agent_id=test_agent.agent_id,
         claim_type=ClaimType.TEST_RESULT,
-        claim_content={
-            "return_code": 0,
-            "pattern_id": str(public_pattern.id)
-        },
+        claim_content={"return_code": 0, "pattern_id": str(public_pattern.id)},
         verification_command="echo test",
-        verified_by_agent_id=verifier_agent.agent_id
+        verified_by_agent_id=verifier_agent.agent_id,
     )
 
     elapsed_ms = (asyncio.get_event_loop().time() - start_time) * 1000
@@ -608,7 +586,7 @@ async def test_batch_verifications_with_patterns(
     test_agent: Agent,
     verifier_agent: Agent,
     public_pattern: LearningPattern,
-    db_session: AsyncSession
+    db_session: AsyncSession,
 ):
     """Test batch verifications with pattern propagation (performance stress test)"""
     start_time = asyncio.get_event_loop().time()
@@ -619,12 +597,9 @@ async def test_batch_verifications_with_patterns(
         task = verification_service.verify_claim(
             agent_id=test_agent.agent_id,
             claim_type=ClaimType.TEST_RESULT,
-            claim_content={
-                "return_code": 0,
-                "pattern_id": str(public_pattern.id)
-            },
+            claim_content={"return_code": 0, "pattern_id": str(public_pattern.id)},
             verification_command=f"echo test{i}",
-            verified_by_agent_id=verifier_agent.agent_id
+            verified_by_agent_id=verifier_agent.agent_id,
         )
         tasks.append(task)
 
@@ -647,12 +622,13 @@ async def test_batch_verifications_with_patterns(
 # Integration Tests (Zero Regression)
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_existing_verification_flow_unchanged(
     verification_service: VerificationService,
     test_agent: Agent,
     verifier_agent: Agent,
-    db_session: AsyncSession
+    db_session: AsyncSession,
 ):
     """Test existing verification flow unchanged (zero regression)"""
     # Perform verification without pattern linkage (old behavior)
@@ -661,7 +637,7 @@ async def test_existing_verification_flow_unchanged(
         claim_type=ClaimType.CODE_QUALITY,
         claim_content={"return_code": 0, "output_contains": "PASSED"},
         verification_command="echo PASSED",
-        verified_by_agent_id=verifier_agent.agent_id
+        verified_by_agent_id=verifier_agent.agent_id,
     )
 
     # All existing behavior should work
@@ -685,25 +661,23 @@ async def test_trust_score_update_still_works(
     verification_service: VerificationService,
     test_agent: Agent,
     verifier_agent: Agent,
-    db_session: AsyncSession
+    db_session: AsyncSession,
 ):
     """Test trust score update still works (zero regression)"""
     # Get initial state
-    result = await db_session.execute(
-        select(Agent).where(Agent.agent_id == test_agent.agent_id)
-    )
+    result = await db_session.execute(select(Agent).where(Agent.agent_id == test_agent.agent_id))
     agent_before = result.scalar_one()
     initial_trust = agent_before.trust_score
     initial_verifications = agent_before.total_verifications
     initial_accurate = agent_before.accurate_verifications
 
     # Perform accurate verification
-    verification_result = await verification_service.verify_claim(
+    await verification_service.verify_claim(
         agent_id=test_agent.agent_id,
         claim_type=ClaimType.TEST_RESULT,
         claim_content={"return_code": 0},
         verification_command="true",
-        verified_by_agent_id=verifier_agent.agent_id
+        verified_by_agent_id=verifier_agent.agent_id,
     )
 
     # Refresh agent
@@ -720,19 +694,16 @@ async def test_evidence_memory_creation_still_works(
     verification_service: VerificationService,
     test_agent: Agent,
     verifier_agent: Agent,
-    db_session: AsyncSession
+    db_session: AsyncSession,
 ):
     """Test evidence memory creation still works (zero regression)"""
     # Perform verification
     result = await verification_service.verify_claim(
         agent_id=test_agent.agent_id,
         claim_type=ClaimType.SECURITY_FINDING,
-        claim_content={
-            "return_code": 0,
-            "output_contains": "No vulnerabilities found"
-        },
+        claim_content={"return_code": 0, "output_contains": "No vulnerabilities found"},
         verification_command="echo No vulnerabilities found",
-        verified_by_agent_id=verifier_agent.agent_id
+        verified_by_agent_id=verifier_agent.agent_id,
     )
 
     # Evidence memory should be created
@@ -740,9 +711,8 @@ async def test_evidence_memory_creation_still_works(
 
     # Memory should contain verification details
     from src.models.memory import Memory
-    memory_result = await db_session.execute(
-        select(Memory).where(Memory.id == result.evidence_id)
-    )
+
+    memory_result = await db_session.execute(select(Memory).where(Memory.id == result.evidence_id))
     memory = memory_result.scalar_one()
     assert memory is not None
     assert "verification" in memory.tags

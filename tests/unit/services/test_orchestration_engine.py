@@ -324,9 +324,7 @@ class TestOrchestrationEngine:
         assert updated_task.current_phase == ExecutionPhase.FAILED
         assert updated_task.status == "failed"
         # Check rejection status
-        phase_result = updated_task.phase_results.get(
-            ExecutionPhase.STRATEGIC_PLANNING.value
-        )
+        phase_result = updated_task.phase_results.get(ExecutionPhase.STRATEGIC_PLANNING.value)
         assert phase_result.approval_status == ApprovalStatus.REJECTED
 
     @pytest.mark.asyncio
@@ -375,9 +373,7 @@ class TestOrchestrationEngine:
             task.id,
             outputs={"strategy_document": "Strategy", "resource_plan": {}},
         )
-        task = await engine.approve_phase(
-            task.id, "hera-strategist", True, "Approved"
-        )
+        task = await engine.approve_phase(task.id, "hera-strategist", True, "Approved")
         assert task.current_phase == ExecutionPhase.IMPLEMENTATION
 
         # Phase 2: Implementation
@@ -385,9 +381,7 @@ class TestOrchestrationEngine:
             task.id,
             outputs={"code_changes": ["file1.py"], "test_results": {"passed": 10}},
         )
-        task = await engine.approve_phase(
-            task.id, "artemis-optimizer", True, "Tests pass"
-        )
+        task = await engine.approve_phase(task.id, "artemis-optimizer", True, "Tests pass")
         assert task.current_phase == ExecutionPhase.VERIFICATION
 
         # Phase 3: Verification
@@ -398,9 +392,7 @@ class TestOrchestrationEngine:
                 "performance_results": {"p95": "50ms"},
             },
         )
-        task = await engine.approve_phase(
-            task.id, "hestia-auditor", True, "Security approved"
-        )
+        task = await engine.approve_phase(task.id, "hestia-auditor", True, "Security approved")
         assert task.current_phase == ExecutionPhase.DOCUMENTATION
 
         # Phase 4: Documentation
@@ -408,9 +400,7 @@ class TestOrchestrationEngine:
             task.id,
             outputs={"documentation": "API docs", "changelog": "v1.0.0"},
         )
-        task = await engine.approve_phase(
-            task.id, "muses-documenter", True, "Docs complete"
-        )
+        task = await engine.approve_phase(task.id, "muses-documenter", True, "Docs complete")
         assert task.current_phase == ExecutionPhase.COMPLETED
         assert task.status == "completed"
 
@@ -445,12 +435,8 @@ class TestOrchestrationEngine:
     @pytest.mark.asyncio
     async def test_list_orchestrations(self, engine):
         """Test listing orchestrations."""
-        await engine.create_orchestration(
-            title="Task 1", content="Content 1", created_by="agent1"
-        )
-        await engine.create_orchestration(
-            title="Task 2", content="Content 2", created_by="agent2"
-        )
+        await engine.create_orchestration(title="Task 1", content="Content 1", created_by="agent1")
+        await engine.create_orchestration(title="Task 2", content="Content 2", created_by="agent2")
 
         orchestrations = engine.list_orchestrations()
         assert len(orchestrations) == 2
@@ -461,9 +447,7 @@ class TestOrchestrationEngine:
         task1 = await engine.create_orchestration(
             title="Task 1", content="Content 1", created_by="agent1"
         )
-        await engine.create_orchestration(
-            title="Task 2", content="Content 2", created_by="agent2"
-        )
+        await engine.create_orchestration(title="Task 2", content="Content 2", created_by="agent2")
         await engine.start_orchestration(task1.id)
 
         in_progress = engine.list_orchestrations(status="in_progress")
@@ -516,15 +500,9 @@ class TestOrchestrationEngine:
         assert engine._get_next_phase(ExecutionPhase.IMPLEMENTATION) == (
             ExecutionPhase.VERIFICATION
         )
-        assert engine._get_next_phase(ExecutionPhase.VERIFICATION) == (
-            ExecutionPhase.DOCUMENTATION
-        )
-        assert engine._get_next_phase(ExecutionPhase.DOCUMENTATION) == (
-            ExecutionPhase.COMPLETED
-        )
-        assert engine._get_next_phase(ExecutionPhase.COMPLETED) == (
-            ExecutionPhase.COMPLETED
-        )
+        assert engine._get_next_phase(ExecutionPhase.VERIFICATION) == (ExecutionPhase.DOCUMENTATION)
+        assert engine._get_next_phase(ExecutionPhase.DOCUMENTATION) == (ExecutionPhase.COMPLETED)
+        assert engine._get_next_phase(ExecutionPhase.COMPLETED) == (ExecutionPhase.COMPLETED)
 
 
 class TestOrchestrationEngineIntegration:

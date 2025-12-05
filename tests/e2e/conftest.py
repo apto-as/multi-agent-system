@@ -13,8 +13,8 @@ Author: Artemis (Technical Perfectionist)
 Created: 2025-11-12 (Phase 1-3-E: E2E Tests)
 """
 
+from collections.abc import AsyncGenerator
 from datetime import datetime, timedelta, timezone
-from typing import AsyncGenerator
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
@@ -31,7 +31,6 @@ from src.infrastructure.adapters.mcp_client_adapter import MCPClientAdapter
 from src.models.agent import Agent, AgentStatus
 from src.models.base import Base
 from src.security.jwt_service import jwt_service
-
 
 # ============================================================================
 # Database Fixtures (Real SQLite :memory: with StaticPool)

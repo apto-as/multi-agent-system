@@ -10,15 +10,16 @@ Comprehensive end-to-end tests combining multiple security features:
 """
 
 import asyncio
-import pytest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
+import pytest
+
 from src.core.exceptions import ValidationError
 from src.models.memory import AccessLevel, Memory
-from src.services.memory_service import HybridMemoryService
 from src.services.expiration_scheduler import ExpirationScheduler
+from src.services.memory_service import HybridMemoryService
 
 
 @pytest.fixture
@@ -132,9 +133,7 @@ class TestExpirationCleanupWithAccessControl:
     """Test memory expiration cleanup respects access control."""
 
     @pytest.mark.asyncio
-    async def test_cleanup_respects_namespace_isolation(
-        self, memory_service, mock_session
-    ):
+    async def test_cleanup_respects_namespace_isolation(self, memory_service, mock_session):
         """Test that cleanup only deletes memories within the correct namespace."""
         # Arrange
         namespace1_expired = create_test_memory(
@@ -165,7 +164,7 @@ class TestExpirationCleanupWithAccessControl:
     async def test_system_memories_never_cleaned_up(self, memory_service, mock_session):
         """Test that SYSTEM memories (TTL=None) are never included in cleanup."""
         # Arrange
-        system_memory = create_test_memory(
+        create_test_memory(
             access_level=AccessLevel.SYSTEM,
             expires_at=None,  # SYSTEM memories never expire
         )
@@ -207,8 +206,9 @@ class TestRateLimitingWithAuditLogging:
         mock_session.execute.return_value = mock_result
 
         # Act - Access within rate limit window
-        with patch("src.services.memory_service.datetime") as mock_dt, caplog.at_level(
-            logging.INFO
+        with (
+            patch("src.services.memory_service.datetime") as mock_dt,
+            caplog.at_level(logging.INFO),
         ):
             mock_dt.now.return_value = base_time
             mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
@@ -337,7 +337,7 @@ class TestSchedulerWithSecurityPolicies:
             access_level=AccessLevel.TEAM,
             expires_at=datetime.now(timezone.utc) - timedelta(hours=1),
         )
-        system_permanent = create_test_memory(
+        create_test_memory(
             access_level=AccessLevel.SYSTEM,
             expires_at=None,  # Never expires
         )
@@ -370,9 +370,7 @@ class TestSchedulerWithSecurityPolicies:
         assert mock_session.delete.call_count == 2
 
         # Verify individual deletion logs
-        deletion_logs = [
-            r for r in caplog.records if "memory_expired_deleted" in r.getMessage()
-        ]
+        deletion_logs = [r for r in caplog.records if "memory_expired_deleted" in r.getMessage()]
         assert len(deletion_logs) == 2
 
         # Verify SYSTEM memory was not deleted
@@ -434,9 +432,7 @@ class TestCrossFeatureSecurityScenarios:
     """Test security scenarios involving multiple features."""
 
     @pytest.mark.asyncio
-    async def test_namespace_isolation_with_expiration(
-        self, memory_service, mock_session
-    ):
+    async def test_namespace_isolation_with_expiration(self, memory_service, mock_session):
         """Test that namespace isolation is maintained during expiration cleanup."""
         # Arrange
         namespace1_memory = create_test_memory(
@@ -445,7 +441,7 @@ class TestCrossFeatureSecurityScenarios:
             access_level=AccessLevel.TEAM,
             expires_at=datetime.now(timezone.utc) - timedelta(hours=1),
         )
-        namespace2_memory = create_test_memory(
+        create_test_memory(
             namespace="project_b",
             agent_id="agent-b",
             access_level=AccessLevel.TEAM,
@@ -470,9 +466,7 @@ class TestCrossFeatureSecurityScenarios:
         assert expired_memories[0].namespace == "project_a"
 
     @pytest.mark.asyncio
-    async def test_ttl_limits_enforced_across_all_access_levels(
-        self, memory_service, mock_session
-    ):
+    async def test_ttl_limits_enforced_across_all_access_levels(self, memory_service, mock_session):
         """Test that TTL limits are consistently enforced for all access levels."""
         # Mock embedding service
         mock_embedding = [0.1] * 1024

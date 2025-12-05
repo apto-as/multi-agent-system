@@ -335,21 +335,21 @@ class TestSecurityModuleIntegration:
     def test_all_modules_importable(self):
         """Test all security modules can be imported."""
         from src.infrastructure.security import (
+            AuditEventType,
+            CodeValidationError,
+            # S-P0-4: Code Validation
+            CodeValidator,
             # S-P0-1: HMAC Authentication
             HMACAuthenticator,
             HMACAuthError,
             # S-P0-3: Input Validation
             InputValidationError,
             JSONSchemaValidator,
-            # S-P0-4: Code Validation
-            CodeValidator,
-            CodeValidationError,
             # S-P0-6: Response Limits
             ResponseLimiter,
             ResponseLimitError,
             # S-P0-8: Audit Logging
             SecurityAuditLogger,
-            AuditEventType,
         )
 
         # Verify all exports exist

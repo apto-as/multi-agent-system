@@ -267,7 +267,9 @@ class WorkflowHistoryService:
         return list(result.scalars().all())
 
     async def get_execution_details(
-        self, execution_id: UUID, include_logs: bool = False,
+        self,
+        execution_id: UUID,
+        include_logs: bool = False,
     ) -> dict[str, Any]:
         """Get detailed information about a workflow execution."""
 
@@ -339,7 +341,9 @@ class WorkflowHistoryService:
         return details
 
     async def get_execution_statistics(
-        self, workflow_id: UUID | None = None, days: int = 30,
+        self,
+        workflow_id: UUID | None = None,
+        days: int = 30,
     ) -> dict[str, Any]:
         """Get execution statistics for workflows."""
 

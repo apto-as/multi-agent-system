@@ -13,19 +13,16 @@ Total: 30 security tests
 Target: Zero CRITICAL (CVSS ≥9.0), <3 HIGH (CVSS 7.0-8.9)
 """
 
-import asyncio
-import pytest
-from uuid import uuid4, UUID
-from datetime import datetime, timezone
+from uuid import uuid4
 
+import pytest
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models.skill import Skill, SkillVersion, AccessLevel
-from src.models.memory import Memory
 from src.models.agent import Agent
+from src.models.memory import Memory
+from src.models.skill import AccessLevel, Skill, SkillVersion
 from src.services.skill_service_poc import SkillServicePOC
-
 
 # =============================================================================
 # S-1: NAMESPACE ISOLATION (5 tests, P0-P1 priority)
@@ -118,7 +115,7 @@ async def test_s1_2_namespace_filter_sql_injection(db_session: AsyncSession):
     # Test: SQL injection attempt in namespace parameter
     service = SkillServicePOC(db_session)
 
-    malicious_namespace = "\" OR 1=1 --"
+    malicious_namespace = '" OR 1=1 --'
 
     # Should return empty list (no skills in malicious namespace)
     results = await service.list_skills_metadata(
@@ -194,8 +191,9 @@ async def test_s1_3_namespace_boundary_validation(db_session: AsyncSession):
 
     # Verify all results belong to namespace-A
     for result in results_a:
-        assert result["namespace"] == namespace_a, \
+        assert result["namespace"] == namespace_a, (
             f"LEAK: Skill {result['id']} from namespace {result['namespace']} leaked!"
+        )
 
     # Verify namespace-B also isolated
     results_b = await service.list_skills_metadata(
@@ -309,8 +307,7 @@ async def test_s1_5_metadata_namespace_exposure(db_session: AsyncSession):
         result_str = str(result)
         for ns in namespaces:
             if ns != target_namespace:
-                assert ns not in result_str, \
-                    f"Namespace leak: {ns} found in response"
+                assert ns not in result_str, f"Namespace leak: {ns} found in response"
 
 
 # =============================================================================
@@ -634,13 +631,10 @@ async def test_s3_2_sql_injection_skill_name(db_session: AsyncSession):
     )
 
     # Validation 1: Skill created with literal name (injection failed)
-    assert result["name"] == malicious_name, \
-        "Skill name should be stored literally"
+    assert result["name"] == malicious_name, "Skill name should be stored literally"
 
     # Validation 2: Database tables still exist
-    skills_count = await db_session.scalar(
-        select(text("COUNT(*)")).select_from(Skill)
-    )
+    skills_count = await db_session.scalar(select(text("COUNT(*)")).select_from(Skill))
     assert skills_count > 0, "CRITICAL: Skills table dropped!"
 
     # Validation 3: Can retrieve the skill
@@ -684,7 +678,7 @@ async def test_s3_3_path_traversal_namespace(db_session: AsyncSession):
     # POC implementation: Memory query uses namespace filter, so path traversal
     # results in "Memory not found" error (security by obscurity)
     with pytest.raises(ValueError, match="not found"):
-        result = await service.create_skill_from_memory(
+        await service.create_skill_from_memory(
             memory_id=memory.id,
             agent_id=agent_id,
             namespace=malicious_namespace,  # Path traversal attempt
@@ -743,13 +737,12 @@ async def test_s3_10_prompt_injection_core_instructions(db_session: AsyncSession
     )
 
     assert retrieved is not None
-    assert malicious_content in retrieved["core_instructions"], \
+    assert malicious_content in retrieved["core_instructions"], (
         "Core instructions should contain full malicious content as text"
+    )
 
     # Validation 3: Database still operational (no command execution)
-    db_test = await db_session.scalar(
-        select(text("1"))
-    )
+    db_test = await db_session.scalar(select(text("1")))
     assert db_test == 1, "Database connection failed - possible command execution!"
 
 
@@ -786,7 +779,7 @@ async def test_s3_4_large_persona_field_buffer_overflow(db_session: AsyncSession
 
     # Phase 5B: Input size validation now raises ValidationError
     with pytest.raises(ValidationError) as exc_info:
-        result = await service.create_skill_from_memory(
+        await service.create_skill_from_memory(
             memory_id=memory.id,
             agent_id=agent_id,
             namespace=namespace,
@@ -846,8 +839,9 @@ async def test_s3_5_null_byte_injection(db_session: AsyncSession):
     # Validation 2: Null byte sanitization (Phase 5B: S-3-M2)
     stored_name = result["name"]
     expected_sanitized = "legitimate-namemalicious-suffix"  # Null byte removed
-    assert stored_name == expected_sanitized, \
+    assert stored_name == expected_sanitized, (
         f"Phase 5B COMPLETE: Null byte sanitized correctly: {repr(stored_name)}"
+    )
 
     # Validation 3: Database remains stable
     db_test = await db_session.scalar(select(text("1")))
@@ -883,7 +877,7 @@ async def test_s3_7_integer_overflow_active_version(db_session: AsyncSession):
     await db_session.commit()
 
     # Test: Attempt to set active_version to INT_MAX+1
-    service = SkillServicePOC(db_session)
+    SkillServicePOC(db_session)
 
     overflow_version = 2147483648  # 2^31 (INT_MAX+1)
 
@@ -895,15 +889,16 @@ async def test_s3_7_integer_overflow_active_version(db_session: AsyncSession):
         # If commit succeeds, verify value
         db_session.expire(skill)
         reloaded = await db_session.get(Skill, skill_id)
-        assert reloaded.active_version != overflow_version, \
-            "Integer overflow not prevented!"
+        assert reloaded.active_version != overflow_version, "Integer overflow not prevented!"
 
     except Exception as e:
         # Expected: Database constraint or validation error
         await db_session.rollback()
-        assert "overflow" in str(e).lower() or "constraint" in str(e).lower() or \
-               "range" in str(e).lower(), \
-            f"Unexpected error type: {e}"
+        assert (
+            "overflow" in str(e).lower()
+            or "constraint" in str(e).lower()
+            or "range" in str(e).lower()
+        ), f"Unexpected error type: {e}"
 
 
 @pytest.mark.asyncio
@@ -952,10 +947,12 @@ async def test_s3_9_memory_content_script_injection(db_session: AsyncSession):
     )
 
     assert retrieved is not None
-    assert malicious_content in retrieved["core_instructions"], \
+    assert malicious_content in retrieved["core_instructions"], (
         "Script should be stored as literal text"
-    assert "<script>" in retrieved["core_instructions"], \
+    )
+    assert "<script>" in retrieved["core_instructions"], (
         "Script tags should not be stripped (preserve original content)"
+    )
 
 
 # =============================================================================
@@ -1026,7 +1023,7 @@ async def test_s4_1_sensitive_prompt_content_leakage(db_session: AsyncSession):
     # Create skill from sensitive memory
     service = SkillServicePOC(db_session)
 
-    skill = await service.create_skill_from_memory(
+    await service.create_skill_from_memory(
         memory_id=memory.id,
         agent_id=agent_id,
         namespace=namespace,
@@ -1044,20 +1041,17 @@ async def test_s4_1_sensitive_prompt_content_leakage(db_session: AsyncSession):
     metadata = metadata_list[0]
 
     # Validation: Sensitive fields excluded from metadata
-    assert "core_instructions" not in metadata, \
-        "LEAK: core_instructions exposed in metadata!"
-    assert "content" not in metadata, \
-        "LEAK: content exposed in metadata!"
-    assert "12345678" not in str(metadata), \
-        "LEAK: Sensitive data found in metadata!"
+    assert "core_instructions" not in metadata, "LEAK: core_instructions exposed in metadata!"
+    assert "content" not in metadata, "LEAK: content exposed in metadata!"
+    assert "12345678" not in str(metadata), "LEAK: Sensitive data found in metadata!"
 
     # Validation: Only non-sensitive fields present
     # POC implementation: metadata includes created_by but not access_level/active_version
-    safe_fields = {"id", "name", "namespace", "persona", "created_by",
-                   "created_at", "updated_at"}
+    safe_fields = {"id", "name", "namespace", "persona", "created_by", "created_at", "updated_at"}
     metadata_fields = set(metadata.keys())
-    assert metadata_fields.issubset(safe_fields), \
+    assert metadata_fields.issubset(safe_fields), (
         f"Unexpected fields in metadata: {metadata_fields - safe_fields}"
+    )
 
 
 @pytest.mark.asyncio
@@ -1111,13 +1105,15 @@ async def test_s4_4_content_hash_integrity(db_session: AsyncSession):
     await db_session.refresh(skill_version)
 
     # Validation 1: Hash unchanged (original hash still stored)
-    assert skill_version.content_hash == original_hash, \
+    assert skill_version.content_hash == original_hash, (
         "Hash should not auto-update on content change"
+    )
 
     # Validation 2: Mismatch detectable
     expected_tampered_hash = SkillVersion.compute_content_hash(tampered_content)
-    assert skill_version.content_hash != expected_tampered_hash, \
+    assert skill_version.content_hash != expected_tampered_hash, (
         "Content hash mismatch should be detectable"
+    )
 
     # Note: Detection logic would be in retrieval methods
     # POC doesn't implement hash verification on read (Phase 5B TODO)
@@ -1248,10 +1244,8 @@ async def test_s4_7_large_content_handling_10kb(db_session: AsyncSession):
     core_instructions = retrieved["core_instructions"]
 
     # POC implementation: core_instructions truncated to 500 chars (line 149)
-    assert len(core_instructions) == 500, \
-        f"POC truncates to 500 chars: {len(core_instructions)}"
-    assert "[MARKER_END]" not in core_instructions, \
-        "Marker beyond 500 chars (expected truncation)"
+    assert len(core_instructions) == 500, f"POC truncates to 500 chars: {len(core_instructions)}"
+    assert "[MARKER_END]" not in core_instructions, "Marker beyond 500 chars (expected truncation)"
 
     # Validation: System stable after large content
     db_test = await db_session.scalar(select(text("1")))
@@ -1293,7 +1287,7 @@ async def test_s4_10_rate_limiting_dos_prevention(db_session: AsyncSession):
 
     for i in range(100):
         try:
-            skill = await service.create_skill_from_memory(
+            await service.create_skill_from_memory(
                 memory_id=memory.id,
                 agent_id=agent_id,
                 namespace=namespace,
@@ -1314,8 +1308,9 @@ async def test_s4_10_rate_limiting_dos_prevention(db_session: AsyncSession):
     assert db_test == 1, "Database connection lost - system unstable!"
 
     # Validation 2: Most requests succeeded OR rate limiter activated
-    assert success_count > 50 or rate_limited_count > 0, \
+    assert success_count > 50 or rate_limited_count > 0, (
         f"Only {success_count} succeeded, {rate_limited_count} rate limited - unexpected!"
+    )
 
     # Validation 3: Can still create skill after rapid requests
     final_skill = await service.create_skill_from_memory(

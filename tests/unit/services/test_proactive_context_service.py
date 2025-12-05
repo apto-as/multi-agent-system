@@ -12,8 +12,7 @@ Tests cover:
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timedelta, timezone
-from typing import Any
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -21,14 +20,13 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.execution_trace import SkillSuggestion
-from src.models.skill import AccessLevel, Skill
+from src.models.skill import AccessLevel
 from src.services.proactive_context_service import (
     ContextInjectionResult,
     EffectivenessReport,
     ProactiveContextService,
     SuggestedSkill,
 )
-
 
 # =============================================================================
 # Fixtures
@@ -323,8 +321,12 @@ class TestSuggestSkills:
 
         # Mock database queries - use AsyncMock for async methods
         with (
-            patch.object(service, "_search_skills", new_callable=AsyncMock, return_value=search_results),
-            patch.object(service, "_get_recent_skill_ids", new_callable=AsyncMock, return_value=set()),
+            patch.object(
+                service, "_search_skills", new_callable=AsyncMock, return_value=search_results
+            ),
+            patch.object(
+                service, "_get_recent_skill_ids", new_callable=AsyncMock, return_value=set()
+            ),
             patch.object(
                 service,
                 "_get_skill_info",
@@ -360,8 +362,12 @@ class TestSuggestSkills:
         ]
 
         with (
-            patch.object(service, "_search_skills", new_callable=AsyncMock, return_value=search_results),
-            patch.object(service, "_get_recent_skill_ids", new_callable=AsyncMock, return_value=set()),
+            patch.object(
+                service, "_search_skills", new_callable=AsyncMock, return_value=search_results
+            ),
+            patch.object(
+                service, "_get_recent_skill_ids", new_callable=AsyncMock, return_value=set()
+            ),
             patch.object(
                 service,
                 "_get_skill_info",
@@ -384,11 +390,9 @@ class TestSuggestSkills:
         assert len(result) == 3
 
     @pytest.mark.asyncio
-    async def test_suggest_skills_respects_min_relevance(
-        self, service, mock_vector_search_service
-    ):
+    async def test_suggest_skills_respects_min_relevance(self, service, mock_vector_search_service):
         """Test that min_relevance threshold is applied."""
-        skill_id = str(uuid4())
+        str(uuid4())
 
         # Mock _search_skills - it receives min_relevance and returns filtered results
         mock_search = AsyncMock(return_value=[])
@@ -397,7 +401,7 @@ class TestSuggestSkills:
             patch.object(service, "_filter_candidates", new_callable=AsyncMock, return_value=[]),
         ):
             # High min_relevance should filter out low-scoring results
-            result = await service.suggest_skills(
+            await service.suggest_skills(
                 task_context="Test",
                 namespace="test-ns",
                 agent_id="agent-1",
@@ -423,8 +427,12 @@ class TestSuggestSkills:
         ]
 
         with (
-            patch.object(service, "_search_skills", new_callable=AsyncMock, return_value=search_results),
-            patch.object(service, "_get_recent_skill_ids", new_callable=AsyncMock, return_value=set()),
+            patch.object(
+                service, "_search_skills", new_callable=AsyncMock, return_value=search_results
+            ),
+            patch.object(
+                service, "_get_recent_skill_ids", new_callable=AsyncMock, return_value=set()
+            ),
             patch.object(
                 service,
                 "_get_skill_info",
@@ -454,13 +462,15 @@ class TestSuggestSkills:
         """Test that recently suggested skills are excluded."""
         skill_id = str(uuid4())
 
-        search_results = [
-            {"id": "vec-1", "similarity": 0.9, "metadata": {"skill_id": skill_id}}
-        ]
+        search_results = [{"id": "vec-1", "similarity": 0.9, "metadata": {"skill_id": skill_id}}]
 
         with (
-            patch.object(service, "_search_skills", new_callable=AsyncMock, return_value=search_results),
-            patch.object(service, "_get_recent_skill_ids", new_callable=AsyncMock, return_value={skill_id}),
+            patch.object(
+                service, "_search_skills", new_callable=AsyncMock, return_value=search_results
+            ),
+            patch.object(
+                service, "_get_recent_skill_ids", new_callable=AsyncMock, return_value={skill_id}
+            ),
         ):
             result = await service.suggest_skills(
                 task_context="Test",
@@ -715,9 +725,7 @@ class TestGetRecentSuggestions:
     """Tests for get_recent_suggestions method."""
 
     @pytest.mark.asyncio
-    async def test_get_recent_suggestions_success(
-        self, service, mock_session, sample_suggestion
-    ):
+    async def test_get_recent_suggestions_success(self, service, mock_session, sample_suggestion):
         """Test getting recent suggestions for an orchestration."""
         mock_result = MagicMock()
         mock_result.scalars.return_value.all.return_value = [sample_suggestion]
@@ -922,9 +930,7 @@ class TestNamespaceIsolation:
     """Tests for P0-1 namespace isolation."""
 
     @pytest.mark.asyncio
-    async def test_suggest_skills_uses_namespace_filter(
-        self, service, mock_vector_search_service
-    ):
+    async def test_suggest_skills_uses_namespace_filter(self, service, mock_vector_search_service):
         """Test that namespace is used in _search_skills call."""
         # Mock _search_skills to capture the namespace parameter
         mock_search = AsyncMock(return_value=[])

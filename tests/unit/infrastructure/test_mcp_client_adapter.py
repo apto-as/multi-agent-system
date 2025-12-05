@@ -14,15 +14,15 @@ Created: 2025-11-12 (Phase 1-1: Day 1 Afternoon)
 Status: RED (tests will fail until implementation)
 """
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from uuid import uuid4
 
 # Infrastructure imports (to be implemented)
 try:
-    from src.infrastructure.adapters.mcp_client_adapter import MCPClientAdapter
-    from src.domain.value_objects.connection_config import ConnectionConfig
     from src.domain.entities.tool import Tool
+    from src.domain.value_objects.connection_config import ConnectionConfig
+    from src.infrastructure.adapters.mcp_client_adapter import MCPClientAdapter
 except ImportError:
     # Expected in TDD RED phase
     pass
@@ -51,14 +51,11 @@ class TestMCPClientAdapter:
         """
         # Arrange
         config = ConnectionConfig(
-            server_name="test_server",
-            url="http://localhost:8080/mcp",
-            timeout=30,
-            retry_attempts=3
+            server_name="test_server", url="http://localhost:8080/mcp", timeout=30, retry_attempts=3
         )
 
         # Mock HTTP client
-        with patch('httpx.AsyncClient') as mock_client:
+        with patch("httpx.AsyncClient") as mock_client:
             mock_response = AsyncMock()
             mock_response.status_code = 200
             mock_response.json.return_value = {"status": "ok"}
@@ -71,6 +68,7 @@ class TestMCPClientAdapter:
             Assert
             assert result is True
             mock_client.return_value.__aenter__.return_value.get.assert_called_once()
+
     @pytest.mark.asyncio
     async def test_connect_with_authentication(self):
         """
@@ -85,11 +83,11 @@ class TestMCPClientAdapter:
             server_name="auth_server",
             url="http://localhost:8080/mcp",
             auth_required=True,
-            api_key="test_api_key_123"
+            api_key="test_api_key_123",
         )
 
         # Mock HTTP client
-        with patch('httpx.AsyncClient') as mock_client:
+        with patch("httpx.AsyncClient") as mock_client:
             mock_response = AsyncMock()
             mock_response.status_code = 200
             mock_client.return_value.__aenter__.return_value.get.return_value = mock_response
@@ -100,8 +98,9 @@ class TestMCPClientAdapter:
 
             Assert
             call_args = mock_client.return_value.__aenter__.return_value.get.call_args
-            assert 'headers' in call_args.kwargs
-            assert call_args.kwargs['headers']['Authorization'] == 'Bearer test_api_key_123'
+            assert "headers" in call_args.kwargs
+            assert call_args.kwargs["headers"]["Authorization"] == "Bearer test_api_key_123"
+
     @pytest.mark.asyncio
     async def test_discover_tools_returns_tool_list(self):
         """
@@ -113,22 +112,14 @@ class TestMCPClientAdapter:
         And: Tools should have valid metadata
         """
         # Arrange
-        config = ConnectionConfig(
-            server_name="test_server",
-            url="http://localhost:8080/mcp"
-        )
+        config = ConnectionConfig(server_name="test_server", url="http://localhost:8080/mcp")
 
         mock_tools_response = {
             "tools": [
                 {
                     "name": "search_memory",
                     "description": "Search semantic memories",
-                    "inputSchema": {
-                        "type": "object",
-                        "properties": {
-                            "query": {"type": "string"}
-                        }
-                    }
+                    "inputSchema": {"type": "object", "properties": {"query": {"type": "string"}}},
                 },
                 {
                     "name": "create_task",
@@ -137,15 +128,15 @@ class TestMCPClientAdapter:
                         "type": "object",
                         "properties": {
                             "title": {"type": "string"},
-                            "description": {"type": "string"}
-                        }
-                    }
-                }
+                            "description": {"type": "string"},
+                        },
+                    },
+                },
             ]
         }
 
         # Mock HTTP client
-        with patch('httpx.AsyncClient') as mock_client:
+        with patch("httpx.AsyncClient") as mock_client:
             mock_response = AsyncMock()
             mock_response.status_code = 200
             mock_response.json.return_value = mock_tools_response
@@ -162,6 +153,7 @@ class TestMCPClientAdapter:
             assert all(isinstance(t, Tool) for t in tools)
             assert tools[0].name == "search_memory"
             assert tools[1].name == "create_task"
+
     @pytest.mark.asyncio
     async def test_connection_timeout_raises_error(self):
         """
@@ -175,17 +167,18 @@ class TestMCPClientAdapter:
         config = ConnectionConfig(
             server_name="slow_server",
             url="http://localhost:8080/mcp",
-            timeout=1  # 1 second timeout
+            timeout=1,  # 1 second timeout
         )
 
         # Mock timeout
-        with patch('httpx.AsyncClient') as mock_client:
+        with patch("httpx.AsyncClient") as mock_client:
             mock_client.return_value.__aenter__.return_value.get.side_effect = TimeoutError()
 
             # Act & Assert
             adapter = MCPClientAdapter(config)
             with pytest.raises(TimeoutError):
                 await adapter.connect()
+
     @pytest.mark.asyncio
     async def test_connection_retry_on_failure(self):
         """
@@ -198,13 +191,11 @@ class TestMCPClientAdapter:
         """
         # Arrange
         config = ConnectionConfig(
-            server_name="flaky_server",
-            url="http://localhost:8080/mcp",
-            retry_attempts=3
+            server_name="flaky_server", url="http://localhost:8080/mcp", retry_attempts=3
         )
 
         # Mock: Fail twice, succeed on third attempt
-        with patch('httpx.AsyncClient') as mock_client:
+        with patch("httpx.AsyncClient") as mock_client:
             mock_response_fail = AsyncMock()
             mock_response_fail.status_code = 500
 
@@ -215,7 +206,7 @@ class TestMCPClientAdapter:
             mock_client.return_value.__aenter__.return_value.get.side_effect = [
                 mock_response_fail,  # 1st attempt: fail
                 mock_response_fail,  # 2nd attempt: fail
-                mock_response_success  # 3rd attempt: success
+                mock_response_success,  # 3rd attempt: success
             ]
 
             # Act
@@ -225,6 +216,7 @@ class TestMCPClientAdapter:
             Assert
             assert result is True
             assert mock_client.return_value.__aenter__.return_value.get.call_count == 3
+
     @pytest.mark.asyncio
     async def test_disconnect_closes_connection(self):
         """
@@ -235,12 +227,9 @@ class TestMCPClientAdapter:
         Then: Should close HTTP client
         """
         # Arrange
-        config = ConnectionConfig(
-            server_name="test_server",
-            url="http://localhost:8080/mcp"
-        )
+        config = ConnectionConfig(server_name="test_server", url="http://localhost:8080/mcp")
 
-        with patch('httpx.AsyncClient') as mock_client:
+        with patch("httpx.AsyncClient") as mock_client:
             mock_response = AsyncMock()
             mock_response.status_code = 200
             mock_client.return_value.__aenter__.return_value.get.return_value = mock_response
@@ -252,6 +241,7 @@ class TestMCPClientAdapter:
 
             Assert
             mock_client.return_value.__aexit__.assert_called_once()
+
     @pytest.mark.asyncio
     async def test_execute_tool_sends_correct_request(self):
         """
@@ -263,16 +253,13 @@ class TestMCPClientAdapter:
         And: Should return execution result
         """
         # Arrange
-        config = ConnectionConfig(
-            server_name="test_server",
-            url="http://localhost:8080/mcp"
-        )
+        config = ConnectionConfig(server_name="test_server", url="http://localhost:8080/mcp")
 
         tool_name = "search_memory"
         tool_args = {"query": "test query", "limit": 10}
         expected_result = {"results": ["memory1", "memory2"]}
 
-        with patch('httpx.AsyncClient') as mock_client:
+        with patch("httpx.AsyncClient") as mock_client:
             mock_response = AsyncMock()
             mock_response.status_code = 200
             mock_response.json.return_value = expected_result
@@ -287,8 +274,10 @@ class TestMCPClientAdapter:
             assert result == expected_result
             mock_client.return_value.__aenter__.return_value.post.assert_called_once()
             call_kwargs = mock_client.return_value.__aenter__.return_value.post.call_args.kwargs
-            assert call_kwargs['json']['tool'] == tool_name
-            assert call_kwargs['json']['arguments'] == tool_args
+            assert call_kwargs["json"]["tool"] == tool_name
+            assert call_kwargs["json"]["arguments"] == tool_args
+
+
 class TestMCPProtocolCompliance:
     """
     Tests for MCP Protocol Compliance
@@ -312,11 +301,9 @@ class TestMCPProtocolCompliance:
             "description": "Test tool",
             "inputSchema": {
                 "type": "object",
-                "properties": {
-                    "param1": {"type": "string"}
-                },
-                "required": ["param1"]
-            }
+                "properties": {"param1": {"type": "string"}},
+                "required": ["param1"],
+            },
         }
 
         # Act
@@ -326,6 +313,7 @@ class TestMCPProtocolCompliance:
         assert tool.input_schema["type"] == "object"
         assert "properties" in tool.input_schema
         assert "required" in tool.input_schema
+
     @pytest.mark.asyncio
     async def test_error_response_handling(self):
         """
@@ -335,20 +323,17 @@ class TestMCPProtocolCompliance:
         When: Request is made
         Then: Should raise appropriate exception with error details
         """
-        config = ConnectionConfig(
-            server_name="test_server",
-            url="http://localhost:8080/mcp"
-        )
+        config = ConnectionConfig(server_name="test_server", url="http://localhost:8080/mcp")
 
         error_response = {
             "error": {
                 "code": "TOOL_NOT_FOUND",
                 "message": "Tool 'invalid_tool' not found",
-                "details": {"available_tools": ["tool1", "tool2"]}
+                "details": {"available_tools": ["tool1", "tool2"]},
             }
         }
 
-        with patch('httpx.AsyncClient') as mock_client:
+        with patch("httpx.AsyncClient") as mock_client:
             mock_response = AsyncMock()
             mock_response.status_code = 404
             mock_response.json.return_value = error_response

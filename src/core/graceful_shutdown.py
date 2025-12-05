@@ -76,8 +76,7 @@ shutdown_handler = GracefulShutdownHandler()
 
 @asynccontextmanager
 async def lifespan_handler(_app):
-    """FastAPI lifespan context manager for graceful startup and shutdown.
-    """
+    """FastAPI lifespan context manager for graceful startup and shutdown."""
     # Startup
     logger.info("TMWS starting up...")
     await shutdown_handler.setup_signal_handlers()

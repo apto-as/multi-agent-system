@@ -7,13 +7,13 @@ Tests the complete workflow:
 4. Trust score is updated
 5. Future reports require verification if trust is low
 """
+
 import pytest
-from datetime import datetime
 
 from src.models.agent import Agent
-from src.services.verification_service import ClaimType, VerificationService
-from src.services.trust_service import TrustService
 from src.services.memory_service import HybridMemoryService
+from src.services.trust_service import TrustService
+from src.services.verification_service import ClaimType, VerificationService
 
 
 @pytest.mark.asyncio
@@ -29,7 +29,7 @@ class TestAgentTrustWorkflow:
             namespace="trinitas",
             trust_score=0.5,
             total_verifications=0,
-            accurate_verifications=0
+            accurate_verifications=0,
         )
         db_session.add(agent)
         await db_session.commit()
@@ -38,16 +38,14 @@ class TestAgentTrustWorkflow:
         memory_service = HybridMemoryService(db_session)
         trust_service = TrustService(db_session)
         verification_service = VerificationService(
-            db_session,
-            memory_service=memory_service,
-            trust_service=trust_service
+            db_session, memory_service=memory_service, trust_service=trust_service
         )
 
         # Step 1: Artemis claims all tests passed
         claim = {
             "return_code": 0,
             "output_contains": ["PASSED", "100%"],
-            "metrics": {"coverage": 90.0}
+            "metrics": {"coverage": 90.0},
         }
 
         # Step 2: Verify the claim
@@ -55,7 +53,7 @@ class TestAgentTrustWorkflow:
             agent_id="artemis-optimizer",
             claim_type=ClaimType.TEST_RESULT,
             claim_content=claim,
-            verification_command="pytest tests/unit/ -v --cov=src"
+            verification_command="pytest tests/unit/ -v --cov=src",
         )
 
         # Step 3: Check verification result
@@ -71,6 +69,7 @@ class TestAgentTrustWorkflow:
 
         # Step 5: Verify evidence memory exists
         from sqlalchemy import select
+
         from src.models.memory import Memory
 
         evidence_result = await db_session.execute(
@@ -91,7 +90,7 @@ class TestAgentTrustWorkflow:
             namespace="test",
             trust_score=0.8,
             total_verifications=10,
-            accurate_verifications=8
+            accurate_verifications=8,
         )
         db_session.add(agent)
         await db_session.commit()
@@ -105,7 +104,7 @@ class TestAgentTrustWorkflow:
                 agent_id="unreliable-agent",
                 claim_type=ClaimType.TEST_RESULT,
                 claim_content={"return_code": 0},  # Claims success
-                verification_command="exit 1"  # Actually fails
+                verification_command="exit 1",  # Actually fails
             )
 
             assert result.accurate is False
@@ -113,7 +112,6 @@ class TestAgentTrustWorkflow:
 
             await db_session.refresh(agent)
             # Trust score should be decreasing
-            previous_score = agent.trust_score
 
         # After 5 false claims, trust should be low
         await db_session.refresh(agent)
@@ -129,7 +127,7 @@ class TestAgentTrustWorkflow:
             namespace="test",
             trust_score=0.4,  # Below threshold
             total_verifications=10,
-            accurate_verifications=4
+            accurate_verifications=4,
         )
         db_session.add(agent)
         await db_session.commit()
@@ -145,7 +143,7 @@ class TestAgentTrustWorkflow:
                 agent_id="recovering-agent",
                 claim_type=ClaimType.TEST_RESULT,
                 claim_content={"return_code": 0},
-                verification_command="exit 0"  # Success
+                verification_command="exit 0",  # Success
             )
 
             assert result.accurate is True
@@ -162,7 +160,7 @@ class TestAgentTrustWorkflow:
             agent_id="tracked-agent",
             display_name="Tracked Agent",
             namespace="test",
-            trust_score=0.5
+            trust_score=0.5,
         )
         db_session.add(agent)
         await db_session.commit()
@@ -182,7 +180,7 @@ class TestAgentTrustWorkflow:
                 agent_id="tracked-agent",
                 claim_type=claim_type,
                 claim_content=claim_content,
-                verification_command=command
+                verification_command=command,
             )
 
         # Check history
@@ -203,7 +201,7 @@ class TestAgentTrustWorkflow:
             namespace="test",
             trust_score=0.6,
             total_verifications=20,
-            accurate_verifications=15
+            accurate_verifications=15,
         )
         db_session.add(agent)
         await db_session.commit()
@@ -217,7 +215,7 @@ class TestAgentTrustWorkflow:
                 agent_id="stats-agent",
                 claim_type=ClaimType.TEST_RESULT,
                 claim_content={"return_code": 0},
-                verification_command="exit 0" if i < 4 else "exit 1"  # 4 accurate, 1 false
+                verification_command="exit 0" if i < 4 else "exit 1",  # 4 accurate, 1 false
             )
 
         # Get statistics
@@ -226,7 +224,7 @@ class TestAgentTrustWorkflow:
         assert stats["agent_id"] == "stats-agent"
         assert stats["total_verifications"] == 25  # 20 + 5
         assert stats["accurate_verifications"] == 19  # 15 + 4
-        assert stats["accuracy_rate"] == pytest.approx(19/25, abs=0.01)
+        assert stats["accuracy_rate"] == pytest.approx(19 / 25, abs=0.01)
 
         # Check claim type breakdown
         assert ClaimType.TEST_RESULT.value in stats["by_claim_type"]
@@ -241,7 +239,7 @@ class TestAgentTrustWorkflow:
             agent_id="history-agent",
             display_name="History Agent",
             namespace="test",
-            trust_score=0.5
+            trust_score=0.5,
         )
         db_session.add(agent)
         await db_session.commit()
@@ -249,12 +247,9 @@ class TestAgentTrustWorkflow:
         trust_service = TrustService(db_session)
 
         # Make several trust score updates
-        initial_score = 0.5
         for i, accurate in enumerate([True, True, False, True, False]):
-            new_score = await trust_service.update_trust_score(
-                agent_id="history-agent",
-                accurate=accurate,
-                reason=f"test_update_{i}"
+            await trust_service.update_trust_score(
+                agent_id="history-agent", accurate=accurate, reason=f"test_update_{i}"
             )
 
         # Get history
@@ -274,16 +269,10 @@ class TestAgentTrustWorkflow:
         """Test that trust scores are isolated per agent"""
         # Setup: Create two agents
         agent1 = Agent(
-            agent_id="agent-1",
-            display_name="Agent 1",
-            namespace="test",
-            trust_score=0.5
+            agent_id="agent-1", display_name="Agent 1", namespace="test", trust_score=0.5
         )
         agent2 = Agent(
-            agent_id="agent-2",
-            display_name="Agent 2",
-            namespace="test",
-            trust_score=0.5
+            agent_id="agent-2", display_name="Agent 2", namespace="test", trust_score=0.5
         )
         db_session.add_all([agent1, agent2])
         await db_session.commit()
@@ -296,7 +285,7 @@ class TestAgentTrustWorkflow:
             agent_id="agent-1",
             claim_type=ClaimType.TEST_RESULT,
             claim_content={"return_code": 0},
-            verification_command="exit 0"
+            verification_command="exit 0",
         )
 
         # Agent 2 makes false claim
@@ -304,7 +293,7 @@ class TestAgentTrustWorkflow:
             agent_id="agent-2",
             claim_type=ClaimType.TEST_RESULT,
             claim_content={"return_code": 0},
-            verification_command="exit 1"
+            verification_command="exit 1",
         )
 
         # Verify isolation
@@ -326,7 +315,7 @@ class TestAgentTrustWorkflow:
                 agent_id=f"perf-agent-{i}",
                 display_name=f"Performance Agent {i}",
                 namespace="test",
-                trust_score=0.5
+                trust_score=0.5,
             )
             for i in range(10)
         ]
@@ -344,7 +333,7 @@ class TestAgentTrustWorkflow:
                     agent_id=f"perf-agent-{i}",
                     claim_type=ClaimType.TEST_RESULT,
                     claim_content={"return_code": 0},
-                    verification_command="exit 0"
+                    verification_command="exit 0",
                 )
                 results.append(result)
             return results

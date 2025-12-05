@@ -11,16 +11,17 @@ Created: 2025-11-24
 Phase: v2.4.0 Phase 1-4 - Security Test Suite
 """
 
-import pytest
-from uuid import uuid4, UUID
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import uuid4
 
-from src.services.memory_service import HybridMemoryService
-from src.models.memory import Memory, AccessLevel
-from src.models.agent import Agent, AccessLevel as AgentAccessLevel, AgentStatus
+import pytest
+
 from src.core.exceptions import AuthorizationError, ValidationError
-
+from src.models.agent import AccessLevel as AgentAccessLevel
+from src.models.agent import Agent, AgentStatus
+from src.models.memory import AccessLevel, Memory
+from src.services.memory_service import HybridMemoryService
 
 # ============================================================================
 # Test Fixtures
@@ -36,10 +37,9 @@ def mock_ollama_services():
     """
     # Create mock embedding service
     mock_embedding = MagicMock()
-    mock_embedding.get_model_info = MagicMock(return_value={
-        "model_name": "zylonai/multilingual-e5-large",
-        "dimension": 1024
-    })
+    mock_embedding.get_model_info = MagicMock(
+        return_value={"model_name": "zylonai/multilingual-e5-large", "dimension": 1024}
+    )
     mock_embedding.embed = AsyncMock(return_value=[0.0] * 1024)
 
     # Create mock vector service
@@ -49,8 +49,12 @@ def mock_ollama_services():
     mock_vector.search = AsyncMock(return_value=[])
 
     # Patch at import time
-    with patch('src.services.memory_service.get_ollama_embedding_service', return_value=mock_embedding):
-        with patch('src.services.memory_service.get_vector_search_service', return_value=mock_vector):
+    with patch(
+        "src.services.memory_service.get_ollama_embedding_service", return_value=mock_embedding
+    ):
+        with patch(
+            "src.services.memory_service.get_vector_search_service", return_value=mock_vector
+        ):
             yield (mock_embedding, mock_vector)
 
 
@@ -185,7 +189,9 @@ class TestCleanupNamespaceSecurity:
         assert "not authorized" in str(exc_info.value).lower()
         assert test_agent_beta.namespace in str(exc_info.value)
 
-    async def test_cleanup_parameter_validation_days(self, test_session, test_agent_alpha, mock_vector_service):
+    async def test_cleanup_parameter_validation_days(
+        self, test_session, test_agent_alpha, mock_vector_service
+    ):
         """V-PRUNE-2: Test cleanup validates days parameter."""
         service = HybridMemoryService(test_session)
         service.vector_service = mock_vector_service
@@ -212,8 +218,7 @@ class TestCleanupNamespaceSecurity:
         assert "3650" in str(exc_info.value)
 
     async def test_cleanup_parameter_validation_importance(
-        self, test_session, test_agent_alpha,
-        mock_vector_service
+        self, test_session, test_agent_alpha, mock_vector_service
     ):
         """V-PRUNE-2: Test cleanup validates min_importance parameter."""
         service = HybridMemoryService(test_session)
@@ -240,7 +245,9 @@ class TestCleanupNamespaceSecurity:
             )
         assert "between 0.0 and 1.0" in str(exc_info.value)
 
-    async def test_cleanup_dry_run(self, test_session, test_agent_alpha, test_memory_alpha, mock_vector_service):
+    async def test_cleanup_dry_run(
+        self, test_session, test_agent_alpha, test_memory_alpha, mock_vector_service
+    ):
         """Test cleanup dry-run mode does not delete memories."""
         service = HybridMemoryService(test_session)
         service.vector_service = mock_vector_service
@@ -277,8 +284,7 @@ class TestPruneExpiredMemoriesSecurity:
     """Security tests for prune_expired_memories() method."""
 
     async def test_prune_authorization_success(
-        self, test_session, test_agent_alpha, test_expired_memory_alpha,
-        mock_vector_service
+        self, test_session, test_agent_alpha, test_expired_memory_alpha, mock_vector_service
     ):
         """Test prune succeeds when agent namespace matches target."""
         service = HybridMemoryService(test_session)
@@ -303,7 +309,7 @@ class TestPruneExpiredMemoriesSecurity:
         test_agent_alpha,
         test_agent_beta,
         test_expired_memory_alpha,
-        mock_vector_service
+        mock_vector_service,
     ):
         """V-PRUNE-1: Test prune only affects target namespace."""
         service = HybridMemoryService(test_session)
@@ -344,8 +350,7 @@ class TestPruneExpiredMemoriesSecurity:
         assert result["expired_count"] == 1  # Only beta's expired memory
 
     async def test_prune_authorization_cross_namespace(
-        self, test_session, test_agent_alpha, test_agent_beta,
-        mock_vector_service
+        self, test_session, test_agent_alpha, test_agent_beta, mock_vector_service
     ):
         """V-NS-1: Test prune fails when agent tries to access different namespace."""
         service = HybridMemoryService(test_session)
@@ -364,8 +369,7 @@ class TestPruneExpiredMemoriesSecurity:
         assert test_agent_beta.namespace in str(exc_info.value)
 
     async def test_prune_batch_limit(
-        self, test_session, test_agent_alpha, test_expired_memory_alpha,
-        mock_vector_service
+        self, test_session, test_agent_alpha, test_expired_memory_alpha, mock_vector_service
     ):
         """V-PRUNE-3: Test prune enforces batch limit."""
         service = HybridMemoryService(test_session)
@@ -391,8 +395,7 @@ class TestPruneExpiredMemoriesSecurity:
         assert "100,000" in str(exc_info.value)
 
     async def test_prune_dry_run(
-        self, test_session, test_agent_alpha, test_expired_memory_alpha,
-        mock_vector_service
+        self, test_session, test_agent_alpha, test_expired_memory_alpha, mock_vector_service
     ):
         """Test prune dry-run mode does not delete memories."""
         service = HybridMemoryService(test_session)
@@ -420,8 +423,12 @@ class TestPruneExpiredMemoriesSecurity:
         assert memory is not None  # Memory should still exist
 
     async def test_prune_only_expired(
-        self, test_session, test_agent_alpha, test_memory_alpha, test_expired_memory_alpha,
-        mock_vector_service
+        self,
+        test_session,
+        test_agent_alpha,
+        test_memory_alpha,
+        test_expired_memory_alpha,
+        mock_vector_service,
     ):
         """Test prune only deletes expired memories, not active ones."""
         service = HybridMemoryService(test_session)
@@ -465,8 +472,7 @@ class TestSetMemoryTTLSecurity:
     """Security tests for set_memory_ttl() method."""
 
     async def test_ttl_ownership_success(
-        self, test_session, test_agent_alpha, test_memory_alpha,
-        mock_vector_service
+        self, test_session, test_agent_alpha, test_memory_alpha, mock_vector_service
     ):
         """Test TTL update succeeds when agent owns the memory."""
         service = HybridMemoryService(test_session)
@@ -486,8 +492,12 @@ class TestSetMemoryTTLSecurity:
         assert result["expires_at"] is not None
 
     async def test_ttl_ownership_cross_agent(
-        self, test_session, test_agent_alpha, test_agent_beta, test_memory_alpha,
-        mock_vector_service
+        self,
+        test_session,
+        test_agent_alpha,
+        test_agent_beta,
+        test_memory_alpha,
+        mock_vector_service,
     ):
         """P0-1: Test TTL update fails when agent doesn't own the memory."""
         service = HybridMemoryService(test_session)
@@ -506,8 +516,7 @@ class TestSetMemoryTTLSecurity:
         assert str(test_memory_alpha.id) in str(exc_info.value)
 
     async def test_ttl_parameter_validation(
-        self, test_session, test_agent_alpha, test_memory_alpha,
-        mock_vector_service
+        self, test_session, test_agent_alpha, test_memory_alpha, mock_vector_service
     ):
         """Test TTL update validates ttl_days parameter."""
         service = HybridMemoryService(test_session)

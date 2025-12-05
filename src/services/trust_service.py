@@ -3,6 +3,7 @@
 Implements Exponential Weighted Moving Average (EWMA) for trust scores
 with configurable decay factor and minimum observation threshold.
 """
+
 from datetime import datetime
 from typing import Any
 from uuid import UUID
@@ -33,12 +34,7 @@ class TrustScoreCalculator:
     Performance target: <1ms per calculation
     """
 
-    def __init__(
-        self,
-        alpha: float = 0.1,
-        min_observations: int = 5,
-        initial_score: float = 0.5
-    ):
+    def __init__(self, alpha: float = 0.1, min_observations: int = 5, initial_score: float = 0.5):
         """Initialize trust score calculator
 
         Args:
@@ -148,15 +144,15 @@ class TrustService:
                             "agent_id": agent_id,
                             "reason": reason,
                             "user": "None (automated)",
-                            "verification_id": "None (MISSING)"
-                        }
+                            "verification_id": "None (MISSING)",
+                        },
                     )
             else:
                 # Manual update requires SYSTEM privilege
                 await verify_system_privilege(
                     user,
                     operation="update_trust_score",
-                    details={"agent_id": agent_id, "reason": reason}
+                    details={"agent_id": agent_id, "reason": reason},
                 )
 
             # Fetch agent with row-level lock (V-TRUST-2)
@@ -171,7 +167,7 @@ class TrustService:
                 log_and_raise(
                     AgentNotFoundError,
                     f"Agent not found: {agent_id}",
-                    details={"agent_id": agent_id}
+                    details={"agent_id": agent_id},
                 )
 
             # V-TRUST-4: Namespace isolation check
@@ -184,7 +180,7 @@ class TrustService:
                         "agent_id": agent_id,
                         "agent_namespace": agent.namespace,
                         "requesting_namespace": requesting_namespace,
-                    }
+                    },
                 )
 
             # Calculate new score
@@ -204,7 +200,7 @@ class TrustService:
                 new_score=new_score,
                 verification_record_id=verification_id,
                 reason=reason,
-                changed_at=datetime.utcnow()
+                changed_at=datetime.utcnow(),
             )
             self.session.add(history)
 
@@ -219,7 +215,7 @@ class TrustService:
                 DatabaseError,
                 f"Failed to update trust score for agent {agent_id}",
                 original_exception=e,
-                details={"agent_id": agent_id, "accurate": accurate}
+                details={"agent_id": agent_id, "accurate": accurate},
             )
 
     async def get_trust_score(self, agent_id: str) -> dict[str, Any]:
@@ -235,16 +231,14 @@ class TrustService:
             AgentNotFoundError: If agent doesn't exist
         """
         try:
-            result = await self.session.execute(
-                select(Agent).where(Agent.agent_id == agent_id)
-            )
+            result = await self.session.execute(select(Agent).where(Agent.agent_id == agent_id))
             agent = result.scalar_one_or_none()
 
             if not agent:
                 log_and_raise(
                     AgentNotFoundError,
                     f"Agent not found: {agent_id}",
-                    details={"agent_id": agent_id}
+                    details={"agent_id": agent_id},
                 )
 
             return {
@@ -254,7 +248,7 @@ class TrustService:
                 "accurate_verifications": agent.accurate_verifications,
                 "verification_accuracy": agent.verification_accuracy,
                 "requires_verification": agent.requires_verification,
-                "is_reliable": self.calculator.is_reliable(agent.total_verifications)
+                "is_reliable": self.calculator.is_reliable(agent.total_verifications),
             }
 
         except AgentNotFoundError:
@@ -264,14 +258,10 @@ class TrustService:
                 DatabaseError,
                 f"Failed to get trust score for agent {agent_id}",
                 original_exception=e,
-                details={"agent_id": agent_id}
+                details={"agent_id": agent_id},
             )
 
-    async def get_trust_history(
-        self,
-        agent_id: str,
-        limit: int = 100
-    ) -> list[dict[str, Any]]:
+    async def get_trust_history(self, agent_id: str, limit: int = 100) -> list[dict[str, Any]]:
         """Get agent trust score history
 
         Args:
@@ -286,14 +276,12 @@ class TrustService:
         """
         try:
             # Verify agent exists
-            result = await self.session.execute(
-                select(Agent).where(Agent.agent_id == agent_id)
-            )
+            result = await self.session.execute(select(Agent).where(Agent.agent_id == agent_id))
             if not result.scalar_one_or_none():
                 log_and_raise(
                     AgentNotFoundError,
                     f"Agent not found: {agent_id}",
-                    details={"agent_id": agent_id}
+                    details={"agent_id": agent_id},
                 )
 
             # Get history
@@ -311,9 +299,11 @@ class TrustService:
                     "old_score": record.old_score,
                     "new_score": record.new_score,
                     "delta": record.new_score - record.old_score,
-                    "verification_id": str(record.verification_record_id) if record.verification_record_id else None,
+                    "verification_id": str(record.verification_record_id)
+                    if record.verification_record_id
+                    else None,
                     "reason": record.reason,
-                    "changed_at": record.changed_at.isoformat()
+                    "changed_at": record.changed_at.isoformat(),
                 }
                 for record in history
             ]
@@ -325,14 +315,14 @@ class TrustService:
                 DatabaseError,
                 f"Failed to get trust history for agent {agent_id}",
                 original_exception=e,
-                details={"agent_id": agent_id}
+                details={"agent_id": agent_id},
             )
 
     async def batch_update_trust_scores(
         self,
         updates: list[tuple[str, bool, UUID | None]],
         user: Any | None = None,
-        requesting_namespace: str | None = None
+        requesting_namespace: str | None = None,
     ) -> dict[str, float]:
         """Batch update trust scores for multiple agents
 
@@ -365,7 +355,7 @@ class TrustService:
                 accurate=accurate,
                 verification_id=verification_id,
                 user=user,
-                requesting_namespace=requesting_namespace
+                requesting_namespace=requesting_namespace,
             )
             results[agent_id] = new_score
 

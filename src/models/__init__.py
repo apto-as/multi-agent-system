@@ -1,5 +1,4 @@
-"""Database models for TMWS v2.2.0.
-"""
+"""Database models for TMWS v2.2.0."""
 
 # Base classes
 # Core Models
@@ -9,6 +8,9 @@ from .agent import Agent, AgentNamespace, AgentTeam
 from .api_audit_log import APIAuditLog
 from .audit_log import SecurityAuditLog, SecurityEventSeverity, SecurityEventType
 from .base import MetadataMixin, TimestampMixin, TMWSBase, UUIDMixin
+
+# Autonomous Learning System (v2.5.0)
+from .execution_trace import DetectedPattern, ExecutionTrace, SkillSuggestion
 from .learning_pattern import LearningPattern
 from .license_key import LicenseKey, LicenseKeyUsage
 from .memory import Memory, MemoryConsolidation, MemoryPattern, MemorySharing
@@ -30,9 +32,6 @@ from .workflow_history import (
     WorkflowSchedule,
     WorkflowStepExecution,
 )
-
-# Autonomous Learning System (v2.5.0)
-from .execution_trace import DetectedPattern, ExecutionTrace, SkillSuggestion
 
 __all__ = [
     # Base classes

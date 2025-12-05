@@ -115,7 +115,11 @@ class WorkflowService(BaseService):
         return True
 
     async def list_workflows(
-        self, status: str = None, workflow_type: str = None, limit: int = 50, offset: int = 0,
+        self,
+        status: str = None,
+        workflow_type: str = None,
+        limit: int = 50,
+        offset: int = 0,
     ) -> list[Workflow]:
         """List workflows with filters."""
         stmt = select(Workflow)
@@ -169,7 +173,9 @@ class WorkflowService(BaseService):
         return workflow
 
     async def execute_workflow(
-        self, workflow_id: UUID, input_data: dict[str, Any] = None,
+        self,
+        workflow_id: UUID,
+        input_data: dict[str, Any] = None,
     ) -> dict[str, Any]:
         """Execute a workflow synchronously."""
         workflow = await self.get_workflow(workflow_id)
@@ -217,7 +223,9 @@ class WorkflowService(BaseService):
         return execution_context
 
     async def _execute_sequential_steps(
-        self, steps: list[dict[str, Any]], context: dict[str, Any],
+        self,
+        steps: list[dict[str, Any]],
+        context: dict[str, Any],
     ) -> dict[str, Any]:
         """Execute workflow steps sequentially."""
         results = {}
@@ -242,7 +250,9 @@ class WorkflowService(BaseService):
         return results
 
     async def _execute_parallel_steps(
-        self, steps: list[dict[str, Any]], context: dict[str, Any],
+        self,
+        steps: list[dict[str, Any]],
+        context: dict[str, Any],
     ) -> dict[str, Any]:
         """Execute workflow steps in parallel."""
         import asyncio
@@ -270,7 +280,9 @@ class WorkflowService(BaseService):
         return results
 
     async def _execute_conditional_steps(
-        self, steps: list[dict[str, Any]], context: dict[str, Any],
+        self,
+        steps: list[dict[str, Any]],
+        context: dict[str, Any],
     ) -> dict[str, Any]:
         """Execute workflow steps with conditional logic."""
         results = {}
@@ -294,7 +306,10 @@ class WorkflowService(BaseService):
         return results
 
     async def _execute_step_action(
-        self, step: dict[str, Any], context: dict[str, Any], previous_results: dict[str, Any],
+        self,
+        step: dict[str, Any],
+        context: dict[str, Any],
+        previous_results: dict[str, Any],
     ) -> dict[str, Any]:
         """Execute a single step action."""
         action = step.get("action", {})
@@ -319,7 +334,8 @@ class WorkflowService(BaseService):
 
             # Mark task as running
             await task_service.update_task(
-                task.id, {"status": "running", "started_at": datetime.utcnow()},
+                task.id,
+                {"status": "running", "started_at": datetime.utcnow()},
             )
 
             # Simulate task execution (in real implementation, this would be async)
@@ -353,7 +369,10 @@ class WorkflowService(BaseService):
             return {"status": "completed", "message": f"Unknown action type: {action_type}"}
 
     async def _evaluate_condition(
-        self, condition: dict[str, Any], context: dict[str, Any], results: dict[str, Any],
+        self,
+        condition: dict[str, Any],
+        context: dict[str, Any],
+        results: dict[str, Any],
     ) -> bool:
         """Evaluate a condition for conditional execution."""
         # Simple condition evaluation
@@ -392,7 +411,9 @@ class WorkflowService(BaseService):
             return "continue"
 
     async def queue_workflow_execution(
-        self, workflow_id: UUID, _input_data: dict[str, Any] = None,
+        self,
+        workflow_id: UUID,
+        _input_data: dict[str, Any] = None,
     ) -> str:
         """Queue a workflow for asynchronous execution."""
         workflow = await self.get_workflow(workflow_id)
@@ -408,7 +429,9 @@ class WorkflowService(BaseService):
         return execution_id
 
     async def get_workflow_executions(
-        self, _workflow_id: UUID, _limit: int = 10,
+        self,
+        _workflow_id: UUID,
+        _limit: int = 10,
     ) -> list[dict[str, Any]]:
         """Get recent workflow executions."""
         # In a real implementation, this would query an executions table
@@ -431,7 +454,8 @@ class WorkflowService(BaseService):
         """Get workflow statistics."""
         # Count by status
         status_counts_stmt = select(
-            Workflow.status, func.count(Workflow.id).label("count"),
+            Workflow.status,
+            func.count(Workflow.id).label("count"),
         ).group_by(Workflow.status)
 
         status_counts_result = await self.session.execute(status_counts_stmt)
@@ -439,7 +463,8 @@ class WorkflowService(BaseService):
 
         # Count by type
         type_counts_stmt = select(
-            Workflow.workflow_type, func.count(Workflow.id).label("count"),
+            Workflow.workflow_type,
+            func.count(Workflow.id).label("count"),
         ).group_by(Workflow.workflow_type)
 
         type_counts_result = await self.session.execute(type_counts_stmt)

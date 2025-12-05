@@ -25,11 +25,9 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.domain.value_objects.connection_status import ConnectionStatus
 from src.infrastructure.adapters.mcp_client_adapter import MCPConnectionError
 from src.models.agent import Agent
 from src.models.mcp_connection import MCPConnectionModel
-
 
 # ============================================================================
 # E2E Test 1: Multiple Connections Management
@@ -293,7 +291,7 @@ async def test_cross_agent_isolation_e2e(
     )
 
     assert response_b.status_code == 201
-    connection_b_id = response_b.json()["id"]
+    response_b.json()["id"]
 
     # Step 3: Agent A tries to access Agent B's connection
     from src.api.dependencies import User, get_current_user
@@ -387,8 +385,7 @@ async def test_connection_lifecycle_with_errors_e2e(
     from src.infrastructure.exceptions import ToolExecutionError
 
     mock_mcp_adapter.execute_tool.side_effect = ToolExecutionError(
-        tool_name="test_tool",
-        error_message="Temporary network error"
+        tool_name="test_tool", error_message="Temporary network error"
     )
 
     execute_fail = test_client.post(

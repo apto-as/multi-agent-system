@@ -56,10 +56,12 @@ async def test_batch_create_memories_returns_valid_uuids(db_session):
 
         # Verify memories were created in database with valid UUIDs
         result = await db_session.execute(
-            select(Memory).where(
+            select(Memory)
+            .where(
                 Memory.agent_id == "test-agent",
                 Memory.namespace == "test",
-            ).order_by(Memory.created_at),
+            )
+            .order_by(Memory.created_at),
         )
         memories = result.scalars().all()
 
@@ -172,10 +174,12 @@ async def test_batch_create_memories_mixed_success_failure(db_session):
 
         # Verify correct memories were created in database
         result = await db_session.execute(
-            select(Memory).where(
+            select(Memory)
+            .where(
                 Memory.agent_id == "test-agent",
                 Memory.namespace == "test",
-            ).order_by(Memory.created_at),
+            )
+            .order_by(Memory.created_at),
         )
         memories = result.scalars().all()
 

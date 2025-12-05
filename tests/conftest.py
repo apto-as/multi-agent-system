@@ -22,11 +22,10 @@ os.environ["TMWS_SECRET_KEY"] = "test_secret_key_for_testing_only_32_chars"
 os.environ["TMWS_DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 
 # Import after environment setup - environment variables must be set first
-from src.core.config import get_settings  # noqa: E402
-from src.core.database import Base, get_db_session_dependency  # noqa: E402
-
 # Import for dependency override (test authentication bypass)
 from src.api.dependencies import User, get_current_user  # noqa: E402
+from src.core.config import get_settings  # noqa: E402
+from src.core.database import Base, get_db_session_dependency  # noqa: E402
 
 # Import memory service dependency (for mocking)
 try:
@@ -36,16 +35,7 @@ except ImportError:
 
 # Import all models to ensure Base.metadata discovers them
 from src.models.agent import Agent  # noqa: E402
-from src.models.execution_trace import SkillSuggestion  # noqa: E402
-from src.models.learning_pattern import LearningPattern, PatternUsageHistory  # noqa: E402
-from src.models.license_key import LicenseKey, LicenseKeyUsage  # noqa: E402
-from src.models.mcp_connection import MCPConnectionModel  # noqa: E402
-from src.models.memory import Memory  # noqa: E402
-from src.models.skill import Skill, SkillVersion  # noqa: E402
-from src.models.task import Task  # noqa: E402
 from src.models.user import User, UserRole  # noqa: E402
-from src.models.verification import TrustScoreHistory, VerificationRecord  # noqa: E402
-from src.models.workflow import Workflow  # noqa: E402
 
 # Get test settings
 settings = get_settings()

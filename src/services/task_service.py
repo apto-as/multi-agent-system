@@ -205,7 +205,9 @@ class TaskService(BaseService):
         return tasks
 
     async def get_pending_tasks(
-        self, assigned_agent_id: str = None, limit: int = 10,
+        self,
+        assigned_agent_id: str = None,
+        limit: int = 10,
     ) -> list[Task]:
         """Get pending tasks, optionally filtered by agent."""
         conditions = [Task.status == "pending"]
@@ -294,7 +296,9 @@ class TaskService(BaseService):
         }
 
     async def _would_create_circular_dependency(
-        self, task_id: UUID, new_dependencies: list[str],
+        self,
+        task_id: UUID,
+        new_dependencies: list[str],
     ) -> bool:
         """Check if adding dependencies would create a circular dependency."""
         # Build dependency graph

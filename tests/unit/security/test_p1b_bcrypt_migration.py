@@ -8,6 +8,7 @@ Tests:
 """
 
 import pytest
+
 from src.utils.security import (
     detect_hash_format,
     generate_and_hash_api_key_for_agent,

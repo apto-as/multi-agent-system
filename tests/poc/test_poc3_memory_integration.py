@@ -62,9 +62,7 @@ async def benchmark_memory_integration():
         poolclass=StaticPool,  # CRITICAL: Share single connection for :memory:
         connect_args={"check_same_thread": False},  # Allow async access
     )
-    async_session_maker = async_sessionmaker(
-        engine, class_=AsyncSession, expire_on_commit=False
-    )
+    async_session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     # Create all tables
     async with engine.begin() as conn:
@@ -82,7 +80,8 @@ async def benchmark_memory_integration():
             memory_ids.append(memory_id)
 
             # Generate realistic SKILL.md-style content (2-5KB)
-            content = f"""# Skill: test-skill-{i:04d}
+            content = (
+                f"""# Skill: test-skill-{i:04d}
 
 ## Purpose
 This is a test skill created from memory for POC validation.
@@ -146,7 +145,9 @@ result = await skill.execute(context)
 
 ---
 *Generated for POC validation - {datetime.now(timezone.utc).isoformat()}*
-""" + "X" * (1000 + i * 20)  # Variable size: 2KB to 5KB
+"""
+                + "X" * (1000 + i * 20)
+            )  # Variable size: 2KB to 5KB
 
             memories.append(
                 Memory(
@@ -162,7 +163,7 @@ result = await skill.execute(context)
         session.add_all(memories)
         await session.commit()
 
-    print(f"✅ Inserted 100 memories (~2-5KB each, total ~300KB)")
+    print("✅ Inserted 100 memories (~2-5KB each, total ~300KB)")
 
     # =========================================================================
     # Benchmark: 100 Memory → Skill conversions
@@ -178,7 +179,7 @@ result = await skill.execute(context)
             start = time.perf_counter()
 
             # Execute end-to-end Memory → Skill creation
-            result = await service.create_skill_from_memory(
+            await service.create_skill_from_memory(
                 memory_id=memory_id,
                 agent_id="test-agent",
                 namespace="test-namespace",
@@ -210,21 +211,21 @@ result = await skill.execute(context)
     min_latency = min(latencies)
     max_latency = max(latencies)
 
-    print(f"✅ Statistical analysis complete")
+    print("✅ Statistical analysis complete")
 
     # =========================================================================
     # Print Results
     # =========================================================================
     print("\n[5/5] POC 3 Results: Memory Integration Performance")
     print("=" * 80)
-    print(f"  Database:        SQLite in-memory")
-    print(f"  Test Data:       100 memories → 100 skills + 100 versions")
-    print(f"  Query Count:     100 iterations")
-    print(f"  Flow:")
-    print(f"    1. Fetch Memory (SELECT)")
-    print(f"    2. Parse content (~2-5KB)")
-    print(f"    3. Create Skill + SkillVersion (INSERT × 2)")
-    print(f"    4. Commit transaction (fsync)")
+    print("  Database:        SQLite in-memory")
+    print("  Test Data:       100 memories → 100 skills + 100 versions")
+    print("  Query Count:     100 iterations")
+    print("  Flow:")
+    print("    1. Fetch Memory (SELECT)")
+    print("    2. Parse content (~2-5KB)")
+    print("    3. Create Skill + SkillVersion (INSERT × 2)")
+    print("    4. Commit transaction (fsync)")
     print()
     print("Latency Metrics:")
     print(f"  Mean:            {mean:.3f} ms")
@@ -234,7 +235,9 @@ result = await skill.execute(context)
     print()
     print("Percentiles:")
     print(f"  P50 (Median):    {p50:.3f} ms")
-    print(f"  P95:             {p95:.3f} ms  {'✅ PASS' if p95 < 100 else '❌ FAIL'} (target: < 100ms)")
+    print(
+        f"  P95:             {p95:.3f} ms  {'✅ PASS' if p95 < 100 else '❌ FAIL'} (target: < 100ms)"
+    )
     print(f"  P99:             {p99:.3f} ms")
     print()
 
@@ -291,9 +294,7 @@ async def analyze_transaction_overhead():
         poolclass=StaticPool,
         connect_args={"check_same_thread": False},
     )
-    async_session_maker = async_sessionmaker(
-        engine, class_=AsyncSession, expire_on_commit=False
-    )
+    async_session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     # Create tables
     async with engine.begin() as conn:
@@ -321,7 +322,7 @@ async def analyze_transaction_overhead():
             start = time.perf_counter()
             stmt = select(Memory).where(Memory.id == memory_id)
             result = await session.execute(stmt)
-            mem = result.scalar_one()
+            result.scalar_one()
             end = time.perf_counter()
             latencies.append((end - start) * 1000)
 
@@ -411,9 +412,7 @@ async def test_integration_3_1_memory_to_skill_creation_flow():
         poolclass=StaticPool,
         connect_args={"check_same_thread": False},
     )
-    async_session_maker = async_sessionmaker(
-        engine, class_=AsyncSession, expire_on_commit=False
-    )
+    async_session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -457,7 +456,7 @@ async def test_integration_3_1_memory_to_skill_creation_flow():
         print(f"  Skill ID:       {result['skill_id']}")
         print(f"  Version ID:     {result['version_id']}")
         print(f"  Latency:        {latency_ms:.3f} ms")
-        print(f"  Target:         < 3.0ms P95")
+        print("  Target:         < 3.0ms P95")
         print(f"  Status:         {'✅ PASS' if latency_ms < 6.0 else '⚠️  WARN'}")
         print("=" * 80)
 
@@ -486,9 +485,7 @@ async def test_integration_3_2_large_memory_content():
         poolclass=StaticPool,
         connect_args={"check_same_thread": False},
     )
-    async_session_maker = async_sessionmaker(
-        engine, class_=AsyncSession, expire_on_commit=False
-    )
+    async_session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -530,22 +527,25 @@ async def test_integration_3_2_large_memory_content():
 
         # Verify content was stored (fetch SkillVersion)
         from sqlalchemy import select
+
         from src.models.skill import SkillVersion
 
         stmt = select(SkillVersion).where(SkillVersion.id == result["version_id"])
         version_result = await session.execute(stmt)
         skill_version = version_result.scalar_one()
 
-        assert len(skill_version.content) == len(large_content), \
+        assert len(skill_version.content) == len(large_content), (
             f"Content truncated: expected {len(large_content)}, got {len(skill_version.content)}"
-        assert skill_version.core_instructions == large_content[:500], \
+        )
+        assert skill_version.core_instructions == large_content[:500], (
             "core_instructions should be first 500 chars"
+        )
 
         print(f"  Memory Size:    {len(large_content)} bytes (~5KB)")
         print(f"  Content Size:   {len(skill_version.content)} bytes")
         print(f"  Core Instr:     {len(skill_version.core_instructions)} bytes (first 500 chars)")
         print(f"  Latency:        {latency_ms:.3f} ms")
-        print(f"  Target:         < 5.0ms P95")
+        print("  Target:         < 5.0ms P95")
         print(f"  Status:         {'✅ PASS' if latency_ms < 10.0 else '⚠️  WARN'}")
         print("=" * 80)
 
@@ -571,9 +571,7 @@ async def test_integration_3_3_access_control_enforcement():
         poolclass=StaticPool,
         connect_args={"check_same_thread": False},
     )
-    async_session_maker = async_sessionmaker(
-        engine, class_=AsyncSession, expire_on_commit=False
-    )
+    async_session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -627,6 +625,7 @@ async def test_integration_3_3_access_control_enforcement():
 
         # Verify no skill was created
         from sqlalchemy import select
+
         from src.models.skill import Skill
 
         stmt = select(Skill).where(Skill.name == "unauthorized-skill")
@@ -634,12 +633,12 @@ async def test_integration_3_3_access_control_enforcement():
         skills = result.scalars().all()
         assert len(skills) == 0, f"Skill should not have been created, found {len(skills)}"
 
-        print(f"  Memory Owner:   agent-a (namespace-a)")
-        print(f"  Access Attempt: agent-b (namespace-b)")
+        print("  Memory Owner:   agent-a (namespace-a)")
+        print("  Access Attempt: agent-b (namespace-b)")
         print(f"  Result:         {error_type} ✅")
-        print(f"  Skills Created: 0 ✅")
+        print("  Skills Created: 0 ✅")
         print(f"  Latency:        {latency_ms:.3f} ms")
-        print(f"  Status:         ✅ PASS (P0-1 security enforced)")
+        print("  Status:         ✅ PASS (P0-1 security enforced)")
         print("=" * 80)
 
     await engine.dispose()
@@ -663,8 +662,9 @@ async def test_phase2_scenario_2_3_error_propagation_rollback():
     - Error message informative (not exposing sensitive details)
     - Fast rejection <2ms P95
     """
-    from sqlalchemy.pool import StaticPool
     from sqlalchemy import func, select
+    from sqlalchemy.pool import StaticPool
+
     from src.models.skill import Skill, SkillVersion
 
     print("\n" + "=" * 80)
@@ -677,9 +677,7 @@ async def test_phase2_scenario_2_3_error_propagation_rollback():
         poolclass=StaticPool,
         connect_args={"check_same_thread": False},
     )
-    async_session_maker = async_sessionmaker(
-        engine, class_=AsyncSession, expire_on_commit=False
-    )
+    async_session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -699,11 +697,11 @@ async def test_phase2_scenario_2_3_error_propagation_rollback():
         session.add(memory)
         await session.commit()
 
-    print(f"  Setup: Created PRIVATE memory in namespace-a")
+    print("  Setup: Created PRIVATE memory in namespace-a")
     print(f"         Memory ID: {memory_id[:8]}...")
 
     # Test 1: Cross-namespace access attempt (should fail gracefully)
-    print(f"\n  [Test 1] Cross-namespace access attempt...")
+    print("\n  [Test 1] Cross-namespace access attempt...")
 
     # Record counts before attempt
     async with async_session_maker() as session:
@@ -731,7 +729,9 @@ async def test_phase2_scenario_2_3_error_propagation_rollback():
                 persona="test-persona",
             )
             # Should NOT reach here
-            assert False, "Expected PermissionError or ValueError for cross-namespace access"
+            raise AssertionError(
+                "Expected PermissionError or ValueError for cross-namespace access"
+            )
 
         except (PermissionError, ValueError) as e:
             # Expected: Access denied
@@ -751,11 +751,11 @@ async def test_phase2_scenario_2_3_error_propagation_rollback():
     assert access_denied, "Expected PermissionError or ValueError for unauthorized access"
 
     print(f"  Rejection Latency:        {rejection_latency:.3f} ms")
-    print(f"  Target:                   < 2.0ms P95")
+    print("  Target:                   < 2.0ms P95")
     print(f"  Status:                   {'✅ PASS' if rejection_latency < 3.0 else '⚠️  WARN'}")
 
     # Test 2: Verify no partial data created (transaction rollback)
-    print(f"\n  [Test 2] Transaction rollback validation...")
+    print("\n  [Test 2] Transaction rollback validation...")
 
     async with async_session_maker() as session:
         skill_count_after = await session.scalar(select(func.count(Skill.id)))
@@ -764,29 +764,29 @@ async def test_phase2_scenario_2_3_error_propagation_rollback():
     print(f"  After:  Skills={skill_count_after}, Versions={version_count_after}")
 
     # Counts should be unchanged
-    assert skill_count_before == skill_count_after, \
+    assert skill_count_before == skill_count_after, (
         f"Transaction rollback FAILED: Skill count changed from {skill_count_before} to {skill_count_after}"
-    assert version_count_before == version_count_after, \
+    )
+    assert version_count_before == version_count_after, (
         f"Transaction rollback FAILED: Version count changed from {version_count_before} to {version_count_after}"
+    )
 
-    print(f"  Transaction Rollback:     ✅ (no partial data created)")
+    print("  Transaction Rollback:     ✅ (no partial data created)")
 
     # Verify no "stolen-skill" exists in namespace-b
     async with async_session_maker() as session:
-        stmt = select(Skill).where(
-            Skill.name == "stolen-skill",
-            Skill.namespace == "namespace-b"
-        )
+        stmt = select(Skill).where(Skill.name == "stolen-skill", Skill.namespace == "namespace-b")
         result = await session.execute(stmt)
         stolen_skills = result.scalars().all()
 
-        assert len(stolen_skills) == 0, \
+        assert len(stolen_skills) == 0, (
             f"Found {len(stolen_skills)} skills with name 'stolen-skill' in namespace-b (should be 0)"
+        )
 
-    print(f"  Namespace-B Skills:       ✅ (no 'stolen-skill' created)")
+    print("  Namespace-B Skills:       ✅ (no 'stolen-skill' created)")
 
     # Test 3: Verify original memory unchanged
-    print(f"\n  [Test 3] Original memory integrity...")
+    print("\n  [Test 3] Original memory integrity...")
 
     async with async_session_maker() as session:
         stmt = select(Memory).where(Memory.id == memory_id)
@@ -794,14 +794,17 @@ async def test_phase2_scenario_2_3_error_propagation_rollback():
         memory_check = result.scalar_one_or_none()
 
         assert memory_check is not None, "Original memory was deleted (should be unchanged)"
-        assert memory_check.namespace == "namespace-a", \
+        assert memory_check.namespace == "namespace-a", (
             f"Memory namespace changed from namespace-a to {memory_check.namespace}"
-        assert memory_check.agent_id == "agent-a", \
+        )
+        assert memory_check.agent_id == "agent-a", (
             f"Memory agent_id changed from agent-a to {memory_check.agent_id}"
-        assert memory_check.access_level == AccessLevel.PRIVATE, \
+        )
+        assert memory_check.access_level == AccessLevel.PRIVATE, (
             f"Memory access_level changed to {memory_check.access_level}"
+        )
 
-    print(f"  Original Memory:          ✅ (unchanged)")
+    print("  Original Memory:          ✅ (unchanged)")
     print(f"    Namespace:              {memory_check.namespace}")
     print(f"    Agent ID:               {memory_check.agent_id}")
     print(f"    Access Level:           {memory_check.access_level.name}")
@@ -815,7 +818,9 @@ async def test_phase2_scenario_2_3_error_propagation_rollback():
     print("=" * 80)
 
     # Integration test allows 1.5× tolerance
-    assert rejection_latency < 3.0, f"Phase 2 Scenario 2.3 FAILED: {rejection_latency:.3f}ms > 3.0ms"
+    assert rejection_latency < 3.0, (
+        f"Phase 2 Scenario 2.3 FAILED: {rejection_latency:.3f}ms > 3.0ms"
+    )
 
     await engine.dispose()
 

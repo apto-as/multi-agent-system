@@ -9,10 +9,11 @@ Tests the automated expiration and cleanup of memories based on TTL:
 - Cleanup respects access level permissions
 """
 
-import pytest
 from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
+
+import pytest
 
 from src.models.memory import AccessLevel, Memory
 from src.services.memory_service import HybridMemoryService
@@ -103,9 +104,7 @@ class TestMemoryExpirationDetection:
     """Test detection of expired memories."""
 
     @pytest.mark.asyncio
-    async def test_find_expired_memories_returns_only_expired(
-        self, memory_service, mock_session
-    ):
+    async def test_find_expired_memories_returns_only_expired(self, memory_service, mock_session):
         """Test that find_expired_memories returns only expired memories."""
         # Arrange
         expired_memory_1 = create_expired_memory(expired_hours_ago=2)
@@ -138,9 +137,9 @@ class TestMemoryExpirationDetection:
     ):
         """Test that find_expired_memories returns empty list when no memories expired."""
         # Arrange
-        valid_memory_1 = create_valid_memory(expires_in_hours=1)
-        valid_memory_2 = create_valid_memory(expires_in_hours=24)
-        permanent_memory = create_permanent_memory()
+        create_valid_memory(expires_in_hours=1)
+        create_valid_memory(expires_in_hours=24)
+        create_permanent_memory()
 
         # Mock database query to return empty list (simulating WHERE clause filtering)
         mock_result = MagicMock()
@@ -197,9 +196,7 @@ class TestMemoryCleanup:
         memory_service.vector_service.delete_memory.assert_any_call(str(expired_memory_2.id))
 
         # Verify audit log
-        audit_logs = [
-            r for r in caplog.records if "memories_expired_cleanup" in r.getMessage()
-        ]
+        audit_logs = [r for r in caplog.records if "memories_expired_cleanup" in r.getMessage()]
         assert len(audit_logs) == 1
         log_record = audit_logs[0]
         assert log_record.deleted_count == 2
@@ -257,16 +254,14 @@ class TestFullExpirationWorkflow:
     """Test the complete find-and-cleanup workflow."""
 
     @pytest.mark.asyncio
-    async def test_run_expiration_cleanup_full_workflow(
-        self, memory_service, mock_session, caplog
-    ):
+    async def test_run_expiration_cleanup_full_workflow(self, memory_service, mock_session, caplog):
         """Test the complete workflow: find expired memories and clean them up."""
         import logging
 
         # Arrange
         expired_memory_1 = create_expired_memory(expired_hours_ago=2)
         expired_memory_2 = create_expired_memory(expired_hours_ago=24)
-        valid_memory = create_valid_memory(expires_in_hours=24)
+        create_valid_memory(expires_in_hours=24)
 
         # Mock find query to return ONLY expired memories (simulating WHERE clause filtering)
         mock_find_result = MagicMock()
@@ -295,9 +290,7 @@ class TestFullExpirationWorkflow:
         assert memory_service.vector_service.delete_memory.call_count == 2
 
         # Verify audit log
-        audit_logs = [
-            r for r in caplog.records if "expiration_cleanup_completed" in r.getMessage()
-        ]
+        audit_logs = [r for r in caplog.records if "expiration_cleanup_completed" in r.getMessage()]
         assert len(audit_logs) == 1
         log_record = audit_logs[0]
         assert log_record.deleted_count == 2
@@ -310,7 +303,7 @@ class TestFullExpirationWorkflow:
         import logging
 
         # Arrange
-        valid_memory = create_valid_memory(expires_in_hours=24)
+        create_valid_memory(expires_in_hours=24)
 
         # Mock find query to return empty list (simulating WHERE clause filtering)
         mock_find_result = MagicMock()
@@ -328,9 +321,7 @@ class TestFullExpirationWorkflow:
         mock_session.delete.assert_not_called()
 
         # Verify audit log
-        audit_logs = [
-            r for r in caplog.records if "expiration_cleanup_completed" in r.getMessage()
-        ]
+        audit_logs = [r for r in caplog.records if "expiration_cleanup_completed" in r.getMessage()]
         assert len(audit_logs) == 1
         log_record = audit_logs[0]
         assert log_record.deleted_count == 0
@@ -340,9 +331,7 @@ class TestExpirationAuditLogging:
     """Test audit logging for expiration and cleanup operations."""
 
     @pytest.mark.asyncio
-    async def test_cleanup_logs_individual_deletions(
-        self, memory_service, mock_session, caplog
-    ):
+    async def test_cleanup_logs_individual_deletions(self, memory_service, mock_session, caplog):
         """Test that each memory deletion is logged individually."""
         import logging
 
@@ -359,9 +348,7 @@ class TestExpirationAuditLogging:
 
         # Assert
         # Look for individual deletion log
-        deletion_logs = [
-            r for r in caplog.records if "memory_expired_deleted" in r.getMessage()
-        ]
+        deletion_logs = [r for r in caplog.records if "memory_expired_deleted" in r.getMessage()]
         assert len(deletion_logs) == 1
 
         log_record = deletion_logs[0]
@@ -392,9 +379,7 @@ class TestExpirationAuditLogging:
             await memory_service.cleanup_expired_memories(expired_memories)
 
         # Assert
-        summary_logs = [
-            r for r in caplog.records if "memories_expired_cleanup" in r.getMessage()
-        ]
+        summary_logs = [r for r in caplog.records if "memories_expired_cleanup" in r.getMessage()]
         assert len(summary_logs) == 1
 
         log_record = summary_logs[0]

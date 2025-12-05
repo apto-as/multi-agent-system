@@ -10,13 +10,14 @@ Test Coverage:
     - Graceful degradation: Operations succeed even if audit fails
 """
 
-import pytest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
+import pytest
+
+from src.models.memory import AccessLevel, Memory
 from src.services.memory_service import HybridMemoryService
-from src.models.memory import Memory, AccessLevel
 
 
 @pytest.fixture(autouse=True)
@@ -24,10 +25,9 @@ def mock_ollama_services():
     """Mock Ollama services globally to bypass connection requirements."""
     # Create mock embedding service
     mock_embedding = MagicMock()
-    mock_embedding.get_model_info = MagicMock(return_value={
-        "model_name": "zylonai/multilingual-e5-large",
-        "dimension": 1024
-    })
+    mock_embedding.get_model_info = MagicMock(
+        return_value={"model_name": "zylonai/multilingual-e5-large", "dimension": 1024}
+    )
     mock_embedding.embed = AsyncMock(return_value=[0.0] * 1024)
 
     # Create mock vector service
@@ -37,8 +37,12 @@ def mock_ollama_services():
     mock_vector.search = AsyncMock(return_value=[])
 
     # Patch at import time
-    with patch('src.services.memory_service.get_ollama_embedding_service', return_value=mock_embedding):
-        with patch('src.services.memory_service.get_vector_search_service', return_value=mock_vector):
+    with patch(
+        "src.services.memory_service.get_ollama_embedding_service", return_value=mock_embedding
+    ):
+        with patch(
+            "src.services.memory_service.get_vector_search_service", return_value=mock_vector
+        ):
             yield (mock_embedding, mock_vector)
 
 
@@ -130,7 +134,7 @@ class TestCleanupNamespaceAudit:
         await test_session.commit()
 
         # Act
-        result = await memory_service_with_audit.cleanup_namespace(
+        await memory_service_with_audit.cleanup_namespace(
             namespace="test-namespace",
             agent_id="test-agent",
             days=90,
@@ -220,7 +224,7 @@ class TestPruneExpiredMemoriesAudit:
         await test_session.commit()
 
         # Act
-        result = await memory_service_with_audit.prune_expired_memories(
+        await memory_service_with_audit.prune_expired_memories(
             namespace="test-namespace",
             agent_id="test-agent",
             limit=100,
@@ -243,9 +247,7 @@ class TestPruneExpiredMemoriesAudit:
 class TestSetMemoryTTLAudit:
     """Test audit logging for set_memory_ttl method."""
 
-    async def test_set_ttl_logs_before_operation(
-        self, memory_service_with_audit, test_session
-    ):
+    async def test_set_ttl_logs_before_operation(self, memory_service_with_audit, test_session):
         """Verify BEFORE audit log is created for set_memory_ttl."""
         # Arrange
         memory_id = uuid4()
@@ -280,9 +282,7 @@ class TestSetMemoryTTLAudit:
         assert before_call[1]["event_data"]["details"]["new_ttl_days"] == 30
         assert before_call[1]["agent_id"] == "test-agent"
 
-    async def test_set_ttl_logs_after_operation(
-        self, memory_service_with_audit, test_session
-    ):
+    async def test_set_ttl_logs_after_operation(self, memory_service_with_audit, test_session):
         """Verify AFTER audit log is created for set_memory_ttl."""
         # Arrange
         memory_id = uuid4()
@@ -301,7 +301,7 @@ class TestSetMemoryTTLAudit:
         await test_session.commit()
 
         # Act
-        result = await memory_service_with_audit.set_memory_ttl(
+        await memory_service_with_audit.set_memory_ttl(
             memory_id=memory_id,
             agent_id="test-agent",
             ttl_days=30,

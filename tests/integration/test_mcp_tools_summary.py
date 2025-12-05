@@ -19,7 +19,6 @@ Test Categories:
 """
 
 import pytest
-import pytest_asyncio
 
 # Mark all tests in this module as asyncio
 pytestmark = pytest.mark.asyncio

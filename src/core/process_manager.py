@@ -400,7 +400,11 @@ class TacticalProcessManager:
                 logger.error(
                     f"[TACTICAL] Unexpected error stopping {service_name}: {type(e).__name__}",
                     exc_info=True,
-                    extra={"operation": "shutdown_service", "service_name": service_name, "error": str(e)},
+                    extra={
+                        "operation": "shutdown_service",
+                        "service_name": service_name,
+                        "error": str(e),
+                    },
                 )
 
         logger.info("[TACTICAL] All services terminated. Tactical coordination complete.")

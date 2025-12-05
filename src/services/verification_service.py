@@ -8,6 +8,7 @@ Handles verification workflow:
 
 Performance target: <500ms P95 per verification
 """
+
 import asyncio
 import json
 import shlex
@@ -64,6 +65,7 @@ ALLOWED_COMMANDS = {
 
 class ClaimType(str, Enum):
     """Types of claims that can be verified"""
+
     TEST_RESULT = "test_result"
     PERFORMANCE_METRIC = "performance_metric"
     CODE_QUALITY = "code_quality"
@@ -82,7 +84,7 @@ class VerificationResult:
         accurate: bool,
         evidence_id: UUID,
         verification_id: UUID,
-        new_trust_score: float
+        new_trust_score: float,
     ):
         self.claim = claim
         self.actual = actual
@@ -99,7 +101,7 @@ class VerificationResult:
             "accurate": self.accurate,
             "evidence_id": str(self.evidence_id),
             "verification_id": str(self.verification_id),
-            "new_trust_score": self.new_trust_score
+            "new_trust_score": self.new_trust_score,
         }
 
 
@@ -111,7 +113,7 @@ class VerificationService:
         session: AsyncSession,
         memory_service: HybridMemoryService | None = None,
         trust_service: TrustService | None = None,
-        learning_trust_integration: LearningTrustIntegration | None = None
+        learning_trust_integration: LearningTrustIntegration | None = None,
     ):
         """Initialize verification service
 
@@ -124,8 +126,8 @@ class VerificationService:
         self.session = session
         self.memory_service = memory_service or HybridMemoryService(session)
         self.trust_service = trust_service or TrustService(session)
-        self.learning_trust_integration = (
-            learning_trust_integration or LearningTrustIntegration(session)
+        self.learning_trust_integration = learning_trust_integration or LearningTrustIntegration(
+            session
         )
 
     async def verify_claim(
@@ -134,7 +136,7 @@ class VerificationService:
         claim_type: ClaimType | str,
         claim_content: dict[str, Any],
         verification_command: str,
-        verified_by_agent_id: str | None = None
+        verified_by_agent_id: str | None = None,
     ) -> VerificationResult:
         """Verify a claim by executing verification command
 
@@ -170,21 +172,19 @@ class VerificationService:
                     details={
                         "agent_id": agent_id,
                         "verified_by_agent_id": verified_by_agent_id,
-                        "claim_type": claim_type
-                    }
+                        "claim_type": claim_type,
+                    },
                 )
 
             # Verify agent exists
-            result = await self.session.execute(
-                select(Agent).where(Agent.agent_id == agent_id)
-            )
+            result = await self.session.execute(select(Agent).where(Agent.agent_id == agent_id))
             agent = result.scalar_one_or_none()
 
             if not agent:
                 log_and_raise(
                     AgentNotFoundError,
                     f"Agent not found: {agent_id}",
-                    details={"agent_id": agent_id}
+                    details={"agent_id": agent_id},
                 )
 
             # V-VERIFY-2: RBAC check for verifier (explicit role verification)
@@ -203,8 +203,8 @@ class VerificationService:
                         f"Verifier agent not found: {verified_by_agent_id}",
                         details={
                             "agent_id": agent_id,
-                            "verified_by_agent_id": verified_by_agent_id
-                        }
+                            "verified_by_agent_id": verified_by_agent_id,
+                        },
                     )
 
                 # Determine verifier role (same logic as MCPAuthService._determine_agent_role)
@@ -213,9 +213,9 @@ class VerificationService:
 
                 # Check role from capabilities or config
                 verifier_role = (
-                    verifier_capabilities.get("role") or
-                    verifier_config.get("mcp_role") or
-                    "agent"  # Default role
+                    verifier_capabilities.get("role")
+                    or verifier_config.get("mcp_role")
+                    or "agent"  # Default role
                 )
 
                 # Allowed roles for verification: agent, namespace_admin, system_admin, super_admin
@@ -228,20 +228,26 @@ class VerificationService:
                             "agent_id": agent_id,
                             "verified_by_agent_id": verified_by_agent_id,
                             "verifier_role": verifier_role,
-                            "required_roles": ["agent", "namespace_admin", "system_admin", "super_admin"]
-                        }
+                            "required_roles": [
+                                "agent",
+                                "namespace_admin",
+                                "system_admin",
+                                "super_admin",
+                            ],
+                        },
                     )
 
                 # Log successful RBAC check
                 import logging
+
                 logger = logging.getLogger(__name__)
                 logger.info(
                     f"✅ Verifier RBAC check passed: {verified_by_agent_id} (role: {verifier_role})",
                     extra={
                         "agent_id": agent_id,
                         "verified_by_agent_id": verified_by_agent_id,
-                        "verifier_role": verifier_role
-                    }
+                        "verifier_role": verifier_role,
+                    },
                 )
 
             # Execute verification command
@@ -263,7 +269,7 @@ class VerificationService:
                 verification_result=actual_result,
                 accurate=accurate,
                 verified_at=datetime.utcnow(),
-                verified_by_agent_id=verified_by_agent_id
+                verified_by_agent_id=verified_by_agent_id,
             )
             self.session.add(verification_record)
             await self.session.flush()  # Generate verification_record.id before using it
@@ -273,7 +279,7 @@ class VerificationService:
                 agent_id=agent_id,
                 namespace=agent.namespace,
                 verification_record=verification_record,
-                verification_duration_ms=verification_duration_ms
+                verification_duration_ms=verification_duration_ms,
             )
 
             # Link evidence to verification
@@ -284,7 +290,7 @@ class VerificationService:
                 agent_id=agent_id,
                 accurate=accurate,
                 verification_id=verification_record.id,
-                reason=f"verification_{claim_type}"
+                reason=f"verification_{claim_type}",
             )
 
             # Phase 2A: Propagate to learning patterns (if linked)
@@ -293,7 +299,7 @@ class VerificationService:
                 agent_id=agent_id,
                 verification_record=verification_record,
                 accurate=accurate,
-                namespace=agent.namespace
+                namespace=agent.namespace,
             )
 
             # If propagation succeeded, update trust score with learning delta
@@ -308,7 +314,7 @@ class VerificationService:
                 accurate=accurate,
                 evidence_id=evidence_memory.id,
                 verification_id=verification_record.id,
-                new_trust_score=new_trust_score
+                new_trust_score=new_trust_score,
             )
 
         except (AgentNotFoundError, VerificationError, ValidationError):
@@ -320,16 +326,11 @@ class VerificationService:
                 DatabaseError,
                 f"Failed to verify claim for agent {agent_id}",
                 original_exception=e,
-                details={
-                    "agent_id": agent_id,
-                    "claim_type": claim_type
-                }
+                details={"agent_id": agent_id, "claim_type": claim_type},
             )
 
     async def _execute_verification(
-        self,
-        command: str,
-        timeout_seconds: float = 30.0
+        self, command: str, timeout_seconds: float = 30.0
     ) -> dict[str, Any]:
         """Execute verification command and capture result
 
@@ -359,14 +360,12 @@ class VerificationService:
                     ValidationError,
                     f"Invalid command syntax: {command}",
                     original_exception=e,
-                    details={"command": command}
+                    details={"command": command},
                 )
 
             if not cmd_parts:
                 log_and_raise(
-                    ValidationError,
-                    "Empty command provided",
-                    details={"command": command}
+                    ValidationError, "Empty command provided", details={"command": command}
                 )
 
             # Check if base command is in allowlist
@@ -378,8 +377,8 @@ class VerificationService:
                     details={
                         "command": command,
                         "base_command": base_command,
-                        "allowed_commands": sorted(ALLOWED_COMMANDS)
-                    }
+                        "allowed_commands": sorted(ALLOWED_COMMANDS),
+                    },
                 )
 
             # Execute command with shell=False (safe mode)
@@ -392,8 +391,7 @@ class VerificationService:
 
             try:
                 stdout, stderr = await asyncio.wait_for(
-                    process.communicate(),
-                    timeout=timeout_seconds
+                    process.communicate(), timeout=timeout_seconds
                 )
             except asyncio.TimeoutError:
                 process.kill()
@@ -401,7 +399,7 @@ class VerificationService:
                 log_and_raise(
                     VerificationError,
                     f"Verification command timed out after {timeout_seconds}s",
-                    details={"command": command, "timeout": timeout_seconds}
+                    details={"command": command, "timeout": timeout_seconds},
                 )
 
             return {
@@ -409,7 +407,7 @@ class VerificationService:
                 "stderr": stderr.decode() if stderr else "",
                 "return_code": process.returncode,
                 "command": command,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.utcnow().isoformat(),
             }
 
         except (ValidationError, VerificationError):
@@ -419,14 +417,10 @@ class VerificationService:
                 VerificationError,
                 f"Failed to execute verification command: {command}",
                 original_exception=e,
-                details={"command": command}
+                details={"command": command},
             )
 
-    def _compare_results(
-        self,
-        claim: dict[str, Any],
-        actual: dict[str, Any]
-    ) -> bool:
+    def _compare_results(self, claim: dict[str, Any], actual: dict[str, Any]) -> bool:
         """Compare claimed result with actual result
 
         Args:
@@ -485,7 +479,7 @@ class VerificationService:
         agent_id: str,
         namespace: str,
         verification_record: VerificationRecord,
-        verification_duration_ms: float
+        verification_duration_ms: float,
     ) -> Memory:
         """Create memory record with verification evidence
 
@@ -499,10 +493,7 @@ class VerificationService:
             Created memory record
         """
         # Format evidence content
-        evidence_content = self._format_evidence(
-            verification_record,
-            verification_duration_ms
-        )
+        evidence_content = self._format_evidence(verification_record, verification_duration_ms)
 
         # Create memory with proper context metadata
         memory = await self.memory_service.create_memory(
@@ -516,17 +507,13 @@ class VerificationService:
                 "claim_type": verification_record.claim_type,
                 "accurate": verification_record.accurate,
                 "duration_ms": verification_duration_ms,
-                "verified_at": verification_record.verified_at.isoformat()
-            }
+                "verified_at": verification_record.verified_at.isoformat(),
+            },
         )
 
         return memory
 
-    def _format_evidence(
-        self,
-        verification_record: VerificationRecord,
-        duration_ms: float
-    ) -> str:
+    def _format_evidence(self, verification_record: VerificationRecord, duration_ms: float) -> str:
         """Format verification evidence as human-readable text
 
         Args:
@@ -551,29 +538,26 @@ class VerificationService:
 ```
 
 ## Actual Result
-- Return Code: {result.get('return_code')}
+- Return Code: {result.get("return_code")}
 - Duration: {duration_ms:.2f}ms
 
 ### Output
 ```
-{result.get('stdout', '')}
+{result.get("stdout", "")}
 ```
 
 ### Errors
 ```
-{result.get('stderr', '')}
+{result.get("stderr", "")}
 ```
 
 ## Verdict
-{'ACCURATE - Claim verified' if verification_record.accurate else 'INACCURATE - Claim rejected'}
+{"ACCURATE - Claim verified" if verification_record.accurate else "INACCURATE - Claim rejected"}
 """
         return evidence.strip()
 
     async def get_verification_history(
-        self,
-        agent_id: str,
-        claim_type: ClaimType | str | None = None,
-        limit: int = 100
+        self, agent_id: str, claim_type: ClaimType | str | None = None, limit: int = 100
     ) -> list[dict[str, Any]]:
         """Get verification history for an agent
 
@@ -590,28 +574,22 @@ class VerificationService:
         """
         try:
             # Verify agent exists
-            result = await self.session.execute(
-                select(Agent).where(Agent.agent_id == agent_id)
-            )
+            result = await self.session.execute(select(Agent).where(Agent.agent_id == agent_id))
             if not result.scalar_one_or_none():
                 log_and_raise(
                     AgentNotFoundError,
                     f"Agent not found: {agent_id}",
-                    details={"agent_id": agent_id}
+                    details={"agent_id": agent_id},
                 )
 
             # Build query
-            query = select(VerificationRecord).where(
-                VerificationRecord.agent_id == agent_id
-            )
+            query = select(VerificationRecord).where(VerificationRecord.agent_id == agent_id)
 
             if claim_type:
                 type_value = claim_type if isinstance(claim_type, str) else claim_type.value
                 query = query.where(VerificationRecord.claim_type == type_value)
 
-            query = query.order_by(
-                VerificationRecord.verified_at.desc()
-            ).limit(limit)
+            query = query.order_by(VerificationRecord.verified_at.desc()).limit(limit)
 
             result = await self.session.execute(query)
             records = result.scalars().all()
@@ -623,9 +601,11 @@ class VerificationService:
                     "claim_content": record.claim_content,
                     "verification_result": record.verification_result,
                     "accurate": record.accurate,
-                    "evidence_memory_id": str(record.evidence_memory_id) if record.evidence_memory_id else None,
+                    "evidence_memory_id": str(record.evidence_memory_id)
+                    if record.evidence_memory_id
+                    else None,
                     "verified_at": record.verified_at.isoformat(),
-                    "verified_by": record.verified_by_agent_id
+                    "verified_by": record.verified_by_agent_id,
                 }
                 for record in records
             ]
@@ -637,13 +617,10 @@ class VerificationService:
                 DatabaseError,
                 f"Failed to get verification history for agent {agent_id}",
                 original_exception=e,
-                details={"agent_id": agent_id, "claim_type": claim_type}
+                details={"agent_id": agent_id, "claim_type": claim_type},
             )
 
-    async def get_verification_statistics(
-        self,
-        agent_id: str
-    ) -> dict[str, Any]:
+    async def get_verification_statistics(self, agent_id: str) -> dict[str, Any]:
         """Get verification statistics for an agent
 
         Args:
@@ -657,24 +634,23 @@ class VerificationService:
         """
         try:
             # Get agent with verification metrics
-            result = await self.session.execute(
-                select(Agent).where(Agent.agent_id == agent_id)
-            )
+            result = await self.session.execute(select(Agent).where(Agent.agent_id == agent_id))
             agent = result.scalar_one_or_none()
 
             if not agent:
                 log_and_raise(
                     AgentNotFoundError,
                     f"Agent not found: {agent_id}",
-                    details={"agent_id": agent_id}
+                    details={"agent_id": agent_id},
                 )
 
             # Get recent verifications
-            recent_query = select(VerificationRecord).where(
-                VerificationRecord.agent_id == agent_id
-            ).order_by(
-                VerificationRecord.verified_at.desc()
-            ).limit(10)
+            recent_query = (
+                select(VerificationRecord)
+                .where(VerificationRecord.agent_id == agent_id)
+                .order_by(VerificationRecord.verified_at.desc())
+                .limit(10)
+            )
 
             result = await self.session.execute(recent_query)
             recent_verifications = result.scalars().all()
@@ -701,7 +677,9 @@ class VerificationService:
                     claim_type: {
                         "total": stats["total"],
                         "accurate": stats["accurate"],
-                        "accuracy": stats["accurate"] / stats["total"] if stats["total"] > 0 else 0.0
+                        "accuracy": stats["accurate"] / stats["total"]
+                        if stats["total"] > 0
+                        else 0.0,
                     }
                     for claim_type, stats in type_stats.items()
                 },
@@ -709,10 +687,10 @@ class VerificationService:
                     {
                         "claim_type": v.claim_type,
                         "accurate": v.accurate,
-                        "verified_at": v.verified_at.isoformat()
+                        "verified_at": v.verified_at.isoformat(),
                     }
                     for v in recent_verifications
-                ]
+                ],
             }
 
         except AgentNotFoundError:
@@ -722,15 +700,11 @@ class VerificationService:
                 DatabaseError,
                 f"Failed to get verification statistics for agent {agent_id}",
                 original_exception=e,
-                details={"agent_id": agent_id}
+                details={"agent_id": agent_id},
             )
 
     async def _propagate_to_learning_patterns(
-        self,
-        agent_id: str,
-        verification_record: VerificationRecord,
-        accurate: bool,
-        namespace: str
+        self, agent_id: str, verification_record: VerificationRecord, accurate: bool, namespace: str
     ) -> dict[str, Any]:
         """Propagate verification result to learning patterns (Phase 2A integration).
 
@@ -774,13 +748,13 @@ class VerificationService:
             if not pattern_id_str:
                 logger.debug(
                     f"No pattern linkage for verification {verification_record.id}",
-                    extra={"agent_id": agent_id, "verification_id": str(verification_record.id)}
+                    extra={"agent_id": agent_id, "verification_id": str(verification_record.id)},
                 )
                 return {
                     "propagated": False,
                     "pattern_id": None,
                     "trust_delta": 0.0,
-                    "reason": "No pattern linkage in claim_content"
+                    "reason": "No pattern linkage in claim_content",
                 }
 
             # Step 2: Convert pattern_id to UUID
@@ -789,35 +763,29 @@ class VerificationService:
             except (ValueError, TypeError) as e:
                 logger.warning(
                     f"Invalid pattern_id format: {pattern_id_str}",
-                    extra={"agent_id": agent_id, "pattern_id_str": pattern_id_str}
+                    extra={"agent_id": agent_id, "pattern_id_str": pattern_id_str},
                 )
                 return {
                     "propagated": False,
                     "pattern_id": pattern_id_str,
                     "trust_delta": 0.0,
-                    "reason": f"Invalid pattern_id format: {e}"
+                    "reason": f"Invalid pattern_id format: {e}",
                 }
 
             # Step 3: Get current trust score (for delta calculation)
-            result = await self.session.execute(
-                select(Agent).where(Agent.agent_id == agent_id)
-            )
+            result = await self.session.execute(select(Agent).where(Agent.agent_id == agent_id))
             agent = result.scalar_one_or_none()
             old_trust_score = agent.trust_score if agent else 0.5
 
             # Step 4: Propagate to learning patterns via LearningTrustIntegration
             if accurate:
                 new_trust_score = await self.learning_trust_integration.propagate_learning_success(
-                    agent_id=agent_id,
-                    pattern_id=pattern_id,
-                    requesting_namespace=namespace
+                    agent_id=agent_id, pattern_id=pattern_id, requesting_namespace=namespace
                 )
                 reason = "Pattern success propagated"
             else:
                 new_trust_score = await self.learning_trust_integration.propagate_learning_failure(
-                    agent_id=agent_id,
-                    pattern_id=pattern_id,
-                    requesting_namespace=namespace
+                    agent_id=agent_id, pattern_id=pattern_id, requesting_namespace=namespace
                 )
                 reason = "Pattern failure propagated"
 
@@ -830,8 +798,8 @@ class VerificationService:
                     "pattern_id": str(pattern_id),
                     "accurate": accurate,
                     "trust_delta": trust_delta,
-                    "new_trust_score": new_trust_score
-                }
+                    "new_trust_score": new_trust_score,
+                },
             )
 
             return {
@@ -839,7 +807,7 @@ class VerificationService:
                 "pattern_id": str(pattern_id),
                 "trust_delta": trust_delta,
                 "new_trust_score": new_trust_score,
-                "reason": reason
+                "reason": reason,
             }
 
         except ValidationError as e:
@@ -848,15 +816,15 @@ class VerificationService:
                 f"Pattern propagation skipped: {e}",
                 extra={
                     "agent_id": agent_id,
-                    "pattern_id": pattern_id_str if 'pattern_id_str' in locals() else None,
-                    "reason": str(e)
-                }
+                    "pattern_id": pattern_id_str if "pattern_id_str" in locals() else None,
+                    "reason": str(e),
+                },
             )
             return {
                 "propagated": False,
-                "pattern_id": pattern_id_str if 'pattern_id_str' in locals() else None,
+                "pattern_id": pattern_id_str if "pattern_id_str" in locals() else None,
                 "trust_delta": 0.0,
-                "reason": f"Pattern not eligible: {str(e)}"
+                "reason": f"Pattern not eligible: {str(e)}",
             }
 
         except NotFoundError as e:
@@ -865,14 +833,14 @@ class VerificationService:
                 f"Pattern not found for propagation: {e}",
                 extra={
                     "agent_id": agent_id,
-                    "pattern_id": pattern_id_str if 'pattern_id_str' in locals() else None
-                }
+                    "pattern_id": pattern_id_str if "pattern_id_str" in locals() else None,
+                },
             )
             return {
                 "propagated": False,
-                "pattern_id": pattern_id_str if 'pattern_id_str' in locals() else None,
+                "pattern_id": pattern_id_str if "pattern_id_str" in locals() else None,
                 "trust_delta": 0.0,
-                "reason": f"Pattern not found: {str(e)}"
+                "reason": f"Pattern not found: {str(e)}",
             }
 
         except (DatabaseError, AuthorizationError) as e:
@@ -881,15 +849,15 @@ class VerificationService:
                 f"Pattern propagation failed but verification succeeded: {type(e).__name__}: {e}",
                 extra={
                     "agent_id": agent_id,
-                    "pattern_id": pattern_id_str if 'pattern_id_str' in locals() else None,
-                    "exception_type": type(e).__name__
-                }
+                    "pattern_id": pattern_id_str if "pattern_id_str" in locals() else None,
+                    "exception_type": type(e).__name__,
+                },
             )
             return {
                 "propagated": False,
-                "pattern_id": pattern_id_str if 'pattern_id_str' in locals() else None,
+                "pattern_id": pattern_id_str if "pattern_id_str" in locals() else None,
                 "trust_delta": 0.0,
-                "reason": f"Propagation error: {type(e).__name__}"
+                "reason": f"Propagation error: {type(e).__name__}",
             }
 
         except Exception as e:
@@ -899,13 +867,13 @@ class VerificationService:
                 exc_info=True,
                 extra={
                     "agent_id": agent_id,
-                    "pattern_id": pattern_id_str if 'pattern_id_str' in locals() else None,
-                    "exception_type": type(e).__name__
-                }
+                    "pattern_id": pattern_id_str if "pattern_id_str" in locals() else None,
+                    "exception_type": type(e).__name__,
+                },
             )
             return {
                 "propagated": False,
-                "pattern_id": pattern_id_str if 'pattern_id_str' in locals() else None,
+                "pattern_id": pattern_id_str if "pattern_id_str" in locals() else None,
                 "trust_delta": 0.0,
-                "reason": f"Internal error: {type(e).__name__}"
+                "reason": f"Internal error: {type(e).__name__}",
             }

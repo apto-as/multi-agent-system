@@ -410,7 +410,11 @@ class BatchProcessor:
                 logger.error(
                     f"Batch processing error: {type(e).__name__}",
                     exc_info=True,
-                    extra={"operation": "process_batch_task", "job_id": job.job_id, "error": str(e)},
+                    extra={
+                        "operation": "process_batch_task",
+                        "job_id": job.job_id,
+                        "error": str(e),
+                    },
                 )
 
             # Update progress
@@ -423,11 +427,19 @@ class BatchProcessor:
                     logger.warning(
                         f"Progress callback error: {type(e).__name__}",
                         exc_info=True,
-                        extra={"operation": "progress_callback", "job_id": job.job_id, "error": str(e)},
+                        extra={
+                            "operation": "progress_callback",
+                            "job_id": job.job_id,
+                            "error": str(e),
+                        },
                     )
 
     async def _process_batch(
-        self, job: BatchJob, batch_id: str, items: list[dict[str, Any]], start_index: int,
+        self,
+        job: BatchJob,
+        batch_id: str,
+        items: list[dict[str, Any]],
+        start_index: int,
     ) -> None:
         """Process a single batch with controlled concurrency."""
         async with self.batch_semaphore:
@@ -442,7 +454,10 @@ class BatchProcessor:
                 else:
                     # Run sync function in thread pool
                     results = await asyncio.get_event_loop().run_in_executor(
-                        None, job.processor_func, items, job.metadata,
+                        None,
+                        job.processor_func,
+                        items,
+                        job.metadata,
                     )
 
                 # Count successes and failures
@@ -564,8 +579,7 @@ class BatchProcessor:
 
 
 class BatchService:
-    """High-level batch processing service with pre-built operations for TMWS entities.
-    """
+    """High-level batch processing service with pre-built operations for TMWS entities."""
 
     def __init__(self):
         self.processor = BatchProcessor()
@@ -588,7 +602,8 @@ class BatchService:
         """Batch create memories with optimized processing."""
 
         async def memory_processor(
-            items: list[dict[str, Any]], _metadata: dict[str, Any],
+            items: list[dict[str, Any]],
+            _metadata: dict[str, Any],
         ) -> list[dict[str, Any]]:
             results = []
             created_memories = []  # Track Memory objects to get UUIDs after flush
@@ -660,12 +675,15 @@ class BatchService:
         return await self.processor.submit_job(job)
 
     async def batch_update_agent_performance(
-        self, performance_updates: list[dict[str, Any]], batch_size: int = 50,
+        self,
+        performance_updates: list[dict[str, Any]],
+        batch_size: int = 50,
     ) -> str:
         """Batch update agent performance metrics."""
 
         async def performance_processor(
-            items: list[dict[str, Any]], _metadata: dict[str, Any],
+            items: list[dict[str, Any]],
+            _metadata: dict[str, Any],
         ) -> list[dict[str, Any]]:
             results = []
 
@@ -718,7 +736,11 @@ class BatchService:
                         logger.error(
                             f"Agent performance update failed: {type(e).__name__}",
                             exc_info=True,
-                            extra={"operation": "update_agent_performance", "agent_id": item.get("agent_id"), "error": str(e)},
+                            extra={
+                                "operation": "update_agent_performance",
+                                "agent_id": item.get("agent_id"),
+                                "error": str(e),
+                            },
                         )
                         results.append(
                             {"success": False, "error": str(e), "agent_id": item.get("agent_id")},
@@ -737,12 +759,15 @@ class BatchService:
         return await self.processor.submit_job(job)
 
     async def batch_cleanup_expired_memories(
-        self, days_threshold: int = 30, batch_size: int = 200,
+        self,
+        days_threshold: int = 30,
+        batch_size: int = 200,
     ) -> str:
         """Batch cleanup expired memories based on retention policy."""
 
         async def cleanup_processor(
-            items: list[dict[str, Any]], metadata: dict[str, Any],
+            items: list[dict[str, Any]],
+            metadata: dict[str, Any],
         ) -> list[dict[str, Any]]:
             results = []
 

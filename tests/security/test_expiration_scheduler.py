@@ -10,10 +10,10 @@ Tests the background scheduler that periodically runs memory expiration cleanup:
 """
 
 import asyncio
-import pytest
 from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
-from uuid import uuid4
+from unittest.mock import AsyncMock
+
+import pytest
 
 from src.services.expiration_scheduler import ExpirationScheduler
 from src.services.memory_service import HybridMemoryService
@@ -31,7 +31,8 @@ def mock_memory_service():
 def scheduler(mock_memory_service):
     """Create ExpirationScheduler with mocked memory service."""
     return ExpirationScheduler(
-        memory_service=mock_memory_service, interval_hours=1  # 1 hour for testing
+        memory_service=mock_memory_service,
+        interval_hours=1,  # 1 hour for testing
     )
 
 
@@ -213,9 +214,7 @@ class TestSchedulerConfiguration:
     async def test_custom_interval_respected(self, mock_memory_service):
         """Test that custom cleanup interval is respected."""
         # Arrange
-        scheduler_12h = ExpirationScheduler(
-            memory_service=mock_memory_service, interval_hours=12
-        )
+        scheduler_12h = ExpirationScheduler(memory_service=mock_memory_service, interval_hours=12)
 
         # Assert
         assert scheduler_12h.interval_hours == 12

@@ -36,9 +36,7 @@ class SynchronousEventDispatcher(EventDispatcher):
         self._handlers[event_type].append(handler)
 
         handler_name = getattr(handler, "__name__", repr(handler))
-        logger.info(
-            f"Registered handler {handler_name} " f"for event {event_type.__name__}"
-        )
+        logger.info(f"Registered handler {handler_name} for event {event_type.__name__}")
 
     async def dispatch_all(self, events: list[DomainEvent]):
         """
@@ -61,9 +59,7 @@ class SynchronousEventDispatcher(EventDispatcher):
             logger.debug(f"No handlers registered for {event_type.__name__}")
             return
 
-        logger.info(
-            f"Dispatching {event_type.__name__} to {len(handlers)} handlers"
-        )
+        logger.info(f"Dispatching {event_type.__name__} to {len(handlers)} handlers")
 
         for handler in handlers:
             await self._execute_handler(handler, event)
@@ -85,8 +81,7 @@ class SynchronousEventDispatcher(EventDispatcher):
         except Exception as e:
             # CRITICAL: Handler failure must NOT affect main transaction
             logger.error(
-                f"Event handler {handler_name} failed for "
-                f"{type(event).__name__}: {e}",
+                f"Event handler {handler_name} failed for {type(event).__name__}: {e}",
                 exc_info=True,
             )
             # Error is logged but NOT raised - error isolation

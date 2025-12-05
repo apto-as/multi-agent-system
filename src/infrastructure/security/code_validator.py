@@ -38,104 +38,111 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 
 # Forbidden imports - modules that provide system access
-FORBIDDEN_IMPORTS: frozenset[str] = frozenset([
-    # System access
-    "os",
-    "sys",
-    "subprocess",
-    "shutil",
-    "pathlib",
-    # Network access
-    "socket",
-    "urllib",
-    "urllib.request",
-    "urllib.parse",
-    "http",
-    "http.client",
-    "http.server",
-    "requests",
-    "httpx",
-    "aiohttp",
-    "ftplib",
-    "smtplib",
-    "telnetlib",
-    # Code execution
-    "code",
-    "codeop",
-    "compile",
-    "ast",  # Prevent meta-programming attacks
-    "dis",
-    "inspect",
-    "importlib",
-    # Process/threading
-    "multiprocessing",
-    "threading",
-    "concurrent",
-    "asyncio.subprocess",
-    # Dangerous I/O
-    "pickle",
-    "shelve",
-    "marshal",
-    "ctypes",
-    "cffi",
-    # Command execution
-    "pty",
-    "popen2",
-    "commands",
-    # Dangerous builtins access
-    "builtins",
-    "__builtin__",
-])
+FORBIDDEN_IMPORTS: frozenset[str] = frozenset(
+    [
+        # System access
+        "os",
+        "sys",
+        "subprocess",
+        "shutil",
+        "pathlib",
+        # Network access
+        "socket",
+        "urllib",
+        "urllib.request",
+        "urllib.parse",
+        "http",
+        "http.client",
+        "http.server",
+        "requests",
+        "httpx",
+        "aiohttp",
+        "ftplib",
+        "smtplib",
+        "telnetlib",
+        # Code execution
+        "code",
+        "codeop",
+        "compile",
+        "ast",  # Prevent meta-programming attacks
+        "dis",
+        "inspect",
+        "importlib",
+        # Process/threading
+        "multiprocessing",
+        "threading",
+        "concurrent",
+        "asyncio.subprocess",
+        # Dangerous I/O
+        "pickle",
+        "shelve",
+        "marshal",
+        "ctypes",
+        "cffi",
+        # Command execution
+        "pty",
+        "popen2",
+        "commands",
+        # Dangerous builtins access
+        "builtins",
+        "__builtin__",
+    ]
+)
 
 # Forbidden builtins - functions that should never be called
-FORBIDDEN_BUILTINS: frozenset[str] = frozenset([
-    "eval",
-    "exec",
-    "compile",
-    "__import__",
-    "open",
-    "input",
-    "breakpoint",
-    "help",  # Can reveal system info
-    "license",
-    "credits",
-    "exit",
-    "quit",
-    "globals",
-    "locals",
-    "vars",
-    "dir",
-    "getattr",
-    "setattr",
-    "delattr",
-    "hasattr",
-])
+FORBIDDEN_BUILTINS: frozenset[str] = frozenset(
+    [
+        "eval",
+        "exec",
+        "compile",
+        "__import__",
+        "open",
+        "input",
+        "breakpoint",
+        "help",  # Can reveal system info
+        "license",
+        "credits",
+        "exit",
+        "quit",
+        "globals",
+        "locals",
+        "vars",
+        "dir",
+        "getattr",
+        "setattr",
+        "delattr",
+        "hasattr",
+    ]
+)
 
 # Forbidden attribute access patterns
-FORBIDDEN_ATTRIBUTES: frozenset[str] = frozenset([
-    "__class__",
-    "__bases__",
-    "__subclasses__",
-    "__mro__",
-    "__globals__",
-    "__code__",
-    "__closure__",
-    "__builtins__",
-    "__import__",
-    "__dict__",
-    "__module__",
-    "__spec__",
-    "__loader__",
-    "__file__",
-    "__cached__",
-    "__path__",
-    "__package__",
-])
+FORBIDDEN_ATTRIBUTES: frozenset[str] = frozenset(
+    [
+        "__class__",
+        "__bases__",
+        "__subclasses__",
+        "__mro__",
+        "__globals__",
+        "__code__",
+        "__closure__",
+        "__builtins__",
+        "__import__",
+        "__dict__",
+        "__module__",
+        "__spec__",
+        "__loader__",
+        "__file__",
+        "__cached__",
+        "__path__",
+        "__package__",
+    ]
+)
 
 
 # ============================================================================
 # EXCEPTIONS
 # ============================================================================
+
 
 class CodeValidationError(Exception):
     """Code validation error.
@@ -157,6 +164,7 @@ class CodeValidationError(Exception):
 # ============================================================================
 # DATA CLASSES
 # ============================================================================
+
 
 @dataclass
 class ValidationResult:
@@ -215,6 +223,7 @@ class CodeValidatorConfig:
 # AST VISITOR
 # ============================================================================
 
+
 class SecurityVisitor(ast.NodeVisitor):
     """AST visitor for security analysis.
 
@@ -238,9 +247,7 @@ class SecurityVisitor(ast.NodeVisitor):
         self.max_depth_reached = max(self.max_depth_reached, self.depth)
 
         if self.depth > self.config.max_ast_depth:
-            self.violations.append(
-                f"AST depth exceeded maximum ({self.config.max_ast_depth})"
-            )
+            self.violations.append(f"AST depth exceeded maximum ({self.config.max_ast_depth})")
             self.depth -= 1
             return None
 
@@ -260,8 +267,7 @@ class SecurityVisitor(ast.NodeVisitor):
                 check_name = ".".join(parts[: i + 1])
                 if check_name in self.config.forbidden_imports:
                     self.violations.append(
-                        f"Forbidden import: '{module_name}' "
-                        f"(line {node.lineno})"
+                        f"Forbidden import: '{module_name}' (line {node.lineno})"
                     )
                     break
 
@@ -279,8 +285,7 @@ class SecurityVisitor(ast.NodeVisitor):
                 check_name = ".".join(parts[: i + 1])
                 if check_name in self.config.forbidden_imports:
                     self.violations.append(
-                        f"Forbidden import: 'from {module_name}' "
-                        f"(line {node.lineno})"
+                        f"Forbidden import: 'from {module_name}' (line {node.lineno})"
                     )
                     break
 
@@ -288,8 +293,7 @@ class SecurityVisitor(ast.NodeVisitor):
         for alias in node.names:
             if alias.name in self.config.forbidden_imports:
                 self.violations.append(
-                    f"Forbidden import name: '{alias.name}' "
-                    f"(line {node.lineno})"
+                    f"Forbidden import name: '{alias.name}' (line {node.lineno})"
                 )
 
         self.generic_visit(node)
@@ -301,8 +305,7 @@ class SecurityVisitor(ast.NodeVisitor):
             func_name = node.func.id
             if func_name in self.config.forbidden_builtins:
                 self.violations.append(
-                    f"Forbidden builtin call: '{func_name}()' "
-                    f"(line {node.lineno})"
+                    f"Forbidden builtin call: '{func_name}()' (line {node.lineno})"
                 )
 
         # Check attribute calls: obj.eval(), getattr(), etc.
@@ -310,8 +313,7 @@ class SecurityVisitor(ast.NodeVisitor):
             attr_name = node.func.attr
             if attr_name in self.config.forbidden_builtins:
                 self.violations.append(
-                    f"Forbidden method call: '.{attr_name}()' "
-                    f"(line {node.lineno})"
+                    f"Forbidden method call: '.{attr_name}()' (line {node.lineno})"
                 )
 
         self.generic_visit(node)
@@ -322,8 +324,7 @@ class SecurityVisitor(ast.NodeVisitor):
 
         if attr_name in self.config.forbidden_attributes:
             self.violations.append(
-                f"Forbidden attribute access: '.{attr_name}' "
-                f"(line {node.lineno})"
+                f"Forbidden attribute access: '.{attr_name}' (line {node.lineno})"
             )
 
         self.generic_visit(node)
@@ -331,15 +332,11 @@ class SecurityVisitor(ast.NodeVisitor):
     def visit_Subscript(self, node: ast.Subscript) -> None:
         """Check subscript access for string-based attribute access."""
         # Detect patterns like: obj["__class__"]
-        if (
-            isinstance(node.slice, ast.Constant)
-            and isinstance(node.slice.value, str)
-        ):
+        if isinstance(node.slice, ast.Constant) and isinstance(node.slice.value, str):
             key = node.slice.value
             if key in self.config.forbidden_attributes:
                 self.violations.append(
-                    f"Forbidden subscript access: '[{key!r}]' "
-                    f"(line {node.lineno})"
+                    f"Forbidden subscript access: '[{key!r}]' (line {node.lineno})"
                 )
 
         self.generic_visit(node)
@@ -348,6 +345,7 @@ class SecurityVisitor(ast.NodeVisitor):
 # ============================================================================
 # CODE VALIDATOR
 # ============================================================================
+
 
 class CodeValidator:
     """AST-based code validator for subprocess sandboxing.
@@ -396,8 +394,7 @@ class CodeValidator:
         # Check code length
         if len(code) > self.config.max_code_length:
             violations.append(
-                f"Code length ({len(code)} chars) exceeds maximum "
-                f"({self.config.max_code_length})"
+                f"Code length ({len(code)} chars) exceeds maximum ({self.config.max_code_length})"
             )
             return ValidationResult(
                 is_safe=False,
@@ -410,8 +407,7 @@ class CodeValidator:
         line_count = len(lines)
         if line_count > self.config.max_line_count:
             violations.append(
-                f"Line count ({line_count}) exceeds maximum "
-                f"({self.config.max_line_count})"
+                f"Line count ({line_count}) exceeds maximum ({self.config.max_line_count})"
             )
             return ValidationResult(
                 is_safe=False,
@@ -447,9 +443,7 @@ class CodeValidator:
         is_safe = len(violations) == 0
 
         if not is_safe:
-            logger.warning(
-                f"Code validation failed: {len(violations)} violation(s)"
-            )
+            logger.warning(f"Code validation failed: {len(violations)} violation(s)")
 
         return ValidationResult(
             is_safe=is_safe,

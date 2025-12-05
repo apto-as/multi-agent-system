@@ -205,9 +205,7 @@ class ToolInstance(TMWSBase, MetadataMixin):
         String(100), nullable=True, comment="Host address (e.g., 'localhost')"
     )
 
-    port: Mapped[int | None] = mapped_column(
-        Integer, nullable=True, comment="Exposed port number"
-    )
+    port: Mapped[int | None] = mapped_column(Integer, nullable=True, comment="Exposed port number")
 
     # Resource Usage
     cpu_limit: Mapped[str | None] = mapped_column(
@@ -228,9 +226,7 @@ class ToolInstance(TMWSBase, MetadataMixin):
     )
 
     # Relationships
-    tool: Mapped["DiscoveredTool"] = relationship(
-        "DiscoveredTool", back_populates="instances"
-    )
+    tool: Mapped["DiscoveredTool"] = relationship("DiscoveredTool", back_populates="instances")
 
     # Indexes
     __table_args__ = (

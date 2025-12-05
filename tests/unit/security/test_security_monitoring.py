@@ -8,12 +8,12 @@ Tests security monitoring and alert system:
 - Alert history and tracking
 """
 
-import pytest
 from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
-from src.security.monitoring.security_monitor import SecurityMonitor, SecurityEvent, AlertLevel
+import pytest
+
+from src.security.monitoring.security_monitor import AlertLevel, SecurityMonitor
 
 
 @pytest.fixture
@@ -124,7 +124,7 @@ class TestAlertTriggering:
         security_monitor.set_alert_threshold("failed_auth", threshold, window=timedelta(minutes=5))
 
         # Act - Exceed threshold
-        for i in range(threshold + 1):
+        for _i in range(threshold + 1):
             await security_monitor.record_event(
                 event_type="failed_auth",
                 agent_id=agent_id,
@@ -146,10 +146,12 @@ class TestAlertTriggering:
         threshold = 10
 
         # Configure anomaly detection
-        security_monitor.set_alert_threshold("access_denied", threshold, window=timedelta(minutes=1))
+        security_monitor.set_alert_threshold(
+            "access_denied", threshold, window=timedelta(minutes=1)
+        )
 
         # Act - Generate anomalous pattern
-        for i in range(threshold + 1):
+        for _i in range(threshold + 1):
             await security_monitor.record_event(
                 event_type="access_denied",
                 agent_id=agent_id,
@@ -268,7 +270,7 @@ class TestAlertManagement:
         for i in range(5):
             agent_id = f"agent-{i}"
             # Trigger threshold for each agent (5 events per agent)
-            for j in range(6):  # 6 events exceeds threshold of 5
+            for _j in range(6):  # 6 events exceeds threshold of 5
                 await security_monitor.record_event(
                     event_type="failed_auth",
                     agent_id=agent_id,
@@ -322,7 +324,7 @@ class TestMonitoringDashboard:
         agent_id = "test-agent"
 
         # Generate events for agent
-        for i in range(3):
+        for _i in range(3):
             await security_monitor.record_event(
                 event_type="failed_auth",
                 agent_id=agent_id,
@@ -364,7 +366,7 @@ class TestAlertThresholds:
         security_monitor.disable_alert_threshold("rate_limit_exceeded")
 
         # Generate events that would normally trigger alert
-        for i in range(20):
+        for _i in range(20):
             await security_monitor.record_event(
                 event_type="rate_limit_exceeded",
                 agent_id="test-agent",
@@ -380,7 +382,9 @@ class TestAlertThresholds:
     async def test_reset_threshold_to_default(self, security_monitor):
         """Test resetting threshold to default value."""
         # Arrange
-        security_monitor.set_alert_threshold("failed_auth", threshold=100, window=timedelta(hours=1))
+        security_monitor.set_alert_threshold(
+            "failed_auth", threshold=100, window=timedelta(hours=1)
+        )
 
         # Act
         security_monitor.reset_threshold_to_default("failed_auth")

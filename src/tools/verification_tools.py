@@ -5,6 +5,7 @@ Provides user-facing interface for:
 2. Retrieving agent trust scores
 3. Viewing verification history
 """
+
 from typing import Any
 
 from mcp.server import Server
@@ -27,7 +28,7 @@ async def register_verification_tools(mcp: Server) -> None:
         claim_type: str,
         claim_content: dict[str, Any],
         verification_command: str,
-        verified_by_agent_id: str | None = None
+        verified_by_agent_id: str | None = None,
     ) -> dict[str, Any]:
         """Verify a claim and record evidence
 
@@ -83,7 +84,7 @@ async def register_verification_tools(mcp: Server) -> None:
                 claim_type=ClaimType(claim_type),
                 claim_content=claim_content,
                 verification_command=verification_command,
-                verified_by_agent_id=verified_by_agent_id
+                verified_by_agent_id=verified_by_agent_id,
             )
 
             return result.to_dict()
@@ -121,9 +122,7 @@ async def register_verification_tools(mcp: Server) -> None:
 
     @mcp.tool()
     async def get_verification_history(
-        agent_id: str,
-        claim_type: str | None = None,
-        limit: int = 100
+        agent_id: str, claim_type: str | None = None, limit: int = 100
     ) -> list[dict[str, Any]]:
         """Get agent verification history
 
@@ -167,7 +166,7 @@ async def register_verification_tools(mcp: Server) -> None:
             return await service.get_verification_history(
                 agent_id=agent_id,
                 claim_type=ClaimType(claim_type) if claim_type else None,
-                limit=limit
+                limit=limit,
             )
 
     @mcp.tool()
@@ -214,10 +213,7 @@ async def register_verification_tools(mcp: Server) -> None:
             return await service.get_verification_statistics(agent_id)
 
     @mcp.tool()
-    async def get_trust_history(
-        agent_id: str,
-        limit: int = 100
-    ) -> list[dict[str, Any]]:
+    async def get_trust_history(agent_id: str, limit: int = 100) -> list[dict[str, Any]]:
         """Get agent trust score history
 
         Args:

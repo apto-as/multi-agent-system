@@ -10,15 +10,15 @@ This resolves the MEDIUM security risk identified in Phase 1A where
 access tracking occurred before authorization check.
 """
 
-import pytest
-from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
-from src.models.memory import AccessLevel, Memory
-from src.models.agent import Agent
-from src.services.memory_service import HybridMemoryService
+import pytest
+
 from src.core.exceptions import AuthorizationError
+from src.models.agent import Agent
+from src.models.memory import AccessLevel, Memory
+from src.services.memory_service import HybridMemoryService
 
 
 @pytest.fixture
@@ -91,7 +91,9 @@ class TestAccessAuthorizationOwner:
     """Test authorization when caller is the memory owner."""
 
     @pytest.mark.asyncio
-    async def test_owner_can_access_private_memory(self, memory_service, mock_session, mock_agent_service):
+    async def test_owner_can_access_private_memory(
+        self, memory_service, mock_session, mock_agent_service
+    ):
         """Test that memory owner can access their own PRIVATE memory."""
         # Arrange
         memory_id = str(uuid4())
@@ -129,7 +131,9 @@ class TestAccessAuthorizationUnauthorized:
     """Test authorization when caller is NOT authorized."""
 
     @pytest.mark.asyncio
-    async def test_unauthorized_agent_blocked_private_memory(self, memory_service, mock_session, mock_agent_service):
+    async def test_unauthorized_agent_blocked_private_memory(
+        self, memory_service, mock_session, mock_agent_service
+    ):
         """Test that unauthorized agent CANNOT access PRIVATE memory (V-ACCESS-1)."""
         # Arrange
         memory_id = str(uuid4())
@@ -172,7 +176,9 @@ class TestAccessAuthorizationUnauthorized:
         mock_session.commit.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_cross_namespace_team_memory_blocked(self, memory_service, mock_session, mock_agent_service):
+    async def test_cross_namespace_team_memory_blocked(
+        self, memory_service, mock_session, mock_agent_service
+    ):
         """Test that TEAM memory blocks cross-namespace access (namespace isolation)."""
         # Arrange
         memory_id = str(uuid4())
@@ -199,7 +205,7 @@ class TestAccessAuthorizationUnauthorized:
         mock_agent_service.get_agent_by_id.return_value = attacker_agent
 
         # Act & Assert
-        with pytest.raises(AuthorizationError) as exc_info:
+        with pytest.raises(AuthorizationError):
             await memory_service.get_memory(
                 memory_id=memory_id,
                 caller_agent_id=attacker_id,
@@ -215,7 +221,9 @@ class TestAccessAuthorizationTeamAccess:
     """Test authorization for TEAM-level access."""
 
     @pytest.mark.asyncio
-    async def test_same_namespace_team_member_can_access(self, memory_service, mock_session, mock_agent_service):
+    async def test_same_namespace_team_member_can_access(
+        self, memory_service, mock_session, mock_agent_service
+    ):
         """Test that team member in SAME namespace can access TEAM memory."""
         # Arrange
         memory_id = str(uuid4())
@@ -257,7 +265,9 @@ class TestAccessAuthorizationPublicAccess:
     """Test authorization for PUBLIC-level access."""
 
     @pytest.mark.asyncio
-    async def test_any_agent_can_access_public_memory(self, memory_service, mock_session, mock_agent_service):
+    async def test_any_agent_can_access_public_memory(
+        self, memory_service, mock_session, mock_agent_service
+    ):
         """Test that any agent can access PUBLIC memory."""
         # Arrange
         memory_id = str(uuid4())
@@ -352,7 +362,9 @@ class TestAccessAuthorizationEdgeCases:
     """Test edge cases and error handling."""
 
     @pytest.mark.asyncio
-    async def test_nonexistent_caller_agent_raises_error(self, memory_service, mock_session, mock_agent_service):
+    async def test_nonexistent_caller_agent_raises_error(
+        self, memory_service, mock_session, mock_agent_service
+    ):
         """Test that nonexistent caller agent raises appropriate error."""
         # Arrange
         memory_id = str(uuid4())

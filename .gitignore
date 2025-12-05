@@ -59,6 +59,14 @@ htmlcov/
 .opencode/
 
 # ============================================
+# SECURITY: Cryptographic Keys
+# Added: 2025-12-03 - License signing keys
+# ============================================
+*_private.key
+*.pem
+!*.pem.example
+
+# ============================================
 # SECURITY: Sensitive environment files
 # Added: 2025-10-24 - CRITICAL security fix
 # ============================================

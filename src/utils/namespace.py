@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 class NamespaceError(Exception):
     """Raised when namespace detection or validation fails."""
+
     pass
 
 
@@ -61,13 +62,13 @@ def sanitize_namespace(raw_namespace: str) -> str:
 
     # Replace invalid characters with hyphens
     # Security: Block . and / to prevent path traversal (V-1 fix)
-    namespace = re.sub(r'[^a-z0-9\-_]', '-', namespace)
+    namespace = re.sub(r"[^a-z0-9\-_]", "-", namespace)
 
     # Remove consecutive hyphens
-    namespace = re.sub(r'-+', '-', namespace)
+    namespace = re.sub(r"-+", "-", namespace)
 
     # Remove leading/trailing hyphens
-    namespace = namespace.strip('-')
+    namespace = namespace.strip("-")
 
     # Enforce max length
     if len(namespace) > 128:
@@ -115,8 +116,7 @@ def validate_namespace(namespace: str) -> None:
         sanitized = sanitize_namespace(namespace)
         if sanitized != namespace:
             raise NamespaceError(
-                f"Namespace '{namespace}' is not properly sanitized. "
-                f"Use '{sanitized}' instead.",
+                f"Namespace '{namespace}' is not properly sanitized. Use '{sanitized}' instead.",
             )
     except NamespaceError as e:
         raise NamespaceError(f"Invalid namespace: {e}")
@@ -167,7 +167,7 @@ async def get_git_remote_url(git_root: Path) -> str | None:
             content = f.read()
 
         # Extract remote origin URL
-        match = re.search(r'url\s*=\s*(.+)', content)
+        match = re.search(r"url\s*=\s*(.+)", content)
         if match:
             return match.group(1).strip()
     except OSError as e:
@@ -209,7 +209,9 @@ def namespace_from_git_url(git_url: str) -> str:
     return sanitize_namespace(url)
 
 
-async def find_marker_file(filename: str = ".trinitas-project.yaml", start_path: Path | None = None) -> Path | None:
+async def find_marker_file(
+    filename: str = ".trinitas-project.yaml", start_path: Path | None = None
+) -> Path | None:
     """Find project marker file by walking up directory tree.
 
     Args:

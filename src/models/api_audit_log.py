@@ -29,34 +29,48 @@ class APIAuditLog(TMWSBase):
     endpoint: Mapped[str] = mapped_column(String(255), nullable=False, comment="API endpoint path")
 
     method: Mapped[str] = mapped_column(
-        String(10), nullable=False, comment="HTTP method (GET, POST, PUT, DELETE, PATCH)",
+        String(10),
+        nullable=False,
+        comment="HTTP method (GET, POST, PUT, DELETE, PATCH)",
     )
 
     # Request/Response data - exact spec
     request_body: Mapped[dict[str, Any] | None] = mapped_column(
-        JSON, nullable=True, comment="Request body in JSON format",
+        JSON,
+        nullable=True,
+        comment="Request body in JSON format",
     )
 
     response_status: Mapped[int | None] = mapped_column(
-        Integer, nullable=True, comment="HTTP response status code",
+        Integer,
+        nullable=True,
+        comment="HTTP response status code",
     )
 
     response_body: Mapped[dict[str, Any] | None] = mapped_column(
-        JSON, nullable=True, comment="Response body in JSON format",
+        JSON,
+        nullable=True,
+        comment="Response body in JSON format",
     )
 
     # User tracking - exact spec
     user_id: Mapped[str | None] = mapped_column(
-        String(100), nullable=True, comment="User identifier who made the request",
+        String(100),
+        nullable=True,
+        comment="User identifier who made the request",
     )
 
     ip_address: Mapped[IPv4Address | IPv6Address | None] = mapped_column(
-        String(45), nullable=True, comment="Client IP address",
+        String(45),
+        nullable=True,
+        comment="Client IP address",
     )
 
     # Performance tracking - exact spec
     duration_ms: Mapped[int | None] = mapped_column(
-        Integer, nullable=True, comment="Request processing duration in milliseconds",
+        Integer,
+        nullable=True,
+        comment="Request processing duration in milliseconds",
     )
 
     # Table constraints - exact spec
@@ -86,7 +100,9 @@ class APIAuditLog(TMWSBase):
 
     @validates("ip_address")
     def validate_ip_address(
-        self, _key: str, ip_addr: str | None,
+        self,
+        _key: str,
+        ip_addr: str | None,
     ) -> IPv4Address | IPv6Address | None:
         """Validate and convert IP address."""
         if ip_addr is None:
@@ -99,7 +115,10 @@ class APIAuditLog(TMWSBase):
             raise ValueError(f"Invalid IP address: {e}")
 
     def set_request_data(
-        self, endpoint: str, method: str, body: dict[str, Any] | None = None,
+        self,
+        endpoint: str,
+        method: str,
+        body: dict[str, Any] | None = None,
     ) -> None:
         """Set request data with validation."""
         self.endpoint = endpoint
@@ -249,7 +268,10 @@ class APIAuditLog(TMWSBase):
 
     @classmethod
     def get_slow_requests(
-        cls, session, threshold_ms: int = 1000, limit: int = 100,
+        cls,
+        session,
+        threshold_ms: int = 1000,
+        limit: int = 100,
     ) -> list["APIAuditLog"]:
         """Get slow requests above threshold."""
         return (

@@ -1,4 +1,5 @@
 """Verification and trust tracking models"""
+
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
@@ -22,7 +23,7 @@ class VerificationRecord(TMWSBase):
         String(64),
         ForeignKey("agents.agent_id", name="fk_verification_agent"),
         nullable=False,
-        index=True
+        index=True,
     )
     claim_type: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     claim_content: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
@@ -30,9 +31,7 @@ class VerificationRecord(TMWSBase):
     verification_result: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     accurate: Mapped[bool] = mapped_column(Boolean, nullable=False, index=True)
     evidence_memory_id: Mapped[str | None] = mapped_column(
-        String(36),
-        ForeignKey("memories.id", name="fk_verification_evidence"),
-        nullable=True
+        String(36), ForeignKey("memories.id", name="fk_verification_evidence"), nullable=True
     )
     verified_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
     verified_by_agent_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
@@ -57,17 +56,19 @@ class TrustScoreHistory(TMWSBase):
         String(64),
         ForeignKey("agents.agent_id", name="fk_trust_history_agent"),
         nullable=False,
-        index=True
+        index=True,
     )
     old_score: Mapped[float] = mapped_column(Float, nullable=False)
     new_score: Mapped[float] = mapped_column(Float, nullable=False)
     verification_record_id: Mapped[str | None] = mapped_column(
         String(36),
         ForeignKey("verification_records.id", name="fk_trust_history_verification"),
-        nullable=True
+        nullable=True,
     )
     reason: Mapped[str] = mapped_column(String(255), nullable=False)
-    changed_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True, default=datetime.utcnow)
+    changed_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, index=True, default=datetime.utcnow
+    )
 
     # Relationships
     agent: Mapped["Agent"] = relationship("Agent", back_populates="trust_history")  # type: ignore
@@ -94,8 +95,8 @@ def prevent_verification_record_deletion(mapper, connection, target):
             "record_id": str(target.id),
             "agent_id": target.agent_id,
             "claim_type": target.claim_type,
-            "verified_at": target.verified_at.isoformat() if target.verified_at else None
-        }
+            "verified_at": target.verified_at.isoformat() if target.verified_at else None,
+        },
     )
 
 
@@ -113,6 +114,6 @@ def prevent_trust_history_deletion(mapper, connection, target):
             "agent_id": target.agent_id,
             "old_score": target.old_score,
             "new_score": target.new_score,
-            "changed_at": target.changed_at.isoformat() if target.changed_at else None
-        }
+            "changed_at": target.changed_at.isoformat() if target.changed_at else None,
+        },
     )

@@ -82,14 +82,10 @@ class GetToolsSummaryUseCase:
             # 2. Filter by namespace if needed (V-TOOL-1)
             # Note: MCPManager already filters by namespace in production
             # This is defense-in-depth
-            filtered_tools = self._filter_tools_by_namespace(
-                all_tools, request.namespace
-            )
+            filtered_tools = self._filter_tools_by_namespace(all_tools, request.namespace)
 
             # 3. Get frequently used tools
-            frequently_used = self._get_frequently_used_tools(
-                filtered_tools, request.limit
-            )
+            frequently_used = self._get_frequently_used_tools(filtered_tools, request.limit)
 
             # 4. Calculate total count
             total_count = sum(len(tools) for tools in filtered_tools.values())
@@ -174,9 +170,9 @@ class GetToolsSummaryUseCase:
                     ToolSummaryItem(
                         server=server_name,
                         tool=getattr(tool, "name", str(tool)),
-                        description=getattr(
-                            tool, "description", "No description"
-                        )[:100],  # Truncate for token efficiency
+                        description=getattr(tool, "description", "No description")[
+                            :100
+                        ],  # Truncate for token efficiency
                         usage_count=0,  # TODO: Implement usage tracking
                     )
                 )

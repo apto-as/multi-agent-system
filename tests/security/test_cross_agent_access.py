@@ -58,7 +58,9 @@ class TestCrossAgentAccessPolicies:
 
         # Owner can decrypt
         decrypted = await field_encryption.decrypt_field(
-            encrypted, requesting_agent=agent_id, requesting_namespace=namespace,
+            encrypted,
+            requesting_agent=agent_id,
+            requesting_namespace=namespace,
         )
 
         assert decrypted == "Secret message"
@@ -82,7 +84,9 @@ class TestCrossAgentAccessPolicies:
         # Other agent (same namespace) should be denied
         with pytest.raises(PermissionError, match="Access denied.*PRIVATE"):
             await field_encryption.decrypt_field(
-                encrypted, requesting_agent=other_agent, requesting_namespace=namespace,
+                encrypted,
+                requesting_agent=other_agent,
+                requesting_namespace=namespace,
             )
 
     # =====================================================
@@ -107,7 +111,9 @@ class TestCrossAgentAccessPolicies:
 
         # Team member can decrypt
         decrypted = await field_encryption.decrypt_field(
-            encrypted, requesting_agent=team_agent, requesting_namespace=namespace,
+            encrypted,
+            requesting_agent=team_agent,
+            requesting_namespace=namespace,
         )
 
         assert decrypted == "Team secret"
@@ -132,7 +138,9 @@ class TestCrossAgentAccessPolicies:
         # Agent from different namespace should be denied
         with pytest.raises(PermissionError, match="Different namespace"):
             await field_encryption.decrypt_field(
-                encrypted, requesting_agent=other_agent, requesting_namespace=other_namespace,
+                encrypted,
+                requesting_agent=other_agent,
+                requesting_namespace=other_namespace,
             )
 
     # =====================================================
@@ -158,7 +166,9 @@ class TestCrossAgentAccessPolicies:
 
         # Shared agent can decrypt
         decrypted = await field_encryption.decrypt_field(
-            encrypted, requesting_agent=shared_agent, requesting_namespace=namespace,
+            encrypted,
+            requesting_agent=shared_agent,
+            requesting_namespace=namespace,
         )
 
         assert decrypted == "Shared data"
@@ -183,7 +193,9 @@ class TestCrossAgentAccessPolicies:
         # Agent not in list should be denied
         with pytest.raises(PermissionError, match="Not in shared agent list"):
             await field_encryption.decrypt_field(
-                encrypted, requesting_agent=not_shared_agent, requesting_namespace=namespace,
+                encrypted,
+                requesting_agent=not_shared_agent,
+                requesting_namespace=namespace,
             )
 
     @pytest.mark.asyncio
@@ -208,7 +220,9 @@ class TestCrossAgentAccessPolicies:
         # This prevents namespace spoofing attacks
         with pytest.raises(PermissionError, match="Namespace mismatch"):
             await field_encryption.decrypt_field(
-                encrypted, requesting_agent=shared_agent, requesting_namespace=wrong_namespace,
+                encrypted,
+                requesting_agent=shared_agent,
+                requesting_namespace=wrong_namespace,
             )
 
     # =====================================================
@@ -234,7 +248,9 @@ class TestCrossAgentAccessPolicies:
 
         # Any agent from any namespace can decrypt
         decrypted = await field_encryption.decrypt_field(
-            encrypted, requesting_agent=any_agent, requesting_namespace=other_namespace,
+            encrypted,
+            requesting_agent=any_agent,
+            requesting_namespace=other_namespace,
         )
 
         assert decrypted == "Public announcement"
@@ -261,7 +277,9 @@ class TestCrossAgentAccessPolicies:
 
         # Any agent can decrypt system data
         decrypted = await field_encryption.decrypt_field(
-            encrypted, requesting_agent=user_agent, requesting_namespace=namespace,
+            encrypted,
+            requesting_agent=user_agent,
+            requesting_namespace=namespace,
         )
 
         assert decrypted == "System configuration"
@@ -293,14 +311,18 @@ class TestCrossAgentAccessPolicies:
 
         # Owner can still decrypt
         decrypted = await field_encryption.decrypt_field(
-            encrypted, requesting_agent=owner_agent, requesting_namespace=namespace,
+            encrypted,
+            requesting_agent=owner_agent,
+            requesting_namespace=namespace,
         )
         assert decrypted == "Old encrypted data"
 
         # Other agent should be denied (defaults to PRIVATE)
         with pytest.raises(PermissionError, match="Access denied"):
             await field_encryption.decrypt_field(
-                encrypted, requesting_agent=other_agent, requesting_namespace=namespace,
+                encrypted,
+                requesting_agent=other_agent,
+                requesting_namespace=namespace,
             )
 
     # =====================================================
@@ -413,14 +435,18 @@ class TestCrossAgentAccessPolicies:
 
         # Owner can still access
         decrypted = await field_encryption.decrypt_field(
-            encrypted, requesting_agent=owner_agent, requesting_namespace=namespace,
+            encrypted,
+            requesting_agent=owner_agent,
+            requesting_namespace=namespace,
         )
         assert decrypted == "Not actually shared"
 
         # Other agent should be denied
         with pytest.raises(PermissionError, match="Not in shared agent list"):
             await field_encryption.decrypt_field(
-                encrypted, requesting_agent=other_agent, requesting_namespace=namespace,
+                encrypted,
+                requesting_agent=other_agent,
+                requesting_namespace=namespace,
             )
 
     # =====================================================
@@ -451,7 +477,9 @@ class TestCrossAgentAccessPolicies:
 
         # Team member can decrypt
         decrypted = await field_encryption.decrypt_field(
-            encrypted, requesting_agent=team_agent, requesting_namespace=namespace,
+            encrypted,
+            requesting_agent=team_agent,
+            requesting_namespace=namespace,
         )
 
         assert decrypted == complex_data
@@ -476,7 +504,9 @@ class TestCrossAgentAccessPolicies:
 
         # Any agent can decrypt
         decrypted = await field_encryption.decrypt_field(
-            encrypted, requesting_agent=any_agent, requesting_namespace="other-namespace",
+            encrypted,
+            requesting_agent=any_agent,
+            requesting_namespace="other-namespace",
         )
 
         assert decrypted == list_data

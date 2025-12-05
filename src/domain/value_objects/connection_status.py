@@ -39,7 +39,9 @@ class ConnectionStatus(str, Enum):
     """Connection encountered an error and is in an invalid state."""
 
     @classmethod
-    def get_allowed_transitions(cls, current_status: "ConnectionStatus") -> list["ConnectionStatus"]:
+    def get_allowed_transitions(
+        cls, current_status: "ConnectionStatus"
+    ) -> list["ConnectionStatus"]:
         """Get allowed state transitions from the current status.
 
         Args:
@@ -53,7 +55,11 @@ class ConnectionStatus(str, Enum):
             [ConnectionStatus.CONNECTING, ConnectionStatus.ACTIVE, ConnectionStatus.ERROR]
         """
         transitions = {
-            cls.DISCONNECTED: [cls.CONNECTING, cls.ACTIVE, cls.ERROR],  # Allow direct ACTIVE transition
+            cls.DISCONNECTED: [
+                cls.CONNECTING,
+                cls.ACTIVE,
+                cls.ERROR,
+            ],  # Allow direct ACTIVE transition
             cls.CONNECTING: [cls.ACTIVE, cls.ERROR, cls.DISCONNECTED],
             cls.ACTIVE: [cls.DISCONNECTING, cls.ERROR],
             cls.DISCONNECTING: [cls.DISCONNECTED, cls.ERROR],

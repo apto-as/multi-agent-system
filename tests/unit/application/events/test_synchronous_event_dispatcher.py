@@ -5,11 +5,11 @@ This module tests the SynchronousEventDispatcher implementation.
 Tests follow TDD RED phase methodology - expecting failures until implementation exists.
 """
 
-import pytest
 import asyncio
-from datetime import datetime
-from uuid import uuid4
 from unittest.mock import AsyncMock, MagicMock, call
+from uuid import uuid4
+
+import pytest
 
 from src.application.events.synchronous_dispatcher import (
     SynchronousEventDispatcher,
@@ -115,9 +115,7 @@ class TestSynchronousEventDispatcher:
         # Assert
         mock_handler.assert_called_once_with(sample_connected_event)
 
-    async def test_dispatch_event_to_multiple_handlers(
-        self, dispatcher, sample_connected_event
-    ):
+    async def test_dispatch_event_to_multiple_handlers(self, dispatcher, sample_connected_event):
         """
         Test event dispatch to multiple handlers for same event type
 
@@ -180,9 +178,7 @@ class TestSynchronousEventDispatcher:
         connected_handler.assert_called_once_with(sample_connected_event)
         tools_handler.assert_called_once_with(sample_tools_discovered_event)
 
-    async def test_async_handler_support(
-        self, dispatcher, sample_connected_event
-    ):
+    async def test_async_handler_support(self, dispatcher, sample_connected_event):
         """
         Test async handler is awaited correctly
 
@@ -229,6 +225,7 @@ class TestSynchronousEventDispatcher:
             - Handler executed via asyncio.to_thread()
             - Handler called with correct event
         """
+
         # Arrange
         def sync_handler(event):
             # Synchronous handler (no async/await)
@@ -244,9 +241,7 @@ class TestSynchronousEventDispatcher:
         # Assert
         mock_sync_handler.assert_called_once_with(sample_connected_event)
 
-    async def test_handler_error_isolation(
-        self, dispatcher, sample_connected_event
-    ):
+    async def test_handler_error_isolation(self, dispatcher, sample_connected_event):
         """
         Test handler errors are isolated and don't affect other handlers
 
@@ -282,9 +277,7 @@ class TestSynchronousEventDispatcher:
         assert "successful" in call_order
         # Both handlers executed despite first one failing
 
-    async def test_no_handler_registered(
-        self, dispatcher, sample_connected_event
-    ):
+    async def test_no_handler_registered(self, dispatcher, sample_connected_event):
         """
         Test dispatch with no handlers registered
 
@@ -345,7 +338,9 @@ async def test_same_handler_for_multiple_event_types():
 
     # Assert
     assert handler.call_count == 2
-    handler.assert_has_calls([
-        call(connected_event),
-        call(disconnected_event),
-    ])
+    handler.assert_has_calls(
+        [
+            call(connected_event),
+            call(disconnected_event),
+        ]
+    )

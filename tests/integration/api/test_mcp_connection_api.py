@@ -19,7 +19,7 @@ Author: Artemis (Technical Perfectionist)
 Created: 2025-11-12 (Phase 1-3-D: Integration Tests)
 """
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -28,9 +28,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.value_objects.connection_status import ConnectionStatus
 from src.infrastructure.adapters.mcp_client_adapter import MCPConnectionError
-from src.models.agent import Agent, AgentStatus
+from src.models.agent import Agent
 from src.models.mcp_connection import MCPConnectionModel
-
 
 # ============================================================================
 # Test 1: Full Connection Workflow (Happy Path)
@@ -343,7 +342,9 @@ async def test_validation_error_returns_400(
     )
 
     # Verify 400 Bad Request
-    assert response.status_code == 400, f"Expected 400, got {response.status_code}: {response.json()}"
+    assert response.status_code == 400, (
+        f"Expected 400, got {response.status_code}: {response.json()}"
+    )
 
     error = response.json()
 
@@ -401,7 +402,9 @@ async def test_external_service_failure_returns_502(
     )
 
     # Verify 502 Bad Gateway
-    assert response.status_code == 502, f"Expected 502, got {response.status_code}: {response.json()}"
+    assert response.status_code == 502, (
+        f"Expected 502, got {response.status_code}: {response.json()}"
+    )
 
     error = response.json()
 

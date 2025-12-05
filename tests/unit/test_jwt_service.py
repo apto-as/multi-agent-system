@@ -10,7 +10,6 @@ This module tests all JWT service functionality including:
 - Performance requirements (<200ms for token operations)
 """
 
-import secrets
 import time
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
@@ -102,7 +101,7 @@ class TestPasswordHashing:
         password = "secure_password_123"
         different_password = "different_password_456"
 
-        password_hash = hash_password(password)
+        hash_password(password)
         different_password_hash = hash_password(different_password)  # Hash of different password
 
         # Verifying with hash of different password should fail

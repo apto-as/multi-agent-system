@@ -200,9 +200,7 @@ async def test_skill_is_accessible_by_shared(test_session: AsyncSession):
     assert skill.is_accessible_by("shared-agent", "test-namespace") is False
 
     # Add explicit sharing
-    shared_agent = SkillSharedAgent(
-        id=str(uuid4()), skill_id=skill.id, agent_id="shared-agent"
-    )
+    shared_agent = SkillSharedAgent(id=str(uuid4()), skill_id=skill.id, agent_id="shared-agent")
     test_session.add(shared_agent)
     await test_session.flush()  # Ensure shared_agent is written
 
@@ -273,7 +271,9 @@ async def test_skill_version_verify_content_integrity(
 
 
 @pytest.mark.asyncio
-async def test_skill_version_metadata_property(test_session: AsyncSession, sample_skill_version: SkillVersion):
+async def test_skill_version_metadata_property(
+    test_session: AsyncSession, sample_skill_version: SkillVersion
+):
     """Test metadata serialization/deserialization."""
     metadata = sample_skill_version.get_metadata()
 
@@ -296,7 +296,9 @@ def test_validate_skill_name_valid(validation_service: SkillValidationService):
     """Test valid skill name."""
     assert validation_service.validate_skill_name("valid-skill-name") == "valid-skill-name"
     assert validation_service.validate_skill_name("skill_123") == "skill_123"
-    assert validation_service.validate_skill_name("ab") == "ab"  # Minimum 2 chars (1 letter + 1 char)
+    assert (
+        validation_service.validate_skill_name("ab") == "ab"
+    )  # Minimum 2 chars (1 letter + 1 char)
 
 
 def test_validate_skill_name_invalid(validation_service: SkillValidationService):
@@ -327,7 +329,9 @@ def test_validate_skill_name_null_bytes(validation_service: SkillValidationServi
 def test_validate_namespace_valid(validation_service: SkillValidationService):
     """Test valid namespace."""
     assert validation_service.validate_namespace("valid-namespace") == "valid-namespace"
-    assert validation_service.validate_namespace("123namespace") == "123namespace"  # Can start with number
+    assert (
+        validation_service.validate_namespace("123namespace") == "123namespace"
+    )  # Can start with number
 
 
 def test_validate_namespace_invalid(validation_service: SkillValidationService):
@@ -549,7 +553,9 @@ async def test_skill_activation_creation(test_session: AsyncSession, sample_skil
     await test_session.commit()
 
     # Verify creation
-    result = await test_session.execute(select(SkillActivation).where(SkillActivation.skill_id == sample_skill.id))
+    result = await test_session.execute(
+        select(SkillActivation).where(SkillActivation.skill_id == sample_skill.id)
+    )
     created_activation = result.scalar_one()
 
     assert created_activation.skill_id == sample_skill.id
@@ -576,7 +582,9 @@ async def test_skill_mcp_tool_creation(test_session: AsyncSession, sample_skill:
     await test_session.commit()
 
     # Verify creation
-    result = await test_session.execute(select(SkillMCPTool).where(SkillMCPTool.skill_id == sample_skill.id))
+    result = await test_session.execute(
+        select(SkillMCPTool).where(SkillMCPTool.skill_id == sample_skill.id)
+    )
     created_tool = result.scalar_one()
 
     assert created_tool.tool_name == "find_symbol"

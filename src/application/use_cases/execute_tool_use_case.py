@@ -46,35 +46,23 @@ class ExecuteToolUseCase:
         self._adapter = adapter
         self._agent_repository = agent_repository
 
-    async def execute(
-        self, request: ExecuteToolRequest
-    ) -> ToolExecutionResultDTO:
+    async def execute(self, request: ExecuteToolRequest) -> ToolExecutionResultDTO:
         # [1-2] Namespace verification
-        verified_namespace = await self._verify_namespace(
-            request.agent_id, request.namespace
-        )
+        verified_namespace = await self._verify_namespace(request.agent_id, request.namespace)
 
         # [3] Retrieve connection
-        connection = await self._repository.get_by_id(
-            request.connection_id, verified_namespace
-        )
+        connection = await self._repository.get_by_id(request.connection_id, verified_namespace)
         if not connection:
-            raise AggregateNotFoundError(
-                "MCPConnection", str(request.connection_id)
-            )
+            raise AggregateNotFoundError("MCPConnection", str(request.connection_id))
 
         # [4] Verify active
         if connection.status != ConnectionStatus.ACTIVE:
-            raise ValidationError(
-                f"Connection is not active (status: {connection.status.value})"
-            )
+            raise ValidationError(f"Connection is not active (status: {connection.status.value})")
 
         # [5] Verify tool exists
         tool = connection.get_tool_by_name(request.tool_name)
         if not tool:
-            raise ValidationError(
-                f"Tool '{request.tool_name}' not found in connection"
-            )
+            raise ValidationError(f"Tool '{request.tool_name}' not found in connection")
 
         # [6] Execute tool
         try:
@@ -93,9 +81,7 @@ class ExecuteToolUseCase:
             result=result,
         )
 
-    async def _verify_namespace(
-        self, agent_id, claimed_namespace: str
-    ) -> str:
+    async def _verify_namespace(self, agent_id, claimed_namespace: str) -> str:
         """
         Verify namespace from database (SECURITY CRITICAL)
 
@@ -125,9 +111,7 @@ class ExecuteToolUseCase:
                 f"claimed={claimed_namespace}, actual={verified_namespace}"
             )
 
-            raise AuthorizationError(
-                "Namespace verification failed (access denied)"
-            )
+            raise AuthorizationError("Namespace verification failed (access denied)")
 
         # [3] Return verified namespace
         return verified_namespace

@@ -110,7 +110,11 @@ class AgentMemoryTools:
         return {"success": True, "count": len(accessible_results), "memories": accessible_results}
 
     async def share_memory_tool(
-        self, agent_id: str, memory_id: str, share_with_agents: list[str], permission: str = "read",
+        self,
+        agent_id: str,
+        memory_id: str,
+        share_with_agents: list[str],
+        permission: str = "read",
     ) -> dict[str, Any]:
         """Share a memory with other agents.
 
@@ -128,7 +132,9 @@ class AgentMemoryTools:
 
         # Update sharing
         await self.memory_service.share_memory(
-            memory_id=memory_id, shared_with_agents=share_with_agents, permission=permission,
+            memory_id=memory_id,
+            shared_with_agents=share_with_agents,
+            permission=permission,
         )
 
         return {"success": True, "message": f"Memory shared with {len(share_with_agents)} agents"}
@@ -175,7 +181,9 @@ class AgentMemoryTools:
 
         # Perform consolidation
         consolidated = await self.memory_service.consolidate_memories(
-            agent_id=agent_id, memories=memories, consolidation_type=consolidation_type,
+            agent_id=agent_id,
+            memories=memories,
+            consolidation_type=consolidation_type,
         )
 
         return {

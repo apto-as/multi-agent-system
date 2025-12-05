@@ -55,12 +55,17 @@ class Agent(TMWSBase, MetadataMixin):
     )
 
     display_name: Mapped[str] = mapped_column(
-        Text, nullable=False, comment="Human-readable name for the agent",
+        Text,
+        nullable=False,
+        comment="Human-readable name for the agent",
     )
 
     # Organization and namespace
     organization_id: Mapped[str | None] = mapped_column(
-        Text, nullable=True, index=True, comment="Organization or project identifier",
+        Text,
+        nullable=True,
+        index=True,
+        comment="Organization or project identifier",
     )
 
     namespace: Mapped[str] = mapped_column(
@@ -79,11 +84,17 @@ class Agent(TMWSBase, MetadataMixin):
     )
 
     capabilities: Mapped[dict[str, Any]] = mapped_column(
-        JSON, nullable=False, default=dict, comment="Dynamic capabilities and features",
+        JSON,
+        nullable=False,
+        default=dict,
+        comment="Dynamic capabilities and features",
     )
 
     config: Mapped[dict[str, Any]] = mapped_column(
-        JSON, nullable=False, default=dict, comment="Agent-specific configuration",
+        JSON,
+        nullable=False,
+        default=dict,
+        comment="Agent-specific configuration",
     )
 
     # Access control
@@ -103,7 +114,10 @@ class Agent(TMWSBase, MetadataMixin):
     )
 
     health_score: Mapped[float] = mapped_column(
-        Float, nullable=False, default=1.0, comment="Health score (0.0 - 1.0)",
+        Float,
+        nullable=False,
+        default=1.0,
+        comment="Health score (0.0 - 1.0)",
     )
 
     # Performance metrics
@@ -117,14 +131,16 @@ class Agent(TMWSBase, MetadataMixin):
         Float,
         nullable=False,
         default=0.5,
-        comment="Trust score (0.0 - 1.0) based on verification accuracy"
+        comment="Trust score (0.0 - 1.0) based on verification accuracy",
     )
     total_verifications: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     accurate_verifications: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     # Authentication
     api_key_hash: Mapped[str | None] = mapped_column(
-        Text, nullable=True, comment="Hashed API key for agent authentication",
+        Text,
+        nullable=True,
+        comment="Hashed API key for agent authentication",
     )
 
     # License tier
@@ -147,7 +163,9 @@ class Agent(TMWSBase, MetadataMixin):
 
     # Timestamps
     last_active_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True, index=True,
+        DateTime(timezone=True),
+        nullable=True,
+        index=True,
     )
 
     # Relationships
@@ -214,7 +232,10 @@ class Agent(TMWSBase, MetadataMixin):
         self.last_active_at = datetime.utcnow()
 
     def update_metrics(
-        self, success: bool, response_time_ms: float, memory_count_delta: int = 0,
+        self,
+        success: bool,
+        response_time_ms: float,
+        memory_count_delta: int = 0,
     ) -> None:
         """Update performance metrics."""
         self.total_tasks += 1

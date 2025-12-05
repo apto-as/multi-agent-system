@@ -21,20 +21,22 @@ Author: Hestia (Security Guardian)
 Date: 2025-11-11
 """
 
+from uuid import uuid4
+
 import pytest
-from uuid import UUID, uuid4
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 
-from src.core.exceptions import ValidationError, NotFoundError, AgentNotFoundError, AuthorizationError
-from src.models.agent import Agent, AccessLevel
+from src.core.exceptions import (
+    ValidationError,
+)
+from src.models.agent import AccessLevel, Agent
 from src.models.learning_pattern import LearningPattern
-from src.services.verification_service import VerificationService, ClaimType
-
+from src.services.verification_service import ClaimType, VerificationService
 
 # =============================================================================
 # Test Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 async def verification_service(db_session: AsyncSession) -> VerificationService:
@@ -51,7 +53,7 @@ async def attacker_agent(db_session: AsyncSession) -> Agent:
         namespace="attacker-namespace",
         trust_score=0.3,
         total_verifications=0,
-        accurate_verifications=0
+        accurate_verifications=0,
     )
     db_session.add(agent)
     await db_session.commit()
@@ -68,7 +70,7 @@ async def victim_agent(db_session: AsyncSession) -> Agent:
         namespace="victim-namespace",
         trust_score=0.7,
         total_verifications=10,
-        accurate_verifications=9
+        accurate_verifications=9,
     )
     db_session.add(agent)
     await db_session.commit()
@@ -85,7 +87,7 @@ async def verifier_agent(db_session: AsyncSession) -> Agent:
         namespace="verifier-namespace",
         trust_score=0.8,
         total_verifications=50,
-        accurate_verifications=48
+        accurate_verifications=48,
     )
     db_session.add(agent)
     await db_session.commit()
@@ -104,7 +106,7 @@ async def victim_private_pattern(db_session: AsyncSession, victim_agent: Agent) 
         pattern_data={"strategy": "private_optimization", "context": "victim_only"},
         access_level=AccessLevel.PRIVATE.value,
         usage_count=10,
-        success_rate=0.9
+        success_rate=0.9,
     )
     db_session.add(pattern)
     await db_session.commit()
@@ -123,7 +125,7 @@ async def public_pattern(db_session: AsyncSession, victim_agent: Agent) -> Learn
         pattern_data={"strategy": "public_optimization"},
         access_level=AccessLevel.PUBLIC.value,
         usage_count=20,
-        success_rate=0.85
+        success_rate=0.85,
     )
     db_session.add(pattern)
     await db_session.commit()
@@ -132,7 +134,9 @@ async def public_pattern(db_session: AsyncSession, victim_agent: Agent) -> Learn
 
 
 @pytest.fixture
-async def attacker_owned_pattern(db_session: AsyncSession, attacker_agent: Agent) -> LearningPattern:
+async def attacker_owned_pattern(
+    db_session: AsyncSession, attacker_agent: Agent
+) -> LearningPattern:
     """Create public pattern owned by attacker (for self-boosting tests)"""
     pattern = LearningPattern(
         agent_id=attacker_agent.agent_id,
@@ -142,7 +146,7 @@ async def attacker_owned_pattern(db_session: AsyncSession, attacker_agent: Agent
         pattern_data={"strategy": "self_boost"},
         access_level=AccessLevel.PUBLIC.value,
         usage_count=5,
-        success_rate=1.0  # Artificially high
+        success_rate=1.0,  # Artificially high
     )
     db_session.add(pattern)
     await db_session.commit()
@@ -154,11 +158,10 @@ async def attacker_owned_pattern(db_session: AsyncSession, attacker_agent: Agent
 # V-VERIFY-1: Command Injection Prevention
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_command_injection_via_pattern_id_rejected(
-    verification_service: VerificationService,
-    attacker_agent: Agent,
-    verifier_agent: Agent
+    verification_service: VerificationService, attacker_agent: Agent, verifier_agent: Agent
 ):
     """Test V-VERIFY-1: Pattern ID injection attempts are rejected
 
@@ -173,10 +176,10 @@ async def test_command_injection_via_pattern_id_rejected(
         claim_type=ClaimType.TEST_RESULT,
         claim_content={
             "return_code": 0,
-            "pattern_id": malicious_pattern_id  # Injection attempt
+            "pattern_id": malicious_pattern_id,  # Injection attempt
         },
         verification_command="true",
-        verified_by_agent_id=verifier_agent.agent_id
+        verified_by_agent_id=verifier_agent.agent_id,
     )
 
     # Verification should succeed (graceful degradation)
@@ -187,9 +190,7 @@ async def test_command_injection_via_pattern_id_rejected(
 
 @pytest.mark.asyncio
 async def test_sql_injection_via_pattern_id_rejected(
-    verification_service: VerificationService,
-    attacker_agent: Agent,
-    verifier_agent: Agent
+    verification_service: VerificationService, attacker_agent: Agent, verifier_agent: Agent
 ):
     """Test V-VERIFY-1: SQL injection via pattern_id rejected
 
@@ -202,12 +203,9 @@ async def test_sql_injection_via_pattern_id_rejected(
     result = await verification_service.verify_claim(
         agent_id=attacker_agent.agent_id,
         claim_type=ClaimType.TEST_RESULT,
-        claim_content={
-            "return_code": 0,
-            "pattern_id": sql_injection_pattern_id
-        },
+        claim_content={"return_code": 0, "pattern_id": sql_injection_pattern_id},
         verification_command="true",
-        verified_by_agent_id=verifier_agent.agent_id
+        verified_by_agent_id=verifier_agent.agent_id,
     )
 
     # Verification succeeds (graceful degradation)
@@ -217,9 +215,7 @@ async def test_sql_injection_via_pattern_id_rejected(
 
 @pytest.mark.asyncio
 async def test_path_traversal_via_pattern_id_rejected(
-    verification_service: VerificationService,
-    attacker_agent: Agent,
-    verifier_agent: Agent
+    verification_service: VerificationService, attacker_agent: Agent, verifier_agent: Agent
 ):
     """Test V-VERIFY-1: Path traversal via pattern_id rejected
 
@@ -232,12 +228,9 @@ async def test_path_traversal_via_pattern_id_rejected(
     result = await verification_service.verify_claim(
         agent_id=attacker_agent.agent_id,
         claim_type=ClaimType.TEST_RESULT,
-        claim_content={
-            "return_code": 0,
-            "pattern_id": path_traversal_pattern_id
-        },
+        claim_content={"return_code": 0, "pattern_id": path_traversal_pattern_id},
         verification_command="true",
-        verified_by_agent_id=verifier_agent.agent_id
+        verified_by_agent_id=verifier_agent.agent_id,
     )
 
     # Verification succeeds (graceful degradation)
@@ -248,10 +241,10 @@ async def test_path_traversal_via_pattern_id_rejected(
 # V-VERIFY-2: Verifier Authorization (inherited from VerificationService)
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_self_verification_prevented(
-    verification_service: VerificationService,
-    attacker_agent: Agent
+    verification_service: VerificationService, attacker_agent: Agent
 ):
     """Test V-VERIFY-2: Self-verification prevented (V-TRUST-5)
 
@@ -265,7 +258,7 @@ async def test_self_verification_prevented(
             claim_type=ClaimType.TEST_RESULT,
             claim_content={"return_code": 0},
             verification_command="true",
-            verified_by_agent_id=attacker_agent.agent_id  # Self-verification
+            verified_by_agent_id=attacker_agent.agent_id,  # Self-verification
         )
 
     assert "Self-verification not allowed" in str(exc_info.value)
@@ -275,13 +268,14 @@ async def test_self_verification_prevented(
 # V-VERIFY-3: Namespace Isolation
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_cross_namespace_pattern_access_rejected(
     verification_service: VerificationService,
     attacker_agent: Agent,
     verifier_agent: Agent,
     victim_private_pattern: LearningPattern,
-    db_session: AsyncSession
+    db_session: AsyncSession,
 ):
     """Test V-VERIFY-3: Cross-namespace private pattern access rejected
 
@@ -299,10 +293,10 @@ async def test_cross_namespace_pattern_access_rejected(
         claim_type=ClaimType.TEST_RESULT,
         claim_content={
             "return_code": 0,
-            "pattern_id": str(victim_private_pattern.id)  # Cross-namespace access
+            "pattern_id": str(victim_private_pattern.id),  # Cross-namespace access
         },
         verification_command="true",
-        verified_by_agent_id=verifier_agent.agent_id
+        verified_by_agent_id=verifier_agent.agent_id,
     )
 
     # Verification succeeds (graceful degradation)
@@ -325,7 +319,7 @@ async def test_namespace_verified_from_database(
     attacker_agent: Agent,
     verifier_agent: Agent,
     public_pattern: LearningPattern,
-    db_session: AsyncSession
+    db_session: AsyncSession,
 ):
     """Test V-VERIFY-3: Namespace verified from database (not user input)
 
@@ -343,10 +337,10 @@ async def test_namespace_verified_from_database(
         claim_content={
             "return_code": 0,
             "pattern_id": str(public_pattern.id),
-            "namespace": "victim-namespace"  # Spoofed namespace (ignored)
+            "namespace": "victim-namespace",  # Spoofed namespace (ignored)
         },
         verification_command="true",
-        verified_by_agent_id=verifier_agent.agent_id
+        verified_by_agent_id=verifier_agent.agent_id,
     )
 
     # Verification succeeds
@@ -361,13 +355,14 @@ async def test_namespace_verified_from_database(
 # V-VERIFY-4: Pattern Eligibility Validation
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_self_owned_pattern_rejected_for_trust_boost(
     verification_service: VerificationService,
     attacker_agent: Agent,
     verifier_agent: Agent,
     attacker_owned_pattern: LearningPattern,
-    db_session: AsyncSession
+    db_session: AsyncSession,
 ):
     """Test V-VERIFY-4: Self-owned patterns rejected for trust propagation
 
@@ -383,10 +378,10 @@ async def test_self_owned_pattern_rejected_for_trust_boost(
         claim_type=ClaimType.TEST_RESULT,
         claim_content={
             "return_code": 0,
-            "pattern_id": str(attacker_owned_pattern.id)  # Self-owned
+            "pattern_id": str(attacker_owned_pattern.id),  # Self-owned
         },
         verification_command="true",
-        verified_by_agent_id=verifier_agent.agent_id
+        verified_by_agent_id=verifier_agent.agent_id,
     )
 
     # Verification succeeds
@@ -397,7 +392,9 @@ async def test_self_owned_pattern_rejected_for_trust_boost(
     trust_delta = result.new_trust_score - initial_trust
 
     # Expected: ~0.05 from verification, 0.0 from pattern (self-owned rejected)
-    assert 0.04 <= trust_delta <= 0.06, f"Trust delta {trust_delta} outside expected range (0.04-0.06)"
+    assert 0.04 <= trust_delta <= 0.06, (
+        f"Trust delta {trust_delta} outside expected range (0.04-0.06)"
+    )
 
 
 @pytest.mark.asyncio
@@ -406,7 +403,7 @@ async def test_private_pattern_rejected_for_trust_propagation(
     victim_agent: Agent,
     verifier_agent: Agent,
     victim_private_pattern: LearningPattern,
-    db_session: AsyncSession
+    db_session: AsyncSession,
 ):
     """Test V-VERIFY-4: Private patterns rejected for trust propagation
 
@@ -421,10 +418,10 @@ async def test_private_pattern_rejected_for_trust_propagation(
         claim_type=ClaimType.TEST_RESULT,
         claim_content={
             "return_code": 0,
-            "pattern_id": str(victim_private_pattern.id)  # Private pattern
+            "pattern_id": str(victim_private_pattern.id),  # Private pattern
         },
         verification_command="true",
-        verified_by_agent_id=verifier_agent.agent_id
+        verified_by_agent_id=verifier_agent.agent_id,
     )
 
     # Verification succeeds
@@ -441,7 +438,7 @@ async def test_public_pattern_eligible_for_trust_propagation(
     attacker_agent: Agent,
     verifier_agent: Agent,
     public_pattern: LearningPattern,
-    db_session: AsyncSession
+    db_session: AsyncSession,
 ):
     """Test V-VERIFY-4: Public patterns ARE eligible for trust propagation
 
@@ -455,10 +452,10 @@ async def test_public_pattern_eligible_for_trust_propagation(
         claim_type=ClaimType.TEST_RESULT,
         claim_content={
             "return_code": 0,
-            "pattern_id": str(public_pattern.id)  # Public, not self-owned
+            "pattern_id": str(public_pattern.id),  # Public, not self-owned
         },
         verification_command="true",
-        verified_by_agent_id=verifier_agent.agent_id
+        verified_by_agent_id=verifier_agent.agent_id,
     )
 
     # Verification succeeds
@@ -467,18 +464,19 @@ async def test_public_pattern_eligible_for_trust_propagation(
     # Trust boost from BOTH verification AND pattern
     # Expected: ~0.05 from verification + ~0.02 from pattern = ~0.07 total
     trust_delta = result.new_trust_score - initial_trust
-    assert trust_delta >= 0.05, f"Trust delta {trust_delta} should be >= 0.05 (verification + pattern)"
+    assert trust_delta >= 0.05, (
+        f"Trust delta {trust_delta} should be >= 0.05 (verification + pattern)"
+    )
 
 
 # =============================================================================
 # Denial of Service (DoS)
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_pattern_propagation_failure_doesnt_block_verification(
-    verification_service: VerificationService,
-    attacker_agent: Agent,
-    verifier_agent: Agent
+    verification_service: VerificationService, attacker_agent: Agent, verifier_agent: Agent
 ):
     """Test DoS: Pattern propagation failures don't block verification
 
@@ -489,12 +487,9 @@ async def test_pattern_propagation_failure_doesnt_block_verification(
     result = await verification_service.verify_claim(
         agent_id=attacker_agent.agent_id,
         claim_type=ClaimType.TEST_RESULT,
-        claim_content={
-            "return_code": 0,
-            "pattern_id": "invalid-uuid-dos-attack"
-        },
+        claim_content={"return_code": 0, "pattern_id": "invalid-uuid-dos-attack"},
         verification_command="true",
-        verified_by_agent_id=verifier_agent.agent_id
+        verified_by_agent_id=verifier_agent.agent_id,
     )
 
     # Verification MUST succeed despite propagation error
@@ -504,9 +499,7 @@ async def test_pattern_propagation_failure_doesnt_block_verification(
 
 @pytest.mark.asyncio
 async def test_nonexistent_pattern_doesnt_block_verification(
-    verification_service: VerificationService,
-    attacker_agent: Agent,
-    verifier_agent: Agent
+    verification_service: VerificationService, attacker_agent: Agent, verifier_agent: Agent
 ):
     """Test DoS: Nonexistent pattern_id doesn't block verification
 
@@ -518,12 +511,9 @@ async def test_nonexistent_pattern_doesnt_block_verification(
     result = await verification_service.verify_claim(
         agent_id=attacker_agent.agent_id,
         claim_type=ClaimType.TEST_RESULT,
-        claim_content={
-            "return_code": 0,
-            "pattern_id": nonexistent_pattern_id
-        },
+        claim_content={"return_code": 0, "pattern_id": nonexistent_pattern_id},
         verification_command="true",
-        verified_by_agent_id=verifier_agent.agent_id
+        verified_by_agent_id=verifier_agent.agent_id,
     )
 
     # Verification succeeds
@@ -534,12 +524,13 @@ async def test_nonexistent_pattern_doesnt_block_verification(
 # Information Disclosure
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_pattern_details_not_leaked_in_errors(
     verification_service: VerificationService,
     attacker_agent: Agent,
     verifier_agent: Agent,
-    victim_private_pattern: LearningPattern
+    victim_private_pattern: LearningPattern,
 ):
     """Test Information Disclosure: Pattern details not leaked in error messages
 
@@ -550,12 +541,9 @@ async def test_pattern_details_not_leaked_in_errors(
     result = await verification_service.verify_claim(
         agent_id=attacker_agent.agent_id,
         claim_type=ClaimType.TEST_RESULT,
-        claim_content={
-            "return_code": 0,
-            "pattern_id": str(victim_private_pattern.id)
-        },
+        claim_content={"return_code": 0, "pattern_id": str(victim_private_pattern.id)},
         verification_command="true",
-        verified_by_agent_id=verifier_agent.agent_id
+        verified_by_agent_id=verifier_agent.agent_id,
     )
 
     # Verification succeeds (no error leaked)
@@ -568,11 +556,10 @@ async def test_pattern_details_not_leaked_in_errors(
 # Edge Cases & Attack Vectors
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_null_pattern_id_graceful_degradation(
-    verification_service: VerificationService,
-    attacker_agent: Agent,
-    verifier_agent: Agent
+    verification_service: VerificationService, attacker_agent: Agent, verifier_agent: Agent
 ):
     """Test Edge Case: null pattern_id causes graceful degradation"""
     result = await verification_service.verify_claim(
@@ -580,10 +567,10 @@ async def test_null_pattern_id_graceful_degradation(
         claim_type=ClaimType.TEST_RESULT,
         claim_content={
             "return_code": 0,
-            "pattern_id": None  # Null
+            "pattern_id": None,  # Null
         },
         verification_command="true",
-        verified_by_agent_id=verifier_agent.agent_id
+        verified_by_agent_id=verifier_agent.agent_id,
     )
 
     # Verification succeeds
@@ -592,9 +579,7 @@ async def test_null_pattern_id_graceful_degradation(
 
 @pytest.mark.asyncio
 async def test_empty_string_pattern_id_graceful_degradation(
-    verification_service: VerificationService,
-    attacker_agent: Agent,
-    verifier_agent: Agent
+    verification_service: VerificationService, attacker_agent: Agent, verifier_agent: Agent
 ):
     """Test Edge Case: empty string pattern_id causes graceful degradation"""
     result = await verification_service.verify_claim(
@@ -602,10 +587,10 @@ async def test_empty_string_pattern_id_graceful_degradation(
         claim_type=ClaimType.TEST_RESULT,
         claim_content={
             "return_code": 0,
-            "pattern_id": ""  # Empty string
+            "pattern_id": "",  # Empty string
         },
         verification_command="true",
-        verified_by_agent_id=verifier_agent.agent_id
+        verified_by_agent_id=verifier_agent.agent_id,
     )
 
     # Verification succeeds
@@ -614,9 +599,7 @@ async def test_empty_string_pattern_id_graceful_degradation(
 
 @pytest.mark.asyncio
 async def test_malformed_json_in_pattern_id_graceful_degradation(
-    verification_service: VerificationService,
-    attacker_agent: Agent,
-    verifier_agent: Agent
+    verification_service: VerificationService, attacker_agent: Agent, verifier_agent: Agent
 ):
     """Test Edge Case: malformed JSON in pattern_id field"""
     result = await verification_service.verify_claim(
@@ -624,10 +607,10 @@ async def test_malformed_json_in_pattern_id_graceful_degradation(
         claim_type=ClaimType.TEST_RESULT,
         claim_content={
             "return_code": 0,
-            "pattern_id": '{"malicious": "json"}'  # JSON object as string
+            "pattern_id": '{"malicious": "json"}',  # JSON object as string
         },
         verification_command="true",
-        verified_by_agent_id=verifier_agent.agent_id
+        verified_by_agent_id=verifier_agent.agent_id,
     )
 
     # Verification succeeds
@@ -636,9 +619,7 @@ async def test_malformed_json_in_pattern_id_graceful_degradation(
 
 @pytest.mark.asyncio
 async def test_unicode_pattern_id_graceful_degradation(
-    verification_service: VerificationService,
-    attacker_agent: Agent,
-    verifier_agent: Agent
+    verification_service: VerificationService, attacker_agent: Agent, verifier_agent: Agent
 ):
     """Test Edge Case: Unicode characters in pattern_id"""
     result = await verification_service.verify_claim(
@@ -646,10 +627,10 @@ async def test_unicode_pattern_id_graceful_degradation(
         claim_type=ClaimType.TEST_RESULT,
         claim_content={
             "return_code": 0,
-            "pattern_id": "🔥💀🚨"  # Unicode emoji
+            "pattern_id": "🔥💀🚨",  # Unicode emoji
         },
         verification_command="true",
-        verified_by_agent_id=verifier_agent.agent_id
+        verified_by_agent_id=verifier_agent.agent_id,
     )
 
     # Verification succeeds
@@ -660,6 +641,7 @@ async def test_unicode_pattern_id_graceful_degradation(
 # Final Security Validation
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_comprehensive_attack_chain_fails_safely(
     verification_service: VerificationService,
@@ -667,7 +649,7 @@ async def test_comprehensive_attack_chain_fails_safely(
     verifier_agent: Agent,
     victim_private_pattern: LearningPattern,
     attacker_owned_pattern: LearningPattern,
-    db_session: AsyncSession
+    db_session: AsyncSession,
 ):
     """Test Comprehensive: Multi-stage attack chain fails safely
 
@@ -688,7 +670,7 @@ async def test_comprehensive_attack_chain_fails_safely(
             claim_type=ClaimType.TEST_RESULT,
             claim_content={"return_code": 0},
             verification_command="true",
-            verified_by_agent_id=attacker_agent.agent_id  # Self-verification
+            verified_by_agent_id=attacker_agent.agent_id,  # Self-verification
         )
 
     # Attack 2: Cross-namespace private pattern (graceful degradation)
@@ -697,10 +679,10 @@ async def test_comprehensive_attack_chain_fails_safely(
         claim_type=ClaimType.TEST_RESULT,
         claim_content={
             "return_code": 0,
-            "pattern_id": str(victim_private_pattern.id)  # Cross-namespace
+            "pattern_id": str(victim_private_pattern.id),  # Cross-namespace
         },
         verification_command="true",
-        verified_by_agent_id=verifier_agent.agent_id
+        verified_by_agent_id=verifier_agent.agent_id,
     )
     assert result.accurate is True
 
@@ -710,10 +692,10 @@ async def test_comprehensive_attack_chain_fails_safely(
         claim_type=ClaimType.TEST_RESULT,
         claim_content={
             "return_code": 0,
-            "pattern_id": str(attacker_owned_pattern.id)  # Self-owned
+            "pattern_id": str(attacker_owned_pattern.id),  # Self-owned
         },
         verification_command="true",
-        verified_by_agent_id=verifier_agent.agent_id
+        verified_by_agent_id=verifier_agent.agent_id,
     )
     assert result.accurate is True
 
@@ -723,10 +705,10 @@ async def test_comprehensive_attack_chain_fails_safely(
         claim_type=ClaimType.TEST_RESULT,
         claim_content={
             "return_code": 0,
-            "pattern_id": "malicious; rm -rf /"  # Command injection
+            "pattern_id": "malicious; rm -rf /",  # Command injection
         },
         verification_command="true",
-        verified_by_agent_id=verifier_agent.agent_id
+        verified_by_agent_id=verifier_agent.agent_id,
     )
     assert result.accurate is True
 
@@ -736,4 +718,6 @@ async def test_comprehensive_attack_chain_fails_safely(
     trust_increase = attacker_agent.trust_score - initial_trust
 
     # Should be around 0.10-0.15 (2-3 verifications without pattern boosts)
-    assert 0.08 <= trust_increase <= 0.17, f"Trust increase {trust_increase} indicates attack succeeded"
+    assert 0.08 <= trust_increase <= 0.17, (
+        f"Trust increase {trust_increase} indicates attack succeeded"
+    )

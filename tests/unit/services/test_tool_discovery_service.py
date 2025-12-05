@@ -11,7 +11,6 @@ Test Coverage:
 - Error handling
 """
 
-
 import pytest
 from pydantic import ValidationError as PydanticValidationError
 
@@ -228,16 +227,12 @@ async def test_deactivate_tool(discovery_service):
     )
 
     # Deactivate tool
-    result = await discovery_service.deactivate_tool(
-        "test-tool-deactivate", "test-namespace"
-    )
+    result = await discovery_service.deactivate_tool("test-tool-deactivate", "test-namespace")
     # deactivate_tool may return None on success (no error = success)
     assert result is not False  # Not False means success or None
 
     # Verify deactivation (tool should not be returned after deactivation)
-    deactivated_tool = await discovery_service.get_tool(
-        "test-tool-deactivate", "test-namespace"
-    )
+    deactivated_tool = await discovery_service.get_tool("test-tool-deactivate", "test-namespace")
     # Tool should not be returned after deactivation (filtered by is_active)
     # This is acceptable behavior for namespace isolation
     assert deactivated_tool is None  # Deactivated tools are filtered out

@@ -23,24 +23,18 @@ class ValidationError(ApplicationError):
     """Raised when input validation fails"""
 
     def __init__(self, message: str, details: dict | None = None):
-        super().__init__(
-            message, error_code="VALIDATION_ERROR", details=details
-        )
+        super().__init__(message, error_code="VALIDATION_ERROR", details=details)
 
 
 class AuthorizationError(ApplicationError):
     """Raised when authorization fails"""
 
     def __init__(self, message: str, details: dict | None = None):
-        super().__init__(
-            message, error_code="AUTHORIZATION_ERROR", details=details
-        )
+        super().__init__(message, error_code="AUTHORIZATION_ERROR", details=details)
 
 
 class ExternalServiceError(ApplicationError):
     """Raised when external service (MCP) fails"""
 
     def __init__(self, message: str, details: dict | None = None):
-        super().__init__(
-            message, error_code="EXTERNAL_SERVICE_ERROR", details=details
-        )
+        super().__init__(message, error_code="EXTERNAL_SERVICE_ERROR", details=details)

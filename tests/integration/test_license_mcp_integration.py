@@ -21,14 +21,14 @@ Created: 2025-11-15
 Phase: 2C Wave 3 - Integration Testing
 """
 
-import pytest
 from datetime import datetime, timedelta, timezone
-from uuid import uuid4, UUID
+from uuid import UUID, uuid4
 
-from src.core.exceptions import NotFoundError, PermissionError, ValidationError
+import pytest
+
+from src.core.exceptions import NotFoundError, ValidationError
 from src.models.agent import Agent
 from src.models.license_key import LicenseKey, TierEnum
-from src.security.rbac import Role
 from src.tools.license_tools import (
     generate_license_key,
     get_license_info,
@@ -36,7 +36,6 @@ from src.tools.license_tools import (
     revoke_license_key,
     validate_license_key,
 )
-
 
 # ============================================================================
 # Category 1: License Generation (3 tests)

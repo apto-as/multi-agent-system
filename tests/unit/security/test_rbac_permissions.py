@@ -117,9 +117,7 @@ class TestPermissionMatrix:
         ]
 
         for operation in operations:
-            allowed = await check_permission(
-                test_session, admin_agent.id, operation
-            )
+            allowed = await check_permission(test_session, admin_agent.id, operation)
             assert allowed is True, f"Admin should have {operation} permission"
 
     async def test_unknown_operation_denies_all_roles(self, test_session, admin_agent):
@@ -160,14 +158,10 @@ class TestPermissionMatrix:
         await test_session.refresh(agent)
 
         # Should default to viewer (can validate, cannot generate)
-        allowed_validate = await check_permission(
-            test_session, agent.id, "license:validate"
-        )
+        allowed_validate = await check_permission(test_session, agent.id, "license:validate")
         assert allowed_validate is True, "Unknown role should default to viewer (can validate)"
 
-        allowed_generate = await check_permission(
-            test_session, agent.id, "license:generate"
-        )
+        allowed_generate = await check_permission(test_session, agent.id, "license:generate")
         assert allowed_generate is False, "Unknown role should default to viewer (cannot generate)"
 
 
@@ -283,9 +277,7 @@ class TestSecurityBoundaries:
         await test_session.commit()
 
         # Verify audit log
-        stmt = select(SecurityAuditLog).where(
-            SecurityAuditLog.user_id == str(viewer_agent.id)
-        )
+        stmt = select(SecurityAuditLog).where(SecurityAuditLog.user_id == str(viewer_agent.id))
         result = await test_session.execute(stmt)
         logs = result.scalars().all()
 
@@ -322,9 +314,7 @@ class TestSecurityBoundaries:
         await test_session.commit()
 
         # Verify audit log
-        stmt = select(SecurityAuditLog).where(
-            SecurityAuditLog.user_id == str(viewer_agent.id)
-        )
+        stmt = select(SecurityAuditLog).where(SecurityAuditLog.user_id == str(viewer_agent.id))
         result = await test_session.execute(stmt)
         logs = result.scalars().all()
 
@@ -361,9 +351,7 @@ class TestSecurityBoundaries:
 
         # Verify audit log shows DENY
         await test_session.commit()
-        stmt = select(SecurityAuditLog).where(
-            SecurityAuditLog.user_id == str(admin_agent.id)
-        )
+        stmt = select(SecurityAuditLog).where(SecurityAuditLog.user_id == str(admin_agent.id))
         result = await test_session.execute(stmt)
         logs = result.scalars().all()
         assert len(logs) >= 1, "Unknown operation should be audited"
@@ -412,7 +400,9 @@ class TestRequirePermissionDecorator:
                 agent_id=viewer_agent.id,
             )
 
-        assert "Permission denied" in str(exc_info.value), "Should raise PermissionError with message"
+        assert "Permission denied" in str(exc_info.value), (
+            "Should raise PermissionError with message"
+        )
 
     async def test_decorator_requires_db_session(self):
         """Decorator raises error if db_session missing."""

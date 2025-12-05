@@ -5,16 +5,17 @@ This module tests the DisconnectMCPServerUseCase in isolation with all dependenc
 Tests follow TDD RED phase methodology - expecting failures until implementation exists.
 """
 
-import pytest
 from datetime import datetime
-from uuid import uuid4
 from unittest.mock import AsyncMock, MagicMock
+from uuid import uuid4
 
+import pytest
+
+from src.application.dtos.request_dtos import DisconnectRequest
+from src.application.dtos.response_dtos import DisconnectionResultDTO
 from src.application.use_cases.disconnect_mcp_server_use_case import (
     DisconnectMCPServerUseCase,
 )
-from src.application.dtos.request_dtos import DisconnectRequest
-from src.application.dtos.response_dtos import DisconnectionResultDTO
 
 
 @pytest.mark.asyncio

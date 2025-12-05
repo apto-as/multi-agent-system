@@ -11,15 +11,9 @@ from pydantic import BaseModel, Field, HttpUrl, field_validator
 class CreateConnectionRequest(BaseModel):
     """Request DTO for creating MCP connection"""
 
-    server_name: str = Field(
-        ..., min_length=1, max_length=100, description="MCP server name"
-    )
-    url: HttpUrl = Field(
-        ..., description="MCP server URL (must be valid HTTP/HTTPS URL)"
-    )
-    namespace: str = Field(
-        ..., min_length=1, max_length=255, description="Namespace for isolation"
-    )
+    server_name: str = Field(..., min_length=1, max_length=100, description="MCP server name")
+    url: HttpUrl = Field(..., description="MCP server URL (must be valid HTTP/HTTPS URL)")
+    namespace: str = Field(..., min_length=1, max_length=255, description="Namespace for isolation")
     agent_id: UUID = Field(..., description="Agent identifier")
     timeout: int = Field(
         default=30,
@@ -27,23 +21,15 @@ class CreateConnectionRequest(BaseModel):
         le=300,
         description="Connection timeout in seconds",
     )
-    retry_attempts: int = Field(
-        default=3, ge=0, le=10, description="Number of retry attempts"
-    )
-    auth_required: bool = Field(
-        default=False, description="Whether authentication is required"
-    )
-    api_key: str | None = Field(
-        default=None, description="API key for authentication"
-    )
+    retry_attempts: int = Field(default=3, ge=0, le=10, description="Number of retry attempts")
+    auth_required: bool = Field(default=False, description="Whether authentication is required")
+    api_key: str | None = Field(default=None, description="API key for authentication")
 
     @field_validator("server_name")
     def validate_server_name(cls, v):
         """Validate server name format"""
         if not v.replace("-", "").replace("_", "").isalnum():
-            raise ValueError(
-                "Server name must contain only alphanumeric, hyphen, or underscore"
-            )
+            raise ValueError("Server name must contain only alphanumeric, hyphen, or underscore")
         return v
 
     @field_validator("api_key")
@@ -68,12 +54,8 @@ class ExecuteToolRequest(BaseModel):
     """Request DTO for executing tool"""
 
     connection_id: UUID = Field(..., description="MCP connection identifier")
-    tool_name: str = Field(
-        ..., min_length=1, max_length=100, description="Tool name to execute"
-    )
-    arguments: dict = Field(
-        default_factory=dict, description="Tool-specific arguments"
-    )
+    tool_name: str = Field(..., min_length=1, max_length=100, description="Tool name to execute")
+    arguments: dict = Field(default_factory=dict, description="Tool-specific arguments")
     namespace: str = Field(
         ..., min_length=1, max_length=255, description="Namespace for authorization"
     )

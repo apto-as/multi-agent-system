@@ -53,12 +53,14 @@ class RoutingTools(BaseTool):
                 -> {primary_agent: "artemis-optimizer", confidence: 0.85}
 
             """
+
             async def _route_task(session, _services):
                 routing_service = TaskRoutingService(session)
 
                 if use_database:
                     result = await routing_service.route_task_with_db(
-                        task_content, namespace=namespace,
+                        task_content,
+                        namespace=namespace,
                     )
                 else:
                     result = routing_service.route_task(task_content)
@@ -233,12 +235,14 @@ class RoutingTools(BaseTool):
             }
 
             for agent_id, tier in tiers.items():
-                tier_groups[tier.name].append({
-                    "agent_id": agent_id,
-                    "tier": tier.name,
-                    "tier_value": tier.value,
-                    "capabilities": capabilities.get(agent_id, []),
-                })
+                tier_groups[tier.name].append(
+                    {
+                        "agent_id": agent_id,
+                        "tier": tier.name,
+                        "tier_value": tier.value,
+                        "capabilities": capabilities.get(agent_id, []),
+                    }
+                )
 
             return self.format_success(
                 {
@@ -293,7 +297,12 @@ class RoutingTools(BaseTool):
                 "athena-conductor": {
                     "display_name": "Athena - Harmonious Conductor 🏛️",
                     "tier": "STRATEGIC",
-                    "capabilities": ["orchestration", "workflow_automation", "resource_optimization", "parallel_execution"],
+                    "capabilities": [
+                        "orchestration",
+                        "workflow_automation",
+                        "resource_optimization",
+                        "parallel_execution",
+                    ],
                     "collaboration": {
                         "primary_partners": ["hera-strategist", "eris-coordinator"],
                         "support_from": ["aurora-researcher", "muses-documenter"],
@@ -304,7 +313,12 @@ class RoutingTools(BaseTool):
                 "artemis-optimizer": {
                     "display_name": "Artemis - Technical Perfectionist 🏹",
                     "tier": "SPECIALIST",
-                    "capabilities": ["performance_optimization", "code_quality", "algorithm_design", "efficiency_improvement"],
+                    "capabilities": [
+                        "performance_optimization",
+                        "code_quality",
+                        "algorithm_design",
+                        "efficiency_improvement",
+                    ],
                     "collaboration": {
                         "primary_partners": ["metis-developer", "hestia-auditor"],
                         "support_from": ["aurora-researcher"],
@@ -315,7 +329,12 @@ class RoutingTools(BaseTool):
                 "hestia-auditor": {
                     "display_name": "Hestia - Security Guardian 🔥",
                     "tier": "SPECIALIST",
-                    "capabilities": ["security_analysis", "vulnerability_assessment", "risk_management", "threat_modeling"],
+                    "capabilities": [
+                        "security_analysis",
+                        "vulnerability_assessment",
+                        "risk_management",
+                        "threat_modeling",
+                    ],
                     "collaboration": {
                         "primary_partners": ["aurora-researcher", "artemis-optimizer"],
                         "support_from": ["muses-documenter"],
@@ -326,7 +345,12 @@ class RoutingTools(BaseTool):
                 "eris-coordinator": {
                     "display_name": "Eris - Tactical Coordinator ⚔️",
                     "tier": "SPECIALIST",
-                    "capabilities": ["tactical_planning", "conflict_resolution", "workflow_adjustment", "balance_management"],
+                    "capabilities": [
+                        "tactical_planning",
+                        "conflict_resolution",
+                        "workflow_adjustment",
+                        "balance_management",
+                    ],
                     "collaboration": {
                         "primary_partners": ["athena-conductor", "hera-strategist"],
                         "support_from": ["all_agents"],
@@ -337,7 +361,12 @@ class RoutingTools(BaseTool):
                 "hera-strategist": {
                     "display_name": "Hera - Strategic Commander 🎭",
                     "tier": "STRATEGIC",
-                    "capabilities": ["strategic_planning", "architecture_design", "long_term_vision", "stakeholder_management"],
+                    "capabilities": [
+                        "strategic_planning",
+                        "architecture_design",
+                        "long_term_vision",
+                        "stakeholder_management",
+                    ],
                     "collaboration": {
                         "primary_partners": ["athena-conductor"],
                         "support_from": ["aurora-researcher", "muses-documenter"],
@@ -348,7 +377,12 @@ class RoutingTools(BaseTool):
                 "muses-documenter": {
                     "display_name": "Muses - Knowledge Architect 📚",
                     "tier": "SPECIALIST",
-                    "capabilities": ["documentation", "knowledge_management", "specification_writing", "api_documentation"],
+                    "capabilities": [
+                        "documentation",
+                        "knowledge_management",
+                        "specification_writing",
+                        "api_documentation",
+                    ],
                     "collaboration": {
                         "primary_partners": ["aurora-researcher"],
                         "support_from": ["all_agents"],
@@ -381,7 +415,12 @@ class RoutingTools(BaseTool):
                 "aurora-researcher": {
                     "display_name": "Aurora - Research Assistant 🌅",
                     "tier": "SUPPORT",
-                    "capabilities": ["memory_search", "context_retrieval", "knowledge_synthesis", "pattern_discovery"],
+                    "capabilities": [
+                        "memory_search",
+                        "context_retrieval",
+                        "knowledge_synthesis",
+                        "pattern_discovery",
+                    ],
                     "collaboration": {
                         "primary_partners": ["all_agents"],
                         "support_from": ["muses-documenter"],
@@ -393,7 +432,19 @@ class RoutingTools(BaseTool):
 
             # Normalize persona_id
             persona_id = persona_id.lower().strip()
-            if not persona_id.endswith(("-conductor", "-optimizer", "-auditor", "-coordinator", "-strategist", "-documenter", "-designer", "-developer", "-researcher")):
+            if not persona_id.endswith(
+                (
+                    "-conductor",
+                    "-optimizer",
+                    "-auditor",
+                    "-coordinator",
+                    "-strategist",
+                    "-documenter",
+                    "-designer",
+                    "-developer",
+                    "-researcher",
+                )
+            ):
                 # Try to match short name
                 short_to_full = {
                     "athena": "athena-conductor",
@@ -437,17 +488,17 @@ class RoutingTools(BaseTool):
 
                 if not system_prompt:
                     # Generate minimal system prompt
-                    system_prompt = f"""# {persona_info['display_name']}
+                    system_prompt = f"""# {persona_info["display_name"]}
 
 ## Core Identity
-You are {persona_id.split('-')[0].capitalize()}, embodying the {persona_info['invocation_style']} approach.
+You are {persona_id.split("-")[0].capitalize()}, embodying the {persona_info["invocation_style"]} approach.
 
 ## Capabilities
-{', '.join(persona_info['capabilities'])}
+{", ".join(persona_info["capabilities"])}
 
 ## Collaboration Style
-- Primary Partners: {', '.join(persona_info['collaboration'].get('primary_partners', []))}
-- Tier: {persona_info['tier']}
+- Primary Partners: {", ".join(persona_info["collaboration"].get("primary_partners", []))}
+- Tier: {persona_info["tier"]}
 
 ## Task Context
 {task_description}
@@ -459,23 +510,23 @@ You are {persona_id.split('-')[0].capitalize()}, embodying the {persona_info['in
 {task_description}
 
 ## Execution Guidance
-As {persona_info['display_name']}, approach this task with your characteristic {persona_info['invocation_style']} style.
+As {persona_info["display_name"]}, approach this task with your characteristic {persona_info["invocation_style"]} style.
 
 Focus on your core capabilities:
-{chr(10).join(f'- {cap}' for cap in persona_info['capabilities'])}
+{chr(10).join(f"- {cap}" for cap in persona_info["capabilities"])}
 
 Consider collaborating with your primary partners if needed:
-{chr(10).join(f'- {p}' for p in persona_info['collaboration'].get('primary_partners', []))}
+{chr(10).join(f"- {p}" for p in persona_info["collaboration"].get("primary_partners", []))}
 """
 
             # Generate invocation instructions
             invocation_instructions = f"""
 To embody {persona_id}:
 
-1. **Adopt the persona's voice**: Be {persona_info['invocation_style']}
-2. **Leverage capabilities**: Your strengths are {', '.join(persona_info['capabilities'][:3])}
-3. **Collaborate appropriately**: Work with {', '.join(persona_info['collaboration'].get('primary_partners', [])[:2])} when needed
-4. **Report to hierarchy**: Your tier is {persona_info['tier']}
+1. **Adopt the persona's voice**: Be {persona_info["invocation_style"]}
+2. **Leverage capabilities**: Your strengths are {", ".join(persona_info["capabilities"][:3])}
+3. **Collaborate appropriately**: Work with {", ".join(persona_info["collaboration"].get("primary_partners", [])[:2])} when needed
+4. **Report to hierarchy**: Your tier is {persona_info["tier"]}
 
 Begin your response by acknowledging your role and approach.
 """

@@ -8,6 +8,7 @@ Optimization Strategy:
 3. Minimal Regex: Use simple string operations where possible
 4. Caching: Pre-compiled patterns at module level
 """
+
 import hashlib
 import logging
 import os
@@ -32,10 +33,10 @@ def mask_user_id(user_id: Any) -> str:
 
 def mask_email(email: str) -> str:
     """Mask email address (optimized)."""
-    if not email or '@' not in email:
+    if not email or "@" not in email:
         return "***@***"
 
-    username, domain = email.split('@', 1)
+    username, domain = email.split("@", 1)
     if len(username) <= 2:
         masked_user = "*" * max(3, len(username))
     elif len(username) <= 3:
@@ -70,12 +71,17 @@ def safe_log_error(
 # ULTRA-FAST OPTIMIZATION: Sentinel-based fast path
 # Check for common indicators first before expensive regex
 SENSITIVE_INDICATORS = {
-    '@',  # Email
-    'password', 'passwd', 'pwd',  # Password keywords
-    'Bearer', 'Basic',  # Auth headers
-    'AKIA',  # AWS key prefix
-    '://',  # Connection strings
-    'token', 'secret', 'key',  # Credential keywords
+    "@",  # Email
+    "password",
+    "passwd",
+    "pwd",  # Password keywords
+    "Bearer",
+    "Basic",  # Auth headers
+    "AKIA",  # AWS key prefix
+    "://",  # Connection strings
+    "token",
+    "secret",
+    "key",  # Credential keywords
 }
 
 
@@ -112,30 +118,36 @@ def has_potential_sensitive_data(text: str) -> bool:
 # Only the most critical patterns for production
 
 # Critical patterns (MUST redact)
-EMAIL_PATTERN = re.compile(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b')
-JWT_PATTERN = re.compile(r'eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}')
-BEARER_PATTERN = re.compile(r'Bearer\s+[A-Za-z0-9\-._~+/]+=*', re.IGNORECASE)
+EMAIL_PATTERN = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b")
+JWT_PATTERN = re.compile(r"eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}")
+BEARER_PATTERN = re.compile(r"Bearer\s+[A-Za-z0-9\-._~+/]+=*", re.IGNORECASE)
 PASSWORD_PATTERN = re.compile(r'(password|passwd|pwd)\s*[:=]\s*[\'"]?(\S+)', re.IGNORECASE)
-DATABASE_PASSWORD_PATTERN = re.compile(r'(db_password|database_password)\s*[:=]\s*[\'"]?(\S+)', re.IGNORECASE)
+DATABASE_PASSWORD_PATTERN = re.compile(
+    r'(db_password|database_password)\s*[:=]\s*[\'"]?(\S+)', re.IGNORECASE
+)
 
 # AWS keys (high priority)
-AWS_ACCESS_KEY_PATTERN = re.compile(r'AKIA[0-9A-Z]{16}')
-AWS_SECRET_KEY_PATTERN = re.compile(r'aws_secret[_\s]*(?:access_)?key\s*[:=]\s*[\'"]?([A-Za-z0-9/+=]{40})', re.IGNORECASE)
+AWS_ACCESS_KEY_PATTERN = re.compile(r"AKIA[0-9A-Z]{16}")
+AWS_SECRET_KEY_PATTERN = re.compile(
+    r'aws_secret[_\s]*(?:access_)?key\s*[:=]\s*[\'"]?([A-Za-z0-9/+=]{40})', re.IGNORECASE
+)
 
 # Database connection strings
-CONNECTION_STRING_PATTERN = re.compile(r'\b(?:postgresql|mysql|mongodb|redis)://[^\s]+', re.IGNORECASE)
+CONNECTION_STRING_PATTERN = re.compile(
+    r"\b(?:postgresql|mysql|mongodb|redis)://[^\s]+", re.IGNORECASE
+)
 
 # Phone numbers (international and US formats)
-PHONE_PATTERN = re.compile(r'\+?1?[\s-]?\(?\d{3}\)?[\s-]?\d{3}[\s-]?\d{4}')
+PHONE_PATTERN = re.compile(r"\+?1?[\s-]?\(?\d{3}\)?[\s-]?\d{3}[\s-]?\d{4}")
 
 # IP addresses (IPv4)
-IP_ADDRESS_PATTERN = re.compile(r'\b(?:\d{1,3}\.){3}\d{1,3}\b')
+IP_ADDRESS_PATTERN = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 
 # Session IDs (alphanumeric strings after session_id=, 32+ chars)
-SESSION_ID_PATTERN = re.compile(r'session_id\s*=\s*([a-zA-Z0-9]{32,})', re.IGNORECASE)
+SESSION_ID_PATTERN = re.compile(r"session_id\s*=\s*([a-zA-Z0-9]{32,})", re.IGNORECASE)
 
 # Credit card (simplified)
-CREDIT_CARD_PATTERN = re.compile(r'\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b')
+CREDIT_CARD_PATTERN = re.compile(r"\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b")
 
 
 def sanitize_log_message_fast(message: str) -> str:
@@ -162,18 +174,18 @@ def sanitize_log_message_fast(message: str) -> str:
     # Apply critical patterns only
     # Important: Apply more specific patterns first to avoid false matches
     # Credit card must come before phone (to avoid matching last 10 digits as phone)
-    sanitized = CREDIT_CARD_PATTERN.sub('[credit_card_redacted]', sanitized)
-    sanitized = AWS_ACCESS_KEY_PATTERN.sub('[aws_key_redacted]', sanitized)
-    sanitized = AWS_SECRET_KEY_PATTERN.sub(r'aws_secret_key: [secret_redacted]', sanitized)
-    sanitized = SESSION_ID_PATTERN.sub('session_id=[session_redacted]', sanitized)
-    sanitized = JWT_PATTERN.sub('[jwt_redacted]', sanitized)
-    sanitized = BEARER_PATTERN.sub('[bearer_redacted]', sanitized)
-    sanitized = CONNECTION_STRING_PATTERN.sub('[connection_string_redacted]', sanitized)
-    sanitized = PASSWORD_PATTERN.sub(r'\1: [password_redacted]', sanitized)
-    sanitized = DATABASE_PASSWORD_PATTERN.sub(r'\1: [password_redacted]', sanitized)
-    sanitized = EMAIL_PATTERN.sub('[email_redacted]', sanitized)
-    sanitized = PHONE_PATTERN.sub('[phone_redacted]', sanitized)
-    sanitized = IP_ADDRESS_PATTERN.sub('[ip_redacted]', sanitized)
+    sanitized = CREDIT_CARD_PATTERN.sub("[credit_card_redacted]", sanitized)
+    sanitized = AWS_ACCESS_KEY_PATTERN.sub("[aws_key_redacted]", sanitized)
+    sanitized = AWS_SECRET_KEY_PATTERN.sub(r"aws_secret_key: [secret_redacted]", sanitized)
+    sanitized = SESSION_ID_PATTERN.sub("session_id=[session_redacted]", sanitized)
+    sanitized = JWT_PATTERN.sub("[jwt_redacted]", sanitized)
+    sanitized = BEARER_PATTERN.sub("[bearer_redacted]", sanitized)
+    sanitized = CONNECTION_STRING_PATTERN.sub("[connection_string_redacted]", sanitized)
+    sanitized = PASSWORD_PATTERN.sub(r"\1: [password_redacted]", sanitized)
+    sanitized = DATABASE_PASSWORD_PATTERN.sub(r"\1: [password_redacted]", sanitized)
+    sanitized = EMAIL_PATTERN.sub("[email_redacted]", sanitized)
+    sanitized = PHONE_PATTERN.sub("[phone_redacted]", sanitized)
+    sanitized = IP_ADDRESS_PATTERN.sub("[ip_redacted]", sanitized)
 
     return sanitized
 
@@ -195,18 +207,18 @@ def detect_sensitive_data(text: str) -> dict[str, list[str]]:
 
     # Check each critical pattern
     patterns = {
-        'email': EMAIL_PATTERN,
-        'jwt': JWT_PATTERN,
-        'bearer_token': BEARER_PATTERN,
-        'password': PASSWORD_PATTERN,
-        'database_password': DATABASE_PASSWORD_PATTERN,
-        'aws_access_key': AWS_ACCESS_KEY_PATTERN,
-        'aws_secret_key': AWS_SECRET_KEY_PATTERN,
-        'connection_string': CONNECTION_STRING_PATTERN,
-        'phone': PHONE_PATTERN,
-        'ip_address': IP_ADDRESS_PATTERN,
-        'session_id': SESSION_ID_PATTERN,
-        'credit_card': CREDIT_CARD_PATTERN,
+        "email": EMAIL_PATTERN,
+        "jwt": JWT_PATTERN,
+        "bearer_token": BEARER_PATTERN,
+        "password": PASSWORD_PATTERN,
+        "database_password": DATABASE_PASSWORD_PATTERN,
+        "aws_access_key": AWS_ACCESS_KEY_PATTERN,
+        "aws_secret_key": AWS_SECRET_KEY_PATTERN,
+        "connection_string": CONNECTION_STRING_PATTERN,
+        "phone": PHONE_PATTERN,
+        "ip_address": IP_ADDRESS_PATTERN,
+        "session_id": SESSION_ID_PATTERN,
+        "credit_card": CREDIT_CARD_PATTERN,
     }
 
     for name, pattern in patterns.items():
@@ -230,6 +242,7 @@ def create_secure_logger(
     secure_logger.setLevel(level)
 
     if sanitize:
+
         class SanitizingFilter(logging.Filter):
             def filter(self, record):
                 record.msg = sanitize_log_message(str(record.msg))

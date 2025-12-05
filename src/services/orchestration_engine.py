@@ -300,8 +300,7 @@ class OrchestrationEngine:
             task.phase_results[task.current_phase.value] = result
 
             logger.info(
-                f"Orchestration {task_id}: Phase {task.current_phase.value} executed "
-                f"by {agents}",
+                f"Orchestration {task_id}: Phase {task.current_phase.value} executed by {agents}",
             )
 
             return result
@@ -379,10 +378,9 @@ class OrchestrationEngine:
             raise ValueError(f"Orchestration not found: {task_id}")
 
         # Calculate progress
-        completed_phases = len([
-            r for r in task.phase_results.values()
-            if r.approval_status == ApprovalStatus.APPROVED
-        ])
+        completed_phases = len(
+            [r for r in task.phase_results.values() if r.approval_status == ApprovalStatus.APPROVED]
+        )
         total_phases = 4
         progress = completed_phases / total_phases
 
@@ -564,10 +562,7 @@ class OrchestrationEngine:
             "description": config.description,
             "required_outputs": config.required_outputs,
             "approval_gate": config.approval_gate,
-            "previous_phases": {
-                p: task.phase_results[p].outputs
-                for p in task.phase_results
-            },
+            "previous_phases": {p: task.phase_results[p].outputs for p in task.phase_results},
         }
 
         # Send phase start notification

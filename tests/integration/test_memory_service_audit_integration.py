@@ -8,16 +8,15 @@ Test Coverage:
     - Graceful degradation when audit logging fails
 """
 
-import pytest
-from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
+import pytest
 from sqlalchemy import select
 
-from src.models.audit_log import SecurityAuditLog
-from src.models.memory import Memory, AccessLevel
 from src.models.agent import Agent
+from src.models.audit_log import SecurityAuditLog
+from src.models.memory import AccessLevel, Memory
 from src.services.memory_service import HybridMemoryService
 
 
@@ -60,10 +59,9 @@ class TestAuditLogPersistence:
 
         # Assert: Check audit logs were created in database
         stmt = select(SecurityAuditLog).where(
-            SecurityAuditLog.event_type.in_([
-                "memory_ttl_update_initiated",
-                "memory_ttl_update_complete"
-            ])
+            SecurityAuditLog.event_type.in_(
+                ["memory_ttl_update_initiated", "memory_ttl_update_complete"]
+            )
         )
         result = await test_session.execute(stmt)
         audit_logs = result.scalars().all()
@@ -73,8 +71,7 @@ class TestAuditLogPersistence:
 
         # Verify BEFORE log
         before_log = next(
-            (log for log in audit_logs if log.event_type == "memory_ttl_update_initiated"),
-            None
+            (log for log in audit_logs if log.event_type == "memory_ttl_update_initiated"), None
         )
         assert before_log is not None, "BEFORE audit log not found"
         assert before_log.severity == "MEDIUM"
@@ -82,8 +79,7 @@ class TestAuditLogPersistence:
 
         # Verify AFTER log
         after_log = next(
-            (log for log in audit_logs if log.event_type == "memory_ttl_update_complete"),
-            None
+            (log for log in audit_logs if log.event_type == "memory_ttl_update_complete"), None
         )
         assert after_log is not None, "AFTER audit log not found"
         assert after_log.severity == "LOW"

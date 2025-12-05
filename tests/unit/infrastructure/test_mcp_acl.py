@@ -17,7 +17,6 @@ Status: RED (tests will fail until implementation)
 """
 
 import pytest
-from datetime import datetime
 
 # Domain imports
 from src.domain.entities.tool import Tool
@@ -55,17 +54,11 @@ class TestMCPProtocolTranslator:
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "query": {
-                        "type": "string",
-                        "description": "Search query"
-                    },
-                    "limit": {
-                        "type": "integer",
-                        "default": 10
-                    }
+                    "query": {"type": "string", "description": "Search query"},
+                    "limit": {"type": "integer", "default": 10},
                 },
-                "required": ["query"]
-            }
+                "required": ["query"],
+            },
         }
 
         # Act
@@ -77,7 +70,9 @@ class TestMCPProtocolTranslator:
         assert tool.name == "mcp-memory-search"
         assert tool.description == "Search semantic memories with vector similarity"
         assert tool.input_schema == mcp_tool["inputSchema"]
-        assert tool.category == ToolCategory.API_INTEGRATION  # Auto-inferred from name (mcp- prefix)
+        assert (
+            tool.category == ToolCategory.API_INTEGRATION
+        )  # Auto-inferred from name (mcp- prefix)
 
     def test_translate_mcp_tool_list_to_domain_tools(self):
         """
@@ -93,13 +88,13 @@ class TestMCPProtocolTranslator:
                 {
                     "name": "store_memory",
                     "description": "Store and process memory data",
-                    "inputSchema": {"type": "object"}
+                    "inputSchema": {"type": "object"},
                 },
                 {
                     "name": "create_workflow",
                     "description": "Create workflow automation task",
-                    "inputSchema": {"type": "object"}
-                }
+                    "inputSchema": {"type": "object"},
+                },
             ]
         }
 
@@ -124,10 +119,7 @@ class TestMCPProtocolTranslator:
         """
         # Arrange
         tool_name = "search_memory"
-        tool_args = {
-            "query": "machine learning",
-            "limit": 5
-        }
+        tool_args = {"query": "machine learning", "limit": 5}
 
         # Act
         translator = MCPProtocolTranslator()
@@ -149,7 +141,7 @@ class TestMCPProtocolTranslator:
         # Arrange (updated for v2.3.0: description must match a category pattern)
         mcp_tool = {
             "name": "minimal_tool",
-            "description": "Data processing tool example"
+            "description": "Data processing tool example",
             # inputSchema is optional in MCP protocol
         }
 
@@ -196,10 +188,7 @@ class TestMCPProtocolTranslator:
             "error": {
                 "code": "TOOL_EXECUTION_FAILED",
                 "message": "Tool execution failed due to timeout",
-                "details": {
-                    "tool": "slow_tool",
-                    "timeout": 30
-                }
+                "details": {"tool": "slow_tool", "timeout": 30},
             }
         }
 
@@ -225,10 +214,19 @@ class TestMCPProtocolTranslator:
         """
         # Arrange (updated for v2.3.0: 5 Go categories)
         test_cases = [
-            ({"name": "mcp-server", "description": "MCP server tool"}, ToolCategory.API_INTEGRATION),
-            ({"name": "data-processor", "description": "Process data"}, ToolCategory.DATA_PROCESSING),
+            (
+                {"name": "mcp-server", "description": "MCP server tool"},
+                ToolCategory.API_INTEGRATION,
+            ),
+            (
+                {"name": "data-processor", "description": "Process data"},
+                ToolCategory.DATA_PROCESSING,
+            ),
             ({"name": "rest-api", "description": "REST API client"}, ToolCategory.API_INTEGRATION),
-            ({"name": "file-uploader", "description": "Upload files"}, ToolCategory.FILE_MANAGEMENT),
+            (
+                {"name": "file-uploader", "description": "Upload files"},
+                ToolCategory.FILE_MANAGEMENT,
+            ),
             ({"name": "auth-service", "description": "Authentication"}, ToolCategory.SECURITY),
             ({"name": "log-monitor", "description": "Monitor logs"}, ToolCategory.MONITORING),
         ]
@@ -254,24 +252,18 @@ class TestMCPProtocolTranslator:
             "properties": {
                 "nested": {
                     "type": "object",
-                    "properties": {
-                        "field1": {"type": "string"},
-                        "field2": {"type": "number"}
-                    }
+                    "properties": {"field1": {"type": "string"}, "field2": {"type": "number"}},
                 },
-                "array": {
-                    "type": "array",
-                    "items": {"type": "string"}
-                }
+                "array": {"type": "array", "items": {"type": "string"}},
             },
             "required": ["nested"],
-            "additionalProperties": False
+            "additionalProperties": False,
         }
 
         mcp_tool = {
             "name": "complex_tool",
             "description": "API integration tool with complex schema",
-            "inputSchema": complex_schema
+            "inputSchema": complex_schema,
         }
 
         # Act

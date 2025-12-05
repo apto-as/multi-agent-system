@@ -68,15 +68,11 @@ class MCPProtocolTranslator:
         """
         # Validate required fields
         if "name" not in mcp_tool:
-            raise MCPProtocolError(
-                "Missing required field: name",
-                details={"mcp_tool": mcp_tool}
-            )
+            raise MCPProtocolError("Missing required field: name", details={"mcp_tool": mcp_tool})
 
         if "description" not in mcp_tool:
             raise MCPProtocolError(
-                "Missing required field: description",
-                details={"mcp_tool": mcp_tool}
+                "Missing required field: description", details={"mcp_tool": mcp_tool}
             )
 
         # Extract fields with defaults
@@ -95,9 +91,7 @@ class MCPProtocolTranslator:
             category=category,
         )
 
-    def mcp_tools_response_to_domain(
-        self, mcp_response: dict[str, Any]
-    ) -> list[Tool]:
+    def mcp_tools_response_to_domain(self, mcp_response: dict[str, Any]) -> list[Tool]:
         """Convert MCP tools list response to domain Tool entities.
 
         Args:
@@ -124,14 +118,14 @@ class MCPProtocolTranslator:
         if "tools" not in mcp_response:
             raise MCPProtocolError(
                 "Invalid MCP response: missing 'tools' field",
-                details={"mcp_response": mcp_response}
+                details={"mcp_response": mcp_response},
             )
 
         tools_list = mcp_response["tools"]
         if not isinstance(tools_list, list):
             raise MCPProtocolError(
                 "Invalid MCP response: 'tools' must be a list",
-                details={"type": type(tools_list).__name__}
+                details={"type": type(tools_list).__name__},
             )
 
         # Convert each MCP tool to domain Tool
@@ -197,7 +191,7 @@ class MCPProtocolTranslator:
         if "error" not in mcp_error:
             raise MCPProtocolError(
                 "Invalid MCP error response: missing 'error' field",
-                details={"mcp_error": mcp_error}
+                details={"mcp_error": mcp_error},
             )
 
         error_data = mcp_error["error"]

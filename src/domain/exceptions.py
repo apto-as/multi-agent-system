@@ -26,9 +26,7 @@ class InvalidStateTransitionError(DomainException):
         Cannot transition from DISCONNECTED to DISCONNECTING
     """
 
-    def __init__(
-        self, current_state: str, attempted_state: str, allowed_transitions: list[str]
-    ):
+    def __init__(self, current_state: str, attempted_state: str, allowed_transitions: list[str]):
         message = (
             f"Cannot transition from {current_state} to {attempted_state}. "
             f"Allowed transitions: {', '.join(allowed_transitions)}"

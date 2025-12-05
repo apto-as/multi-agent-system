@@ -28,7 +28,7 @@ import logging
 import os
 from datetime import datetime, timezone
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from sqlalchemy import and_, select
 from sqlalchemy.exc import SQLAlchemyError
@@ -78,17 +78,17 @@ class PatternSkillService:
 
     def _load_settings(self) -> None:
         """Load settings from environment variables."""
-        self.enabled = os.environ.get(
-            "TRINITAS_PATTERN_SKILL_GEN_ENABLED", "false"
-        ).lower() == "true"
+        self.enabled = (
+            os.environ.get("TRINITAS_PATTERN_SKILL_GEN_ENABLED", "false").lower() == "true"
+        )
 
-        self.min_usage = int(os.environ.get(
-            "TRINITAS_PATTERN_MIN_USAGE", str(self.DEFAULT_MIN_USAGE)
-        ))
+        self.min_usage = int(
+            os.environ.get("TRINITAS_PATTERN_MIN_USAGE", str(self.DEFAULT_MIN_USAGE))
+        )
 
-        self.min_success_rate = float(os.environ.get(
-            "TRINITAS_PATTERN_MIN_SUCCESS_RATE", str(self.DEFAULT_MIN_SUCCESS_RATE)
-        ))
+        self.min_success_rate = float(
+            os.environ.get("TRINITAS_PATTERN_MIN_SUCCESS_RATE", str(self.DEFAULT_MIN_SUCCESS_RATE))
+        )
 
         logger.debug(
             f"PatternSkillService settings: enabled={self.enabled}, "
@@ -134,7 +134,9 @@ class PatternSkillService:
 
         # Apply thresholds
         usage_threshold = min_usage if min_usage is not None else self.min_usage
-        success_threshold = min_success_rate if min_success_rate is not None else self.min_success_rate
+        success_threshold = (
+            min_success_rate if min_success_rate is not None else self.min_success_rate
+        )
 
         try:
             # Query mature patterns (owned by agent, in namespace)
@@ -160,16 +162,13 @@ class PatternSkillService:
             patterns = result.scalars().all()
 
             # Get total count
-            count_stmt = (
-                select(LearningPattern)
-                .where(
-                    and_(
-                        LearningPattern.agent_id == agent_id,
-                        LearningPattern.namespace == namespace,
-                        LearningPattern.usage_count >= usage_threshold,
-                        LearningPattern.success_rate >= success_threshold,
-                        LearningPattern.is_deleted == False,  # noqa: E712
-                    )
+            count_stmt = select(LearningPattern).where(
+                and_(
+                    LearningPattern.agent_id == agent_id,
+                    LearningPattern.namespace == namespace,
+                    LearningPattern.usage_count >= usage_threshold,
+                    LearningPattern.success_rate >= success_threshold,
+                    LearningPattern.is_deleted == False,  # noqa: E712
                 )
             )
             count_result = await self.session.execute(count_stmt)
@@ -178,17 +177,23 @@ class PatternSkillService:
             # Convert to response format
             pattern_list = []
             for pattern in patterns:
-                pattern_list.append({
-                    "id": str(pattern.id),
-                    "pattern_name": pattern.pattern_name,
-                    "category": pattern.category,
-                    "subcategory": pattern.subcategory,
-                    "usage_count": pattern.usage_count,
-                    "success_rate": pattern.success_rate,
-                    "confidence_score": pattern.confidence_score,
-                    "created_at": pattern.created_at.isoformat() if pattern.created_at else None,
-                    "last_used_at": pattern.last_used_at.isoformat() if pattern.last_used_at else None,
-                })
+                pattern_list.append(
+                    {
+                        "id": str(pattern.id),
+                        "pattern_name": pattern.pattern_name,
+                        "category": pattern.category,
+                        "subcategory": pattern.subcategory,
+                        "usage_count": pattern.usage_count,
+                        "success_rate": pattern.success_rate,
+                        "confidence_score": pattern.confidence_score,
+                        "created_at": pattern.created_at.isoformat()
+                        if pattern.created_at
+                        else None,
+                        "last_used_at": pattern.last_used_at.isoformat()
+                        if pattern.last_used_at
+                        else None,
+                    }
+                )
 
             logger.info(
                 f"Found {len(pattern_list)} mature patterns for agent={agent_id}, "
@@ -233,8 +238,8 @@ class PatternSkillService:
 
         # V-XSS-1: Sanitize pattern name and other user-provided fields
         safe_pattern_name = sanitize_string(pattern.pattern_name, max_length=200)
-        safe_category = sanitize_string(pattern.category or 'general', max_length=50)
-        safe_subcategory = sanitize_string(pattern.subcategory or 'default', max_length=50)
+        safe_category = sanitize_string(pattern.category or "general", max_length=50)
+        safe_subcategory = sanitize_string(pattern.subcategory or "default", max_length=50)
         safe_agent_id = sanitize_string(pattern.agent_id, max_length=100)
         safe_namespace = sanitize_string(pattern.namespace, max_length=100)
 
@@ -357,15 +362,12 @@ with a {pattern.success_rate * 100:.1f}% success rate.
                 )
 
             # Fetch pattern with ownership check
-            stmt = (
-                select(LearningPattern)
-                .where(
-                    and_(
-                        LearningPattern.id == pattern_uuid,
-                        LearningPattern.agent_id == agent_id,
-                        LearningPattern.namespace == namespace,
-                        LearningPattern.is_deleted == False,  # noqa: E712
-                    )
+            stmt = select(LearningPattern).where(
+                and_(
+                    LearningPattern.id == pattern_uuid,
+                    LearningPattern.agent_id == agent_id,
+                    LearningPattern.namespace == namespace,
+                    LearningPattern.is_deleted == False,  # noqa: E712
                 )
             )
 
@@ -524,18 +526,22 @@ with a {pattern.success_rate * 100:.1f}% success rate.
                     namespace=namespace,
                     dry_run=dry_run,
                 )
-                promoted.append({
-                    "pattern_id": pattern["id"],
-                    "pattern_name": pattern["pattern_name"],
-                    "skill_id": result.get("skill_id"),
-                    "skill_name": result.get("skill_name"),
-                    "status": result.get("status"),
-                })
+                promoted.append(
+                    {
+                        "pattern_id": pattern["id"],
+                        "pattern_name": pattern["pattern_name"],
+                        "skill_id": result.get("skill_id"),
+                        "skill_name": result.get("skill_name"),
+                        "status": result.get("status"),
+                    }
+                )
             except Exception as e:
-                errors.append({
-                    "pattern_id": pattern["id"],
-                    "error": str(e),
-                })
+                errors.append(
+                    {
+                        "pattern_id": pattern["id"],
+                        "error": str(e),
+                    }
+                )
                 logger.warning(f"Failed to promote pattern {pattern['id']}: {e}")
 
         return {

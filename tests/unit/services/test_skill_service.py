@@ -173,10 +173,7 @@ class TestSkillServiceCreate:
                 )
 
             error_msg = str(exc_info.value)
-            assert (
-                "path traversal" in error_msg.lower()
-                or "Invalid namespace format" in error_msg
-            )
+            assert "path traversal" in error_msg.lower() or "Invalid namespace format" in error_msg
 
     async def test_create_skill_invalid_content(self, db_session):
         """❌ Test ValidationError for invalid content"""
@@ -886,7 +883,7 @@ Version 2 content.
 
         # Validation service might use different message
         error_msg = str(exc_info.value)
-        assert ("Maximum 20 tags allowed" in error_msg or "Too many tags" in error_msg)
+        assert "Maximum 20 tags allowed" in error_msg or "Too many tags" in error_msg
 
     async def test_update_skill_invalid_content(self, db_session):
         """❌ Test ValidationError for invalid content"""
@@ -1122,14 +1119,10 @@ class TestSkillServiceList:
 
         # Create 15 skills
         for i in range(1, 16):
-            await self._create_skill_for_list(
-                db_session, f"skill{i:02d}", "namespace1", "agent1"
-            )
+            await self._create_skill_for_list(db_session, f"skill{i:02d}", "namespace1", "agent1")
 
         service = SkillService(db_session)
-        results = await service.list_skills(
-            agent_id="agent1", namespace="namespace1", limit=10
-        )
+        results = await service.list_skills(agent_id="agent1", namespace="namespace1", limit=10)
 
         # Assertions
         assert len(results) == 10
@@ -1140,9 +1133,7 @@ class TestSkillServiceList:
 
         # Create 10 skills
         for i in range(1, 11):
-            await self._create_skill_for_list(
-                db_session, f"skill{i:02d}", "namespace1", "agent1"
-            )
+            await self._create_skill_for_list(db_session, f"skill{i:02d}", "namespace1", "agent1")
 
         service = SkillService(db_session)
         # Get skills from offset 5
@@ -1188,16 +1179,12 @@ class TestSkillServiceList:
         service = SkillService(db_session)
 
         # Agent2 (same namespace) should see it
-        results_agent2 = await service.list_skills(
-            agent_id="agent2", namespace="namespace1"
-        )
+        results_agent2 = await service.list_skills(agent_id="agent2", namespace="namespace1")
         assert len(results_agent2) == 1
         assert results_agent2[0].name == "team1"
 
         # Agent3 (different namespace) should NOT see it
-        results_agent3 = await service.list_skills(
-            agent_id="agent3", namespace="namespace2"
-        )
+        results_agent3 = await service.list_skills(agent_id="agent3", namespace="namespace2")
         assert len(results_agent3) == 0
 
     async def test_list_skills_access_control_public(self, db_session):
@@ -1226,16 +1213,12 @@ class TestSkillServiceList:
 
         # Test detail_level=0
         with pytest.raises(ValidationError) as exc_info:
-            await service.list_skills(
-                agent_id="agent1", namespace="namespace1", detail_level=0
-            )
+            await service.list_skills(agent_id="agent1", namespace="namespace1", detail_level=0)
         assert "detail_level" in str(exc_info.value).lower()
 
         # Test detail_level=4
         with pytest.raises(ValidationError) as exc_info:
-            await service.list_skills(
-                agent_id="agent1", namespace="namespace1", detail_level=4
-            )
+            await service.list_skills(agent_id="agent1", namespace="namespace1", detail_level=4)
         assert "detail_level" in str(exc_info.value).lower()
 
     async def test_list_skills_invalid_limit(self, db_session):
@@ -1251,9 +1234,7 @@ class TestSkillServiceList:
 
         # Test limit=101
         with pytest.raises(ValidationError) as exc_info:
-            await service.list_skills(
-                agent_id="agent1", namespace="namespace1", limit=101
-            )
+            await service.list_skills(agent_id="agent1", namespace="namespace1", limit=101)
         assert "limit" in str(exc_info.value).lower()
 
     async def test_list_skills_invalid_offset(self, db_session):
@@ -1264,18 +1245,14 @@ class TestSkillServiceList:
 
         # Test offset=-1
         with pytest.raises(ValidationError) as exc_info:
-            await service.list_skills(
-                agent_id="agent1", namespace="namespace1", offset=-1
-            )
+            await service.list_skills(agent_id="agent1", namespace="namespace1", offset=-1)
         assert "offset" in str(exc_info.value).lower()
 
 
 class TestSkillServiceDelete:
     """Test suite for delete_skill() method - Soft delete with P0-1 access control"""
 
-    async def _create_agent(
-        self, session: AsyncSession, agent_id: str, namespace: str
-    ) -> None:
+    async def _create_agent(self, session: AsyncSession, agent_id: str, namespace: str) -> None:
         """Helper: Create agent for testing"""
         from src.models.agent import Agent, AgentStatus
 
@@ -1342,16 +1319,12 @@ class TestSkillServiceDelete:
         """✅ Test successful skill deletion (soft delete)"""
         # Arrange: Create agent and skill
         await self._create_agent(db_session, "agent1", "namespace1")
-        skill_id = await self._create_skill(
-            db_session, "agent1", "namespace1", "test-skill"
-        )
+        skill_id = await self._create_skill(db_session, "agent1", "namespace1", "test-skill")
 
         service = SkillService(db_session)
 
         # Act: Delete skill
-        await service.delete_skill(
-            skill_id=skill_id, agent_id="agent1", namespace="namespace1"
-        )
+        await service.delete_skill(skill_id=skill_id, agent_id="agent1", namespace="namespace1")
 
         # Assert: Skill is soft-deleted
         from sqlalchemy import select
@@ -1366,20 +1339,14 @@ class TestSkillServiceDelete:
         assert skill.updated_at is not None  # Updated timestamp
 
     @pytest.mark.asyncio
-    async def test_deleted_skill_invisible_to_get_skill(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_deleted_skill_invisible_to_get_skill(self, db_session: AsyncSession) -> None:
         """✅ Test deleted skill is invisible to get_skill() (returns NotFoundError)"""
         # Arrange: Create and delete skill
         await self._create_agent(db_session, "agent1", "namespace1")
-        skill_id = await self._create_skill(
-            db_session, "agent1", "namespace1", "test-skill"
-        )
+        skill_id = await self._create_skill(db_session, "agent1", "namespace1", "test-skill")
 
         service = SkillService(db_session)
-        await service.delete_skill(
-            skill_id=skill_id, agent_id="agent1", namespace="namespace1"
-        )
+        await service.delete_skill(skill_id=skill_id, agent_id="agent1", namespace="namespace1")
 
         # Act & Assert: get_skill() returns NotFoundError
         with pytest.raises(NotFoundError) as exc_info:
@@ -1393,23 +1360,15 @@ class TestSkillServiceDelete:
         assert "not found" in str(exc_info.value).lower()
 
     @pytest.mark.asyncio
-    async def test_deleted_skill_invisible_to_list_skills(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_deleted_skill_invisible_to_list_skills(self, db_session: AsyncSession) -> None:
         """✅ Test deleted skill is invisible to list_skills() (not in results)"""
         # Arrange: Create two skills, delete one
         await self._create_agent(db_session, "agent1", "namespace1")
-        skill1_id = await self._create_skill(
-            db_session, "agent1", "namespace1", "skill1"
-        )
-        skill2_id = await self._create_skill(
-            db_session, "agent1", "namespace1", "skill2"
-        )
+        skill1_id = await self._create_skill(db_session, "agent1", "namespace1", "skill1")
+        skill2_id = await self._create_skill(db_session, "agent1", "namespace1", "skill2")
 
         service = SkillService(db_session)
-        await service.delete_skill(
-            skill_id=skill1_id, agent_id="agent1", namespace="namespace1"
-        )
+        await service.delete_skill(skill_id=skill1_id, agent_id="agent1", namespace="namespace1")
 
         # Act: List skills
         skills = await service.list_skills(
@@ -1422,61 +1381,43 @@ class TestSkillServiceDelete:
         assert str(skill1_id) not in [str(s.id) for s in skills]
 
     @pytest.mark.asyncio
-    async def test_delete_other_agent_skill_not_found(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_delete_other_agent_skill_not_found(self, db_session: AsyncSession) -> None:
         """❌ Test cannot delete other agent's skill (returns NotFoundError, not 403)"""
         # Arrange: Create two agents and skill owned by agent1
         await self._create_agent(db_session, "agent1", "namespace1")
         await self._create_agent(db_session, "agent2", "namespace1")
-        skill_id = await self._create_skill(
-            db_session, "agent1", "namespace1", "test-skill"
-        )
+        skill_id = await self._create_skill(db_session, "agent1", "namespace1", "test-skill")
 
         service = SkillService(db_session)
 
         # Act & Assert: agent2 cannot delete agent1's skill (404, not 403)
         with pytest.raises(NotFoundError) as exc_info:
-            await service.delete_skill(
-                skill_id=skill_id, agent_id="agent2", namespace="namespace1"
-            )
+            await service.delete_skill(skill_id=skill_id, agent_id="agent2", namespace="namespace1")
 
         assert "not found" in str(exc_info.value).lower()
 
     @pytest.mark.asyncio
-    async def test_delete_already_deleted_skill_idempotent(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_delete_already_deleted_skill_idempotent(self, db_session: AsyncSession) -> None:
         """❌ Test deleting already deleted skill returns NotFoundError (idempotent)"""
         # Arrange: Create and delete skill
         await self._create_agent(db_session, "agent1", "namespace1")
-        skill_id = await self._create_skill(
-            db_session, "agent1", "namespace1", "test-skill"
-        )
+        skill_id = await self._create_skill(db_session, "agent1", "namespace1", "test-skill")
 
         service = SkillService(db_session)
-        await service.delete_skill(
-            skill_id=skill_id, agent_id="agent1", namespace="namespace1"
-        )
+        await service.delete_skill(skill_id=skill_id, agent_id="agent1", namespace="namespace1")
 
         # Act & Assert: Second deletion returns NotFoundError
         with pytest.raises(NotFoundError) as exc_info:
-            await service.delete_skill(
-                skill_id=skill_id, agent_id="agent1", namespace="namespace1"
-            )
+            await service.delete_skill(skill_id=skill_id, agent_id="agent1", namespace="namespace1")
 
         assert "not found" in str(exc_info.value).lower()
 
     @pytest.mark.asyncio
-    async def test_delete_activated_skill_validation_error(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_delete_activated_skill_validation_error(self, db_session: AsyncSession) -> None:
         """❌ Test cannot delete activated skill (must deactivate first)"""
         # Arrange: Create skill with recent activation
         await self._create_agent(db_session, "agent1", "namespace1")
-        skill_id = await self._create_skill(
-            db_session, "agent1", "namespace1", "test-skill"
-        )
+        skill_id = await self._create_skill(db_session, "agent1", "namespace1", "test-skill")
 
         # Create activation within last 24 hours
         await self._create_activation(db_session, skill_id, "agent1", "namespace1")
@@ -1485,9 +1426,7 @@ class TestSkillServiceDelete:
 
         # Act & Assert: Cannot delete activated skill
         with pytest.raises(ValidationError) as exc_info:
-            await service.delete_skill(
-                skill_id=skill_id, agent_id="agent1", namespace="namespace1"
-            )
+            await service.delete_skill(skill_id=skill_id, agent_id="agent1", namespace="namespace1")
 
         error_str = str(exc_info.value).lower()
         assert "activated" in error_str
@@ -1496,9 +1435,7 @@ class TestSkillServiceDelete:
 class TestSkillServiceShare:
     """Test suite for share_skill() method - SHARED access control management"""
 
-    async def _create_agent(
-        self, session: AsyncSession, agent_id: str, namespace: str
-    ) -> None:
+    async def _create_agent(self, session: AsyncSession, agent_id: str, namespace: str) -> None:
         """Helper: Create agent for testing"""
         from src.models.agent import Agent, AgentStatus
 
@@ -1547,9 +1484,7 @@ class TestSkillServiceShare:
         return skill_id
 
     @pytest.mark.asyncio
-    async def test_share_skill_add_single_agent_success(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_share_skill_add_single_agent_success(self, db_session: AsyncSession) -> None:
         """✅ Test share skill with single agent (successful add)"""
         # Arrange: Create owner and collaborator in same namespace
         await self._create_agent(db_session, "owner-123", "namespace1")
@@ -1593,9 +1528,7 @@ class TestSkillServiceShare:
         assert shared_record.agent_id == "collaborator-456"
 
     @pytest.mark.asyncio
-    async def test_share_skill_add_multiple_agents_success(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_share_skill_add_multiple_agents_success(self, db_session: AsyncSession) -> None:
         """✅ Test share skill with multiple agents"""
         # Arrange: Create owner and 3 collaborators
         await self._create_agent(db_session, "owner-123", "namespace1")
@@ -1626,9 +1559,7 @@ class TestSkillServiceShare:
 
         from src.models.skill import SkillSharedAgent
 
-        shared_stmt = select(SkillSharedAgent).where(
-            SkillSharedAgent.skill_id == str(skill_id)
-        )
+        shared_stmt = select(SkillSharedAgent).where(SkillSharedAgent.skill_id == str(skill_id))
         result = await db_session.execute(shared_stmt)
         shared_records = result.scalars().all()
         assert len(shared_records) == 3
@@ -1636,9 +1567,7 @@ class TestSkillServiceShare:
         assert shared_agent_ids == {"agent-a", "agent-b", "agent-c"}
 
     @pytest.mark.asyncio
-    async def test_share_skill_remove_single_agent_success(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_share_skill_remove_single_agent_success(self, db_session: AsyncSession) -> None:
         """✅ Test remove single agent from shared skill"""
         # Arrange: Create owner, collaborator, and shared skill
         await self._create_agent(db_session, "owner-123", "namespace1")
@@ -1726,9 +1655,7 @@ class TestSkillServiceShare:
 
         from src.models.skill import SkillSharedAgent
 
-        shared_stmt = select(SkillSharedAgent).where(
-            SkillSharedAgent.skill_id == str(skill_id)
-        )
+        shared_stmt = select(SkillSharedAgent).where(SkillSharedAgent.skill_id == str(skill_id))
         result = await db_session.execute(shared_stmt)
         shared_records = result.scalars().all()
         assert len(shared_records) == 2
@@ -1736,9 +1663,7 @@ class TestSkillServiceShare:
         assert shared_agent_ids == {"agent-c", "agent-d"}
 
     @pytest.mark.asyncio
-    async def test_share_skill_idempotent_add_success(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_share_skill_idempotent_add_success(self, db_session: AsyncSession) -> None:
         """✅ Test idempotent add (adding same agent twice is no-op)"""
         # Arrange
         await self._create_agent(db_session, "owner-123", "namespace1")
@@ -1783,9 +1708,7 @@ class TestSkillServiceShare:
         assert len(shared_records) == 1
 
     @pytest.mark.asyncio
-    async def test_share_skill_idempotent_remove_success(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_share_skill_idempotent_remove_success(self, db_session: AsyncSession) -> None:
         """✅ Test idempotent remove (removing non-shared agent is no-op)"""
         # Arrange
         await self._create_agent(db_session, "owner-123", "namespace1")
@@ -1944,9 +1867,7 @@ class TestSkillServiceShare:
 class TestSkillActivation:
     """Test suite for activate_skill() and deactivate_skill() methods"""
 
-    async def _create_agent(
-        self, db_session: AsyncSession, agent_id: str, namespace: str
-    ) -> None:
+    async def _create_agent(self, db_session: AsyncSession, agent_id: str, namespace: str) -> None:
         """Helper: Create agent for testing"""
         from src.models.agent import Agent
 
@@ -2003,9 +1924,7 @@ class TestSkillActivation:
         """✅ Test successful skill activation"""
         # Arrange
         await self._create_agent(db_session, "owner-123", "namespace1")
-        skill_id = await self._create_skill(
-            db_session, "owner-123", "namespace1", "test-skill"
-        )
+        skill_id = await self._create_skill(db_session, "owner-123", "namespace1", "test-skill")
 
         service = SkillService(db_session)
 
@@ -2044,9 +1963,7 @@ class TestSkillActivation:
         """✅ Test activating already-active skill (idempotent)"""
         # Arrange
         await self._create_agent(db_session, "owner-123", "namespace1")
-        skill_id = await self._create_skill(
-            db_session, "owner-123", "namespace1", "test-skill"
-        )
+        skill_id = await self._create_skill(db_session, "owner-123", "namespace1", "test-skill")
 
         service = SkillService(db_session)
 
@@ -2092,12 +2009,8 @@ class TestSkillActivation:
         """❌ Test one-active-per-namespace enforcement (ValidationError)"""
         # Arrange: Create two skills in same namespace
         await self._create_agent(db_session, "owner-123", "namespace1")
-        skill1_id = await self._create_skill(
-            db_session, "owner-123", "namespace1", "skill-1"
-        )
-        skill2_id = await self._create_skill(
-            db_session, "owner-123", "namespace1", "skill-2"
-        )
+        skill1_id = await self._create_skill(db_session, "owner-123", "namespace1", "skill-1")
+        skill2_id = await self._create_skill(db_session, "owner-123", "namespace1", "skill-2")
 
         service = SkillService(db_session)
 
@@ -2127,9 +2040,7 @@ class TestSkillActivation:
         """❌ Test cannot activate deleted skill (NotFoundError)"""
         # Arrange: Create and delete skill
         await self._create_agent(db_session, "owner-123", "namespace1")
-        skill_id = await self._create_skill(
-            db_session, "owner-123", "namespace1", "deleted-skill"
-        )
+        skill_id = await self._create_skill(db_session, "owner-123", "namespace1", "deleted-skill")
 
         # Delete skill
         from src.models.skill import Skill
@@ -2154,16 +2065,12 @@ class TestSkillActivation:
         assert "not found" in error_str
 
     @pytest.mark.asyncio
-    async def test_activate_skill_non_owner_not_found_error(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_activate_skill_non_owner_not_found_error(self, db_session: AsyncSession) -> None:
         """❌ Test non-owner cannot activate (NotFoundError for security)"""
         # Arrange: Create owner and non-owner
         await self._create_agent(db_session, "owner-123", "namespace1")
         await self._create_agent(db_session, "non-owner-456", "namespace1")
-        skill_id = await self._create_skill(
-            db_session, "owner-123", "namespace1", "test-skill"
-        )
+        skill_id = await self._create_skill(db_session, "owner-123", "namespace1", "test-skill")
 
         service = SkillService(db_session)
 
@@ -2179,15 +2086,11 @@ class TestSkillActivation:
         assert "not found" in error_str
 
     @pytest.mark.asyncio
-    async def test_activate_deactivate_activate_workflow(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_activate_deactivate_activate_workflow(self, db_session: AsyncSession) -> None:
         """✅ Test full lifecycle: activate → deactivate → activate again"""
         # Arrange
         await self._create_agent(db_session, "owner-123", "namespace1")
-        skill_id = await self._create_skill(
-            db_session, "owner-123", "namespace1", "test-skill"
-        )
+        skill_id = await self._create_skill(db_session, "owner-123", "namespace1", "test-skill")
 
         service = SkillService(db_session)
 
@@ -2243,12 +2146,8 @@ class TestSkillActivation:
         await self._create_agent(db_session, "agent-123", "namespace1")
         await self._create_agent(db_session, "agent-456", "namespace2")
 
-        skill1_id = await self._create_skill(
-            db_session, "agent-123", "namespace1", "skill-1"
-        )
-        skill2_id = await self._create_skill(
-            db_session, "agent-456", "namespace2", "skill-2"
-        )
+        skill1_id = await self._create_skill(db_session, "agent-123", "namespace1", "skill-1")
+        skill2_id = await self._create_skill(db_session, "agent-456", "namespace2", "skill-2")
 
         service = SkillService(db_session)
 
@@ -2273,9 +2172,7 @@ class TestSkillActivation:
         """✅ Test successful skill deactivation"""
         # Arrange: Activate skill first
         await self._create_agent(db_session, "owner-123", "namespace1")
-        skill_id = await self._create_skill(
-            db_session, "owner-123", "namespace1", "test-skill"
-        )
+        skill_id = await self._create_skill(db_session, "owner-123", "namespace1", "test-skill")
 
         service = SkillService(db_session)
         await service.activate_skill(
@@ -2319,9 +2216,7 @@ class TestSkillActivation:
         """✅ Test deactivating non-active skill (idempotent)"""
         # Arrange: Create skill but don't activate
         await self._create_agent(db_session, "owner-123", "namespace1")
-        skill_id = await self._create_skill(
-            db_session, "owner-123", "namespace1", "test-skill"
-        )
+        skill_id = await self._create_skill(db_session, "owner-123", "namespace1", "test-skill")
 
         service = SkillService(db_session)
 
@@ -2342,9 +2237,7 @@ class TestSkillActivation:
         """❌ Test cannot deactivate deleted skill (NotFoundError)"""
         # Arrange: Create and delete skill
         await self._create_agent(db_session, "owner-123", "namespace1")
-        skill_id = await self._create_skill(
-            db_session, "owner-123", "namespace1", "deleted-skill"
-        )
+        skill_id = await self._create_skill(db_session, "owner-123", "namespace1", "deleted-skill")
 
         # Delete skill
         from src.models.skill import Skill
@@ -2376,9 +2269,7 @@ class TestSkillActivation:
         # Arrange: Create owner and non-owner
         await self._create_agent(db_session, "owner-123", "namespace1")
         await self._create_agent(db_session, "non-owner-456", "namespace1")
-        skill_id = await self._create_skill(
-            db_session, "owner-123", "namespace1", "test-skill"
-        )
+        skill_id = await self._create_skill(db_session, "owner-123", "namespace1", "test-skill")
 
         service = SkillService(db_session)
 
@@ -2400,12 +2291,8 @@ class TestSkillActivation:
         """✅ Test deactivation frees namespace slot for another activation"""
         # Arrange: Create two skills
         await self._create_agent(db_session, "owner-123", "namespace1")
-        skill1_id = await self._create_skill(
-            db_session, "owner-123", "namespace1", "skill-1"
-        )
-        skill2_id = await self._create_skill(
-            db_session, "owner-123", "namespace1", "skill-2"
-        )
+        skill1_id = await self._create_skill(db_session, "owner-123", "namespace1", "skill-1")
+        skill2_id = await self._create_skill(db_session, "owner-123", "namespace1", "skill-2")
 
         service = SkillService(db_session)
 

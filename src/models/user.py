@@ -60,29 +60,44 @@ class User(TMWSBase, MetadataMixin):
     )
 
     email: Mapped[str] = mapped_column(
-        String(255), nullable=False, unique=True, index=True, comment="User email address",
+        String(255),
+        nullable=False,
+        unique=True,
+        index=True,
+        comment="User email address",
     )
 
     full_name: Mapped[str | None] = mapped_column(
-        String(255), nullable=True, comment="User's full name",
+        String(255),
+        nullable=True,
+        comment="User's full name",
     )
 
     # Authentication
     password_hash: Mapped[str] = mapped_column(
-        Text, nullable=False, comment="Bcrypt hashed password",
+        Text,
+        nullable=False,
+        comment="Bcrypt hashed password",
     )
 
     password_salt: Mapped[str] = mapped_column(
-        Text, nullable=False, comment="Password salt for additional security",
+        Text,
+        nullable=False,
+        comment="Password salt for additional security",
     )
 
     # Security tracking
     failed_login_attempts: Mapped[int] = mapped_column(
-        sa.Integer, nullable=False, default=0, comment="Count of failed login attempts",
+        sa.Integer,
+        nullable=False,
+        default=0,
+        comment="Count of failed login attempts",
     )
 
     last_failed_login_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True, comment="Timestamp of last failed login",
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Timestamp of last failed login",
     )
 
     last_login_at: Mapped[datetime | None] = mapped_column(
@@ -107,33 +122,51 @@ class User(TMWSBase, MetadataMixin):
     )
 
     roles: Mapped[list[UserRole]] = mapped_column(
-        JSON, nullable=False, default=lambda: [UserRole.USER], comment="List of user roles",
+        JSON,
+        nullable=False,
+        default=lambda: [UserRole.USER],
+        comment="List of user roles",
     )
 
     permissions: Mapped[dict[str, Any]] = mapped_column(
-        JSON, nullable=False, default=dict, comment="Additional granular permissions",
+        JSON,
+        nullable=False,
+        default=dict,
+        comment="Additional granular permissions",
     )
 
     # MFA and security
     mfa_enabled: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False, comment="Multi-factor authentication enabled",
+        Boolean,
+        nullable=False,
+        default=False,
+        comment="Multi-factor authentication enabled",
     )
 
     mfa_secret: Mapped[str | None] = mapped_column(
-        Text, nullable=True, comment="TOTP secret for MFA",
+        Text,
+        nullable=True,
+        comment="TOTP secret for MFA",
     )
 
     backup_codes: Mapped[list[str] | None] = mapped_column(
-        JSON, nullable=True, comment="MFA backup codes",
+        JSON,
+        nullable=True,
+        comment="MFA backup codes",
     )
 
     # Session management
     force_password_change: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False, comment="Force password change on next login",
+        Boolean,
+        nullable=False,
+        default=False,
+        comment="Force password change on next login",
     )
 
     password_changed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True, comment="When password was last changed",
+        DateTime(timezone=True),
+        nullable=True,
+        comment="When password was last changed",
     )
 
     session_timeout_minutes: Mapped[int] = mapped_column(
@@ -145,25 +178,37 @@ class User(TMWSBase, MetadataMixin):
 
     # Agent association
     preferred_agent_id: Mapped[str | None] = mapped_column(
-        Text, nullable=True, comment="Preferred agent for operations",
+        Text,
+        nullable=True,
+        comment="Preferred agent for operations",
     )
 
     agent_namespace: Mapped[str] = mapped_column(
-        Text, nullable=False, default="default", comment="User's agent namespace",
+        Text,
+        nullable=False,
+        default="default",
+        comment="User's agent namespace",
     )
 
     # Audit tracking
     created_by: Mapped[str | None] = mapped_column(
-        String(64), nullable=True, comment="Username of user who created this account",
+        String(64),
+        nullable=True,
+        comment="Username of user who created this account",
     )
 
     last_modified_by: Mapped[str | None] = mapped_column(
-        String(64), nullable=True, comment="Username of user who last modified this account",
+        String(64),
+        nullable=True,
+        comment="Username of user who last modified this account",
     )
 
     # Relationships
     api_keys: Mapped[list["APIKey"]] = relationship(
-        "APIKey", back_populates="user", cascade="all, delete-orphan", lazy="select",
+        "APIKey",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        lazy="select",
     )
 
     # SQLite-compatible indexes (v2.2.6)
@@ -265,55 +310,82 @@ class APIKey(TMWSBase, MetadataMixin):
 
     # Key identification
     key_id: Mapped[str] = mapped_column(
-        String(32), nullable=False, unique=True, index=True, comment="Public key identifier",
+        String(32),
+        nullable=False,
+        unique=True,
+        index=True,
+        comment="Public key identifier",
     )
 
     name: Mapped[str] = mapped_column(
-        String(128), nullable=False, comment="Human-readable key name",
+        String(128),
+        nullable=False,
+        comment="Human-readable key name",
     )
 
     description: Mapped[str | None] = mapped_column(
-        Text, nullable=True, comment="Key description and purpose",
+        Text,
+        nullable=True,
+        comment="Key description and purpose",
     )
 
     # Security
     key_hash: Mapped[str] = mapped_column(Text, nullable=False, comment="Hashed API key value")
 
     key_prefix: Mapped[str] = mapped_column(
-        String(8), nullable=False, comment="Key prefix for identification (first 8 chars)",
+        String(8),
+        nullable=False,
+        comment="Key prefix for identification (first 8 chars)",
     )
 
     # Access control
     scopes: Mapped[list[APIKeyScope]] = mapped_column(
-        JSON, nullable=False, default=lambda: [APIKeyScope.READ], comment="API key access scopes",
+        JSON,
+        nullable=False,
+        default=lambda: [APIKeyScope.READ],
+        comment="API key access scopes",
     )
 
     allowed_ips: Mapped[list[str] | None] = mapped_column(
-        JSON, nullable=True, comment="IP addresses allowed to use this key",
+        JSON,
+        nullable=True,
+        comment="IP addresses allowed to use this key",
     )
 
     rate_limit_per_hour: Mapped[int | None] = mapped_column(
-        sa.Integer, nullable=True, comment="Custom rate limit for this key",
+        sa.Integer,
+        nullable=True,
+        comment="Custom rate limit for this key",
     )
 
     # Status and lifecycle
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)
 
     expires_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True, index=True, comment="Key expiration timestamp",
+        DateTime(timezone=True),
+        nullable=True,
+        index=True,
+        comment="Key expiration timestamp",
     )
 
     # Usage tracking
     last_used_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True, comment="When key was last used",
+        DateTime(timezone=True),
+        nullable=True,
+        comment="When key was last used",
     )
 
     last_used_ip: Mapped[str | None] = mapped_column(
-        String(45), nullable=True, comment="IP address of last use",
+        String(45),
+        nullable=True,
+        comment="IP address of last use",
     )
 
     total_requests: Mapped[int] = mapped_column(
-        sa.Integer, nullable=False, default=0, comment="Total requests made with this key",
+        sa.Integer,
+        nullable=False,
+        default=0,
+        comment="Total requests made with this key",
     )
 
     # User relationship
@@ -393,16 +465,25 @@ class RefreshToken(TMWSBase):
 
     # Token identification
     token_id: Mapped[str] = mapped_column(
-        String(64), nullable=False, unique=True, index=True, comment="Unique token identifier",
+        String(64),
+        nullable=False,
+        unique=True,
+        index=True,
+        comment="Unique token identifier",
     )
 
     token_hash: Mapped[str] = mapped_column(
-        Text, nullable=False, comment="Hashed refresh token value",
+        Text,
+        nullable=False,
+        comment="Hashed refresh token value",
     )
 
     # Token lifecycle
     expires_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, index=True, comment="Token expiration timestamp",
+        DateTime(timezone=True),
+        nullable=False,
+        index=True,
+        comment="Token expiration timestamp",
     )
 
     is_revoked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)

@@ -106,9 +106,7 @@ class AgentService:
         """Get an agent by their ID."""
         try:
             result = await self.session.execute(
-                select(Agent)
-                .where(Agent.agent_id == agent_id)
-                .options(selectinload(Agent.tasks)),
+                select(Agent).where(Agent.agent_id == agent_id).options(selectinload(Agent.tasks)),
             )
             return result.scalar_one_or_none()
         except (KeyboardInterrupt, SystemExit):
@@ -122,7 +120,9 @@ class AgentService:
             return None
 
     async def get_agent_by_display_name(
-        self, display_name: str, namespace: str = None,
+        self,
+        display_name: str,
+        namespace: str = None,
     ) -> Agent | None:
         """Get an agent by their display name, optionally within a namespace."""
         try:
@@ -288,9 +288,7 @@ class AgentService:
 
         # Validate score range
         if not 0.0 <= new_score <= 1.0:
-            raise ValidationError(
-                f"trust_score must be in [0.0, 1.0], got {new_score}"
-            )
+            raise ValidationError(f"trust_score must be in [0.0, 1.0], got {new_score}")
 
         # Fetch agent
         agent = await self.get_agent_by_id(agent_id)
@@ -664,7 +662,11 @@ class AgentService:
         return result is not None
 
     async def list_namespaces(
-        self, access_policy: str = None, is_active: bool = None, limit: int = 50, offset: int = 0,
+        self,
+        access_policy: str = None,
+        is_active: bool = None,
+        limit: int = 50,
+        offset: int = 0,
     ) -> list[AgentNamespace]:
         """List namespaces with optional filtering."""
         try:
@@ -857,7 +859,11 @@ class AgentService:
     # Search and Discovery
 
     async def search_agents(
-        self, query: str, namespace: str = None, agent_type: str = None, limit: int = 20,
+        self,
+        query: str,
+        namespace: str = None,
+        agent_type: str = None,
+        limit: int = 20,
     ) -> list[Agent]:
         """Search agents by name, capabilities, or other attributes."""
         try:

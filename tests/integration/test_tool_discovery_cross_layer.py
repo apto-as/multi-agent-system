@@ -7,10 +7,12 @@ for security validations V-DISC-1, V-DISC-2, V-DISC-3.
 Created: 2025-11-22
 """
 
-import pytest
 from uuid import uuid4
-from src.services.tool_discovery_service import ToolDiscoveryService
+
+import pytest
+
 from src.schemas.tool_metadata import ToolMetadata
+from src.services.tool_discovery_service import ToolDiscoveryService
 
 
 @pytest.mark.asyncio
@@ -30,9 +32,7 @@ async def test_scenario_1_valid_tool_discovery(db_session):
 
     # Simulate Go passing a valid tool
     metadata = ToolMetadata(
-        description="Legitimate data processing tool",
-        author="Security Team",
-        license="MIT"
+        description="Legitimate data processing tool", author="Security Team", license="MIT"
     )
 
     # Register tool
@@ -43,7 +43,7 @@ async def test_scenario_1_valid_tool_discovery(db_session):
         source_path="/usr/local/bin/data-processor",
         version="1.0.0",
         namespace="test-integration",
-        metadata=metadata
+        metadata=metadata,
     )
 
     # Verify
@@ -72,7 +72,7 @@ async def test_scenario_3_xss_metadata_blocked(db_session):
     metadata = ToolMetadata(
         description="<script>alert('XSS')</script>Dangerous tool",
         author="<img src=x onerror=alert(1)>",
-        license="Apache-2.0"
+        license="Apache-2.0",
     )
 
     # Register tool
@@ -83,7 +83,7 @@ async def test_scenario_3_xss_metadata_blocked(db_session):
         source_path="/usr/local/bin/xss-tool",
         version="1.0.0",
         namespace="test-integration",
-        metadata=metadata
+        metadata=metadata,
     )
 
     # Verify XSS is escaped (V-DISC-2)
@@ -113,9 +113,7 @@ async def test_scenario_2_path_traversal_blocked_at_go_layer(db_session):
     # (i.e., Python doesn't duplicate path validation)
 
     metadata = ToolMetadata(
-        description="Tool that passed Go validation",
-        author="Security Team",
-        license="BSD-3-Clause"
+        description="Tool that passed Go validation", author="Security Team", license="BSD-3-Clause"
     )
 
     # Tool with a path that LOOKS suspicious but passed Go validation
@@ -126,7 +124,7 @@ async def test_scenario_2_path_traversal_blocked_at_go_layer(db_session):
         source_path="/usr/local/bin/../../etc/passwd",  # Suspicious but normalized by Go
         version="1.0.0",
         namespace="test-integration",
-        metadata=metadata
+        metadata=metadata,
     )
 
     # Python accepts it because Go already validated
@@ -151,9 +149,7 @@ async def test_scenario_4_invalid_category_blocked_at_go_layer(db_session):
     # If a tool reaches Python with an unusual category,
     # it means Go approved it (e.g., future category addition)
     metadata = ToolMetadata(
-        description="Future category tool",
-        author="Development Team",
-        license="GPL-3.0"
+        description="Future category tool", author="Development Team", license="GPL-3.0"
     )
 
     # Python accepts any category string (Go is authoritative)
@@ -164,7 +160,7 @@ async def test_scenario_4_invalid_category_blocked_at_go_layer(db_session):
         source_path="/usr/local/bin/monitor",
         version="1.0.0",
         namespace="test-integration",
-        metadata=metadata
+        metadata=metadata,
     )
 
     assert tool is not None
@@ -191,9 +187,7 @@ async def test_metadata_schema_validation_comprehensive(db_session):
 
     for i, pattern in enumerate(attack_patterns):
         metadata = ToolMetadata(
-            description=f"{pattern}Attack pattern {i}",
-            author="Security Test",
-            license="MIT"
+            description=f"{pattern}Attack pattern {i}", author="Security Test", license="MIT"
         )
 
         tool = await service.register_tool(
@@ -203,7 +197,7 @@ async def test_metadata_schema_validation_comprehensive(db_session):
             source_path=f"/usr/local/bin/attack-{i}",
             version="1.0.0",
             namespace="test-integration",
-            metadata=metadata
+            metadata=metadata,
         )
 
         # Verify all HTML/JS is escaped
@@ -231,9 +225,7 @@ async def test_end_to_end_tool_lifecycle(db_session):
 
     # Step 1-2: Discovery and Registration
     metadata = ToolMetadata(
-        description="Production-ready tool <b>with HTML</b>",
-        author="DevOps Team",
-        license="MIT"
+        description="Production-ready tool <b>with HTML</b>", author="DevOps Team", license="MIT"
     )
 
     tool = await service.register_tool(
@@ -243,7 +235,7 @@ async def test_end_to_end_tool_lifecycle(db_session):
         source_path="/usr/local/bin/lifecycle-tool",
         version="1.0.0",
         namespace="test-integration",
-        metadata=metadata
+        metadata=metadata,
     )
 
     assert tool.is_active is True

@@ -5,14 +5,15 @@ This module tests Pydantic request DTOs validation logic.
 Tests follow TDD RED phase methodology - expecting failures until implementation exists.
 """
 
-import pytest
 from uuid import uuid4
+
+import pytest
 
 from src.application.dtos.request_dtos import (
     CreateConnectionRequest,
+    DisconnectRequest,
     DiscoverToolsRequest,
     ExecuteToolRequest,
-    DisconnectRequest,
 )
 
 
@@ -48,7 +49,7 @@ class TestCreateConnectionRequest:
         # Assert
         assert request.server_name == "test_server"
         # Pydantic may or may not add trailing slash - accept both
-        assert str(request.url).rstrip('/') == "http://localhost:8080/mcp"
+        assert str(request.url).rstrip("/") == "http://localhost:8080/mcp"
         assert request.namespace == "test-namespace"
         assert request.timeout == 30
         assert request.retry_attempts == 3
@@ -78,7 +79,10 @@ class TestCreateConnectionRequest:
             )
 
         # Should raise validation error for server_name
-        assert "server_name" in str(exc_info.value).lower() or "validation" in str(exc_info.value).lower()
+        assert (
+            "server_name" in str(exc_info.value).lower()
+            or "validation" in str(exc_info.value).lower()
+        )
 
     def test_create_connection_request_validation_invalid_url(self):
         """

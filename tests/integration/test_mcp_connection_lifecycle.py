@@ -16,18 +16,18 @@ Created: 2025-11-12 (Phase 1-1: Day 1)
 Status: RED (tests will fail until implementation complete)
 """
 
-import pytest
-from uuid import uuid4
 from datetime import datetime
-from typing import AsyncGenerator
+from uuid import uuid4
+
+import pytest
 
 # Domain imports (to be implemented)
 try:
     from src.domain.aggregates.mcp_connection import MCPConnection
+    from src.domain.entities.tool import Tool
     from src.domain.value_objects.connection_config import ConnectionConfig
     from src.domain.value_objects.connection_status import ConnectionStatus
     from src.domain.value_objects.tool_category import ToolCategory
-    from src.domain.entities.tool import Tool
 except ImportError:
     # Tests will fail with ImportError until implementation exists
     # This is EXPECTED in TDD - we write tests first!
@@ -50,7 +50,7 @@ async def test_mcp_config() -> ConnectionConfig:
         url="http://localhost:8080/mcp",
         timeout=30,
         retry_attempts=3,
-        auth_required=False
+        auth_required=False,
     )
 
 
@@ -63,7 +63,7 @@ async def mcp_connection(test_mcp_config) -> MCPConnection:
         config=test_mcp_config,
         status=ConnectionStatus.DISCONNECTED,
         tools=[],
-        created_at=datetime.utcnow()
+        created_at=datetime.utcnow(),
     )
 
 
@@ -85,9 +85,7 @@ class TestMCPConnectionLifecycle:
 
     @pytest.mark.asyncio
     async def test_connect_to_mcp_server_success(
-        self,
-        mcp_connection: MCPConnection,
-        test_mcp_config: ConnectionConfig
+        self, mcp_connection: MCPConnection, test_mcp_config: ConnectionConfig
     ):
         """
         Scenario: Successfully connect to MCP server
@@ -111,10 +109,7 @@ class TestMCPConnectionLifecycle:
         pytest.skip("Implementation pending - TDD RED phase")
 
     @pytest.mark.asyncio
-    async def test_discover_tools_after_connection(
-        self,
-        mcp_connection: MCPConnection
-    ):
+    async def test_discover_tools_after_connection(self, mcp_connection: MCPConnection):
         """
         Scenario: Discover tools from connected MCP server
 
@@ -141,10 +136,7 @@ class TestMCPConnectionLifecycle:
         pytest.skip("Implementation pending - TDD RED phase")
 
     @pytest.mark.asyncio
-    async def test_connection_state_transitions(
-        self,
-        mcp_connection: MCPConnection
-    ):
+    async def test_connection_state_transitions(self, mcp_connection: MCPConnection):
         """
         Scenario: Valid state transitions during connection lifecycle
 
@@ -168,10 +160,7 @@ class TestMCPConnectionLifecycle:
         pytest.skip("Implementation pending - TDD RED phase")
 
     @pytest.mark.asyncio
-    async def test_invalid_state_transition_raises_error(
-        self,
-        mcp_connection: MCPConnection
-    ):
+    async def test_invalid_state_transition_raises_error(self, mcp_connection: MCPConnection):
         """
         Scenario: Invalid state transitions should raise error
 
@@ -191,10 +180,7 @@ class TestMCPConnectionLifecycle:
         pytest.skip("Implementation pending - TDD RED phase")
 
     @pytest.mark.asyncio
-    async def test_connection_failure_sets_error_state(
-        self,
-        mcp_connection: MCPConnection
-    ):
+    async def test_connection_failure_sets_error_state(self, mcp_connection: MCPConnection):
         """
         Scenario: Connection failure should set ERROR state
 
@@ -209,13 +195,13 @@ class TestMCPConnectionLifecycle:
             server_name="unreachable_server",
             url="http://invalid-host:9999/mcp",
             timeout=1,  # Short timeout for fast test
-            retry_attempts=1
+            retry_attempts=1,
         )
-        conn = MCPConnection(
+        MCPConnection(
             id=uuid4(),
             server_name=invalid_config.server_name,
             config=invalid_config,
-            status=ConnectionStatus.DISCONNECTED
+            status=ConnectionStatus.DISCONNECTED,
         )
 
         # Act
@@ -232,10 +218,7 @@ class TestMCPConnectionLifecycle:
         pytest.skip("Implementation pending - TDD RED phase")
 
     @pytest.mark.asyncio
-    async def test_namespace_isolation_for_mcp_connections(
-        self,
-        test_mcp_config: ConnectionConfig
-    ):
+    async def test_namespace_isolation_for_mcp_connections(self, test_mcp_config: ConnectionConfig):
         """
         Scenario: MCP connections should be namespace-isolated
 
@@ -247,20 +230,20 @@ class TestMCPConnectionLifecycle:
         Security Requirement: V-MCP-1 (Namespace Isolation)
         """
         # Arrange
-        conn_agent_a = MCPConnection(
+        MCPConnection(
             id=uuid4(),
             server_name="shared_server",
             config=test_mcp_config,
             namespace="project-x",  # Agent A's namespace
-            agent_id="agent-a"
+            agent_id="agent-a",
         )
 
-        conn_agent_b = MCPConnection(
+        MCPConnection(
             id=uuid4(),
             server_name="shared_server",
             config=test_mcp_config,
             namespace="project-y",  # Agent B's namespace
-            agent_id="agent-b"
+            agent_id="agent-b",
         )
 
         # Act
@@ -276,10 +259,7 @@ class TestMCPConnectionLifecycle:
         pytest.skip("Implementation pending - TDD RED phase")
 
     @pytest.mark.asyncio
-    async def test_connection_timeout_handling(
-        self,
-        mcp_connection: MCPConnection
-    ):
+    async def test_connection_timeout_handling(self, mcp_connection: MCPConnection):
         """
         Scenario: Connection timeout should be handled gracefully
 
@@ -293,13 +273,13 @@ class TestMCPConnectionLifecycle:
             server_name="slow_server",
             url="http://localhost:8080/slow",
             timeout=0.1,  # Very short timeout
-            retry_attempts=1
+            retry_attempts=1,
         )
-        conn = MCPConnection(
+        MCPConnection(
             id=uuid4(),
             server_name=short_timeout_config.server_name,
             config=short_timeout_config,
-            status=ConnectionStatus.DISCONNECTED
+            status=ConnectionStatus.DISCONNECTED,
         )
 
         # Act & Assert
@@ -311,10 +291,7 @@ class TestMCPConnectionLifecycle:
         pytest.skip("Implementation pending - TDD RED phase")
 
     @pytest.mark.asyncio
-    async def test_connection_retry_on_failure(
-        self,
-        mcp_connection: MCPConnection
-    ):
+    async def test_connection_retry_on_failure(self, mcp_connection: MCPConnection):
         """
         Scenario: Connection should retry on transient failures
 
@@ -328,13 +305,13 @@ class TestMCPConnectionLifecycle:
             server_name="flaky_server",
             url="http://localhost:8080/flaky",
             timeout=5,
-            retry_attempts=3
+            retry_attempts=3,
         )
-        conn = MCPConnection(
+        MCPConnection(
             id=uuid4(),
             server_name=retry_config.server_name,
             config=retry_config,
-            status=ConnectionStatus.DISCONNECTED
+            status=ConnectionStatus.DISCONNECTED,
         )
 
         # Act
@@ -385,10 +362,7 @@ class TestMCPToolDiscovery:
     """
 
     @pytest.mark.asyncio
-    async def test_discover_tools_returns_tool_list(
-        self,
-        mcp_connection: MCPConnection
-    ):
+    async def test_discover_tools_returns_tool_list(self, mcp_connection: MCPConnection):
         """
         Scenario: Tool discovery returns comprehensive tool list
 
@@ -417,10 +391,7 @@ class TestMCPToolDiscovery:
         pytest.skip("Implementation pending - TDD RED phase")
 
     @pytest.mark.asyncio
-    async def test_tool_categorization(
-        self,
-        mcp_connection: MCPConnection
-    ):
+    async def test_tool_categorization(self, mcp_connection: MCPConnection):
         """
         Scenario: Tools should be automatically categorized
 
@@ -443,10 +414,7 @@ class TestMCPToolDiscovery:
         pytest.skip("Implementation pending - TDD RED phase")
 
     @pytest.mark.asyncio
-    async def test_tool_schema_validation(
-        self,
-        mcp_connection: MCPConnection
-    ):
+    async def test_tool_schema_validation(self, mcp_connection: MCPConnection):
         """
         Scenario: Tool input schemas should be validated
 
@@ -494,13 +462,13 @@ class TestMCPErrorHandling:
             server_name="offline_server",
             url="http://localhost:9999/mcp",  # Non-existent server
             timeout=1,
-            retry_attempts=1
+            retry_attempts=1,
         )
-        conn = MCPConnection(
+        MCPConnection(
             id=uuid4(),
             server_name=config.server_name,
             config=config,
-            status=ConnectionStatus.DISCONNECTED
+            status=ConnectionStatus.DISCONNECTED,
         )
 
         # Act
@@ -530,13 +498,13 @@ class TestMCPErrorHandling:
             server_name="auth_server",
             url="http://localhost:8080/mcp",
             auth_required=True,
-            api_key="invalid_key"
+            api_key="invalid_key",
         )
-        conn = MCPConnection(
+        MCPConnection(
             id=uuid4(),
             server_name=config.server_name,
             config=config,
-            status=ConnectionStatus.DISCONNECTED
+            status=ConnectionStatus.DISCONNECTED,
         )
 
         # Act & Assert

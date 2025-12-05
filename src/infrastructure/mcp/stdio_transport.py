@@ -123,13 +123,12 @@ class STDIOTransport:
         if self.preset.transport_type != MCPTransportType.STDIO:
             raise MCPConnectionError(
                 f"STDIOTransport requires STDIO preset, got {self.preset.transport_type}",
-                details={"server_name": self.preset.name}
+                details={"server_name": self.preset.name},
             )
 
         if not self.preset.command:
             raise MCPConnectionError(
-                "STDIO preset missing command",
-                details={"server_name": self.preset.name}
+                "STDIO preset missing command", details={"server_name": self.preset.name}
             )
 
         try:
@@ -169,12 +168,12 @@ class STDIOTransport:
         except FileNotFoundError as e:
             raise MCPConnectionError(
                 f"MCP server command not found: {self.preset.command}",
-                details={"server_name": self.preset.name, "error": str(e)}
+                details={"server_name": self.preset.name, "error": str(e)},
             ) from e
         except Exception as e:
             raise MCPConnectionError(
                 f"Failed to start MCP server: {e}",
-                details={"server_name": self.preset.name, "error": str(e)}
+                details={"server_name": self.preset.name, "error": str(e)},
             ) from e
 
     async def disconnect(self) -> None:
@@ -221,16 +220,14 @@ class STDIOTransport:
         """
         if not self._connected:
             raise MCPConnectionError(
-                "Not connected to MCP server",
-                details={"server_name": self.preset.name}
+                "Not connected to MCP server", details={"server_name": self.preset.name}
             )
 
         response = await self._send_request("tools/list", {})
 
         if "tools" not in response:
             raise MCPProtocolError(
-                "Invalid tools/list response: missing 'tools' field",
-                details={"response": response}
+                "Invalid tools/list response: missing 'tools' field", details={"response": response}
             )
 
         # Convert to domain Tool entities
@@ -262,14 +259,16 @@ class STDIOTransport:
         """
         if not self._connected:
             raise MCPConnectionError(
-                "Not connected to MCP server",
-                details={"server_name": self.preset.name}
+                "Not connected to MCP server", details={"server_name": self.preset.name}
             )
 
-        response = await self._send_request("tools/call", {
-            "name": tool_name,
-            "arguments": arguments,
-        })
+        response = await self._send_request(
+            "tools/call",
+            {
+                "name": tool_name,
+                "arguments": arguments,
+            },
+        )
 
         return response
 
@@ -279,16 +278,19 @@ class STDIOTransport:
         Sends initialize request and waits for server capabilities.
         """
         # Send initialize request
-        response = await self._send_request("initialize", {
-            "protocolVersion": "2024-11-05",
-            "capabilities": {
-                "roots": {"listChanged": True},
+        response = await self._send_request(
+            "initialize",
+            {
+                "protocolVersion": "2024-11-05",
+                "capabilities": {
+                    "roots": {"listChanged": True},
+                },
+                "clientInfo": {
+                    "name": "tmws",
+                    "version": "2.4.2",
+                },
             },
-            "clientInfo": {
-                "name": "tmws",
-                "version": "2.4.2",
-            }
-        })
+        )
 
         logger.debug(f"MCP server capabilities: {response.get('capabilities', {})}")
 
@@ -296,10 +298,7 @@ class STDIOTransport:
         await self._send_notification("notifications/initialized", {})
 
     async def _send_request(
-        self,
-        method: str,
-        params: dict[str, Any],
-        timeout: float = 30.0
+        self, method: str, params: dict[str, Any], timeout: float = 30.0
     ) -> dict[str, Any]:
         """Send a request and wait for response.
 
@@ -347,8 +346,7 @@ class STDIOTransport:
         except asyncio.TimeoutError:
             self.pending_requests.pop(request_id, None)
             raise MCPProtocolError(
-                f"Request timeout: {method}",
-                details={"method": method, "timeout": timeout}
+                f"Request timeout: {method}", details={"method": method, "timeout": timeout}
             )
         except Exception:
             self.pending_requests.pop(request_id, None)
@@ -410,10 +408,12 @@ class STDIOTransport:
             future = self.pending_requests.pop(message.id, None)
             if future:
                 if message.error:
-                    future.set_exception(MCPProtocolError(
-                        f"MCP error: {message.error.get('message', 'Unknown error')}",
-                        details=message.error
-                    ))
+                    future.set_exception(
+                        MCPProtocolError(
+                            f"MCP error: {message.error.get('message', 'Unknown error')}",
+                            details=message.error,
+                        )
+                    )
                 else:
                     future.set_result(message.result or {})
             else:

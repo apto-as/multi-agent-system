@@ -326,8 +326,7 @@ class AgentCommunicationService:
         )
 
         logger.info(
-            f"Task delegated from {from_agent} to {target_agent} "
-            f"(delegation_id={delegation.id})",
+            f"Task delegated from {from_agent} to {target_agent} (delegation_id={delegation.id})",
         )
 
         return delegation
@@ -450,10 +449,7 @@ class AgentCommunicationService:
 
         # Filter expired messages
         now = datetime.now(UTC)
-        messages = [
-            m for m in messages
-            if m.expires_at is None or m.expires_at > now
-        ]
+        messages = [m for m in messages if m.expires_at is None or m.expires_at > now]
 
         # Sort by priority (descending) then created_at (ascending)
         messages.sort(key=lambda m: (-m.priority.value, m.created_at))

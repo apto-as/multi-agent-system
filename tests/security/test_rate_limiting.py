@@ -10,10 +10,11 @@ This prevents attackers from rapidly accessing the same memory to inflate
 access_count and artificially boost relevance_score.
 """
 
-import pytest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
+
+import pytest
 
 from src.models.memory import AccessLevel, Memory
 from src.services.memory_service import HybridMemoryService
@@ -120,7 +121,7 @@ class TestRateLimitingWithinWindow:
         mock_session.execute.return_value = mock_result
 
         # Mock datetime.now() to return consistent time
-        with patch('src.models.memory.datetime') as mock_datetime:
+        with patch("src.models.memory.datetime") as mock_datetime:
             mock_datetime.now.return_value = now
             mock_datetime.utcnow.return_value = now
             mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
@@ -153,7 +154,7 @@ class TestRateLimitingWithinWindow:
         mock_result.scalar_one_or_none.return_value = test_memory
         mock_session.execute.return_value = mock_result
 
-        with patch('src.models.memory.datetime') as mock_datetime:
+        with patch("src.models.memory.datetime") as mock_datetime:
             mock_datetime.now.return_value = now
             mock_datetime.utcnow.return_value = now
             mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
@@ -189,7 +190,7 @@ class TestRateLimitingOutsideWindow:
         mock_result.scalar_one_or_none.return_value = test_memory
         mock_session.execute.return_value = mock_result
 
-        with patch('src.models.memory.datetime') as mock_datetime:
+        with patch("src.models.memory.datetime") as mock_datetime:
             mock_datetime.now.return_value = now
             mock_datetime.utcnow.return_value = now
             mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
@@ -221,7 +222,7 @@ class TestRateLimitingOutsideWindow:
         mock_result.scalar_one_or_none.return_value = test_memory
         mock_session.execute.return_value = mock_result
 
-        with patch('src.models.memory.datetime') as mock_datetime:
+        with patch("src.models.memory.datetime") as mock_datetime:
             mock_datetime.now.return_value = now
             mock_datetime.utcnow.return_value = now
             mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
@@ -288,19 +289,20 @@ class TestRateLimitingSequentialAccesses:
 
         # Simulate 5 rapid accesses over 10 seconds
         access_times = [
-            base_time,                          # T+0s: Tracked (first access)
-            base_time + timedelta(seconds=2),   # T+2s: Rate limited
-            base_time + timedelta(seconds=4),   # T+4s: Rate limited
-            base_time + timedelta(seconds=6),   # T+6s: Tracked (>5s from T+0s)
-            base_time + timedelta(seconds=8),   # T+8s: Rate limited (only 2s from T+6s)
+            base_time,  # T+0s: Tracked (first access)
+            base_time + timedelta(seconds=2),  # T+2s: Rate limited
+            base_time + timedelta(seconds=4),  # T+4s: Rate limited
+            base_time + timedelta(seconds=6),  # T+6s: Tracked (>5s from T+0s)
+            base_time + timedelta(seconds=8),  # T+8s: Rate limited (only 2s from T+6s)
         ]
 
         tracked_count = 0
         for current_time in access_times:
             # Patch BOTH datetime in memory service AND memory model
-            with patch('src.services.memory_service.datetime') as mock_svc_dt, \
-                 patch('src.models.memory.datetime') as mock_model_dt:
-
+            with (
+                patch("src.services.memory_service.datetime") as mock_svc_dt,
+                patch("src.models.memory.datetime") as mock_model_dt,
+            ):
                 # Mock datetime for rate limit check in service
                 mock_svc_dt.now.return_value = current_time
                 mock_svc_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
@@ -310,7 +312,7 @@ class TestRateLimitingSequentialAccesses:
                 mock_model_dt.utcnow.return_value = current_time
                 mock_model_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
 
-                result = await memory_service.get_memory(memory_id, track_access=True)
+                await memory_service.get_memory(memory_id, track_access=True)
 
                 # Count actual commits (successful tracking)
                 if mock_session.commit.called:
@@ -346,7 +348,7 @@ class TestRateLimitingEdgeCases:
         mock_result.scalar_one_or_none.return_value = test_memory
         mock_session.execute.return_value = mock_result
 
-        with patch('src.models.memory.datetime') as mock_datetime:
+        with patch("src.models.memory.datetime") as mock_datetime:
             mock_datetime.now.return_value = now_utc
             mock_datetime.utcnow.return_value = now_utc
             mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)

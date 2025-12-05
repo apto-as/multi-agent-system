@@ -595,8 +595,15 @@ class SecurityAuditLogger:
     ) -> dict[str, Any]:
         """Sanitize arguments for logging (remove sensitive data)."""
         sensitive_keys = {
-            "password", "secret", "token", "key", "auth",
-            "credential", "api_key", "apikey", "private",
+            "password",
+            "secret",
+            "token",
+            "key",
+            "auth",
+            "credential",
+            "api_key",
+            "apikey",
+            "private",
         }
 
         sanitized = {}

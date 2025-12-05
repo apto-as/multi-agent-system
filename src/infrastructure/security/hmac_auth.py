@@ -52,6 +52,7 @@ class HMACToken:
 
     Format: {client_id}:{timestamp}:{nonce}:{signature}
     """
+
     client_id: str
     timestamp: int
     nonce: str

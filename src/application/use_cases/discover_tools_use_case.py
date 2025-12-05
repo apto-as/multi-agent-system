@@ -56,28 +56,18 @@ class DiscoverToolsUseCase:
         self._uow = uow
         self._event_dispatcher = event_dispatcher
 
-    async def execute(
-        self, request: DiscoverToolsRequest
-    ) -> MCPConnectionDTO:
+    async def execute(self, request: DiscoverToolsRequest) -> MCPConnectionDTO:
         # [1-2] Namespace verification
-        verified_namespace = await self._verify_namespace(
-            request.agent_id, request.namespace
-        )
+        verified_namespace = await self._verify_namespace(request.agent_id, request.namespace)
 
         # [3] Retrieve connection
-        connection = await self._repository.get_by_id(
-            request.connection_id, verified_namespace
-        )
+        connection = await self._repository.get_by_id(request.connection_id, verified_namespace)
         if not connection:
-            raise AggregateNotFoundError(
-                "MCPConnection", str(request.connection_id)
-            )
+            raise AggregateNotFoundError("MCPConnection", str(request.connection_id))
 
         # [4] Verify active
         if connection.status != ConnectionStatus.ACTIVE:
-            raise ValidationError(
-                f"Connection is not active (status: {connection.status.value})"
-            )
+            raise ValidationError(f"Connection is not active (status: {connection.status.value})")
 
         # [5] Discover tools
         try:
@@ -102,9 +92,7 @@ class DiscoverToolsUseCase:
         # [11] Return DTO
         return MCPConnectionDTO.from_aggregate(connection)
 
-    async def _verify_namespace(
-        self, agent_id, claimed_namespace: str
-    ) -> str:
+    async def _verify_namespace(self, agent_id, claimed_namespace: str) -> str:
         """
         Verify namespace from database (SECURITY CRITICAL)
 
@@ -134,9 +122,7 @@ class DiscoverToolsUseCase:
                 f"claimed={claimed_namespace}, actual={verified_namespace}"
             )
 
-            raise AuthorizationError(
-                "Namespace verification failed (access denied)"
-            )
+            raise AuthorizationError("Namespace verification failed (access denied)")
 
         # [3] Return verified namespace
         return verified_namespace

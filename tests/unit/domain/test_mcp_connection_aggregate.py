@@ -15,23 +15,23 @@ Created: 2025-11-12 (Phase 1-1: Day 1)
 Status: RED (tests will fail until implementation)
 """
 
-import pytest
 from uuid import uuid4
-from datetime import datetime
+
+import pytest
 
 # Domain imports (to be implemented)
 try:
     from src.domain.aggregates.mcp_connection import MCPConnection
-    from src.domain.value_objects.connection_config import ConnectionConfig
-    from src.domain.value_objects.connection_status import ConnectionStatus
     from src.domain.entities.tool import Tool
-    from src.domain.value_objects.tool_category import ToolCategory
     from src.domain.events import MCPConnectedEvent, MCPDisconnectedEvent, ToolDiscoveredEvent
     from src.domain.exceptions import (
-        InvalidStateTransitionError,
+        DomainInvariantViolation,
         InvalidConnectionError,
-        DomainInvariantViolation
+        InvalidStateTransitionError,
     )
+    from src.domain.value_objects.connection_config import ConnectionConfig
+    from src.domain.value_objects.connection_status import ConnectionStatus
+    from src.domain.value_objects.tool_category import ToolCategory
 except ImportError:
     # Expected in TDD RED phase
     pass
@@ -57,18 +57,11 @@ class TestMCPConnectionAggregate:
         """
         # Arrange
         config = ConnectionConfig(
-            server_name="test_server",
-            url="http://localhost:8080/mcp",
-            timeout=30,
-            retry_attempts=3
+            server_name="test_server", url="http://localhost:8080/mcp", timeout=30, retry_attempts=3
         )
 
         # Act
-        conn = MCPConnection(
-            id=uuid4(),
-            server_name="test_server",
-            config=config
-        )
+        conn = MCPConnection(id=uuid4(), server_name="test_server", config=config)
 
         # Assert
         assert conn.status == ConnectionStatus.DISCONNECTED
@@ -346,18 +339,13 @@ class TestMCPConnectionAggregate:
     def _create_test_config(self) -> ConnectionConfig:
         """Create test connection configuration"""
         return ConnectionConfig(
-            server_name="test_server",
-            url="http://localhost:8080/mcp",
-            timeout=30,
-            retry_attempts=3
+            server_name="test_server", url="http://localhost:8080/mcp", timeout=30, retry_attempts=3
         )
 
     def _create_test_connection(self) -> "MCPConnection":
         """Create test MCPConnection in DISCONNECTED state"""
         return MCPConnection(
-            id=uuid4(),
-            server_name="test_server",
-            config=self._create_test_config()
+            id=uuid4(), server_name="test_server", config=self._create_test_config()
         )
 
     def _create_active_connection(self) -> "MCPConnection":
@@ -374,7 +362,7 @@ class TestMCPConnectionAggregate:
             name=name,
             description=f"Test tool: {name}",
             input_schema={"type": "object"},
-            category=ToolCategory.DATA_PROCESSING
+            category=ToolCategory.DATA_PROCESSING,
         )
 
 
@@ -394,10 +382,7 @@ class TestConnectionConfigValueObject:
         Then: Should store values correctly
         """
         # Act
-        config = ConnectionConfig(
-            server_name="test_server",
-            url="http://localhost:8080/mcp"
-        )
+        config = ConnectionConfig(server_name="test_server", url="http://localhost:8080/mcp")
 
         # Assert
         assert config.server_name == "test_server"
@@ -414,10 +399,7 @@ class TestConnectionConfigValueObject:
         Then: Should raise AttributeError (frozen dataclass)
         """
         # Arrange
-        config = ConnectionConfig(
-            server_name="test_server",
-            url="http://localhost:8080/mcp"
-        )
+        config = ConnectionConfig(server_name="test_server", url="http://localhost:8080/mcp")
 
         # Act & Assert
         with pytest.raises(AttributeError):
@@ -461,10 +443,7 @@ class TestConnectionConfigValueObject:
         """
         # Act & Assert
         with pytest.raises(InvalidConnectionError) as exc_info:
-            ConnectionConfig(
-                server_name="test",
-                url="invalid-url"
-            )
+            ConnectionConfig(server_name="test", url="invalid-url")
         assert "Invalid URL" in str(exc_info.value)
 
     def test_connection_config_validates_timeout_positive(self):
@@ -479,11 +458,7 @@ class TestConnectionConfigValueObject:
         """
         # Act & Assert
         with pytest.raises(InvalidConnectionError) as exc_info:
-            ConnectionConfig(
-                server_name="test",
-                url="http://localhost:8080",
-                timeout=-1
-            )
+            ConnectionConfig(server_name="test", url="http://localhost:8080", timeout=-1)
         assert "Timeout must be positive" in str(exc_info.value)
 
 

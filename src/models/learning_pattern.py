@@ -29,12 +29,17 @@ class LearningPattern(TMWSBase, MetadataMixin):
 
     # Pattern identification
     pattern_name: Mapped[str] = mapped_column(
-        String(255), nullable=False, comment="Pattern name identifier",
+        String(255),
+        nullable=False,
+        comment="Pattern name identifier",
     )
 
     # Agent-centric design
     agent_id: Mapped[str | None] = mapped_column(
-        Text, nullable=True, index=True, comment="Owner agent identifier (null for system patterns)",
+        Text,
+        nullable=True,
+        index=True,
+        comment="Owner agent identifier (null for system patterns)",
     )
 
     # Namespace organization
@@ -49,11 +54,16 @@ class LearningPattern(TMWSBase, MetadataMixin):
 
     # Pattern classification
     category: Mapped[str] = mapped_column(
-        String(100), nullable=False, index=True, comment="Pattern category classification",
+        String(100),
+        nullable=False,
+        index=True,
+        comment="Pattern category classification",
     )
 
     subcategory: Mapped[str | None] = mapped_column(
-        String(100), nullable=True, comment="Pattern subcategory for fine-grained classification",
+        String(100),
+        nullable=True,
+        comment="Pattern subcategory for fine-grained classification",
     )
 
     # Access control
@@ -67,7 +77,9 @@ class LearningPattern(TMWSBase, MetadataMixin):
 
     # Pattern data
     pattern_data: Mapped[dict[str, Any]] = mapped_column(
-        JSON, nullable=False, comment="Pattern data structure with enhanced schema",
+        JSON,
+        nullable=False,
+        comment="Pattern data structure with enhanced schema",
     )
 
     # Pattern versioning
@@ -121,25 +133,35 @@ class LearningPattern(TMWSBase, MetadataMixin):
 
     # Performance tracking
     avg_execution_time: Mapped[float | None] = mapped_column(
-        Float, nullable=True, comment="Average execution time in seconds",
+        Float,
+        nullable=True,
+        comment="Average execution time in seconds",
     )
 
     complexity_score: Mapped[float | None] = mapped_column(
-        Float, nullable=True, comment="Pattern complexity score for optimization",
+        Float,
+        nullable=True,
+        comment="Pattern complexity score for optimization",
     )
 
     # Timestamp tracking
     last_used_at: Mapped[datetime | None] = mapped_column(
-        sa.DateTime(timezone=True), nullable=True, comment="Last usage timestamp",
+        sa.DateTime(timezone=True),
+        nullable=True,
+        comment="Last usage timestamp",
     )
 
     last_agent_used_at: Mapped[datetime | None] = mapped_column(
-        sa.DateTime(timezone=True), nullable=True, comment="Last usage by owner agent",
+        sa.DateTime(timezone=True),
+        nullable=True,
+        comment="Last usage by owner agent",
     )
 
     # Collaborative features
     shared_with_agents: Mapped[list[str] | None] = mapped_column(
-        JSON, nullable=True, comment="List of agent IDs with shared access",
+        JSON,
+        nullable=True,
+        comment="List of agent IDs with shared access",
     )
 
     # Learning metrics
@@ -161,11 +183,15 @@ class LearningPattern(TMWSBase, MetadataMixin):
 
     # Relationships
     parent_pattern = relationship(
-        "LearningPattern", remote_side="LearningPattern.id", back_populates="child_patterns",
+        "LearningPattern",
+        remote_side="LearningPattern.id",
+        back_populates="child_patterns",
     )
 
     child_patterns = relationship(
-        "LearningPattern", back_populates="parent_pattern", cascade="all, delete-orphan",
+        "LearningPattern",
+        back_populates="parent_pattern",
+        cascade="all, delete-orphan",
     )
 
     # Table constraints and indexes
@@ -183,7 +209,8 @@ class LearningPattern(TMWSBase, MetadataMixin):
             name="ck_learning_patterns_access_level",
         ),
         CheckConstraint(
-            "success_rate >= 0.0 AND success_rate <= 1.0", name="ck_learning_patterns_success_rate",
+            "success_rate >= 0.0 AND success_rate <= 1.0",
+            name="ck_learning_patterns_success_rate",
         ),
         CheckConstraint(
             "agent_success_rate >= 0.0 AND agent_success_rate <= 1.0",
@@ -341,8 +368,7 @@ class LearningPattern(TMWSBase, MetadataMixin):
 
 
 class PatternUsageHistory(TMWSBase):
-    """Track pattern usage history for analytics and optimization.
-    """
+    """Track pattern usage history for analytics and optimization."""
 
     __tablename__ = "pattern_usage_history"
 
@@ -356,19 +382,28 @@ class PatternUsageHistory(TMWSBase):
     agent_id: Mapped[str | None] = mapped_column(Text, nullable=True, index=True)
 
     used_at: Mapped[datetime] = mapped_column(
-        sa.DateTime(timezone=True), nullable=False, default=func.now(), server_default=func.now(),
+        sa.DateTime(timezone=True),
+        nullable=False,
+        default=func.now(),
+        server_default=func.now(),
     )
 
     execution_time: Mapped[float | None] = mapped_column(
-        Float, nullable=True, comment="Execution time in seconds",
+        Float,
+        nullable=True,
+        comment="Execution time in seconds",
     )
 
     success: Mapped[bool | None] = mapped_column(
-        sa.Boolean, nullable=True, comment="Whether the pattern usage was successful",
+        sa.Boolean,
+        nullable=True,
+        comment="Whether the pattern usage was successful",
     )
 
     context_data: Mapped[dict[str, Any] | None] = mapped_column(
-        JSON, nullable=True, comment="Context information about the usage",
+        JSON,
+        nullable=True,
+        comment="Context information about the usage",
     )
 
     # Relationships

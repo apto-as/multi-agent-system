@@ -7,6 +7,7 @@ Created: 2025-10-15 (Phase 1 Day 3)
 Purpose: Eliminate code duplication and ensure consistent security validation
 Security: Complies with CWE-22 (Path Traversal), CWE-73 (External Control of File Name)
 """
+
 from __future__ import annotations
 
 import os
@@ -33,7 +34,6 @@ class SecurityError(Exception):
         ... except SecurityError as e:
         ...     print(f"Security error: {e}")
     """
-
 
 
 class SecureFileLoader:
@@ -209,10 +209,7 @@ class SecureFileLoader:
             resolved = os.path.realpath(full_path)
 
             # Security Check 1: Must be within allowed roots
-            is_allowed = any(
-                resolved.startswith(root)
-                for root in self.allowed_roots
-            )
+            is_allowed = any(resolved.startswith(root) for root in self.allowed_roots)
 
             if not is_allowed:
                 print(
@@ -223,9 +220,7 @@ class SecureFileLoader:
 
             # Security Check 2: Must have allowed extension
             if self.allowed_extensions:
-                has_allowed_ext = any(
-                    resolved.endswith(ext) for ext in self.allowed_extensions
-                )
+                has_allowed_ext = any(resolved.endswith(ext) for ext in self.allowed_extensions)
                 if not has_allowed_ext:
                     print(
                         f"Security: File extension not allowed: {file_path}",
@@ -236,10 +231,7 @@ class SecureFileLoader:
             # Security Check 3: Path traversal detection
             if ".." in str(file_path) or "~" in str(file_path):
                 # Re-check after resolution
-                if not any(
-                    resolved.startswith(root)
-                    for root in self.allowed_roots
-                ):
+                if not any(resolved.startswith(root) for root in self.allowed_roots):
                     print(
                         f"Security: Potential path traversal attempt: {file_path}",
                         file=sys.stderr,
@@ -414,9 +406,7 @@ class SecureFileLoader:
                 print(f"Error: I/O error loading {file_path}: {e}", file=sys.stderr)
             return None
 
-    def file_exists(
-        self, file_path: str | Path, base_path: str | Path | None = None
-    ) -> bool:
+    def file_exists(self, file_path: str | Path, base_path: str | Path | None = None) -> bool:
         """Check if file exists and passes security validation.
 
         This method combines security validation with existence checking. A file

@@ -77,15 +77,12 @@ def _validate_namespace(namespace: str) -> None:
     # V-1 Fix: Prevent path traversal
     if "." in namespace or "/" in namespace or "\\" in namespace:
         raise ValueError(
-            f"Invalid namespace '{namespace}': "
-            "Path separators (., /, \\) are not allowed"
+            f"Invalid namespace '{namespace}': Path separators (., /, \\) are not allowed"
         )
 
     # Length validation
     if len(namespace) > 100:
-        raise ValueError(
-            f"Namespace too long: {len(namespace)} chars (max: 100)"
-        )
+        raise ValueError(f"Namespace too long: {len(namespace)} chars (max: 100)")
 
     # Empty namespace check
     if not namespace.strip():
@@ -201,9 +198,7 @@ class ToolDiscoveryService:
             await self.session.commit()
             await self.session.refresh(tool)
 
-            logger.info(
-                f"Tool registered: {tool_id} (v{version}) in namespace '{namespace}'"
-            )
+            logger.info(f"Tool registered: {tool_id} (v{version}) in namespace '{namespace}'")
             return tool
 
         except SQLAlchemyError as e:
@@ -215,9 +210,7 @@ class ToolDiscoveryService:
                 details={"tool_id": tool_id, "namespace": namespace},
             )
 
-    async def get_tool(
-        self, tool_id: str, namespace: str
-    ) -> DiscoveredTool | None:
+    async def get_tool(self, tool_id: str, namespace: str) -> DiscoveredTool | None:
         """
         Get tool by ID (namespace-isolated).
 
@@ -247,9 +240,7 @@ class ToolDiscoveryService:
         result = await self.session.execute(stmt)
         return result.scalars().first()
 
-    async def list_tools(
-        self, namespace: str, category: str | None = None
-    ) -> list[DiscoveredTool]:
+    async def list_tools(self, namespace: str, category: str | None = None) -> list[DiscoveredTool]:
         """
         List all tools in namespace (optionally filtered by category).
 

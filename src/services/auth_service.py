@@ -70,8 +70,7 @@ class AuthService:
         agent_namespace: str = "default",
         created_by: str | None = None,
     ) -> User:
-        """Create new user account with secure password hashing.
-        """
+        """Create new user account with secure password hashing."""
         # Input validation
         if len(username) < 2 or len(username) > 64:
             raise ValueError("Username must be 2-64 characters long")
@@ -114,7 +113,7 @@ class AuthService:
             await session.commit()
             await session.refresh(user)
 
-        # Audit log (temporarily disabled for testing)
+        # Audit log user creation event
         try:
             audit_logger = get_audit_logger()
             await audit_logger.log_event(
@@ -143,7 +142,10 @@ class AuthService:
         return user
 
     async def authenticate_user(
-        self, username: str, password: str, ip_address: str | None = None,
+        self,
+        username: str,
+        password: str,
+        ip_address: str | None = None,
     ) -> tuple[User, str, str]:
         """Authenticate user and return user object with tokens.
         Returns (user, access_token, refresh_token).
@@ -194,7 +196,7 @@ class AuthService:
             session.add(refresh_record)
             await session.commit()
 
-            # Audit successful login (temporarily disabled for testing)
+            # Audit successful login event
             try:
                 audit_logger = get_audit_logger()
                 await audit_logger.log_event(
@@ -316,7 +318,10 @@ class AuthService:
         return final_key, api_key
 
     async def validate_api_key(
-        self, api_key: str, required_scope: APIKeyScope | None = None, ip_address: str | None = None,
+        self,
+        api_key: str,
+        required_scope: APIKeyScope | None = None,
+        ip_address: str | None = None,
     ) -> tuple[User, APIKey]:
         """Validate API key and return user and key objects.
         Performance target: <100ms.
@@ -395,7 +400,10 @@ class AuthService:
         token_blacklist.blacklist_user_tokens(str(user_id))
 
     async def change_password(
-        self, user_id: UUID, current_password: str, new_password: str,
+        self,
+        user_id: UUID,
+        current_password: str,
+        new_password: str,
     ) -> None:
         """Change user password with validation."""
         if len(new_password) < self.password_min_length:
@@ -461,7 +469,9 @@ class AuthService:
                 update(User)
                 .where(User.id == user_id)
                 .values(
-                    status=UserStatus.ACTIVE, failed_login_attempts=0, last_failed_login_at=None,
+                    status=UserStatus.ACTIVE,
+                    failed_login_attempts=0,
+                    last_failed_login_at=None,
                 ),
             )
             await session.commit()

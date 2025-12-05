@@ -138,7 +138,7 @@ class AgentTools:
                             "id": str(a.id),
                             "display_name": a.display_name,
                             "namespace": a.namespace,
-                            "status": a.status.value if hasattr(a.status, 'value') else a.status,
+                            "status": a.status.value if hasattr(a.status, "value") else a.status,
                             "trust_score": a.trust_score,
                             "capabilities": a.capabilities or [],
                         }
@@ -211,14 +211,22 @@ class AgentTools:
                     try:
                         target_uuid = UUID(target_agent_id)
                     except ValueError:
-                        return {"success": False, "error": "Invalid target_agent_id format", "error_type": "validation"}
+                        return {
+                            "success": False,
+                            "error": "Invalid target_agent_id format",
+                            "error_type": "validation",
+                        }
 
                     # Step 3: Execute service method
                     agent_service = AgentService(session)
                     agent = await agent_service.get_agent_by_id(target_uuid)
 
                     if not agent:
-                        return {"success": False, "error": "Agent not found", "error_type": "not_found"}
+                        return {
+                            "success": False,
+                            "error": "Agent not found",
+                            "error_type": "not_found",
+                        }
 
                     # Step 4: Authorization check (REQ-2)
                     await authorize_mcp_request(
@@ -235,12 +243,18 @@ class AgentTools:
                             "id": str(agent.id),
                             "display_name": agent.display_name,
                             "namespace": agent.namespace,
-                            "status": agent.status.value if hasattr(agent.status, 'value') else agent.status,
+                            "status": agent.status.value
+                            if hasattr(agent.status, "value")
+                            else agent.status,
                             "trust_score": agent.trust_score,
                             "capabilities": agent.capabilities or [],
                             "metadata": agent.metadata or {},
-                            "created_at": agent.created_at.isoformat() if agent.created_at else None,
-                            "last_active": agent.last_active.isoformat() if agent.last_active else None,
+                            "created_at": agent.created_at.isoformat()
+                            if agent.created_at
+                            else None,
+                            "last_active": agent.last_active.isoformat()
+                            if agent.last_active
+                            else None,
                         },
                     }
 
@@ -411,7 +425,11 @@ class AgentTools:
 
                     # Step 3: Validate input
                     if not display_name or not display_name.strip():
-                        return {"success": False, "error": "display_name is required", "error_type": "validation"}
+                        return {
+                            "success": False,
+                            "error": "display_name is required",
+                            "error_type": "validation",
+                        }
 
                     # Step 4: Execute service method
                     agent_service = AgentService(session)
@@ -433,7 +451,9 @@ class AgentTools:
                             "id": str(agent.id),
                             "display_name": agent.display_name,
                             "namespace": agent.namespace,
-                            "status": agent.status.value if hasattr(agent.status, 'value') else agent.status,
+                            "status": agent.status.value
+                            if hasattr(agent.status, "value")
+                            else agent.status,
                             "capabilities": agent.capabilities or [],
                         },
                         "agent_id": str(agent.id),
@@ -498,14 +518,22 @@ class AgentTools:
                     try:
                         target_uuid = UUID(target_agent_id)
                     except ValueError:
-                        return {"success": False, "error": "Invalid target_agent_id format", "error_type": "validation"}
+                        return {
+                            "success": False,
+                            "error": "Invalid target_agent_id format",
+                            "error_type": "validation",
+                        }
 
                     # Step 3: Get target agent for namespace check
                     agent_service = AgentService(session)
                     target_agent = await agent_service.get_agent_by_id(target_uuid)
 
                     if not target_agent:
-                        return {"success": False, "error": "Agent not found", "error_type": "not_found"}
+                        return {
+                            "success": False,
+                            "error": "Agent not found",
+                            "error_type": "not_found",
+                        }
 
                     # Step 4: Authorization (REQ-2)
                     await authorize_mcp_request(
@@ -524,7 +552,11 @@ class AgentTools:
                         update_data["metadata"] = metadata
 
                     if not update_data:
-                        return {"success": False, "error": "No update fields provided", "error_type": "validation"}
+                        return {
+                            "success": False,
+                            "error": "No update fields provided",
+                            "error_type": "validation",
+                        }
 
                     # Step 6: Execute service method
                     updated_agent = await agent_service.update_agent(
@@ -601,14 +633,22 @@ class AgentTools:
                     try:
                         target_uuid = UUID(target_agent_id)
                     except ValueError:
-                        return {"success": False, "error": "Invalid target_agent_id format", "error_type": "validation"}
+                        return {
+                            "success": False,
+                            "error": "Invalid target_agent_id format",
+                            "error_type": "validation",
+                        }
 
                     # Step 3: Get target agent for namespace check
                     agent_service = AgentService(session)
                     target_agent = await agent_service.get_agent_by_id(target_uuid)
 
                     if not target_agent:
-                        return {"success": False, "error": "Agent not found", "error_type": "not_found"}
+                        return {
+                            "success": False,
+                            "error": "Agent not found",
+                            "error_type": "not_found",
+                        }
 
                     # Step 4: Authorization (REQ-5: Admin required)
                     await authorize_mcp_request(
@@ -620,7 +660,9 @@ class AgentTools:
                     # Step 5: Execute service method
                     await agent_service.deactivate_agent(target_uuid)
 
-                    logger.info(f"deactivate_agent: by={context.agent_id}, target={target_agent_id}")
+                    logger.info(
+                        f"deactivate_agent: by={context.agent_id}, target={target_agent_id}"
+                    )
 
                     return {
                         "success": True,
@@ -680,14 +722,22 @@ class AgentTools:
                     try:
                         target_uuid = UUID(target_agent_id)
                     except ValueError:
-                        return {"success": False, "error": "Invalid target_agent_id format", "error_type": "validation"}
+                        return {
+                            "success": False,
+                            "error": "Invalid target_agent_id format",
+                            "error_type": "validation",
+                        }
 
                     # Step 3: Get target agent for namespace check
                     agent_service = AgentService(session)
                     target_agent = await agent_service.get_agent_by_id(target_uuid)
 
                     if not target_agent:
-                        return {"success": False, "error": "Agent not found", "error_type": "not_found"}
+                        return {
+                            "success": False,
+                            "error": "Agent not found",
+                            "error_type": "not_found",
+                        }
 
                     # Step 4: Authorization (REQ-5: Admin required)
                     await authorize_mcp_request(
@@ -763,14 +813,22 @@ class AgentTools:
                     try:
                         target_uuid = UUID(target_agent_id)
                     except ValueError:
-                        return {"success": False, "error": "Invalid target_agent_id format", "error_type": "validation"}
+                        return {
+                            "success": False,
+                            "error": "Invalid target_agent_id format",
+                            "error_type": "validation",
+                        }
 
                     # Step 3: Get target agent for namespace check
                     agent_service = AgentService(session)
                     target_agent = await agent_service.get_agent_by_id(target_uuid)
 
                     if not target_agent:
-                        return {"success": False, "error": "Agent not found", "error_type": "not_found"}
+                        return {
+                            "success": False,
+                            "error": "Agent not found",
+                            "error_type": "not_found",
+                        }
 
                     # Step 4: Authorization (REQ-2)
                     await authorize_mcp_request(
@@ -782,7 +840,9 @@ class AgentTools:
                     # Step 5: Execute service method
                     stats = await agent_service.get_agent_stats(target_uuid)
 
-                    logger.info(f"get_agent_stats: agent={context.agent_id}, target={target_agent_id}")
+                    logger.info(
+                        f"get_agent_stats: agent={context.agent_id}, target={target_agent_id}"
+                    )
 
                     return {
                         "success": True,

@@ -177,9 +177,7 @@ class TokenBudgetService:
             result = await self.db_session.execute(stmt)
             consumption_record = result.scalar_one_or_none()
 
-            current_consumption = (
-                consumption_record.consumption_count if consumption_record else 0
-            )
+            current_consumption = consumption_record.consumption_count if consumption_record else 0
 
         except Exception as e:
             # Fail-secure: deny access on database errors
@@ -275,8 +273,7 @@ class TokenBudgetService:
             stmt = stmt.on_conflict_do_update(
                 index_elements=["agent_id", "window_hour"],
                 set_={
-                    "consumption_count": TokenConsumption.consumption_count
-                    + actual_tokens,
+                    "consumption_count": TokenConsumption.consumption_count + actual_tokens,
                     "updated_at": now,
                 },
             )
@@ -355,9 +352,7 @@ class TokenBudgetService:
             result = await self.db_session.execute(stmt)
             consumption_record = result.scalar_one_or_none()
 
-            current_consumption = (
-                consumption_record.consumption_count if consumption_record else 0
-            )
+            current_consumption = consumption_record.consumption_count if consumption_record else 0
         except Exception as e:
             log_and_raise(
                 AuthorizationError,

@@ -140,9 +140,7 @@ def _create_encrypted_engine(settings):
             "db_encryption_enabled=True but cannot import DatabaseEncryptionService. "
             "Ensure src/security/db_encryption.py exists."
         )
-        raise ImportError(
-            "Database encryption enabled but encryption service unavailable"
-        ) from e
+        raise ImportError("Database encryption enabled but encryption service unavailable") from e
 
     encryption_service = get_encryption_service()
     key_name = settings.db_encryption_key_name
@@ -192,8 +190,7 @@ def _create_encrypted_engine(settings):
     )
 
     logger.info(
-        f"Encrypted SQLite engine created (SQLCipher AES-256-GCM, "
-        f"key: ~/.tmws/secrets/{key_name})"
+        f"Encrypted SQLite engine created (SQLCipher AES-256-GCM, key: ~/.tmws/secrets/{key_name})"
     )
 
     return engine

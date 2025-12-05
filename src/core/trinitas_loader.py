@@ -16,6 +16,7 @@ Security:
 - CWE-78: Command injection prevention
 - CWE-327: Strong cryptography (SHA-256)
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -34,6 +35,7 @@ logger = logging.getLogger(__name__)
 
 class TrinitasLoadError(Exception):
     """Exception raised when Trinitas loading fails."""
+
     pass
 
 
@@ -54,14 +56,14 @@ class TrinitasLoader:
         "hestia-auditor",
         "eris-coordinator",
         "hera-strategist",
-        "muses-documenter"
+        "muses-documenter",
     ]
 
     def __init__(
         self,
         license_service: LicenseService,
         memory_service: HybridMemoryService,
-        agent_output_dir: Path | None = None
+        agent_output_dir: Path | None = None,
     ):
         """
         Initialize TrinitasLoader with TMWS services.
@@ -102,6 +104,7 @@ class TrinitasLoader:
         try:
             # Get license key from environment
             import os
+
             license_key = os.getenv("TMWS_LICENSE_KEY")
             if not license_key:
                 raise TrinitasLoadError("TMWS_LICENSE_KEY environment variable not set")
@@ -126,14 +129,13 @@ class TrinitasLoader:
         # Phase 2: Tier-based gating
         if tier == TierEnum.FREE:
             logger.warning(
-                "Trinitas requires PRO+ license. Current tier: FREE. "
-                "Trinitas agents disabled."
+                "Trinitas requires PRO+ license. Current tier: FREE. Trinitas agents disabled."
             )
             return {
                 "enabled": False,
                 "tier": tier,
                 "agents_loaded": 0,
-                "reason": "License tier insufficient (requires PRO+)"
+                "reason": "License tier insufficient (requires PRO+)",
             }
 
         logger.info(f"License tier validated: {tier}. Trinitas enabled.")
@@ -171,7 +173,7 @@ class TrinitasLoader:
             "enabled": True,
             "tier": tier,
             "agents_loaded": agents_loaded,
-            "checksums": checksums
+            "checksums": checksums,
         }
 
     def _get_content_level(self, tier: TierEnum) -> float:
@@ -191,11 +193,7 @@ class TrinitasLoader:
         else:  # ENTERPRISE
             return 1.0  # 100% premium content
 
-    async def _generate_agent_file(
-        self,
-        persona: str,
-        content_level: float
-    ) -> str:
+    async def _generate_agent_file(self, persona: str, content_level: float) -> str:
         """
         Generate agent markdown file from TMWS database with tier filtering.
 
@@ -213,15 +211,10 @@ class TrinitasLoader:
         try:
             full_content = await self._fetch_agent_from_db(persona)
         except Exception as e:
-            raise TrinitasLoadError(
-                f"Failed to fetch agent {persona} from DB: {e}"
-            ) from e
+            raise TrinitasLoadError(f"Failed to fetch agent {persona} from DB: {e}") from e
 
         # Step 2: Apply tier-based filtering
-        filtered_content = self._filter_content_by_tier(
-            full_content,
-            content_level
-        )
+        filtered_content = self._filter_content_by_tier(full_content, content_level)
 
         # Step 3: Write to ~/.claude/agents/{persona}.md
         output_path = self.agent_output_dir / f"{persona}.md"
@@ -230,16 +223,12 @@ class TrinitasLoader:
             # CWE-22 prevention: Validate path
             resolved_path = output_path.resolve()
             if not str(resolved_path).startswith(str(self.agent_output_dir.resolve())):
-                raise TrinitasLoadError(
-                    f"Path traversal detected: {output_path}"
-                )
+                raise TrinitasLoadError(f"Path traversal detected: {output_path}")
 
             output_path.write_text(filtered_content, encoding="utf-8")
 
         except OSError as e:
-            raise TrinitasLoadError(
-                f"Failed to write agent file {output_path}: {e}"
-            ) from e
+            raise TrinitasLoadError(f"Failed to write agent file {output_path}: {e}") from e
 
         # Step 4: Calculate checksum
         checksum = hashlib.sha256(filtered_content.encode()).hexdigest()
@@ -275,11 +264,7 @@ class TrinitasLoader:
 
         return bundled_path.read_text(encoding="utf-8")
 
-    def _filter_content_by_tier(
-        self,
-        full_content: str,
-        content_level: float
-    ) -> str:
+    def _filter_content_by_tier(self, full_content: str, content_level: float) -> str:
         """
         Filter agent content based on tier level.
 
@@ -338,8 +323,7 @@ class TrinitasLoader:
 
 # Convenience function for easy integration
 async def load_trinitas_agents(
-    license_service: LicenseService,
-    memory_service: HybridMemoryService
+    license_service: LicenseService, memory_service: HybridMemoryService
 ) -> dict[str, Any]:
     """
     Convenience function to load Trinitas agents.

@@ -52,9 +52,7 @@ def measure_percentiles(latencies: list[float]) -> dict[str, float]:
 
 
 async def create_test_data(
-    db_session: Any,
-    num_agents: int = 50,
-    num_patterns: int = 100
+    db_session: Any, num_agents: int = 50, num_patterns: int = 100
 ) -> tuple[list[Agent], list[LearningPattern]]:
     """Create test data for performance benchmarks
 
@@ -74,7 +72,7 @@ async def create_test_data(
             namespace="perf-test",
             trust_score=0.5,
             total_verifications=10,
-            accurate_verifications=5
+            accurate_verifications=5,
         )
         agents.append(agent)
         db_session.add(agent)
@@ -89,7 +87,7 @@ async def create_test_data(
             access_level="public",  # Eligible for trust updates
             pattern_data={"iteration": i, "test": "performance"},
             success_rate=0.5 + (i % 50) / 100.0,  # Vary success rates
-            usage_count=i % 100
+            usage_count=i % 100,
         )
         patterns.append(pattern)
         db_session.add(pattern)
@@ -102,6 +100,7 @@ async def create_test_data(
 # ============================================================================
 # Performance Tests: Individual Operations
 # ============================================================================
+
 
 class TestIndividualOperationPerformance:
     """Test performance of individual integration operations"""
@@ -117,7 +116,7 @@ class TestIndividualOperationPerformance:
         await integration.propagate_learning_success(
             agent_id=agents[0].agent_id,
             pattern_id=patterns[10].id,  # Not owned by agents[0]
-            requesting_namespace="perf-test"
+            requesting_namespace="perf-test",
         )
 
         # Act: Measure 100 iterations
@@ -129,9 +128,7 @@ class TestIndividualOperationPerformance:
 
             start = time.perf_counter()
             await integration.propagate_learning_success(
-                agent_id=agent.agent_id,
-                pattern_id=pattern.id,
-                requesting_namespace="perf-test"
+                agent_id=agent.agent_id, pattern_id=pattern.id, requesting_namespace="perf-test"
             )
             elapsed_ms = (time.perf_counter() - start) * 1000
             latencies.append(elapsed_ms)
@@ -147,7 +144,9 @@ class TestIndividualOperationPerformance:
         print(f"   Range: {percentiles['min']:.2f}ms - {percentiles['max']:.2f}ms")
 
         # Performance assertions
-        assert percentiles["p95"] < 5.0, f"P95 latency {percentiles['p95']:.2f}ms exceeds 5ms target"
+        assert percentiles["p95"] < 5.0, (
+            f"P95 latency {percentiles['p95']:.2f}ms exceeds 5ms target"
+        )
         assert percentiles["p50"] < 3.0, f"P50 latency {percentiles['p50']:.2f}ms should be <3ms"
 
     @pytest.mark.asyncio
@@ -161,7 +160,7 @@ class TestIndividualOperationPerformance:
         await integration.propagate_learning_failure(
             agent_id=agents[0].agent_id,
             pattern_id=patterns[10].id,
-            requesting_namespace="perf-test"
+            requesting_namespace="perf-test",
         )
 
         # Act: Measure 100 iterations
@@ -172,9 +171,7 @@ class TestIndividualOperationPerformance:
 
             start = time.perf_counter()
             await integration.propagate_learning_failure(
-                agent_id=agent.agent_id,
-                pattern_id=pattern.id,
-                requesting_namespace="perf-test"
+                agent_id=agent.agent_id, pattern_id=pattern.id, requesting_namespace="perf-test"
             )
             elapsed_ms = (time.perf_counter() - start) * 1000
             latencies.append(elapsed_ms)
@@ -188,7 +185,9 @@ class TestIndividualOperationPerformance:
         print(f"   P99: {percentiles['p99']:.2f}ms")
         print(f"   Mean: {percentiles['mean']:.2f}ms")
 
-        assert percentiles["p95"] < 5.0, f"P95 latency {percentiles['p95']:.2f}ms exceeds 5ms target"
+        assert percentiles["p95"] < 5.0, (
+            f"P95 latency {percentiles['p95']:.2f}ms exceeds 5ms target"
+        )
 
     @pytest.mark.asyncio
     async def test_evaluate_pattern_reliability_performance(self, db_session):
@@ -219,13 +218,16 @@ class TestIndividualOperationPerformance:
         print(f"   P99: {percentiles['p99']:.2f}ms")
         print(f"   Mean: {percentiles['mean']:.2f}ms")
 
-        assert percentiles["p95"] < 3.0, f"P95 latency {percentiles['p95']:.2f}ms exceeds 3ms target"
+        assert percentiles["p95"] < 3.0, (
+            f"P95 latency {percentiles['p95']:.2f}ms exceeds 3ms target"
+        )
         assert percentiles["p50"] < 2.0, f"P50 latency {percentiles['p50']:.2f}ms should be <2ms"
 
 
 # ============================================================================
 # Performance Tests: Batch Operations
 # ============================================================================
+
 
 class TestBatchOperationPerformance:
     """Test performance of batch operations"""
@@ -245,12 +247,7 @@ class TestBatchOperationPerformance:
             pattern = patterns[(i + 5) % len(patterns)]
             success = i % 2 == 0  # Alternate success/failure
 
-            updates.append((
-                agent.agent_id,
-                pattern.id,
-                success,
-                "perf-test"
-            ))
+            updates.append((agent.agent_id, pattern.id, success, "perf-test"))
 
         # Warm up
         warm_up_updates = updates[:5]
@@ -278,16 +275,21 @@ class TestBatchOperationPerformance:
         # Note: Relaxed from 200ms to 210ms (5% margin) due to system variance
         # Sequential processing: 100 updates * ~2ms each = ~200ms P95 expected
         # Added 5% margin for system noise and measurement variance
-        assert percentiles["p95"] < 210.0, f"P95 latency {percentiles['p95']:.2f}ms exceeds 210ms target (5% margin)"
+        assert percentiles["p95"] < 210.0, (
+            f"P95 latency {percentiles['p95']:.2f}ms exceeds 210ms target (5% margin)"
+        )
         # Per-update target: <2.1ms (5% margin from original 2ms)
 
         per_update_p95 = percentiles["p95"] / 100
-        assert per_update_p95 < 2.1, f"Per-update P95 {per_update_p95:.2f}ms exceeds 2.1ms target (5% margin)"
+        assert per_update_p95 < 2.1, (
+            f"Per-update P95 {per_update_p95:.2f}ms exceeds 2.1ms target (5% margin)"
+        )
 
 
 # ============================================================================
 # Performance Tests: Concurrent Access
 # ============================================================================
+
 
 class TestConcurrentAccessPerformance:
     """Test performance under concurrent access patterns"""
@@ -309,13 +311,13 @@ class TestConcurrentAccessPerformance:
                     await integration.propagate_learning_success(
                         agent_id=agent.agent_id,
                         pattern_id=pattern.id,
-                        requesting_namespace="perf-test"
+                        requesting_namespace="perf-test",
                     )
                 else:
                     await integration.propagate_learning_failure(
                         agent_id=agent.agent_id,
                         pattern_id=pattern.id,
-                        requesting_namespace="perf-test"
+                        requesting_namespace="perf-test",
                     )
             except Exception:
                 # Some failures expected (validation errors)
@@ -323,10 +325,7 @@ class TestConcurrentAccessPerformance:
 
         # Act: Launch 50 concurrent updates
         start = time.perf_counter()
-        tasks = [
-            update_trust(i, i, i % 2 == 0)
-            for i in range(50)
-        ]
+        tasks = [update_trust(i, i, i % 2 == 0) for i in range(50)]
         await asyncio.gather(*tasks)
         elapsed_ms = (time.perf_counter() - start) * 1000
 
@@ -336,12 +335,15 @@ class TestConcurrentAccessPerformance:
         print(f"   Per-update: {elapsed_ms / 50:.2f}ms")
 
         # No deadlock assertion (implicit: test didn't hang)
-        assert elapsed_ms < 5000.0, f"Concurrent updates took {elapsed_ms:.2f}ms (too slow, possible contention)"
+        assert elapsed_ms < 5000.0, (
+            f"Concurrent updates took {elapsed_ms:.2f}ms (too slow, possible contention)"
+        )
 
 
 # ============================================================================
 # Performance Tests: Integration Overhead
 # ============================================================================
+
 
 class TestIntegrationOverhead:
     """Test overhead added by integration layer to LearningService"""
@@ -358,7 +360,7 @@ class TestIntegrationOverhead:
             namespace="perf-test",
             trust_score=0.5,
             total_verifications=10,
-            accurate_verifications=5
+            accurate_verifications=5,
         )
         db_session.add(agent)
 
@@ -370,7 +372,7 @@ class TestIntegrationOverhead:
             access_level="public",
             pattern_data={"test": "data"},
             success_rate=0.9,
-            usage_count=20
+            usage_count=20,
         )
         db_session.add(pattern)
         await db_session.flush()
@@ -386,7 +388,7 @@ class TestIntegrationOverhead:
                 pattern_id=pattern.id,
                 using_agent_id=agent.agent_id,
                 execution_time=0.1,
-                success=True
+                success=True,
             )
             elapsed_ms = (time.perf_counter() - start) * 1000
             baseline_latencies.append(elapsed_ms)
@@ -401,14 +403,12 @@ class TestIntegrationOverhead:
                 pattern_id=pattern.id,
                 using_agent_id=agent.agent_id,
                 execution_time=0.1,
-                success=True
+                success=True,
             )
 
             # Add integration
             await integration.propagate_learning_success(
-                agent_id=agent.agent_id,
-                pattern_id=pattern.id,
-                requesting_namespace="perf-test"
+                agent_id=agent.agent_id, pattern_id=pattern.id, requesting_namespace="perf-test"
             )
 
             elapsed_ms = (time.perf_counter() - start) * 1000
@@ -433,6 +433,7 @@ class TestIntegrationOverhead:
 # Performance Regression Tests
 # ============================================================================
 
+
 class TestPerformanceRegression:
     """Test that performance doesn't degrade over time"""
 
@@ -446,7 +447,7 @@ class TestPerformanceRegression:
             namespace="perf-test",
             trust_score=0.5,
             total_verifications=10,
-            accurate_verifications=5
+            accurate_verifications=5,
         )
         db_session.add(agent)
 
@@ -458,7 +459,7 @@ class TestPerformanceRegression:
             access_level="public",
             pattern_data={"test": "data"},
             success_rate=0.9,
-            usage_count=20
+            usage_count=20,
         )
         db_session.add(pattern)
         await db_session.flush()
@@ -472,9 +473,7 @@ class TestPerformanceRegression:
             for _ in range(100):
                 start = time.perf_counter()
                 await integration.propagate_learning_success(
-                    agent_id=agent.agent_id,
-                    pattern_id=pattern.id,
-                    requesting_namespace="perf-test"
+                    agent_id=agent.agent_id, pattern_id=pattern.id, requesting_namespace="perf-test"
                 )
                 elapsed_ms = (time.perf_counter() - start) * 1000
                 latencies.append(elapsed_ms)
@@ -496,5 +495,6 @@ class TestPerformanceRegression:
 
         # Allow 20% degradation tolerance (e.g., cache warming)
         max_acceptable_degradation = first_batch_p95 * 0.2
-        assert degradation < max_acceptable_degradation, \
+        assert degradation < max_acceptable_degradation, (
             f"Performance degraded by {degradation:.2f}ms (>{max_acceptable_degradation:.2f}ms threshold)"
+        )

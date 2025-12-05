@@ -5,6 +5,7 @@ Hestiaによるパラノイアックなアクセス制御システム
 
 ...このファイルが破綻すると、全てが終わります。でも、だからこそ完璧に作ります...
 """
+
 from __future__ import annotations
 
 import json
@@ -58,9 +59,9 @@ class AccessResult(Enum):
 
 # Risk level thresholds for security recommendations
 CRITICAL_RISK_LEVEL = 8  # Requires immediate monitoring and manual approval
-HIGH_RISK_WARNING = 7    # Triggers high-risk operation warnings in logs
-HIGH_RISK_LEVEL = 6      # Requires post-action verification and backup
-MEDIUM_RISK_LEVEL = 4    # Requires regular audit log review
+HIGH_RISK_WARNING = 7  # Triggers high-risk operation warnings in logs
+HIGH_RISK_LEVEL = 6  # Requires post-action verification and backup
+MEDIUM_RISK_LEVEL = 4  # Requires regular audit log review
 AUDIT_REQUIRED_THRESHOLD = 6  # Minimum risk level requiring audit trail
 
 
@@ -244,9 +245,7 @@ class TrinitasSecurityValidator:
         try:
             if not self.config_path.exists():
                 msg = f"...やっぱり。設定ファイルが見つかりません: {self.config_path}"
-                raise FileNotFoundError(
-                    msg
-                )
+                raise FileNotFoundError(msg)
 
             with open(self.config_path, encoding="utf-8") as f:
                 config = json.load(f)
@@ -439,9 +438,7 @@ class TrinitasSecurityValidator:
             audit_required=risk_level >= AUDIT_REQUIRED_THRESHOLD,
         )
 
-    def _check_tool_access(
-        self, attempt: AccessAttempt, persona_config: dict
-    ) -> ValidationResult:
+    def _check_tool_access(self, attempt: AccessAttempt, persona_config: dict) -> ValidationResult:
         """Check if persona has permission to use the requested tool.
 
         Validates that the tool is in one of the persona's allowed tool groups
@@ -471,9 +468,7 @@ class TrinitasSecurityValidator:
                 group_tools = tool_definitions[group_name]["tools"]
                 if attempt.tool in group_tools:
                     tool_allowed = True
-                    tool_definitions[group_name].get(
-                        "restrictions", {}
-                    )
+                    tool_definitions[group_name].get("restrictions", {})
                     break
 
         if not tool_allowed:
@@ -658,9 +653,7 @@ class TrinitasSecurityValidator:
 
         for pattern in forbidden_commands:
             if re.search(pattern, command, re.IGNORECASE):
-                self._quarantine_persona(
-                    attempt.persona, f"危険コマンド実行試行: {command}"
-                )
+                self._quarantine_persona(attempt.persona, f"危険コマンド実行試行: {command}")
                 return ValidationResult(
                     result=AccessResult.QUARANTINED,
                     reason=f"危険コマンドの実行試行: {command}",
@@ -681,8 +674,7 @@ class TrinitasSecurityValidator:
                 allowed_commands = restrictions.get("allowed_commands", [])
                 if allowed_commands:
                     command_allowed = any(
-                        command.startswith(allowed_cmd)
-                        for allowed_cmd in allowed_commands
+                        command.startswith(allowed_cmd) for allowed_cmd in allowed_commands
                     )
                     if not command_allowed:
                         return ValidationResult(
@@ -746,9 +738,7 @@ class TrinitasSecurityValidator:
             or re.match(f"^{regex_pattern}/", path_str) is not None
         )
 
-    def _calculate_risk_level(
-        self, attempt: AccessAttempt, persona_config: dict
-    ) -> int:
+    def _calculate_risk_level(self, attempt: AccessAttempt, persona_config: dict) -> int:
         """Calculate security risk level from 1-10 based on access characteristics.
 
         Computes risk score by evaluating multiple factors including tool type,
@@ -811,9 +801,7 @@ class TrinitasSecurityValidator:
 
         return min(base_risk, 10)  # 最大10
 
-    def _generate_recommendations(
-        self, risk_level: int, attempt: AccessAttempt
-    ) -> list[str]:
+    def _generate_recommendations(self, risk_level: int, attempt: AccessAttempt) -> list[str]:
         """Generate security recommendations based on calculated risk level.
 
         Provides actionable security guidance scaled to the risk severity of
@@ -1003,9 +991,7 @@ class TrinitasSecurityValidator:
 
 
 # ユーティリティ関数
-def create_access_attempt(
-    persona: str, tool: str, operation: str, **kwargs
-) -> AccessAttempt:
+def create_access_attempt(persona: str, tool: str, operation: str, **kwargs) -> AccessAttempt:
     """Create an AccessAttempt object with optional parameters.
 
     Convenience factory function for constructing AccessAttempt objects with
@@ -1046,9 +1032,7 @@ def create_access_attempt(
     )
 
 
-def validate_persona_access(
-    persona: str, tool: str, operation: str, **kwargs
-) -> ValidationResult:
+def validate_persona_access(persona: str, tool: str, operation: str, **kwargs) -> ValidationResult:
     """Validate persona access with automatic validator instantiation.
 
     Convenience function that creates a TrinitasSecurityValidator instance,

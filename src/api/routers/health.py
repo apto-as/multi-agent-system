@@ -126,7 +126,9 @@ _system_metrics_cache = SystemMetricsCache(ttl_seconds=5.0)
 # ============================================================================
 
 
-def determine_system_status(cpu_percent: float, memory_percent: float) -> Literal["healthy", "degraded", "unhealthy"]:
+def determine_system_status(
+    cpu_percent: float, memory_percent: float
+) -> Literal["healthy", "degraded", "unhealthy"]:
     """Determine system status based on CPU and memory usage
 
     Thresholds:
@@ -225,7 +227,9 @@ async def detailed_health_check() -> DetailedHealthResponse:
 
     # Get cached system metrics
     system_metrics = await _system_metrics_cache.get_metrics()
-    system_status = determine_system_status(system_metrics["cpu_percent"], system_metrics["memory_percent"])
+    system_status = determine_system_status(
+        system_metrics["cpu_percent"], system_metrics["memory_percent"]
+    )
 
     # Determine overall status
     overall_status = determine_overall_status(db_status, system_status)

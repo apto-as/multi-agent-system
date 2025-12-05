@@ -282,10 +282,12 @@ class TestArgumentSanitization:
         """Test that passwords are redacted."""
         logger = SecurityAuditLogger()
 
-        sanitized = logger._sanitize_arguments({
-            "username": "user1",
-            "password": "secret123",
-        })
+        sanitized = logger._sanitize_arguments(
+            {
+                "username": "user1",
+                "password": "secret123",
+            }
+        )
 
         assert sanitized["username"] == "user1"
         assert sanitized["password"] == "[REDACTED]"
@@ -294,10 +296,12 @@ class TestArgumentSanitization:
         """Test that API keys are redacted."""
         logger = SecurityAuditLogger()
 
-        sanitized = logger._sanitize_arguments({
-            "api_key": "sk-1234567890",
-            "query": "test",
-        })
+        sanitized = logger._sanitize_arguments(
+            {
+                "api_key": "sk-1234567890",
+                "query": "test",
+            }
+        )
 
         assert sanitized["api_key"] == "[REDACTED]"
         assert sanitized["query"] == "test"
@@ -306,10 +310,12 @@ class TestArgumentSanitization:
         """Test that tokens are redacted."""
         logger = SecurityAuditLogger()
 
-        sanitized = logger._sanitize_arguments({
-            "auth_token": "bearer-xyz",
-            "data": "value",
-        })
+        sanitized = logger._sanitize_arguments(
+            {
+                "auth_token": "bearer-xyz",
+                "data": "value",
+            }
+        )
 
         assert sanitized["auth_token"] == "[REDACTED]"
         assert sanitized["data"] == "value"
@@ -320,9 +326,11 @@ class TestArgumentSanitization:
 
         long_value = "x" * 200
 
-        sanitized = logger._sanitize_arguments({
-            "data": long_value,
-        })
+        sanitized = logger._sanitize_arguments(
+            {
+                "data": long_value,
+            }
+        )
 
         assert "[truncated]" in sanitized["data"]
         assert len(sanitized["data"]) < len(long_value)
@@ -339,7 +347,7 @@ class TestLogLevelFiltering:
             logger.log_validation_success("server", "tool")
 
         # Debug logs should be filtered
-        debug_records = [r for r in caplog.records if r.levelno == logging.DEBUG]
+        [r for r in caplog.records if r.levelno == logging.DEBUG]
         # The validation success is DEBUG level, should not appear
         # (depends on logger config)
 

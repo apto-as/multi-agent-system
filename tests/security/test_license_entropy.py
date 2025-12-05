@@ -8,15 +8,14 @@ Tests:
 2. Basic uniformity test
 3. Pattern detection (no repeating sequences)
 """
-import sys
-import hashlib
+
 import math
+import sys
 from collections import Counter
 
 # Import TMWS license service
-sys.path.insert(0, '/usr/local/lib/python3.11/site-packages')
+sys.path.insert(0, "/usr/local/lib/python3.11/site-packages")
 from src.services.license_service import LicenseService
-from src.core.config import settings
 
 
 def shannon_entropy(data: bytes) -> float:
@@ -43,8 +42,7 @@ def uniformity_test(data: bytes) -> float:
     byte_counts = Counter(data)
     expected_count = len(data) / 256
 
-    variance = sum((byte_counts.get(i, 0) - expected_count) ** 2
-                   for i in range(256)) / 256
+    variance = sum((byte_counts.get(i, 0) - expected_count) ** 2 for i in range(256)) / 256
 
     # Normalize to 0-1 range
     return variance / expected_count if expected_count > 0 else 1.0
@@ -60,16 +58,13 @@ def test_entropy():
 
     for i in range(100):
         license_key = service.create_license(
-            agent_id=f"test-agent-{i}",
-            tier="FREE",
-            max_users=1,
-            features=["core"]
+            agent_id=f"test-agent-{i}", tier="FREE", max_users=1, features=["core"]
         )
         keys.append(license_key)
 
     # Extract signature portions (512-bit HMAC-SHA256)
-    signatures = [key.split('.')[-1] for key in keys]
-    combined_data = ''.join(signatures).encode('utf-8')
+    signatures = [key.split(".")[-1] for key in keys]
+    combined_data = "".join(signatures).encode("utf-8")
 
     # 1. Shannon Entropy
     entropy = shannon_entropy(combined_data)
@@ -78,7 +73,7 @@ def test_entropy():
 
     # 2. Uniformity Test
     uniformity = uniformity_test(combined_data)
-    print(f"\nUniformity Test:")
+    print("\nUniformity Test:")
     print(f"  Variance: {uniformity:.4f}")
     print(f"  Uniform: {'✅ YES' if uniformity < 1.0 else '❌ NO'}")
 
@@ -87,7 +82,7 @@ def test_entropy():
     for sig in signatures:
         # Check for repeating 4-char sequences
         for i in range(len(sig) - 8):
-            chunk = sig[i:i+4]
+            chunk = sig[i : i + 4]
             if sig.count(chunk) > 1:
                 patterns.append(chunk)
 
@@ -96,7 +91,7 @@ def test_entropy():
         print(f"  Examples: {list(set(patterns))[:5]}")
 
     # 4. Verdict
-    print(f"\n=== VERDICT ===")
+    print("\n=== VERDICT ===")
     entropy_pass = entropy >= 7.5  # Close to 8 bits/byte (maximum)
     uniformity_pass = uniformity < 1.0
     pattern_pass = len(set(patterns)) < 10

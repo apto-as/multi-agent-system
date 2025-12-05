@@ -13,6 +13,7 @@ This module eliminates 95% code duplication across:
 Version: 2.2.4
 Created: 2025-10-19 (Phase 2 cleanup)
 """
+
 from __future__ import annotations
 
 import json
@@ -82,9 +83,7 @@ class PersonaPatternLoader:
         current = Path(__file__).parent
 
         while current != current.parent:
-            candidate = (
-                current / "trinitas_sources" / "config" / "shared" / "persona_patterns.json"
-            )
+            candidate = current / "trinitas_sources" / "config" / "shared" / "persona_patterns.json"
             if candidate.exists():
                 logger.debug(f"Found persona patterns config: {candidate}")
                 return candidate

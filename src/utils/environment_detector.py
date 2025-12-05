@@ -18,21 +18,23 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 # R-1: Sensitive environment variable patterns for masking
-SENSITIVE_ENV_PATTERNS = frozenset({
-    re.compile(r".*api[_-]?key.*", re.IGNORECASE),
-    re.compile(r".*secret.*", re.IGNORECASE),
-    re.compile(r".*password.*", re.IGNORECASE),
-    re.compile(r".*token.*", re.IGNORECASE),
-    re.compile(r".*credential.*", re.IGNORECASE),
-    re.compile(r".*private[_-]?key.*", re.IGNORECASE),
-    re.compile(r".*auth.*", re.IGNORECASE),
-    re.compile(r".*bearer.*", re.IGNORECASE),
-    re.compile(r".*access[_-]?key.*", re.IGNORECASE),
-    re.compile(r".*signing[_-]?key.*", re.IGNORECASE),
-    re.compile(r".*encryption[_-]?key.*", re.IGNORECASE),
-    re.compile(r".*database[_-]?url.*", re.IGNORECASE),
-    re.compile(r".*connection[_-]?string.*", re.IGNORECASE),
-})
+SENSITIVE_ENV_PATTERNS = frozenset(
+    {
+        re.compile(r".*api[_-]?key.*", re.IGNORECASE),
+        re.compile(r".*secret.*", re.IGNORECASE),
+        re.compile(r".*password.*", re.IGNORECASE),
+        re.compile(r".*token.*", re.IGNORECASE),
+        re.compile(r".*credential.*", re.IGNORECASE),
+        re.compile(r".*private[_-]?key.*", re.IGNORECASE),
+        re.compile(r".*auth.*", re.IGNORECASE),
+        re.compile(r".*bearer.*", re.IGNORECASE),
+        re.compile(r".*access[_-]?key.*", re.IGNORECASE),
+        re.compile(r".*signing[_-]?key.*", re.IGNORECASE),
+        re.compile(r".*encryption[_-]?key.*", re.IGNORECASE),
+        re.compile(r".*database[_-]?url.*", re.IGNORECASE),
+        re.compile(r".*connection[_-]?string.*", re.IGNORECASE),
+    }
+)
 
 
 class ExecutionEnvironment(str, Enum):
@@ -91,50 +93,66 @@ class EnvironmentDetector:
     """
 
     # OpenCode-specific indicators
-    OPENCODE_ENV_VARS = frozenset({
-        "OPENCODE_PROJECT_ROOT",
-        "OPENCODE_VERSION",
-        "OPENCODE_WORKSPACE",
-        "OPENCODE_SESSION_ID",
-    })
+    OPENCODE_ENV_VARS = frozenset(
+        {
+            "OPENCODE_PROJECT_ROOT",
+            "OPENCODE_VERSION",
+            "OPENCODE_WORKSPACE",
+            "OPENCODE_SESSION_ID",
+        }
+    )
 
-    OPENCODE_PATH_INDICATORS = frozenset({
-        ".opencode",
-        "opencode.yaml",
-        "opencode.json",
-        ".opencode.yaml",
-        ".opencode.json",
-    })
+    OPENCODE_PATH_INDICATORS = frozenset(
+        {
+            ".opencode",
+            "opencode.yaml",
+            "opencode.json",
+            ".opencode.yaml",
+            ".opencode.json",
+        }
+    )
 
     # Claude Code indicators
-    CLAUDE_CODE_ENV_VARS = frozenset({
-        "CLAUDE_CODE_VERSION",
-        "CLAUDE_PROJECT_ROOT",
-    })
+    CLAUDE_CODE_ENV_VARS = frozenset(
+        {
+            "CLAUDE_CODE_VERSION",
+            "CLAUDE_PROJECT_ROOT",
+        }
+    )
 
-    CLAUDE_CODE_PATH_INDICATORS = frozenset({
-        ".claude",
-    })
+    CLAUDE_CODE_PATH_INDICATORS = frozenset(
+        {
+            ".claude",
+        }
+    )
 
     # VS Code indicators
-    VSCODE_ENV_VARS = frozenset({
-        "VSCODE_PID",
-        "VSCODE_CWD",
-        "TERM_PROGRAM",  # Check for "vscode"
-    })
+    VSCODE_ENV_VARS = frozenset(
+        {
+            "VSCODE_PID",
+            "VSCODE_CWD",
+            "TERM_PROGRAM",  # Check for "vscode"
+        }
+    )
 
-    VSCODE_PATH_INDICATORS = frozenset({
-        ".vscode",
-    })
+    VSCODE_PATH_INDICATORS = frozenset(
+        {
+            ".vscode",
+        }
+    )
 
     # Cursor indicators (VS Code fork)
-    CURSOR_ENV_VARS = frozenset({
-        "CURSOR_VERSION",
-    })
+    CURSOR_ENV_VARS = frozenset(
+        {
+            "CURSOR_VERSION",
+        }
+    )
 
-    CURSOR_PATH_INDICATORS = frozenset({
-        ".cursor",
-    })
+    CURSOR_PATH_INDICATORS = frozenset(
+        {
+            ".cursor",
+        }
+    )
 
     # Maximum directory levels to search upward (security: prevent excessive traversal)
     MAX_SEARCH_DEPTH = 5
@@ -439,11 +457,7 @@ class EnvironmentDetector:
             r"^gho_[a-zA-Z0-9]{20,}$",  # GitHub OAuth
             r"^AKIA[A-Z0-9]{16}$",  # AWS Access Key
         ]
-        for pattern in api_key_patterns:
-            if re.match(pattern, value):
-                return True
-
-        return False
+        return any(re.match(pattern, value) for pattern in api_key_patterns)
 
     @classmethod
     def _calculate_entropy_score(cls, value: str) -> float:

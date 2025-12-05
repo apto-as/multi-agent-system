@@ -11,9 +11,8 @@ Target: 30+ tests with 90%+ coverage
 """
 
 import hashlib
-from datetime import datetime, timedelta
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
@@ -22,7 +21,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.exceptions import NotFoundError, ValidationError
 from src.models.execution_trace import DetectedPattern
 from src.services.pattern_detection_service import PatternDetectionService
-
 
 # =============================================================================
 # Fixtures
@@ -54,7 +52,7 @@ def sample_pattern() -> DetectedPattern:
         namespace="test-namespace",
         agent_id="test-agent",
         tool_sequence=["tool_a", "tool_b", "tool_c"],
-        pattern_hash=hashlib.sha256("tool_a,tool_b,tool_c".encode()).hexdigest(),
+        pattern_hash=hashlib.sha256(b"tool_a,tool_b,tool_c").hexdigest(),
         frequency=5,
         avg_success_rate=0.95,
         avg_execution_time_ms=150.0,
@@ -124,8 +122,7 @@ class TestDetectSequence:
         mock_session.execute.return_value = mock_result
 
         result = await pattern_service.detect_sequence(
-            tool_sequence=["tool_a", "tool_b", "tool_c"],
-            namespace="test-namespace"
+            tool_sequence=["tool_a", "tool_b", "tool_c"], namespace="test-namespace"
         )
 
         assert result is not None
@@ -139,8 +136,7 @@ class TestDetectSequence:
         mock_session.execute.return_value = mock_result
 
         result = await pattern_service.detect_sequence(
-            tool_sequence=["unknown_tool"],
-            namespace="test-namespace"
+            tool_sequence=["unknown_tool"], namespace="test-namespace"
         )
 
         assert result is None
@@ -148,10 +144,7 @@ class TestDetectSequence:
     @pytest.mark.asyncio
     async def test_detect_empty_sequence(self, pattern_service, mock_session):
         """Should return None for empty sequence."""
-        result = await pattern_service.detect_sequence(
-            tool_sequence=[],
-            namespace="test-namespace"
-        )
+        result = await pattern_service.detect_sequence(tool_sequence=[], namespace="test-namespace")
 
         assert result is None
         mock_session.execute.assert_not_called()
@@ -241,8 +234,7 @@ class TestGetPatternById:
         mock_session.execute.return_value = mock_result
 
         result = await pattern_service.get_pattern_by_id(
-            pattern_id=sample_pattern.id,
-            namespace="test-namespace"
+            pattern_id=sample_pattern.id, namespace="test-namespace"
         )
 
         assert result.id == sample_pattern.id
@@ -256,8 +248,7 @@ class TestGetPatternById:
 
         with pytest.raises(NotFoundError):
             await pattern_service.get_pattern_by_id(
-                pattern_id=str(uuid4()),
-                namespace="test-namespace"
+                pattern_id=str(uuid4()), namespace="test-namespace"
             )
 
     @pytest.mark.asyncio
@@ -269,8 +260,7 @@ class TestGetPatternById:
 
         with pytest.raises(NotFoundError):
             await pattern_service.get_pattern_by_id(
-                pattern_id=str(uuid4()),
-                namespace="wrong-namespace"
+                pattern_id=str(uuid4()), namespace="wrong-namespace"
             )
 
 
@@ -292,8 +282,7 @@ class TestGetPatternsByState:
         mock_session.execute.return_value = mock_result
 
         result = await pattern_service.get_patterns_by_state(
-            namespace="test-namespace",
-            state="DETECTED"
+            namespace="test-namespace", state="DETECTED"
         )
 
         assert len(result) == 1
@@ -304,8 +293,7 @@ class TestGetPatternsByState:
         """Should raise ValidationError for invalid state."""
         with pytest.raises(ValidationError):
             await pattern_service.get_patterns_by_state(
-                namespace="test-namespace",
-                state="INVALID_STATE"
+                namespace="test-namespace", state="INVALID_STATE"
             )
 
     @pytest.mark.asyncio
@@ -318,9 +306,7 @@ class TestGetPatternsByState:
         mock_session.execute.return_value = mock_result
 
         await pattern_service.get_patterns_by_state(
-            namespace="test-namespace",
-            state="DETECTED",
-            limit=50
+            namespace="test-namespace", state="DETECTED", limit=50
         )
 
         mock_session.execute.assert_called_once()
@@ -345,9 +331,7 @@ class TestTransitionPatternState:
         mock_session.execute.return_value = mock_result
 
         result = await pattern_service.transition_pattern_state(
-            pattern_id=sample_pattern.id,
-            new_state="VALIDATING",
-            namespace="test-namespace"
+            pattern_id=sample_pattern.id, new_state="VALIDATING", namespace="test-namespace"
         )
 
         assert result.state == "VALIDATING"
@@ -363,9 +347,7 @@ class TestTransitionPatternState:
         mock_session.execute.return_value = mock_result
 
         result = await pattern_service.transition_pattern_state(
-            pattern_id=sample_pattern.id,
-            new_state="VALIDATED",
-            namespace="test-namespace"
+            pattern_id=sample_pattern.id, new_state="VALIDATED", namespace="test-namespace"
         )
 
         assert result.state == "VALIDATED"
@@ -385,7 +367,7 @@ class TestTransitionPatternState:
             pattern_id=sample_pattern.id,
             new_state="APPROVED",
             actor_id="approving-agent",
-            namespace="test-namespace"
+            namespace="test-namespace",
         )
 
         assert result.state == "APPROVED"
@@ -406,7 +388,7 @@ class TestTransitionPatternState:
             pattern_id=sample_pattern.id,
             new_state="REJECTED",
             namespace="test-namespace",
-            validation_errors=["Error 1", "Error 2"]
+            validation_errors=["Error 1", "Error 2"],
         )
 
         assert result.state == "REJECTED"
@@ -423,9 +405,7 @@ class TestTransitionPatternState:
         # DETECTED → APPROVED is not valid (must go through VALIDATING first)
         with pytest.raises(ValidationError) as exc_info:
             await pattern_service.transition_pattern_state(
-                pattern_id=sample_pattern.id,
-                new_state="APPROVED",
-                namespace="test-namespace"
+                pattern_id=sample_pattern.id, new_state="APPROVED", namespace="test-namespace"
             )
 
         assert "Invalid state transition" in str(exc_info.value)
@@ -442,9 +422,7 @@ class TestTransitionPatternState:
 
         with pytest.raises(ValidationError):
             await pattern_service.transition_pattern_state(
-                pattern_id=sample_pattern.id,
-                new_state="DETECTED",
-                namespace="test-namespace"
+                pattern_id=sample_pattern.id, new_state="DETECTED", namespace="test-namespace"
             )
 
     @pytest.mark.asyncio
@@ -452,9 +430,7 @@ class TestTransitionPatternState:
         """Should raise ValidationError when namespace is None."""
         with pytest.raises(ValidationError) as exc_info:
             await pattern_service.transition_pattern_state(
-                pattern_id=str(uuid4()),
-                new_state="VALIDATING",
-                namespace=None
+                pattern_id=str(uuid4()), new_state="VALIDATING", namespace=None
             )
 
         assert "Namespace is required" in str(exc_info.value)
@@ -464,9 +440,7 @@ class TestTransitionPatternState:
         """Should raise ValidationError for invalid target state."""
         with pytest.raises(ValidationError) as exc_info:
             await pattern_service.transition_pattern_state(
-                pattern_id=str(uuid4()),
-                new_state="INVALID_STATE",
-                namespace="test-namespace"
+                pattern_id=str(uuid4()), new_state="INVALID_STATE", namespace="test-namespace"
             )
 
         assert "Invalid target state" in str(exc_info.value)
@@ -588,9 +562,7 @@ class TestGetPatternStatistics:
 
         mock_session.execute.return_value = mock_count_result
 
-        result = await pattern_service.get_pattern_statistics(
-            namespace="test-namespace"
-        )
+        result = await pattern_service.get_pattern_statistics(namespace="test-namespace")
 
         assert "total_patterns" in result
         assert "by_state" in result
@@ -616,9 +588,7 @@ class TestLinkPatternToSkill:
 
         skill_id = str(uuid4())
         result = await pattern_service.link_pattern_to_skill(
-            pattern_id=sample_pattern.id,
-            skill_id=skill_id,
-            namespace="test-namespace"
+            pattern_id=sample_pattern.id, skill_id=skill_id, namespace="test-namespace"
         )
 
         assert result.skill_id == skill_id
@@ -634,9 +604,7 @@ class TestLinkPatternToSkill:
 
         with pytest.raises(ValidationError) as exc_info:
             await pattern_service.link_pattern_to_skill(
-                pattern_id=sample_pattern.id,
-                skill_id=str(uuid4()),
-                namespace="test-namespace"
+                pattern_id=sample_pattern.id, skill_id=str(uuid4()), namespace="test-namespace"
             )
 
         assert "APPROVED state" in str(exc_info.value)
@@ -674,8 +642,7 @@ class TestAnalyzePatterns:
         mock_session.execute.side_effect = [mock_agg_result, mock_lookup_result]
 
         result = await pattern_service.analyze_patterns(
-            namespace="test-namespace",
-            min_occurrences=3
+            namespace="test-namespace", min_occurrences=3
         )
 
         # Should have detected 1 pattern (tool_a,tool_b,tool_c x3)
@@ -717,9 +684,8 @@ class TestCleanupRejectedPatterns:
 
         mock_session.execute.return_value = mock_select_result
 
-        result = await pattern_service.cleanup_rejected_patterns(
-            namespace="test-namespace",
-            older_than_days=30
+        await pattern_service.cleanup_rejected_patterns(
+            namespace="test-namespace", older_than_days=30
         )
 
         # Should have called execute at least twice (select + delete)
@@ -732,9 +698,7 @@ class TestCleanupRejectedPatterns:
         mock_result.all.return_value = []
         mock_session.execute.return_value = mock_result
 
-        result = await pattern_service.cleanup_rejected_patterns(
-            namespace="test-namespace"
-        )
+        result = await pattern_service.cleanup_rejected_patterns(namespace="test-namespace")
 
         assert result == 0
 

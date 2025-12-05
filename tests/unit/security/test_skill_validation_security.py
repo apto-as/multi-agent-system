@@ -54,7 +54,9 @@ def test_redos_core_instructions_extraction(validation_service: SkillValidationS
 
     # Verify protection
     assert duration < 0.1, f"ReDoS vulnerability detected: took {duration:.2f}s (should be <0.1s)"
-    assert len(result) <= validation_service.max_core_instructions_length, "Result should be truncated"
+    assert len(result) <= validation_service.max_core_instructions_length, (
+        "Result should be truncated"
+    )
 
 
 def test_redos_metadata_yaml_frontmatter(validation_service: SkillValidationService) -> None:
@@ -73,7 +75,7 @@ def test_redos_metadata_yaml_frontmatter(validation_service: SkillValidationServ
 
     start = time.perf_counter()
     try:
-        result = validation_service._extract_metadata(large_yaml + "# Rest of content")
+        validation_service._extract_metadata(large_yaml + "# Rest of content")
         duration = time.perf_counter() - start
 
         # Should either reject (via size limit) or complete quickly
@@ -99,7 +101,7 @@ def test_redos_json_frontmatter(validation_service: SkillValidationService) -> N
 
     start = time.perf_counter()
     try:
-        result = validation_service._extract_metadata(large_json + "# Rest of content")
+        validation_service._extract_metadata(large_json + "# Rest of content")
         duration = time.perf_counter() - start
 
         assert duration < 0.1, f"JSON parsing took too long: {duration:.2f}s"
@@ -146,7 +148,7 @@ e: &e [*d,*d,*d,*d,*d,*d,*d,*d,*d]
 
     try:
         start = time.perf_counter()
-        result = validation_service._extract_metadata(content)
+        validation_service._extract_metadata(content)
         duration = time.perf_counter() - start
 
         current, peak = tracemalloc.get_traced_memory()
@@ -378,7 +380,9 @@ def test_token_budget_performance(validation_service: SkillValidationService) ->
     duration = time.perf_counter() - start
 
     # Should complete 100 validations in <10ms (even when raising ValidationError)
-    assert duration < 0.01, f"Token validation too slow: {duration*1000:.2f}ms for 100 iterations (should be <10ms)"
+    assert duration < 0.01, (
+        f"Token validation too slow: {duration * 1000:.2f}ms for 100 iterations (should be <10ms)"
+    )
 
 
 def test_token_budget_empty_text_performance(validation_service: SkillValidationService) -> None:
@@ -390,7 +394,9 @@ def test_token_budget_empty_text_performance(validation_service: SkillValidation
     duration = time.perf_counter() - start
 
     # Should complete 1000 validations very quickly
-    assert duration < 0.001, f"Empty text validation too slow: {duration*1000:.2f}ms for 1000 iterations"
+    assert duration < 0.001, (
+        f"Empty text validation too slow: {duration * 1000:.2f}ms for 1000 iterations"
+    )
 
     # Test with small text (should also be fast)
     small_text = "abc"
@@ -399,7 +405,9 @@ def test_token_budget_empty_text_performance(validation_service: SkillValidation
         validation_service.validate_token_budget(small_text, 3)
     duration = time.perf_counter() - start
 
-    assert duration < 0.01, f"Small text validation too slow: {duration*1000:.2f}ms for 1000 iterations"
+    assert duration < 0.01, (
+        f"Small text validation too slow: {duration * 1000:.2f}ms for 1000 iterations"
+    )
 
 
 def test_token_budget_does_not_modify_text(validation_service: SkillValidationService) -> None:
@@ -456,18 +464,22 @@ def test_full_validation_pipeline_security(validation_service: SkillValidationSe
 def test_parse_progressive_disclosure_security(validation_service: SkillValidationService) -> None:
     """Integration test: Progressive disclosure parsing with security constraints."""
     # Craft content with potential vulnerabilities
-    malicious_content = """---
+    malicious_content = (
+        """---
 a: &a ["test"] # Potential YAML bomb anchor
 ---
 
 # Skill Title
 
 ## Core Instructions
-""" + ("a" * 10000) + """
+"""
+        + ("a" * 10000)
+        + """
 
 ## Examples
 More content here
 """
+    )
 
     # Should handle gracefully
     start = time.perf_counter()
@@ -498,7 +510,9 @@ def test_security_compliance_summary(validation_service: SkillValidationService)
     This test ensures that security test coverage is complete.
     """
     # V-SKILL-1: ReDoS
-    assert hasattr(validation_service, "_extract_core_instructions"), "Missing core instructions method"
+    assert hasattr(validation_service, "_extract_core_instructions"), (
+        "Missing core instructions method"
+    )
     assert hasattr(validation_service, "_extract_metadata"), "Missing metadata extraction method"
 
     # V-SKILL-2: YAML bomb

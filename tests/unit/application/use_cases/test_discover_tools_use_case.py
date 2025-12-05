@@ -5,16 +5,16 @@ This module tests the DiscoverToolsUseCase in isolation with all dependencies mo
 Tests follow TDD RED phase methodology - expecting failures until implementation exists.
 """
 
-import pytest
-from datetime import datetime
-from uuid import uuid4, UUID
 from unittest.mock import AsyncMock, MagicMock
+from uuid import uuid4
 
+import pytest
+
+from src.application.dtos.request_dtos import DiscoverToolsRequest
+from src.application.dtos.response_dtos import MCPConnectionDTO
 from src.application.use_cases.discover_tools_use_case import (
     DiscoverToolsUseCase,
 )
-from src.application.dtos.request_dtos import DiscoverToolsRequest
-from src.application.dtos.response_dtos import MCPConnectionDTO
 
 
 @pytest.mark.asyncio
@@ -155,7 +155,12 @@ class TestDiscoverToolsUseCase:
         from src.domain.value_objects.tool_category import ToolCategory
 
         mock_new_tools = [
-            Tool(name="new_tool", description="New Tool", input_schema={}, category=ToolCategory.DATA_PROCESSING)
+            Tool(
+                name="new_tool",
+                description="New Tool",
+                input_schema={},
+                category=ToolCategory.DATA_PROCESSING,
+            )
         ]
         mock_adapter.discover_tools.return_value = mock_new_tools
 
@@ -256,7 +261,10 @@ class TestDiscoverToolsUseCase:
             await use_case.execute(valid_request)
 
         # Should raise ValidationError with "not active"
-        assert "not active" in str(exc_info.value).lower() or "disconnected" in str(exc_info.value).lower()
+        assert (
+            "not active" in str(exc_info.value).lower()
+            or "disconnected" in str(exc_info.value).lower()
+        )
 
         # Verify no adapter calls
         mock_adapter.discover_tools.assert_not_called()

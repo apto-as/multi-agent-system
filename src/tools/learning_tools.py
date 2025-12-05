@@ -29,7 +29,10 @@ class PatternApplicationRequest(BaseModel):
     context: str = Field(..., description="Application context")
     max_patterns: int = Field(default=5, ge=1, le=20, description="Maximum patterns to return")
     min_similarity: float = Field(
-        default=0.7, ge=0.0, le=1.0, description="Minimum similarity threshold",
+        default=0.7,
+        ge=0.0,
+        le=1.0,
+        description="Minimum similarity threshold",
     )
 
 
@@ -127,7 +130,10 @@ class LearningTools(BaseTool):
 
         @mcp.tool()
         async def apply_pattern(
-            pattern_query: str, context: str, max_patterns: int = 5, min_similarity: float = 0.7,
+            pattern_query: str,
+            context: str,
+            max_patterns: int = 5,
+            min_similarity: float = 0.7,
         ) -> dict[str, Any]:
             """Find and apply relevant patterns to a given context.
 
@@ -212,7 +218,8 @@ class LearningTools(BaseTool):
 
                 # Sort by combination of similarity and confidence
                 applicable_patterns.sort(
-                    key=lambda p: (p["similarity"] * 0.6 + p["confidence"] * 0.4), reverse=True,
+                    key=lambda p: (p["similarity"] * 0.6 + p["confidence"] * 0.4),
+                    reverse=True,
                 )
 
                 return {
@@ -232,7 +239,8 @@ class LearningTools(BaseTool):
 
             result = await self.execute_with_session(_apply_pattern)
             return self.format_success(
-                result, f"Found {result.get('pattern_count', 0)} applicable patterns",
+                result,
+                f"Found {result.get('pattern_count', 0)} applicable patterns",
             )
 
         @mcp.tool()
@@ -318,7 +326,9 @@ class LearningTools(BaseTool):
                 ]
 
                 most_used = sorted(
-                    patterns_with_usage, key=lambda x: x["application_count"], reverse=True,
+                    patterns_with_usage,
+                    key=lambda x: x["application_count"],
+                    reverse=True,
                 )[:5]
                 least_used = sorted(patterns_with_usage, key=lambda x: x["application_count"])[:5]
 
@@ -429,11 +439,13 @@ class LearningTools(BaseTool):
                 if current_applications > 5:  # Only adjust confidence after sufficient data
                     if new_success_rate > 0.9:
                         evolved_metadata["confidence"] = min(
-                            1.0, evolved_metadata.get("confidence", 0.8) + 0.1,
+                            1.0,
+                            evolved_metadata.get("confidence", 0.8) + 0.1,
                         )
                     elif new_success_rate < 0.6:
                         evolved_metadata["confidence"] = max(
-                            0.1, evolved_metadata.get("confidence", 0.8) - 0.1,
+                            0.1,
+                            evolved_metadata.get("confidence", 0.8) - 0.1,
                         )
 
                 # Update the pattern memory
@@ -480,7 +492,9 @@ class LearningTools(BaseTool):
                 # Analyze current knowledge base
                 all_memories = await memory_service.get_recent_memories(limit=1000)
                 pattern_memories = await memory_service.search_memories(
-                    query="", memory_type="pattern", limit=1000,
+                    query="",
+                    memory_type="pattern",
+                    limit=1000,
                 )
 
                 # Analyze memory types and topics
@@ -506,7 +520,9 @@ class LearningTools(BaseTool):
 
                 # Suggest patterns for high-frequency, low-pattern topics
                 high_activity_areas = sorted(
-                    memory_types.items(), key=lambda x: x[1], reverse=True,
+                    memory_types.items(),
+                    key=lambda x: x[1],
+                    reverse=True,
                 )[:10]
                 for memory_type, count in high_activity_areas:
                     pattern_count = pattern_categories.get(memory_type, 0)
@@ -612,7 +628,8 @@ class LearningTools(BaseTool):
 
             result = await self.execute_with_session(_suggest_opportunities)
             return self.format_success(
-                result, f"Generated {result.get('opportunity_count', 0)} learning opportunities",
+                result,
+                f"Generated {result.get('opportunity_count', 0)} learning opportunities",
             )
 
         @mcp.tool()
@@ -673,11 +690,13 @@ class LearningTools(BaseTool):
                     min_similarity=min_confidence,
                 )
 
-                chain_results["steps_executed"].append({
-                    "step": "pattern_detection",
-                    "duration_ms": (datetime.utcnow() - step1_start).total_seconds() * 1000,
-                    "patterns_found": len(detected_patterns),
-                })
+                chain_results["steps_executed"].append(
+                    {
+                        "step": "pattern_detection",
+                        "duration_ms": (datetime.utcnow() - step1_start).total_seconds() * 1000,
+                        "patterns_found": len(detected_patterns),
+                    }
+                )
 
                 # Step 2: Pattern Application
                 step2_start = datetime.utcnow()
@@ -694,18 +713,24 @@ class LearningTools(BaseTool):
                     }
 
                     # Update application count
-                    pattern_metadata["application_count"] = pattern_metadata.get("application_count", 0) + 1
+                    pattern_metadata["application_count"] = (
+                        pattern_metadata.get("application_count", 0) + 1
+                    )
                     pattern_metadata["last_applied"] = datetime.utcnow().isoformat()
-                    await memory_service.update_memory(str(pattern.id), {"metadata": pattern_metadata})
+                    await memory_service.update_memory(
+                        str(pattern.id), {"metadata": pattern_metadata}
+                    )
 
                     applied_patterns.append(pattern_info)
 
                 chain_results["patterns_applied"] = applied_patterns
-                chain_results["steps_executed"].append({
-                    "step": "pattern_application",
-                    "duration_ms": (datetime.utcnow() - step2_start).total_seconds() * 1000,
-                    "patterns_applied": len(applied_patterns),
-                })
+                chain_results["steps_executed"].append(
+                    {
+                        "step": "pattern_application",
+                        "duration_ms": (datetime.utcnow() - step2_start).total_seconds() * 1000,
+                        "patterns_applied": len(applied_patterns),
+                    }
+                )
 
                 # Step 3: Pattern Evolution (if enabled)
                 if auto_evolve and applied_patterns:
@@ -721,27 +746,35 @@ class LearningTools(BaseTool):
                             app_count = metadata.get("application_count", 1)
 
                             # Update success rate (weighted moving average)
-                            new_success_rate = (current_success_rate * (app_count - 1) + 1.0) / app_count
+                            new_success_rate = (
+                                current_success_rate * (app_count - 1) + 1.0
+                            ) / app_count
 
                             metadata["success_rate"] = new_success_rate
                             metadata["last_evolved"] = datetime.utcnow().isoformat()
                             metadata["evolution_count"] = metadata.get("evolution_count", 0) + 1
 
-                            await memory_service.update_memory(pattern["pattern_id"], {"metadata": metadata})
+                            await memory_service.update_memory(
+                                pattern["pattern_id"], {"metadata": metadata}
+                            )
 
-                            evolved_patterns.append({
-                                "pattern_id": pattern["pattern_id"],
-                                "pattern_name": pattern["pattern_name"],
-                                "new_success_rate": new_success_rate,
-                                "evolution_count": metadata["evolution_count"],
-                            })
+                            evolved_patterns.append(
+                                {
+                                    "pattern_id": pattern["pattern_id"],
+                                    "pattern_name": pattern["pattern_name"],
+                                    "new_success_rate": new_success_rate,
+                                    "evolution_count": metadata["evolution_count"],
+                                }
+                            )
 
                     chain_results["patterns_evolved"] = evolved_patterns
-                    chain_results["steps_executed"].append({
-                        "step": "pattern_evolution",
-                        "duration_ms": (datetime.utcnow() - step3_start).total_seconds() * 1000,
-                        "patterns_evolved": len(evolved_patterns),
-                    })
+                    chain_results["steps_executed"].append(
+                        {
+                            "step": "pattern_evolution",
+                            "duration_ms": (datetime.utcnow() - step3_start).total_seconds() * 1000,
+                            "patterns_evolved": len(evolved_patterns),
+                        }
+                    )
 
                 # Step 4: Auto-learn new pattern (if enabled and no good matches found)
                 if auto_learn and len(detected_patterns) < 2:
@@ -749,7 +782,9 @@ class LearningTools(BaseTool):
 
                     # Create a new pattern from the context
                     new_pattern_content = f"Auto-learned pattern from context: {context[:500]}"
-                    new_pattern_embedding = await embedding_service.encode_document(new_pattern_content)
+                    new_pattern_embedding = await embedding_service.encode_document(
+                        new_pattern_content
+                    )
 
                     new_pattern = await memory_service.create_memory(
                         content=new_pattern_content,
@@ -769,24 +804,30 @@ class LearningTools(BaseTool):
                         importance=0.7,
                     )
 
-                    chain_results["new_patterns_created"].append({
-                        "pattern_id": str(new_pattern.id),
-                        "reason": "insufficient_pattern_coverage",
-                        "confidence": 0.6,
-                    })
+                    chain_results["new_patterns_created"].append(
+                        {
+                            "pattern_id": str(new_pattern.id),
+                            "reason": "insufficient_pattern_coverage",
+                            "confidence": 0.6,
+                        }
+                    )
 
-                    chain_results["steps_executed"].append({
-                        "step": "auto_learn",
-                        "duration_ms": (datetime.utcnow() - step4_start).total_seconds() * 1000,
-                        "patterns_created": 1,
-                    })
+                    chain_results["steps_executed"].append(
+                        {
+                            "step": "auto_learn",
+                            "duration_ms": (datetime.utcnow() - step4_start).total_seconds() * 1000,
+                            "patterns_created": 1,
+                        }
+                    )
 
                 # Step 5: Opportunity Discovery
                 step5_start = datetime.utcnow()
 
                 # Get pattern coverage statistics
                 all_patterns = await memory_service.search_memories(
-                    query="", memory_type="pattern", limit=100,
+                    query="",
+                    memory_type="pattern",
+                    limit=100,
                 )
 
                 category_coverage = {}
@@ -797,27 +838,33 @@ class LearningTools(BaseTool):
                 # Identify gaps
                 opportunities = []
                 if len(all_patterns) < 10:
-                    opportunities.append({
-                        "type": "knowledge_expansion",
-                        "priority": "high",
-                        "message": "Pattern knowledge base is limited - consider learning more patterns",
-                    })
+                    opportunities.append(
+                        {
+                            "type": "knowledge_expansion",
+                            "priority": "high",
+                            "message": "Pattern knowledge base is limited - consider learning more patterns",
+                        }
+                    )
 
                 low_coverage_categories = [c for c, count in category_coverage.items() if count < 3]
                 if low_coverage_categories:
-                    opportunities.append({
-                        "type": "category_gap",
-                        "priority": "medium",
-                        "categories": low_coverage_categories,
-                        "message": f"Low pattern coverage in categories: {', '.join(low_coverage_categories)}",
-                    })
+                    opportunities.append(
+                        {
+                            "type": "category_gap",
+                            "priority": "medium",
+                            "categories": low_coverage_categories,
+                            "message": f"Low pattern coverage in categories: {', '.join(low_coverage_categories)}",
+                        }
+                    )
 
                 chain_results["opportunities_found"] = opportunities
-                chain_results["steps_executed"].append({
-                    "step": "opportunity_discovery",
-                    "duration_ms": (datetime.utcnow() - step5_start).total_seconds() * 1000,
-                    "opportunities_found": len(opportunities),
-                })
+                chain_results["steps_executed"].append(
+                    {
+                        "step": "opportunity_discovery",
+                        "duration_ms": (datetime.utcnow() - step5_start).total_seconds() * 1000,
+                        "opportunities_found": len(opportunities),
+                    }
+                )
 
                 # Calculate final metrics
                 chain_end = datetime.utcnow()
@@ -832,9 +879,11 @@ class LearningTools(BaseTool):
                     "patterns_created": len(chain_results.get("new_patterns_created", [])),
                     "opportunities_found": len(opportunities),
                     "chain_effectiveness": (
-                        "high" if len(applied_patterns) > 2 else
-                        "medium" if len(applied_patterns) > 0 else
-                        "low"
+                        "high"
+                        if len(applied_patterns) > 2
+                        else "medium"
+                        if len(applied_patterns) > 0
+                        else "low"
                     ),
                 }
 

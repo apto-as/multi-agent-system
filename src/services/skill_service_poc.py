@@ -53,9 +53,11 @@ class SkillServicePOC:
         """
         if text is None:
             return None
-        return text.replace('\x00', '')
+        return text.replace("\x00", "")
 
-    def _validate_input_length(self, value: str | None, field_name: str, max_length: int | None = None) -> None:
+    def _validate_input_length(
+        self, value: str | None, field_name: str, max_length: int | None = None
+    ) -> None:
         """S-3-M1: Validate input length against configured maximum.
 
         Args:
@@ -79,7 +81,7 @@ class SkillServicePOC:
                     "max_length": max_len,
                     "actual_length": len(value),
                     "error_code": "S-3-M1",
-                }
+                },
             )
 
     def _get_core_instructions(self, content: str | None) -> str:
@@ -128,7 +130,7 @@ class SkillServicePOC:
             )
             .where(
                 Skill.namespace == namespace,
-                Skill.is_deleted == False,
+                not Skill.is_deleted,
             )
             .limit(limit)
             .offset(offset)
@@ -171,12 +173,13 @@ class SkillServicePOC:
             select(Skill, SkillVersion.core_instructions)
             .join(
                 SkillVersion,
-                (Skill.id == SkillVersion.skill_id) & (SkillVersion.version == Skill.active_version)
+                (Skill.id == SkillVersion.skill_id)
+                & (SkillVersion.version == Skill.active_version),
             )
             .where(
                 Skill.id == skill_id,
                 Skill.namespace == namespace,
-                Skill.is_deleted == False,
+                not Skill.is_deleted,
             )
         )
 

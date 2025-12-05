@@ -39,6 +39,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ToolSearchConfig:
     """Configuration for Tool Search Service."""
+
     collection_name: str = "tmws_tools"
     skills_weight: float = 2.0
     internal_weight: float = 1.5
@@ -192,7 +193,7 @@ class ToolSearchService:
             cache_time, cached_results = self._cache[cache_key]
             if time.time() - cache_time < self.config.cache_ttl_seconds:
                 return ToolSearchResponse(
-                    results=cached_results[:query.limit],
+                    results=cached_results[: query.limit],
                     query=query.query,
                     total_found=len(cached_results),
                     search_latency_ms=(time.time() - start_time) * 1000,
@@ -214,7 +215,7 @@ class ToolSearchService:
         ranked_results = self._apply_ranking(results)
 
         # Filter and limit
-        final_results = ranked_results[:query.limit]
+        final_results = ranked_results[: query.limit]
 
         # Update cache
         self._cache[cache_key] = (time.time(), ranked_results)
@@ -335,13 +336,15 @@ class ToolSearchService:
             tool_id = f"{server_id}:{tool.name}"
             ids.append(tool_id)
             documents.append(tool.to_embedding_text())
-            metadatas.append({
-                "tool_name": tool.name,
-                "server_id": server_id,
-                "description": tool.description[:1000],  # Truncate for metadata
-                "source_type": source_type.value,
-                "tags": ",".join(tool.tags) if tool.tags else "",
-            })
+            metadatas.append(
+                {
+                    "tool_name": tool.name,
+                    "server_id": server_id,
+                    "description": tool.description[:1000],  # Truncate for metadata
+                    "source_type": source_type.value,
+                    "tags": ",".join(tool.tags) if tool.tags else "",
+                }
+            )
 
         await asyncio.to_thread(
             self._collection.upsert,
@@ -397,7 +400,9 @@ class ToolSearchService:
                 # Fallback to text query if no embedding
                 results = await asyncio.to_thread(
                     self._collection.query,
-                    query_texts=[self._last_query_text] if hasattr(self, "_last_query_text") else [""],
+                    query_texts=[self._last_query_text]
+                    if hasattr(self, "_last_query_text")
+                    else [""],
                     n_results=limit,
                     where=where_clause,
                     include=["documents", "metadatas", "distances"],
@@ -417,14 +422,16 @@ class ToolSearchService:
                 if similarity < min_score:
                     continue
 
-                search_results.append(ToolSearchResult(
-                    tool_name=metadata.get("tool_name", ""),
-                    server_id=metadata.get("server_id", ""),
-                    description=metadata.get("description", ""),
-                    relevance_score=similarity,
-                    source_type=ToolSourceType(metadata.get("source_type", "external")),
-                    tags=metadata.get("tags", "").split(",") if metadata.get("tags") else [],
-                ))
+                search_results.append(
+                    ToolSearchResult(
+                        tool_name=metadata.get("tool_name", ""),
+                        server_id=metadata.get("server_id", ""),
+                        description=metadata.get("description", ""),
+                        relevance_score=similarity,
+                        source_type=ToolSourceType(metadata.get("source_type", "external")),
+                        tags=metadata.get("tags", "").split(",") if metadata.get("tags") else [],
+                    )
+                )
 
         return search_results
 

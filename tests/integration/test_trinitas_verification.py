@@ -109,9 +109,7 @@ class TestTrinitasVerification:
 
     async def test_2_all_six_agents_exist(self, real_db_session: AsyncSession):
         """Test 2: All 6 Trinitas agents are registered"""
-        result = await real_db_session.execute(
-            select(Agent).where(Agent.namespace == "trinitas")
-        )
+        result = await real_db_session.execute(select(Agent).where(Agent.namespace == "trinitas"))
         agents = result.scalars().all()
 
         # Check count
@@ -231,50 +229,38 @@ class TestTrinitasVerification:
 
     async def test_10_all_agents_active(self, real_db_session: AsyncSession):
         """Test 10: All Trinitas agents are in ACTIVE status"""
-        result = await real_db_session.execute(
-            select(Agent).where(Agent.namespace == "trinitas")
-        )
+        result = await real_db_session.execute(select(Agent).where(Agent.namespace == "trinitas"))
         agents = result.scalars().all()
 
-        inactive_agents = [
-            agent.agent_id for agent in agents if agent.status != AgentStatus.ACTIVE
-        ]
+        inactive_agents = [agent.agent_id for agent in agents if agent.status != AgentStatus.ACTIVE]
         assert len(inactive_agents) == 0, f"Found inactive agents: {inactive_agents}"
 
     async def test_11_all_agents_system_access(self, real_db_session: AsyncSession):
         """Test 11: All Trinitas agents have SYSTEM access level"""
-        result = await real_db_session.execute(
-            select(Agent).where(Agent.namespace == "trinitas")
-        )
+        result = await real_db_session.execute(select(Agent).where(Agent.namespace == "trinitas"))
         agents = result.scalars().all()
 
         wrong_access_agents = [
-            agent.agent_id
-            for agent in agents
-            if agent.default_access_level != AccessLevel.SYSTEM
+            agent.agent_id for agent in agents if agent.default_access_level != AccessLevel.SYSTEM
         ]
-        assert (
-            len(wrong_access_agents) == 0
-        ), f"Found agents with wrong access level: {wrong_access_agents}"
+        assert len(wrong_access_agents) == 0, (
+            f"Found agents with wrong access level: {wrong_access_agents}"
+        )
 
     async def test_12_all_json_fields_valid(self, real_db_session: AsyncSession):
         """Test 12: All agents have valid JSON fields (config, capabilities)"""
-        result = await real_db_session.execute(
-            select(Agent).where(Agent.namespace == "trinitas")
-        )
+        result = await real_db_session.execute(select(Agent).where(Agent.namespace == "trinitas"))
         agents = result.scalars().all()
 
         for agent in agents:
             # Check config is dict
             assert isinstance(agent.config, dict), f"{agent.agent_id}: config is not a dict"
-            assert (
-                "agent_subtype" in agent.config
-            ), f"{agent.agent_id}: config missing agent_subtype"
+            assert "agent_subtype" in agent.config, (
+                f"{agent.agent_id}: config missing agent_subtype"
+            )
 
             # Check capabilities is list
-            assert isinstance(
-                agent.capabilities, list
-            ), f"{agent.agent_id}: capabilities is not a list"
-            assert (
-                len(agent.capabilities) > 0
-            ), f"{agent.agent_id}: capabilities is empty"
+            assert isinstance(agent.capabilities, list), (
+                f"{agent.agent_id}: capabilities is not a list"
+            )
+            assert len(agent.capabilities) > 0, f"{agent.agent_id}: capabilities is empty"

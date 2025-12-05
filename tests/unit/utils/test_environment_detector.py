@@ -7,8 +7,6 @@ import os
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 from src.utils.environment_detector import (
     EnvironmentDetector,
     EnvironmentInfo,
@@ -142,9 +140,16 @@ class TestEnvironmentDetectorEnvVars:
         """Test unknown when no relevant env vars are set."""
         # Clear all detection env vars
         env_vars_to_clear = {
-            "OPENCODE_PROJECT_ROOT", "OPENCODE_VERSION", "OPENCODE_WORKSPACE",
-            "OPENCODE_SESSION_ID", "CLAUDE_CODE_VERSION", "CLAUDE_PROJECT_ROOT",
-            "VSCODE_PID", "VSCODE_CWD", "TERM_PROGRAM", "CURSOR_VERSION",
+            "OPENCODE_PROJECT_ROOT",
+            "OPENCODE_VERSION",
+            "OPENCODE_WORKSPACE",
+            "OPENCODE_SESSION_ID",
+            "CLAUDE_CODE_VERSION",
+            "CLAUDE_PROJECT_ROOT",
+            "VSCODE_PID",
+            "VSCODE_CWD",
+            "TERM_PROGRAM",
+            "CURSOR_VERSION",
         }
         clean_env = {k: v for k, v in os.environ.items() if k not in env_vars_to_clear}
 
@@ -314,7 +319,9 @@ class TestIsOpencodeEnvironment:
         """Test returns False when not OpenCode."""
         # Clear OpenCode env vars
         env_vars_to_clear = {
-            "OPENCODE_PROJECT_ROOT", "OPENCODE_VERSION", "OPENCODE_WORKSPACE",
+            "OPENCODE_PROJECT_ROOT",
+            "OPENCODE_VERSION",
+            "OPENCODE_WORKSPACE",
             "OPENCODE_SESSION_ID",
         }
         clean_env = {k: v for k, v in os.environ.items() if k not in env_vars_to_clear}
@@ -346,9 +353,16 @@ class TestEnvironmentDetectorIntegration:
         """Test fallback to terminal when nothing detected."""
         # Clear all detection env vars
         env_vars_to_clear = {
-            "OPENCODE_PROJECT_ROOT", "OPENCODE_VERSION", "OPENCODE_WORKSPACE",
-            "OPENCODE_SESSION_ID", "CLAUDE_CODE_VERSION", "CLAUDE_PROJECT_ROOT",
-            "VSCODE_PID", "VSCODE_CWD", "TERM_PROGRAM", "CURSOR_VERSION",
+            "OPENCODE_PROJECT_ROOT",
+            "OPENCODE_VERSION",
+            "OPENCODE_WORKSPACE",
+            "OPENCODE_SESSION_ID",
+            "CLAUDE_CODE_VERSION",
+            "CLAUDE_PROJECT_ROOT",
+            "VSCODE_PID",
+            "VSCODE_CWD",
+            "TERM_PROGRAM",
+            "CURSOR_VERSION",
         }
         clean_env = {k: v for k, v in os.environ.items() if k not in env_vars_to_clear}
 
@@ -364,33 +378,25 @@ class TestR1SensitiveDataMasking:
 
     def test_masks_api_key_env_var(self):
         """Test that API_KEY environment variables are masked."""
-        result = EnvironmentDetector._sanitize_env_value(
-            "sk-1234567890abcdef", "MY_API_KEY"
-        )
+        result = EnvironmentDetector._sanitize_env_value("sk-1234567890abcdef", "MY_API_KEY")
         assert "MASKED" in result
         assert "sk-" not in result
 
     def test_masks_secret_env_var(self):
         """Test that SECRET environment variables are masked."""
-        result = EnvironmentDetector._sanitize_env_value(
-            "supersecretvalue123", "APP_SECRET"
-        )
+        result = EnvironmentDetector._sanitize_env_value("supersecretvalue123", "APP_SECRET")
         assert "MASKED" in result
         assert "supersecret" not in result
 
     def test_masks_password_env_var(self):
         """Test that PASSWORD environment variables are masked."""
-        result = EnvironmentDetector._sanitize_env_value(
-            "mypassword123", "DATABASE_PASSWORD"
-        )
+        result = EnvironmentDetector._sanitize_env_value("mypassword123", "DATABASE_PASSWORD")
         assert "MASKED" in result
         assert "mypassword" not in result
 
     def test_masks_token_env_var(self):
         """Test that TOKEN environment variables are masked."""
-        result = EnvironmentDetector._sanitize_env_value(
-            "bearer_token_value", "AUTH_TOKEN"
-        )
+        result = EnvironmentDetector._sanitize_env_value("bearer_token_value", "AUTH_TOKEN")
         assert "MASKED" in result
         assert "bearer" not in result
 
@@ -455,7 +461,5 @@ class TestR1SensitiveDataMasking:
 
     def test_masked_output_shows_length(self):
         """Test that masked output shows character length."""
-        result = EnvironmentDetector._sanitize_env_value(
-            "secret123456", "MY_SECRET"
-        )
+        result = EnvironmentDetector._sanitize_env_value("secret123456", "MY_SECRET")
         assert "12 chars" in result

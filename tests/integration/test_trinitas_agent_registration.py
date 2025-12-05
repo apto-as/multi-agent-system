@@ -12,7 +12,6 @@ Test Coverage:
 """
 
 import os
-from unittest.mock import AsyncMock, patch
 
 import pytest
 from sqlalchemy import select
@@ -20,9 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_session
 from src.models.agent import AccessLevel, Agent, AgentNamespace, AgentStatus
-from src.services.agent_service import AgentService
 from src.services.license_service import LicenseService, TierEnum
-
 
 # Test Constants
 TRINITAS_AGENTS = {
@@ -169,9 +166,7 @@ class TestTrinitasAgentRegistration:
         agent_data = TRINITAS_AGENTS["athena-conductor"]
 
         # Clean up any existing test agent
-        result = await db_session.execute(
-            select(Agent).where(Agent.agent_id == agent_id)
-        )
+        result = await db_session.execute(select(Agent).where(Agent.agent_id == agent_id))
         existing_agent = result.scalar_one_or_none()
         if existing_agent:
             await db_session.delete(existing_agent)
@@ -195,9 +190,7 @@ class TestTrinitasAgentRegistration:
         await db_session.refresh(agent)
 
         # Verify registration
-        result = await db_session.execute(
-            select(Agent).where(Agent.agent_id == agent_id)
-        )
+        result = await db_session.execute(select(Agent).where(Agent.agent_id == agent_id))
         registered_agent = result.scalar_one_or_none()
 
         assert registered_agent is not None
@@ -210,10 +203,8 @@ class TestTrinitasAgentRegistration:
     async def test_agent_registration_all_six(self, db_session: AsyncSession):
         """Test 6: Registers all 6 Trinitas agents successfully"""
         # Clean up any existing agents
-        for agent_id in TRINITAS_AGENTS.keys():
-            result = await db_session.execute(
-                select(Agent).where(Agent.agent_id == agent_id)
-            )
+        for agent_id in TRINITAS_AGENTS:
+            result = await db_session.execute(select(Agent).where(Agent.agent_id == agent_id))
             existing_agent = result.scalar_one_or_none()
             if existing_agent:
                 await db_session.delete(existing_agent)
@@ -239,9 +230,7 @@ class TestTrinitasAgentRegistration:
         await db_session.commit()
 
         # Verify all 6 agents are registered
-        result = await db_session.execute(
-            select(Agent).where(Agent.namespace == "trinitas")
-        )
+        result = await db_session.execute(select(Agent).where(Agent.namespace == "trinitas"))
         all_agents = result.scalars().all()
 
         assert len(all_agents) == 6
@@ -260,9 +249,7 @@ class TestTrinitasAgentRegistration:
         agent_data = TRINITAS_AGENTS[agent_id]
 
         # Ensure agent exists
-        result = await db_session.execute(
-            select(Agent).where(Agent.agent_id == agent_id)
-        )
+        result = await db_session.execute(select(Agent).where(Agent.agent_id == agent_id))
         existing_agent = result.scalar_one_or_none()
 
         if not existing_agent:
@@ -281,18 +268,14 @@ class TestTrinitasAgentRegistration:
             await db_session.commit()
 
         # Try to register again (should skip)
-        result = await db_session.execute(
-            select(Agent).where(Agent.agent_id == agent_id)
-        )
+        result = await db_session.execute(select(Agent).where(Agent.agent_id == agent_id))
         existing_agent = result.scalar_one_or_none()
 
         # Should not create duplicate
         assert existing_agent is not None
 
         # Count total agents with this ID (should be exactly 1)
-        result = await db_session.execute(
-            select(Agent).where(Agent.agent_id == agent_id)
-        )
+        result = await db_session.execute(select(Agent).where(Agent.agent_id == agent_id))
         all_matching_agents = result.scalars().all()
         assert len(all_matching_agents) == 1
 
@@ -303,9 +286,7 @@ class TestTrinitasAgentRegistration:
 
         for agent_id, agent_data in TRINITAS_AGENTS.items():
             # Check if agent already exists
-            result = await db_session.execute(
-                select(Agent).where(Agent.agent_id == agent_id)
-            )
+            result = await db_session.execute(select(Agent).where(Agent.agent_id == agent_id))
             existing_agent = result.scalar_one_or_none()
 
             if existing_agent:
@@ -340,9 +321,7 @@ class TestTrinitasAgentRegistration:
         agent_data = TRINITAS_AGENTS[agent_id]
 
         # Get agent from database
-        result = await db_session.execute(
-            select(Agent).where(Agent.agent_id == agent_id)
-        )
+        result = await db_session.execute(select(Agent).where(Agent.agent_id == agent_id))
         agent = result.scalar_one_or_none()
 
         # Create if doesn't exist
@@ -378,9 +357,7 @@ class TestTrinitasAgentRegistration:
         agent_data = TRINITAS_AGENTS[agent_id]
 
         # Get agent from database
-        result = await db_session.execute(
-            select(Agent).where(Agent.agent_id == agent_id)
-        )
+        result = await db_session.execute(select(Agent).where(Agent.agent_id == agent_id))
         agent = result.scalar_one_or_none()
 
         if not agent:
@@ -480,9 +457,7 @@ class TestTrinitasAgentRegistration:
         await db_session.rollback()
 
         # Verify no invalid agent was created
-        result = await db_session.execute(
-            select(Agent).where(Agent.agent_id == "invalid-agent")
-        )
+        result = await db_session.execute(select(Agent).where(Agent.agent_id == "invalid-agent"))
         agent = result.scalar_one_or_none()
         assert agent is None
 
@@ -495,6 +470,7 @@ async def db_session():
     """Provides a database session for testing - uses actual .tmws/db/tmws.db"""
     # Ensure we use the correct database URL
     import os
+
     os.environ["TMWS_DATABASE_URL"] = "sqlite+aiosqlite:///./.tmws/db/tmws.db"
 
     async with get_session() as session:

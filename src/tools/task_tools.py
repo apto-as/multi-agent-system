@@ -155,7 +155,10 @@ class TaskTools(BaseTool):
 
             """
             request = TaskUpdateRequest(
-                task_id=task_id, status=status, progress=progress, result=result,
+                task_id=task_id,
+                status=status,
+                progress=progress,
+                result=result,
             )
 
             async def _update_task_status(_session, services):
@@ -354,7 +357,9 @@ class TaskTools(BaseTool):
 
         @mcp.tool()
         async def assign_task(
-            task_id: str, agent_id: str, notes: str | None = None,
+            task_id: str,
+            agent_id: str,
+            notes: str | None = None,
         ) -> dict[str, Any]:
             """Assign a task to an agent.
 
@@ -412,7 +417,9 @@ class TaskTools(BaseTool):
 
         @mcp.tool()
         async def complete_task(
-            task_id: str, result: dict[str, Any], completion_notes: str | None = None,
+            task_id: str,
+            result: dict[str, Any],
+            completion_notes: str | None = None,
         ) -> dict[str, Any]:
             """Mark a task as completed with results.
 
@@ -468,7 +475,11 @@ class TaskTools(BaseTool):
                 dependent_task_info = []
                 for dep_task in dependent_tasks:
                     dependent_task_info.append(
-                        {"id": str(dep_task.id), "title": dep_task.title, "status": dep_task.status},
+                        {
+                            "id": str(dep_task.id),
+                            "title": dep_task.title,
+                            "status": dep_task.status,
+                        },
                     )
 
                 return {
@@ -555,7 +566,8 @@ class TaskTools(BaseTool):
                     },
                     "performance_metrics": {
                         "avg_duration_accuracy_percent": round(
-                            (1 - avg_duration_accuracy) * 100, 2,
+                            (1 - avg_duration_accuracy) * 100,
+                            2,
                         ),
                         "tasks_analyzed": len(recent_tasks),
                     },

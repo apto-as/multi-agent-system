@@ -201,9 +201,19 @@ class ExecutionTraceService(BaseService):
 
         # List of sensitive keys to redact
         sensitive_keys = {
-            "password", "secret", "token", "api_key", "apikey",
-            "credential", "auth", "authorization", "bearer",
-            "private_key", "privatekey", "access_token", "refresh_token"
+            "password",
+            "secret",
+            "token",
+            "api_key",
+            "apikey",
+            "credential",
+            "auth",
+            "authorization",
+            "bearer",
+            "private_key",
+            "privatekey",
+            "access_token",
+            "refresh_token",
         }
 
         sanitized = {}
@@ -234,6 +244,7 @@ class ExecutionTraceService(BaseService):
             return None
 
         import json
+
         try:
             output_str = json.dumps(output)
             if len(output_str) <= max_size:
@@ -242,9 +253,7 @@ class ExecutionTraceService(BaseService):
         except (TypeError, ValueError):
             return {"_error": "Failed to serialize output"}
 
-    async def get_trace_by_id(
-        self, trace_id: str, namespace: str
-    ) -> ExecutionTrace:
+    async def get_trace_by_id(self, trace_id: str, namespace: str) -> ExecutionTrace:
         """Get a trace by ID with namespace validation.
 
         Args:
@@ -415,13 +424,15 @@ class ExecutionTraceService(BaseService):
         patterns = []
         for _seq_key, data in sequence_counts.items():
             if data["frequency"] >= min_occurrences:
-                patterns.append({
-                    "tool_sequence": data["tool_sequence"],
-                    "frequency": data["frequency"],
-                    "avg_success_rate": data["total_success_rate"] / data["frequency"],
-                    "avg_execution_time_ms": data["total_time_ms"] / data["frequency"],
-                    "pattern_hash": self._hash_sequence(data["tool_sequence"]),
-                })
+                patterns.append(
+                    {
+                        "tool_sequence": data["tool_sequence"],
+                        "frequency": data["frequency"],
+                        "avg_success_rate": data["total_success_rate"] / data["frequency"],
+                        "avg_execution_time_ms": data["total_time_ms"] / data["frequency"],
+                        "pattern_hash": self._hash_sequence(data["tool_sequence"]),
+                    }
+                )
 
         # Sort by frequency
         patterns.sort(key=lambda x: x["frequency"], reverse=True)
@@ -573,6 +584,7 @@ class ExecutionTraceService(BaseService):
 
         # Update traces with namespace validation
         from sqlalchemy import update
+
         result = await self.session.execute(
             update(ExecutionTrace)
             .where(

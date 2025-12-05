@@ -281,7 +281,11 @@ class ExpirationTools:
                     from datetime import timedelta
 
                     # Total memories
-                    total_stmt = select(func.count()).select_from(Memory).where(Memory.namespace == namespace)
+                    total_stmt = (
+                        select(func.count())
+                        .select_from(Memory)
+                        .where(Memory.namespace == namespace)
+                    )
                     total_result = await session.execute(total_stmt)
                     total = total_result.scalar() or 0
 
@@ -523,7 +527,11 @@ class ExpirationTools:
                     )
 
                     # Count memories
-                    count_stmt = select(func.count()).select_from(Memory).where(Memory.namespace == namespace)
+                    count_stmt = (
+                        select(func.count())
+                        .select_from(Memory)
+                        .where(Memory.namespace == namespace)
+                    )
                     count_result = await session.execute(count_stmt)
                     total_count = count_result.scalar() or 0
 
@@ -531,7 +539,11 @@ class ExpirationTools:
                     if total_count > 10 and not confirm_mass_deletion:
                         logger.warning(
                             f"🚨 Namespace cleanup blocked: {total_count} items > 10",
-                            extra={"agent_id": agent_id, "namespace": namespace, "count": total_count},
+                            extra={
+                                "agent_id": agent_id,
+                                "namespace": namespace,
+                                "count": total_count,
+                            },
                         )
                         return {
                             "error": "mass_deletion_confirmation_required",
@@ -568,7 +580,11 @@ class ExpirationTools:
 
                     logger.warning(
                         f"🗑️  Namespace cleanup completed: {deleted_count} memories deleted from {namespace}",
-                        extra={"agent_id": agent_id, "namespace": namespace, "deleted_count": deleted_count},
+                        extra={
+                            "agent_id": agent_id,
+                            "namespace": namespace,
+                            "deleted_count": deleted_count,
+                        },
                     )
 
                     return {
@@ -636,7 +652,11 @@ class ExpirationTools:
                     )
 
                     # Total count
-                    total_stmt = select(func.count()).select_from(Memory).where(Memory.namespace == namespace)
+                    total_stmt = (
+                        select(func.count())
+                        .select_from(Memory)
+                        .where(Memory.namespace == namespace)
+                    )
                     total_result = await session.execute(total_stmt)
                     total = total_result.scalar() or 0
 
@@ -806,7 +826,11 @@ class ExpirationTools:
                         return {"error": "Scheduler not available"}
 
                     # Validate interval
-                    if not isinstance(interval_hours, int) or interval_hours < 1 or interval_hours > 168:
+                    if (
+                        not isinstance(interval_hours, int)
+                        or interval_hours < 1
+                        or interval_hours > 168
+                    ):
                         return {
                             "error": f"interval_hours must be 1-168 (1 week), got {interval_hours}"
                         }

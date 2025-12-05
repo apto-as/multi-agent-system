@@ -20,8 +20,6 @@ RED Phase (TDD):
 """
 
 import pytest
-from uuid import uuid4, UUID
-
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # Fixtures from conftest.py
@@ -113,8 +111,7 @@ class TestMCPConnectionWorkflows:
         """
         # This test will FAIL in RED phase (expected)
         pytest.skip(
-            "RED phase: Implementation not ready yet. "
-            "Uncomment imports when starting GREEN phase."
+            "RED phase: Implementation not ready yet. Uncomment imports when starting GREEN phase."
         )
 
         # --- GREEN Phase Implementation (uncomment after imports) ---
@@ -203,10 +200,7 @@ class TestMCPConnectionWorkflows:
         RED Phase Expectation:
         - ImportError: DiscoverToolsRequest not found
         """
-        pytest.skip(
-            "RED phase: Implementation not ready yet. "
-            "Uncomment when starting GREEN phase."
-        )
+        pytest.skip("RED phase: Implementation not ready yet. Uncomment when starting GREEN phase.")
 
         # --- GREEN Phase Implementation ---
         # # [Setup] Create active connection in database
@@ -293,10 +287,7 @@ class TestMCPConnectionWorkflows:
         RED Phase Expectation:
         - ImportError: ExecuteToolRequest not found
         """
-        pytest.skip(
-            "RED phase: Implementation not ready yet. "
-            "Uncomment when starting GREEN phase."
-        )
+        pytest.skip("RED phase: Implementation not ready yet. Uncomment when starting GREEN phase.")
 
         # --- GREEN Phase Implementation ---
         # # [Setup] Create active connection with tools
@@ -383,10 +374,7 @@ class TestMCPConnectionWorkflows:
         RED Phase Expectation:
         - ImportError: DisconnectRequest not found
         """
-        pytest.skip(
-            "RED phase: Implementation not ready yet. "
-            "Uncomment when starting GREEN phase."
-        )
+        pytest.skip("RED phase: Implementation not ready yet. Uncomment when starting GREEN phase.")
 
         # --- GREEN Phase Implementation ---
         # # [Setup] Create active connection
@@ -473,10 +461,7 @@ class TestMCPConnectionWorkflows:
         RED Phase Expectation:
         - ImportError: Authorization logic not implemented
         """
-        pytest.skip(
-            "RED phase: Implementation not ready yet. "
-            "Uncomment when starting GREEN phase."
-        )
+        pytest.skip("RED phase: Implementation not ready yet. Uncomment when starting GREEN phase.")
 
         # --- GREEN Phase Implementation ---
         # # [Setup] test_agent creates connection

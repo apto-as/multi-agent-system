@@ -61,9 +61,7 @@ class ConnectMCPServerUseCase:
         self._uow = uow
         self._event_dispatcher = event_dispatcher
 
-    async def execute(
-        self, request: CreateConnectionRequest
-    ) -> MCPConnectionDTO:
+    async def execute(self, request: CreateConnectionRequest) -> MCPConnectionDTO:
         # [1] Input validation
         try:
             # Validate inputs (ConnectionConfig will validate server_name internally)
@@ -95,9 +93,7 @@ class ConnectMCPServerUseCase:
             request.server_name, verified_namespace
         )
         if existing:
-            raise ValidationError(
-                f"Connection to {request.server_name} already exists"
-            )
+            raise ValidationError(f"Connection to {request.server_name} already exists")
 
         async with self._uow:
             # [5-6] Create aggregate
@@ -133,9 +129,7 @@ class ConnectMCPServerUseCase:
                 await self._repository.save(connection)
                 await self._uow.commit()
 
-                raise ExternalServiceError(
-                    f"Failed to connect to MCP server: {e}"
-                ) from e
+                raise ExternalServiceError(f"Failed to connect to MCP server: {e}") from e
 
             # [11] Persist updated state
             await self._repository.save(connection)
