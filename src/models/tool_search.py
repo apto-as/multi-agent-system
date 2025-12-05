@@ -56,6 +56,7 @@ class ToolSearchResult:
     tags: list[str] = field(default_factory=list)
     trust_score: float = 1.0  # From Learning system
     usage_count: int = 0  # From Memory system
+    _personalization_boost: float = 0.0  # From AdaptiveRanker (Phase 4.1)
 
     @property
     def weighted_score(self) -> float:

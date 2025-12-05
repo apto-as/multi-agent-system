@@ -33,6 +33,9 @@ from ..models.tool_search import (
     ToolUsageRecord,
 )
 
+# Phase 4.1: Adaptive Ranking imports (lazy to avoid circular)
+# AdaptiveRanker and ToolOutcome imported at runtime
+
 logger = logging.getLogger(__name__)
 
 
@@ -47,6 +50,12 @@ class ToolSearchConfig:
     cache_ttl_seconds: int = 3600
     max_results: int = 50
     min_similarity: float = 0.3
+
+    # Phase 4.1: Adaptive Ranking settings
+    enable_adaptive_ranking: bool = True
+    adaptive_success_rate_boost: float = 0.2
+    adaptive_frequency_boost: float = 0.1
+    adaptive_recency_boost: float = 0.1
 
 
 class ToolSearchService:
@@ -69,6 +78,7 @@ class ToolSearchService:
         config: ToolSearchConfig | None = None,
         persist_directory: str = "./data/chromadb",
         embedding_service: Any = None,
+        learning_service: Any = None,
     ):
         """Initialize Tool Search Service.
 
@@ -76,6 +86,7 @@ class ToolSearchService:
             config: Service configuration
             persist_directory: ChromaDB persistence directory
             embedding_service: Service for generating embeddings
+            learning_service: LearningService for adaptive ranking (Phase 4.1)
         """
         self.config = config or ToolSearchConfig()
         self.persist_directory = persist_directory
@@ -97,7 +108,24 @@ class ToolSearchService:
         # Cache for search results
         self._cache: dict[str, tuple[float, list[ToolSearchResult]]] = {}
 
-        logger.info(f"ToolSearchService initialized (collection: {self.config.collection_name})")
+        # Phase 4.1: Adaptive Ranking
+        self._adaptive_ranker = None
+        if self.config.enable_adaptive_ranking:
+            from .adaptive_ranker import AdaptiveRanker, AdaptiveRankingConfig
+
+            ranker_config = AdaptiveRankingConfig(
+                success_rate_boost=self.config.adaptive_success_rate_boost,
+                frequency_boost=self.config.adaptive_frequency_boost,
+                recency_boost=self.config.adaptive_recency_boost,
+            )
+            self._adaptive_ranker = AdaptiveRanker(
+                config=ranker_config, learning_service=learning_service
+            )
+
+        logger.info(
+            f"ToolSearchService initialized (collection: {self.config.collection_name}, "
+            f"adaptive_ranking: {self.config.enable_adaptive_ranking})"
+        )
 
     async def initialize(self) -> None:
         """Initialize ChromaDB collection for tools.
@@ -176,19 +204,24 @@ class ToolSearchService:
         logger.info(f"Registered MCP server '{server.server_id}' with {len(server.tools)} tools")
         return len(server.tools)
 
-    async def search(self, query: ToolSearchQuery) -> ToolSearchResponse:
+    async def search(
+        self,
+        query: ToolSearchQuery,
+        agent_id: str | None = None,
+    ) -> ToolSearchResponse:
         """Search for tools using semantic search.
 
         Args:
             query: Search query parameters
+            agent_id: Optional agent ID for personalized ranking (Phase 4.1)
 
         Returns:
             ToolSearchResponse with ranked results
         """
         start_time = time.time()
 
-        # Check cache
-        cache_key = f"{query.query}:{query.source}:{query.limit}"
+        # Check cache (include agent_id for personalized caching)
+        cache_key = f"{query.query}:{query.source}:{query.limit}:{agent_id or 'none'}"
         if cache_key in self._cache:
             cache_time, cached_results = self._cache[cache_key]
             if time.time() - cache_time < self.config.cache_ttl_seconds:
@@ -214,6 +247,14 @@ class ToolSearchService:
         # Apply source-weighted ranking
         ranked_results = self._apply_ranking(results)
 
+        # Phase 4.1: Apply adaptive ranking if enabled and agent_id provided
+        if self._adaptive_ranker and agent_id:
+            ranked_results = await self._adaptive_ranker.rank_for_agent(
+                results=ranked_results,
+                agent_id=agent_id,
+                query_context={"query": query.query, "source": query.source},
+            )
+
         # Filter and limit
         final_results = ranked_results[: query.limit]
 
@@ -221,7 +262,10 @@ class ToolSearchService:
         self._cache[cache_key] = (time.time(), ranked_results)
 
         latency_ms = (time.time() - start_time) * 1000
-        logger.debug(f"Tool search completed in {latency_ms:.2f}ms: {len(final_results)} results")
+        logger.debug(
+            f"Tool search completed in {latency_ms:.2f}ms: {len(final_results)} results "
+            f"(adaptive: {bool(self._adaptive_ranker and agent_id)})"
+        )
 
         return ToolSearchResponse(
             results=final_results,
@@ -236,6 +280,7 @@ class ToolSearchService:
         query: str,
         source: str = "all",
         limit: int = 10,
+        agent_id: str | None = None,
     ) -> list[dict[str, Any]]:
         """Simplified search interface for MCP tool.
 
@@ -243,12 +288,13 @@ class ToolSearchService:
             query: Search query string
             source: Source filter ("all", "skills", "internal", "external")
             limit: Maximum results to return
+            agent_id: Optional agent ID for personalized ranking (Phase 4.1)
 
         Returns:
             List of tool dictionaries
         """
         search_query = ToolSearchQuery(query=query, source=source, limit=limit)
-        response = await self.search(search_query)
+        response = await self.search(search_query, agent_id=agent_id)
 
         return [
             {
@@ -260,20 +306,52 @@ class ToolSearchService:
                 "source_type": r.source_type.value,
                 "tags": r.tags,
                 "input_schema": r.input_schema,
+                "personalization_boost": r._personalization_boost,  # Phase 4.1
             }
             for r in response.results
         ]
 
-    async def record_usage(self, record: ToolUsageRecord) -> None:
+    async def record_usage(
+        self,
+        record: ToolUsageRecord,
+        agent_id: str | None = None,
+    ) -> None:
         """Record tool usage for learning system.
 
         Integrates with the fourth core feature (Learning).
+        Phase 4.1: Now stores usage in AdaptiveRanker for personalized ranking.
 
         Args:
             record: Tool usage record
+            agent_id: Agent ID that used the tool
         """
-        # This will be integrated with LearningService in Phase 4
-        logger.debug(f"Tool usage recorded: {record.tool_name} - {record.outcome}")
+        # Phase 4.1: Integrate with AdaptiveRanker
+        if self._adaptive_ranker and agent_id:
+            from .adaptive_ranker import ToolOutcome
+
+            # Map outcome string to ToolOutcome enum
+            outcome_map = {
+                "success": ToolOutcome.SUCCESS,
+                "error": ToolOutcome.ERROR,
+                "timeout": ToolOutcome.TIMEOUT,
+                "abandoned": ToolOutcome.ABANDONED,
+            }
+            outcome = outcome_map.get(record.outcome, ToolOutcome.SUCCESS)
+
+            await self._adaptive_ranker.record_outcome(
+                agent_id=agent_id,
+                tool_name=record.tool_name,
+                server_id=record.server_id,
+                query=record.query,
+                outcome=outcome,
+                latency_ms=record.latency_ms,
+                context={"timestamp": record.timestamp.isoformat() if record.timestamp else None},
+            )
+
+        logger.debug(
+            f"Tool usage recorded: {record.tool_name} - {record.outcome} "
+            f"(agent: {agent_id or 'unknown'})"
+        )
 
     async def get_stats(self) -> dict[str, Any]:
         """Get tool search statistics.
