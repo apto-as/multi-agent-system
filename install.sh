@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# Trinitas Multi-Agent System Installer v2.4.12
+# Trinitas Multi-Agent System Installer v2.4.14
 # For Claude Code on Linux/macOS/WSL
 # =============================================================================
 #
@@ -26,8 +26,8 @@
 set -euo pipefail
 
 # Version
-INSTALLER_VERSION="2.4.12"
-TMWS_VERSION="2.4.12"
+INSTALLER_VERSION="2.4.14"
+TMWS_VERSION="2.4.14"
 INSTALLER_TYPE="claude-code"
 
 # Colors
@@ -69,7 +69,7 @@ show_banner() {
 ║      ██║   ██║  ██║██║██║ ╚████║██║   ██║   ██║  ██║███████║         ║
 ║      ╚═╝   ╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝╚═╝   ╚═╝   ╚═╝  ╚═╝╚══════╝         ║
 ║                                                                       ║
-║            Multi-Agent System Installer v2.4.12                       ║
+║            Multi-Agent System Installer v2.4.14                       ║
 ║            For Claude Code                                            ║
 ║                                                                       ║
 ╚═══════════════════════════════════════════════════════════════════════╝
