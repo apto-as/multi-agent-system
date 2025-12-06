@@ -151,10 +151,6 @@ class MemoryAccessControl:
         return result
 
 
-# RateLimiter removed - use the comprehensive implementation from rate_limiter.py instead:
-# from .rate_limiter import RateLimiter
-
-
 def create_agent_authenticator(secret_key: str | None = None) -> AgentAuthService:
     """Factory function to create AgentAuthService instance."""
     authenticator = AgentAuthService()

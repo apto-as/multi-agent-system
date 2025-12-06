@@ -764,12 +764,23 @@ class SystemTools(BaseTool):
             """
 
             async def _restart_services(_session, _services):
-                # This is a placeholder implementation
-                # In a real system, this would need proper service management
+                # PLACEHOLDER IMPLEMENTATION
+                # This simulates service restart functionality for testing purposes.
+                # In production, this would require:
+                # - Process management (systemd, supervisord, Docker API)
+                # - Health check endpoints for each service
+                # - Graceful shutdown and startup sequences
+                # - Lock mechanisms to prevent concurrent restarts
+                # - Rollback capability if restart fails
+                logger.warning(
+                    "Using placeholder service restart - not suitable for production. "
+                    "Real implementation requires process management integration."
+                )
 
                 restart_results = {
                     "restart_requested_at": datetime.utcnow().isoformat(),
                     "services": {},
+                    "implementation_status": "placeholder",
                 }
 
                 available_services = [

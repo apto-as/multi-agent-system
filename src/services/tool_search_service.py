@@ -409,9 +409,21 @@ class ToolSearchService:
 
         # Check skills (server_id = "tmws:skills")
         if server_id == "tmws:skills":
-            # Skills would be retrieved from SkillService if available
-            # For now, return None as skills are not yet implemented in this service
-            logger.warning(f"Skill lookup not yet implemented: {tool_name}")
+            # TODO: Implement SkillService integration
+            # Skills are TMWS's third core feature and should be searchable as tools.
+            #
+            # Implementation requires:
+            # 1. Inject SkillService in __init__
+            # 2. Call skill_service.get_skill(skill_id=tool_name, ...)
+            # 3. Transform SkillDTO to tool metadata format
+            # 4. Handle access control (skills have namespace permissions)
+            # 5. Apply 2.0x weight multiplier to skill search results
+            #
+            # For now, skills must be searched directly via /skills/search endpoint
+            logger.warning(
+                f"Skill lookup not yet implemented in ToolSearchService: {tool_name}. "
+                "Skills must be accessed via SkillService directly."
+            )
 
         logger.warning(f"Tool not found: {tool_name} from {server_id}")
         return None
