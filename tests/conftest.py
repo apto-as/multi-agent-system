@@ -23,7 +23,7 @@ os.environ["TMWS_DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 
 # Import after environment setup - environment variables must be set first
 # Import for dependency override (test authentication bypass)
-from src.api.dependencies import User, get_current_user  # noqa: E402
+from src.api.dependencies import get_current_user  # noqa: E402
 from src.core.config import get_settings  # noqa: E402
 from src.core.database import Base, get_db_session_dependency  # noqa: E402
 
@@ -169,16 +169,16 @@ async def authenticated_client(client, test_session):
 
     from src.models.user import User, UserRole, UserStatus
     from src.services.jwt_service import JWTService
-    from src.utils.security import hash_password_with_salt
+    from src.utils.security import hash_password
 
     # Create test user directly in test session
-    password_hash, password_salt = hash_password_with_salt("TestPassword123!")
+
+    password_hash = hash_password("TestPassword123!")
 
     user = User(
         username="testuser",
         email="test@example.com",
         password_hash=password_hash,
-        password_salt=password_salt,
         roles=[UserRole.USER],
         agent_namespace="default",
         password_changed_at=datetime.now(timezone.utc),
@@ -208,16 +208,15 @@ async def test_user(test_session, test_user_data):
     from datetime import datetime, timezone
 
     from src.models.user import User, UserStatus
-    from src.utils.security import hash_password_with_salt
+    from src.utils.security import hash_password
 
     # Create test user directly in test session
-    password_hash, password_salt = hash_password_with_salt(test_user_data["password"])
+    password_hash = hash_password(test_user_data["password"])
 
     user = User(
         username=test_user_data["username"],
         email=test_user_data["email"],
         password_hash=password_hash,
-        password_salt=password_salt,
         roles=test_user_data["roles"],
         agent_namespace="default",
         password_changed_at=datetime.now(timezone.utc),

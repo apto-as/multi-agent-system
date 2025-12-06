@@ -92,7 +92,6 @@ class AuthService:
             email=email,
             full_name=full_name,
             password_hash=password_hash,
-            password_salt=None,  # bcrypt embeds salt in hash
             roles=roles,
             agent_namespace=agent_namespace,
             password_changed_at=datetime.now(timezone.utc),
@@ -425,7 +424,6 @@ class AuthService:
 
             # Update password
             user.password_hash = password_hash
-            user.password_salt = None  # bcrypt embeds salt in hash
             user.password_changed_at = datetime.now(timezone.utc)
             user.force_password_change = False
 
@@ -450,7 +448,6 @@ class AuthService:
                 .where(User.id == user_id)
                 .values(
                     password_hash=password_hash,
-                    password_salt=None,  # bcrypt embeds salt in hash
                     password_changed_at=datetime.now(timezone.utc),
                     force_password_change=True,
                     failed_login_attempts=0,
