@@ -297,10 +297,11 @@ class ToolSearchService:
         import re
 
         # Security C-3 Fix: Validate agent_id at service layer
-        if agent_id:
-            if len(agent_id) > 64 or not re.match(r"^[a-zA-Z0-9_-]+$", agent_id):
-                logger.warning(f"Invalid agent_id rejected at service layer: {agent_id[:20]}")
-                agent_id = None  # Fallback to non-personalized search
+        if agent_id and (
+            len(agent_id) > 64 or not re.match(r"^[a-zA-Z0-9_-]+$", agent_id)
+        ):
+            logger.warning(f"Invalid agent_id rejected at service layer: {agent_id[:20]}")
+            agent_id = None  # Fallback to non-personalized search
 
         search_query = ToolSearchQuery(
             query=query, source=source, limit=limit, defer_loading=defer_loading

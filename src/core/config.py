@@ -5,6 +5,7 @@
 import logging
 import os
 import secrets
+from contextlib import suppress
 from functools import lru_cache
 from pathlib import Path
 
@@ -875,11 +876,9 @@ LOGS_DIR = PROJECT_ROOT / "logs"
 
 # Ensure critical directories exist (skip in Docker/production environments)
 # In Docker, directories are created by docker-compose volumes
-try:
+with suppress(PermissionError):
     LOGS_DIR.mkdir(exist_ok=True, mode=0o750)  # Secure directory permissions
-except PermissionError:
     # In Docker/production, directories are managed externally
-    pass
 
 # Global settings instance for application use
 settings = get_settings()

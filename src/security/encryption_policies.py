@@ -167,14 +167,14 @@ class CrossAgentAccessPolicy:
                 return (False, f"Invalid access_level: {access_level}")
 
         # If SHARED, must have shared_with_agents
-        if metadata.get("access_level") == AccessLevel.SHARED.value:
-            if "shared_with_agents" not in metadata or not isinstance(
-                metadata["shared_with_agents"], list
-            ):
-                return (
-                    False,
-                    "SHARED access level requires 'shared_with_agents' list",
-                )
+        if metadata.get("access_level") == AccessLevel.SHARED.value and (
+            "shared_with_agents" not in metadata
+            or not isinstance(metadata["shared_with_agents"], list)
+        ):
+            return (
+                False,
+                "SHARED access level requires 'shared_with_agents' list",
+            )
 
         return (True, None)
 

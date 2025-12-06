@@ -229,14 +229,14 @@ class SecureFileLoader:
                     return None
 
             # Security Check 3: Path traversal detection
-            if ".." in str(file_path) or "~" in str(file_path):
-                # Re-check after resolution
-                if not any(resolved.startswith(root) for root in self.allowed_roots):
-                    print(
-                        f"Security: Potential path traversal attempt: {file_path}",
-                        file=sys.stderr,
-                    )
-                    return None
+            if (
+                ".." in str(file_path) or "~" in str(file_path)
+            ) and not any(resolved.startswith(root) for root in self.allowed_roots):
+                print(
+                    f"Security: Potential path traversal attempt: {file_path}",
+                    file=sys.stderr,
+                )
+                return None
 
             return resolved
 

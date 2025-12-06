@@ -369,7 +369,7 @@ class AdaptiveRanker:
     async def get_recommendations(
         self,
         agent_id: str,
-        category: str | None = None,
+        category: str | None = None,  # noqa: ARG002 - Reserved for category filtering
         limit: int = 5,
     ) -> list[ToolRecommendation]:
         """Get proactive tool recommendations for an agent.
@@ -617,9 +617,12 @@ class AdaptiveRanker:
 
                 # Track last used
                 created_at = lp.get("created_at")
-                if created_at and isinstance(created_at, datetime):
-                    if not pattern.last_used or created_at > pattern.last_used:
-                        pattern.last_used = created_at
+                if (
+                    created_at
+                    and isinstance(created_at, datetime)
+                    and (not pattern.last_used or created_at > pattern.last_used)
+                ):
+                    pattern.last_used = created_at
 
         except Exception as e:
             logger.warning(f"Failed to load patterns from LearningService: {e}")

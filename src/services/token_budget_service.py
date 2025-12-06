@@ -90,7 +90,10 @@ class TokenBudgetService:
         self.license_service = license_service
         self.db_session = db_session
 
-    def _get_window_key(self, agent_id: UUID) -> tuple[str, datetime, datetime]:
+    def _get_window_key(
+        self,
+        agent_id: UUID,  # noqa: ARG002 - Reserved for per-agent window tracking
+    ) -> tuple[str, datetime, datetime]:
         """
         Generate window_hour key for current hourly window.
 
