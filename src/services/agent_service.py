@@ -13,11 +13,12 @@ from ..core.exceptions import DatabaseError, NotFoundError, ValidationError
 from ..models.agent import Agent, AgentNamespace, AgentTeam
 from ..models.memory import Memory
 from ..models.task import Task
+from .base_service import BaseService
 
 logger = logging.getLogger(__name__)
 
 
-class AgentService:
+class AgentService(BaseService):
     """Universal agent management service.
 
     Provides comprehensive agent lifecycle management, namespace organization,
@@ -25,7 +26,7 @@ class AgentService:
     """
 
     def __init__(self, session: AsyncSession):
-        self.session = session
+        super().__init__(session)
 
     # Agent CRUD Operations
 
