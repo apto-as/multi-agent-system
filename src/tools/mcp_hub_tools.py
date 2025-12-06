@@ -51,7 +51,11 @@ async def register_tools(mcp: FastMCP, **kwargs: Any) -> None:
 
     @mcp.tool(
         name="list_mcp_servers",
-        description="List all available MCP servers and their connection status. Shows server ID, name, transport type, auto-connect setting, connection status, and tool count.",
+        description=(
+            "List all available MCP servers and their connection status. "
+            "Shows server ID, name, transport type, auto-connect setting, "
+            "connection status, and tool count."
+        ),
     )
     async def list_mcp_servers() -> dict[str, Any]:
         """List all available and connected MCP servers.
@@ -93,7 +97,11 @@ async def register_tools(mcp: FastMCP, **kwargs: Any) -> None:
 
     @mcp.tool(
         name="connect_mcp_server",
-        description="Connect to an MCP server by its preset ID. Maximum 10 concurrent connections allowed. Automatically indexes the server's tools for search.",
+        description=(
+            "Connect to an MCP server by its preset ID. "
+            "Maximum 10 concurrent connections allowed. "
+            "Automatically indexes the server's tools for search."
+        ),
     )
     async def connect_mcp_server(server_id: str) -> dict[str, Any]:
         """Connect to an MCP server by ID.
@@ -128,7 +136,10 @@ async def register_tools(mcp: FastMCP, **kwargs: Any) -> None:
 
     @mcp.tool(
         name="disconnect_mcp_server",
-        description="Disconnect from a connected MCP server. The server's tools will no longer be available until reconnected.",
+        description=(
+            "Disconnect from a connected MCP server. "
+            "The server's tools will no longer be available until reconnected."
+        ),
     )
     async def disconnect_mcp_server(server_id: str) -> dict[str, Any]:
         """Disconnect from an MCP server.
@@ -158,7 +169,10 @@ async def register_tools(mcp: FastMCP, **kwargs: Any) -> None:
 
     @mcp.tool(
         name="get_mcp_hub_status",
-        description="Get the overall status of the MCP Hub, including connection limits, active connections, and indexed tools count.",
+        description=(
+            "Get the overall status of the MCP Hub, including connection limits, "
+            "active connections, and indexed tools count."
+        ),
     )
     async def get_mcp_hub_status() -> dict[str, Any]:
         """Get MCP Hub status.
@@ -193,7 +207,11 @@ async def register_tools(mcp: FastMCP, **kwargs: Any) -> None:
 
     @mcp.tool(
         name="call_mcp_tool",
-        description="Execute a tool on a connected MCP server. Validates inputs, enforces 30s timeout, and limits response to 10MB. Use search_tools to find available tools first.",
+        description=(
+            "Execute a tool on a connected MCP server. "
+            "Validates inputs, enforces 30s timeout, and limits response to 10MB. "
+            "Use search_tools to find available tools first."
+        ),
     )
     async def call_mcp_tool(
         server_id: str,

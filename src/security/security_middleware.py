@@ -146,7 +146,8 @@ class UnifiedSecurityMiddleware(BaseHTTPMiddleware):
             except Exception as e:
                 # JWT extraction failure - continue with IP-based limits only
                 logger.warning(
-                    f"⚠️  Failed to extract JWT user info (using IP-based limits): {type(e).__name__}: {str(e)}",
+                    f"⚠️  Failed to extract JWT user info (using IP-based limits): "
+                    f"{type(e).__name__}: {str(e)}",
                     exc_info=False,  # Expected for invalid/expired tokens
                     extra={"client_ip": client_ip, "has_auth_header": True},
                 )
@@ -170,7 +171,8 @@ class UnifiedSecurityMiddleware(BaseHTTPMiddleware):
             except Exception as e:
                 # API key validation failure - continue with IP-based limits only
                 logger.warning(
-                    f"⚠️  Failed to validate API key (using IP-based limits): {type(e).__name__}: {str(e)}",
+                    f"⚠️  Failed to validate API key (using IP-based limits): "
+                    f"{type(e).__name__}: {str(e)}",
                     exc_info=False,  # Expected for invalid keys
                     extra={
                         "client_ip": client_ip,

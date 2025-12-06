@@ -44,7 +44,8 @@ class CommunicationTools(BaseTool):
                 from_agent: Sending agent ID (e.g., "athena-conductor")
                 to_agents: List of recipient agent IDs
                 content: Message content
-                message_type: Type of message (direct, broadcast, delegation, response, status, handoff)
+                message_type: Type of message (direct, broadcast, delegation,
+                    response, status, handoff)
                 priority: Priority level (low, medium, high, urgent, critical)
                 metadata: Additional message metadata
                 requires_response: Whether recipients must respond

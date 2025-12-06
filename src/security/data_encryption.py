@@ -243,7 +243,8 @@ class FieldEncryption:
         Args:
             encrypted_field: Result from encrypt_field()
             requesting_agent: Agent requesting decryption
-            requesting_namespace: Requesting agent's verified namespace (MUST be from DB, never from JWT)
+            requesting_namespace: Requesting agent's verified namespace
+                (MUST be from DB, never from JWT)
 
         Returns:
             Decrypted data in original format
@@ -284,7 +285,8 @@ class FieldEncryption:
 
         if not is_allowed:
             logger.warning(
-                f"Access denied for agent {requesting_agent} (namespace: {requesting_namespace}): {reason}",
+                f"Access denied for agent {requesting_agent} "
+                f"(namespace: {requesting_namespace}): {reason}",
                 extra={
                     "owner_agent": metadata["agent_id"],
                     "owner_namespace": owner_namespace,

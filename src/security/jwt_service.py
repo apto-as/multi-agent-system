@@ -201,8 +201,12 @@ class JWTService:
             return None
         except InvalidTokenError as e:
             # Invalid token format or signature - POSSIBLE ATTACK
+            client_suffix = f" from {client_ip}" if client_ip else ""
             logger.error(
-                f"🚨 Invalid JWT token detected{f' from {client_ip}' if client_ip else ''} (possible attack): {type(e).__name__}",
+                (
+                    f"🚨 Invalid JWT token detected{client_suffix} "
+                    f"(possible attack): {type(e).__name__}"
+                ),
                 exc_info=False,  # Don't spam with full traces for expected invalid tokens
                 extra={
                     "client_ip": client_ip or "unknown",
@@ -266,7 +270,10 @@ class JWTService:
             raise
         except Exception as e:
             logger.critical(
-                f"❌ CRITICAL: Unexpected refresh token verification error: {type(e).__name__}: {str(e)}",
+                (
+                    f"❌ CRITICAL: Unexpected refresh token verification error: "
+                    f"{type(e).__name__}: {str(e)}"
+                ),
                 exc_info=True,
                 extra={"client_ip": client_ip or "unknown", "error_type": "unexpected"},
             )
@@ -292,8 +299,12 @@ class JWTService:
             raise
         except Exception as e:
             # Hash verification failure could indicate attack or corrupted hash
+            client_suffix = f" from {client_ip}" if client_ip else ""
             logger.error(
-                f"❌ Refresh token hash verification failed{f' from {client_ip}' if client_ip else ''}: {type(e).__name__}: {str(e)}",
+                (
+                    f"❌ Refresh token hash verification failed{client_suffix}: "
+                    f"{type(e).__name__}: {str(e)}"
+                ),
                 exc_info=True,
                 extra={
                     "client_ip": client_ip or "unknown",

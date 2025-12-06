@@ -345,7 +345,10 @@ class MCPRateLimiter:
         effective_limit = limit.requests + limit.burst
 
         logger.debug(
-            f"MCP rate limit check: {tool_name} for {context.agent_id}: {current_count}/{effective_limit}",
+            (
+                f"MCP rate limit check: {tool_name} for {context.agent_id}: "
+                f"{current_count}/{effective_limit}"
+            ),
             extra={
                 "tool_name": tool_name,
                 "agent_id": context.agent_id,
@@ -386,14 +389,18 @@ class MCPRateLimiter:
             - Provide clear error message with retry guidance
         """
         # Security audit log
+        total_limit = limit.requests + limit.burst
         logger.warning(
-            f"MCP rate limit exceeded: tool={tool_name}, agent={context.agent_id}, count={current_count}/{limit.requests + limit.burst}",
+            (
+                f"MCP rate limit exceeded: tool={tool_name}, agent={context.agent_id}, "
+                f"count={current_count}/{total_limit}"
+            ),
             extra={
                 "tool_name": tool_name,
                 "agent_id": context.agent_id,
                 "namespace": context.namespace,
                 "current_count": current_count,
-                "limit": limit.requests + limit.burst,
+                "limit": total_limit,
                 "period": limit.period,
                 "block_duration": limit.block_duration,
                 "event_type": "mcp_rate_limit_exceeded",
@@ -404,13 +411,17 @@ class MCPRateLimiter:
         retry_after = limit.block_duration
 
         # Raise authorization error
+        total_limit_val = limit.requests + limit.burst
         raise MCPAuthorizationError(
-            f"Rate limit exceeded for {tool_name}: {current_count}/{limit.requests + limit.burst} requests in {limit.period}s. Retry after {retry_after}s.",
+            (
+                f"Rate limit exceeded for {tool_name}: {current_count}/{total_limit_val} "
+                f"requests in {limit.period}s. Retry after {retry_after}s."
+            ),
             details={
                 "tool_name": tool_name,
                 "agent_id": context.agent_id,
                 "current_count": current_count,
-                "limit": limit.requests + limit.burst,
+                "limit": total_limit_val,
                 "period": limit.period,
                 "retry_after": retry_after,
             },

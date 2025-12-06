@@ -301,7 +301,8 @@ class LearningService:
             # Access control filter
             if requesting_agent_id:
                 # SQLite-compatible access filter (v2.2.6+)
-                # For shared access, check if requesting_agent_id is in shared_with_agents JSON array
+                # For shared access, check if requesting_agent_id is in
+                # shared_with_agents JSON array
                 access_filter = or_(
                     LearningPattern.access_level == "public",
                     LearningPattern.access_level == "system",
@@ -313,12 +314,17 @@ class LearningService:
                         LearningPattern.access_level == "shared",
                         or_(
                             LearningPattern.agent_id == requesting_agent_id,
-                            # SQLite JSON array containment check (Parameterized - SQL Injection Safe)
-                            # SECURITY FIX (2025-11-08): Use bindparams() to prevent SQL injection (CVSS 9.8)
-                            # Previous vulnerable code: f"WHERE value = '{requesting_agent_id}'"
-                            # Attack vector: requesting_agent_id = "'; DROP TABLE learning_patterns; --"
+                            # SQLite JSON array containment check
+                            # (Parameterized - SQL Injection Safe)
+                            # SECURITY FIX (2025-11-08): Use bindparams()
+                            # to prevent SQL injection (CVSS 9.8)
+                            # Previous vulnerable code:
+                            # f"WHERE value = '{requesting_agent_id}'"
+                            # Attack vector: requesting_agent_id =
+                            # "'; DROP TABLE learning_patterns; --"
                             text(
-                                "EXISTS (SELECT 1 FROM json_each(learning_patterns.shared_with_agents) "
+                                "EXISTS (SELECT 1 FROM "
+                                "json_each(learning_patterns.shared_with_agents) "
                                 "WHERE value = :requesting_agent_id)"
                             ).bindparams(requesting_agent_id=requesting_agent_id),
                         ),
@@ -711,12 +717,17 @@ class LearningService:
                         LearningPattern.access_level == "system",
                         and_(
                             LearningPattern.access_level == "shared",
-                            # SQLite JSON array containment check (Parameterized - SQL Injection Safe)
-                            # SECURITY FIX (2025-11-08): Use bindparams() to prevent SQL injection (CVSS 9.8)
-                            # Previous vulnerable code: f"WHERE value = '{agent_id}'"
-                            # Attack vector: agent_id = "'; DROP TABLE learning_patterns; --"
+                            # SQLite JSON array containment check
+                            # (Parameterized - SQL Injection Safe)
+                            # SECURITY FIX (2025-11-08): Use bindparams()
+                            # to prevent SQL injection (CVSS 9.8)
+                            # Previous vulnerable code:
+                            # f"WHERE value = '{agent_id}'"
+                            # Attack vector: agent_id =
+                            # "'; DROP TABLE learning_patterns; --"
                             text(
-                                "EXISTS (SELECT 1 FROM json_each(learning_patterns.shared_with_agents) "
+                                "EXISTS (SELECT 1 FROM "
+                                "json_each(learning_patterns.shared_with_agents) "
                                 "WHERE value = :agent_id)"
                             ).bindparams(agent_id=agent_id),
                         ),
@@ -801,8 +812,9 @@ class LearningService:
                     created_patterns.append(pattern)
 
                 except Exception as e:
+                    pattern_name = pattern_data.get('pattern_name', 'unknown')
                     logger.error(
-                        f"Failed to create pattern {pattern_data.get('pattern_name', 'unknown')}: {e}",
+                        f"Failed to create pattern {pattern_name}: {e}",
                     )
                     continue
 

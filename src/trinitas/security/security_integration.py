@@ -384,7 +384,8 @@ class TrinitasSecurityIntegration:
                 return tool_function(*args, **kwargs)
             except (FileNotFoundError, PermissionError) as e:
                 security_logger.exception(
-                    f"ツール実行エラー (ファイルアクセス): {self._current_persona} -> {tool_name}: {e}"
+                    f"ツール実行エラー (ファイルアクセス): "
+                    f"{self._current_persona} -> {tool_name}: {e}"
                 )
                 raise
             except OSError as e:

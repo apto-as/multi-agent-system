@@ -399,7 +399,8 @@ class MCPAuthService:
 
         # Audit log successful authentication
         logger.info(
-            f"✅ MCP authentication successful: agent={agent_id}, tool={tool_name}, method={auth_method}",
+            f"✅ MCP authentication successful: agent={agent_id}, "
+            f"tool={tool_name}, method={auth_method}",
             extra={
                 "agent_id": agent_id,
                 "namespace": agent.namespace,
@@ -603,7 +604,8 @@ class MCPAuthService:
         # Check if agent role is in required roles
         if context.role not in required_roles:
             logger.warning(
-                f"🚨 Authorization denied: Role {context.role.value} not allowed for {operation.value}",
+                f"🚨 Authorization denied: Role {context.role.value} "
+                f"not allowed for {operation.value}",
                 extra={
                     "agent_id": context.agent_id,
                     "role": context.role.value,

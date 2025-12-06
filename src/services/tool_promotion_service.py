@@ -445,7 +445,8 @@ class ToolPromotionService:
 
         if pattern.average_latency_ms > self.criteria.max_average_latency_ms:
             missing_criteria.append(
-                f"latency ({pattern.average_latency_ms:.0f}ms > {self.criteria.max_average_latency_ms:.0f}ms)"
+                f"latency ({pattern.average_latency_ms:.0f}ms > "
+                f"{self.criteria.max_average_latency_ms:.0f}ms)"
             )
 
         # Calculate days active (from last_used)

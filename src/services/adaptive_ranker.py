@@ -58,7 +58,10 @@ def validate_agent_id(agent_id: str) -> str:
         raise ValueError(f"agent_id exceeds maximum length of {MAX_AGENT_ID_LENGTH}")
 
     if not VALID_ID_PATTERN.match(agent_id):
-        raise ValueError("agent_id contains invalid characters (allowed: alphanumeric, dash, underscore)")
+        raise ValueError(
+            "agent_id contains invalid characters "
+            "(allowed: alphanumeric, dash, underscore)"
+        )
 
     return agent_id
 
@@ -404,7 +407,10 @@ class AdaptiveRanker:
                     tool_name=pattern.tool_name,
                     server_id=pattern.server_id,
                     confidence=score,
-                    reason=f"Used {pattern.usage_count} times with {pattern.success_rate:.0%} success rate",
+                    reason=(
+                        f"Used {pattern.usage_count} times "
+                        f"with {pattern.success_rate:.0%} success rate"
+                    ),
                     based_on_patterns=pattern.usage_count,
                 )
             )

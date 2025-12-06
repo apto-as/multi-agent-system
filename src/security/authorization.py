@@ -549,7 +549,11 @@ class AuthorizationService:
             logger.error(
                 f"Authorization error during memory access check: {type(e).__name__}",
                 extra={
-                    "resource_id": str(context.resource_id) if hasattr(context, 'resource_id') else None,
+                    "resource_id": (
+                        str(context.resource_id)
+                        if hasattr(context, "resource_id")
+                        else None
+                    ),
                     "agent_id": agent_id if 'agent_id' in dir() else None,
                     "error_type": type(e).__name__,
                 },

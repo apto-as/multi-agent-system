@@ -53,7 +53,8 @@ class EmailNotifier:
         if not all(required_settings):
             logger.warning(
                 "Email alerts disabled - missing SMTP configuration. "
-                "Set TMWS_SMTP_HOST, TMWS_SMTP_PORT, TMWS_ALERT_EMAIL_FROM, TMWS_ALERT_EMAIL_TO in environment."
+                "Set TMWS_SMTP_HOST, TMWS_SMTP_PORT, TMWS_ALERT_EMAIL_FROM, "
+                "TMWS_ALERT_EMAIL_TO in environment."
             )
             return False
 

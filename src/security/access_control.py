@@ -529,7 +529,8 @@ class AccessControlManager:
         # Log security events for denied access
         if decision == AccessDecision.DENY:
             logger.warning(
-                f"Access denied: {context.requesting_agent} -> {context.action.value} on {context.resource_type.value}:{context.target_resource}",
+                f"Access denied: {context.requesting_agent} -> {context.action.value} "
+                f"on {context.resource_type.value}:{context.target_resource}",
             )
 
     async def _setup_monitoring(self, context: AccessContext):
@@ -578,7 +579,10 @@ class AccessControlManager:
                     event_type="repeated_access_denial",
                     event_data={
                         "severity": "HIGH",
-                        "message": f"Agent {context.requesting_agent} had {len(recent_denials)} access denials in 10 minutes",
+                        "message": (
+                            f"Agent {context.requesting_agent} had "
+                            f"{len(recent_denials)} access denials in 10 minutes"
+                        ),
                         "blocked": True,
                         "denial_count": len(recent_denials),
                         "resource_type": context.resource_type.value,

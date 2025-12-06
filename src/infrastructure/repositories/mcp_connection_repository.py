@@ -289,7 +289,8 @@ class SQLAlchemyMCPConnectionRepository(MCPConnectionRepositoryInterface):
             agent_id: Agent requesting deletion (must be owner)
 
         Raises:
-            AggregateNotFoundError: If connection not found, in different namespace, or not owned by agent
+            AggregateNotFoundError: If connection not found, in different
+                namespace, or not owned by agent
             RepositoryError: If deletion fails
 
         Example:

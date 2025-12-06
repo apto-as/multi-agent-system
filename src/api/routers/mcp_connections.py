@@ -290,8 +290,18 @@ async def get_tools_summary(
         {
             "total_count": 45,
             "frequently_used": [
-                {"server": "filesystem", "tool": "read_file", "description": "...", "usage_count": 0},
-                {"server": "github", "tool": "search_repos", "description": "...", "usage_count": 0}
+                {
+                    "server": "filesystem",
+                    "tool": "read_file",
+                    "description": "...",
+                    "usage_count": 0
+                },
+                {
+                    "server": "github",
+                    "tool": "search_repos",
+                    "description": "...",
+                    "usage_count": 0
+                }
             ],
             "servers": ["filesystem", "github", "postgres"],
             "token_estimate": 450,
