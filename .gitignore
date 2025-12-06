@@ -108,7 +108,7 @@ archives/
 ssl/
 
 # MCP Server cache
-.serena/cache/
+.serena/
 
 # TMWS Consolidated Directory (Phase 2E-3: FORTRESS CONSOLIDATION)
 # Track directory structure but exclude sensitive data
