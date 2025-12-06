@@ -13,15 +13,16 @@ from sqlalchemy.orm import selectinload
 
 from ..core.exceptions import NotFoundError, ValidationError
 from ..models import Memory, Persona
+from .base_service import BaseService
 
 logger = logging.getLogger(__name__)
 
 
-class PersonaService:
+class PersonaService(BaseService):
     """Service for managing Trinitas personas."""
 
     def __init__(self, session: AsyncSession):
-        self.session = session
+        super().__init__(session)
 
     async def create_persona(
         self,
@@ -37,7 +38,8 @@ class PersonaService:
         if existing:
             raise ValidationError(f"Persona with name '{name}' already exists")
 
-        persona = Persona(
+        persona = await self.create_record(
+            Persona,
             name=name,
             description=description,
             capabilities=capabilities,
@@ -46,10 +48,7 @@ class PersonaService:
             is_active=True,
         )
 
-        self.session.add(persona)
-        await self.session.commit()
-        await self.session.refresh(persona)
-
+        await self.commit()
         logger.info(f"Created persona {persona.id}: {name}")
         return persona
 
@@ -71,7 +70,7 @@ class PersonaService:
         if not persona:
             raise NotFoundError(f"Persona {persona_id} not found")
 
-        # Update allowed fields
+        # Update allowed fields only
         allowed_fields = [
             "description",
             "capabilities",
@@ -80,13 +79,11 @@ class PersonaService:
             "is_active",
         ]
 
-        for key, value in updates.items():
-            if key in allowed_fields:
-                setattr(persona, key, value)
+        filtered_updates = {k: v for k, v in updates.items() if k in allowed_fields}
+        filtered_updates["updated_at"] = datetime.utcnow()
 
-        persona.updated_at = datetime.utcnow()
-        await self.session.commit()
-        await self.session.refresh(persona)
+        persona = await self.update_record(persona, **filtered_updates)
+        await self.commit()
 
         logger.info(f"Updated persona {persona_id}")
         return persona
@@ -97,9 +94,12 @@ class PersonaService:
         if not persona:
             raise NotFoundError(f"Persona {persona_id} not found")
 
-        persona.is_active = False
-        persona.updated_at = datetime.utcnow()
-        await self.session.commit()
+        await self.update_record(
+            persona,
+            is_active=False,
+            updated_at=datetime.utcnow(),
+        )
+        await self.commit()
 
         logger.info(f"Deactivated persona {persona_id}")
         return True
@@ -147,15 +147,9 @@ class PersonaService:
 
     async def count_personas(self, active_only: bool = True) -> int:
         """Count personas."""
-        stmt = select(func.count(Persona.id))
-
         if active_only:
-            stmt = stmt.where(Persona.is_active)
-
-        result = await self.session.execute(stmt)
-        count = result.scalar()
-
-        return count or 0
+            return await self.count_records(Persona, is_active=True)
+        return await self.count_records(Persona)
 
     async def get_persona_stats(self, persona_id: UUID) -> dict[str, Any]:
         """Get statistics for a specific persona."""
@@ -195,10 +189,12 @@ class PersonaService:
         if not persona:
             raise NotFoundError(f"Persona {persona_id} not found")
 
-        persona.is_active = True
-        persona.updated_at = datetime.utcnow()
-        await self.session.commit()
-        await self.session.refresh(persona)
+        persona = await self.update_record(
+            persona,
+            is_active=True,
+            updated_at=datetime.utcnow(),
+        )
+        await self.commit()
 
         logger.info(f"Activated persona {persona_id}")
         return persona
@@ -209,10 +205,12 @@ class PersonaService:
         if not persona:
             raise NotFoundError(f"Persona {persona_id} not found")
 
-        persona.is_active = False
-        persona.updated_at = datetime.utcnow()
-        await self.session.commit()
-        await self.session.refresh(persona)
+        persona = await self.update_record(
+            persona,
+            is_active=False,
+            updated_at=datetime.utcnow(),
+        )
+        await self.commit()
 
         logger.info(f"Deactivated persona {persona_id}")
         return persona
