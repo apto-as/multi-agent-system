@@ -1,0 +1,74 @@
+{
+  "benchmark_date": "2025-10-13 14:02:05",
+  "recommendation": {
+    "recommended_model": "all-minilm",
+    "score": 80,
+    "reasons": [
+      "\u2705 384-dim (Chroma compatible)",
+      "\u2705 Excellent latency (<50ms P95)",
+      "\u26a0\ufe0f Moderate throughput (>50 req/s)",
+      "\u2705 High semantic accuracy"
+    ],
+    "all_scores": {
+      "nomic-embed-text": 40,
+      "mxbai-embed-large": 40,
+      "all-minilm": 80
+    }
+  },
+  "detailed_metrics": [
+    {
+      "model_name": "nomic-embed-text",
+      "dimension": 768,
+      "avg_latency_ms": 22.06364755053073,
+      "p50_latency_ms": 21.279083099216223,
+      "p95_latency_ms": 30.11824982240796,
+      "p99_latency_ms": 37.55900030955672,
+      "throughput_req_per_sec": 49.291181349162,
+      "memory_footprint_mb": 0.0,
+      "semantic_accuracy_score": 0.8514220405304859,
+      "multilingual_score": 1.0,
+      "cross_lingual_similarity": 0.4801966259623708,
+      "windows_compatible": true,
+      "api_batch_support": false,
+      "supports_384_dim": false,
+      "chroma_compatible": false,
+      "model_size_mb": 0.0
+    },
+    {
+      "model_name": "mxbai-embed-large",
+      "dimension": 1024,
+      "avg_latency_ms": 23.044217093847692,
+      "p50_latency_ms": 22.2057499922812,
+      "p95_latency_ms": 33.92024990171194,
+      "p99_latency_ms": 37.470999639481306,
+      "throughput_req_per_sec": 41.559375038705184,
+      "memory_footprint_mb": 0.0,
+      "semantic_accuracy_score": 0.7374044906134282,
+      "multilingual_score": 1.0,
+      "cross_lingual_similarity": 0.5456450190170605,
+      "windows_compatible": true,
+      "api_batch_support": false,
+      "supports_384_dim": false,
+      "chroma_compatible": false,
+      "model_size_mb": 0.0
+    },
+    {
+      "model_name": "all-minilm",
+      "dimension": 384,
+      "avg_latency_ms": 16.325413258746266,
+      "p50_latency_ms": 16.184292268007994,
+      "p95_latency_ms": 21.144999656826258,
+      "p99_latency_ms": 23.943124804645777,
+      "throughput_req_per_sec": 59.65415610280843,
+      "memory_footprint_mb": 0.0,
+      "semantic_accuracy_score": 0.9175966492258892,
+      "multilingual_score": 1.0,
+      "cross_lingual_similarity": 0.17756519655289907,
+      "windows_compatible": true,
+      "api_batch_support": false,
+      "supports_384_dim": true,
+      "chroma_compatible": true,
+      "model_size_mb": 0.0
+    }
+  ]
+}
