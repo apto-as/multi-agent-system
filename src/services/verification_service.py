@@ -30,6 +30,7 @@ from src.core.exceptions import (
 from src.models.agent import Agent
 from src.models.memory import Memory
 from src.models.verification import VerificationRecord
+from src.services.base_service import BaseService
 from src.services.learning_trust_integration import LearningTrustIntegration
 from src.services.memory_service import HybridMemoryService
 from src.services.trust_service import TrustService
@@ -105,7 +106,7 @@ class VerificationResult:
         }
 
 
-class VerificationService:
+class VerificationService(BaseService):
     """Service for claim verification and evidence recording"""
 
     def __init__(
@@ -123,7 +124,7 @@ class VerificationService:
             trust_service: Trust service for score updates
             learning_trust_integration: Learning-Trust integration service (Phase 2A)
         """
-        self.session = session
+        super().__init__(session)
         self.memory_service = memory_service or HybridMemoryService(session)
         self.trust_service = trust_service or TrustService(session)
         self.learning_trust_integration = learning_trust_integration or LearningTrustIntegration(
