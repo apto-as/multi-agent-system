@@ -32,6 +32,14 @@ class ToolSourceType(str, Enum):
     EXTERNAL = "external"
 
 
+class SearchMode(str, Enum):
+    """Search mode for tool discovery."""
+
+    SEMANTIC = "semantic"  # Default: vector-based semantic search
+    REGEX = "regex"  # Pattern matching on tool names/descriptions
+    HYBRID = "hybrid"  # Combine both approaches
+
+
 class MCPTransportType(str, Enum):
     """Transport type for MCP connections."""
 
@@ -72,6 +80,36 @@ class ToolSearchResult:
             ToolSourceType.EXTERNAL: 1.0,
         }
         return self.relevance_score * weights.get(self.source_type, 1.0)
+
+
+@dataclass
+class ToolReference:
+    """Lightweight tool reference for deferred loading.
+
+    Used when defer_loading=True to minimize context tokens.
+    Contains only metadata needed for tool selection.
+    Full definition retrieved via get_tool_details().
+    """
+    tool_name: str
+    server_id: str
+    description: str
+    relevance_score: float
+    weighted_score: float
+    source_type: ToolSourceType
+    tags: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "tool_name": self.tool_name,
+            "server_id": self.server_id,
+            "description": self.description,
+            "relevance_score": self.relevance_score,
+            "weighted_score": self.weighted_score,
+            "source_type": self.source_type.value,
+            "tags": self.tags,
+            "deferred": True,
+        }
 
 
 @dataclass
@@ -176,11 +214,13 @@ class ToolSearchQuery:
 
     query: str
     source: str = "all"  # "all" | "skills" | "mcp_servers" | "registry"
-    limit: int = 10
+    limit: int = 5
     min_score: float = 0.3
     tags: list[str] = field(default_factory=list)
     namespace: str | None = None
     include_disconnected: bool = False
+    search_mode: SearchMode = SearchMode.SEMANTIC
+    defer_loading: bool = False
 
 
 @dataclass

@@ -21,9 +21,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Any
-from uuid import UUID
 
-from ..models.tool_search import ToolSearchResult, ToolSourceType
+from ..models.tool_search import ToolSearchResult
 
 # Security constants
 MAX_AGENT_ID_LENGTH = 64

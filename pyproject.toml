@@ -1,6 +1,6 @@
 [project]
 name = "tmws"
-version = "2.4.14"
+version = "2.4.17"
 description = "Trinitas Memory & Workflow Service - Multi-agent AI coordination with SQLite + Chroma architecture + Trinitas Agents"
 authors = [
     {name = "Trinitas Development Team", email = "dev@trinitas.ai"}
