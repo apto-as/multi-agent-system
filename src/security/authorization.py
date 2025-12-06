@@ -2,6 +2,7 @@
 Implements fine-grained access control with high performance.
 """
 
+import logging
 from dataclasses import dataclass
 from enum import Enum
 from functools import wraps
@@ -15,6 +16,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..models.agent import AccessLevel, Agent
 from ..models.memory import Memory
 from ..models.user import APIKeyScope, User, UserRole
+
+logger = logging.getLogger(__name__)
 
 
 class Resource(str, Enum):

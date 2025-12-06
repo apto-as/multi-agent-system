@@ -10,6 +10,8 @@ Security Note:
 
 # ruff: noqa: ARG001
 
+import logging
+
 from fastapi import Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -21,6 +23,8 @@ from src.application.exceptions import (
     ValidationError,
 )
 from src.domain.exceptions import AggregateNotFoundError, DomainException
+
+logger = logging.getLogger(__name__)
 
 
 async def pydantic_validation_error_handler(

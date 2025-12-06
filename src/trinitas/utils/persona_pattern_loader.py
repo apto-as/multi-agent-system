@@ -129,7 +129,7 @@ class PersonaPatternLoader:
 
         logger.info(f"Loaded {len(self._patterns)} persona patterns")
 
-    @lru_cache(maxsize=128)
+    @lru_cache(maxsize=128)  # noqa: B019 - singleton pattern, leak risk acceptable
     def detect_persona(self, text: str) -> str | None:
         """Detect persona from text using pattern matching.
 
