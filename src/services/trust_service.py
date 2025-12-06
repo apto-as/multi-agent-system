@@ -19,6 +19,7 @@ from src.core.exceptions import (
 )
 from src.models.agent import Agent
 from src.models.verification import TrustScoreHistory
+from src.services.base_service import BaseService
 
 
 class TrustScoreCalculator:
@@ -82,7 +83,7 @@ class TrustScoreCalculator:
         return total_verifications >= self.min_observations
 
 
-class TrustService:
+class TrustService(BaseService):
     """Service for managing agent trust scores"""
 
     def __init__(self, session: AsyncSession, calculator: TrustScoreCalculator | None = None):
@@ -92,7 +93,7 @@ class TrustService:
             session: Database session
             calculator: Trust score calculator (uses default if None)
         """
-        self.session = session
+        super().__init__(session)
         self.calculator = calculator or TrustScoreCalculator()
 
     async def update_trust_score(
