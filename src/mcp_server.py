@@ -1310,10 +1310,6 @@ def first_run_setup():
 
     Creates necessary directories, initializes database schema, and displays setup information.
     """
-    import asyncio
-    import logging
-    import sys
-
     # Configure logging to stderr early to keep stdout clean for MCP STDIO protocol
     logging.basicConfig(
         level=logging.INFO,

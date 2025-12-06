@@ -3,6 +3,7 @@ Handles system status, optimization, and administrative functions
 """
 
 import asyncio
+import logging
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -11,6 +12,8 @@ from fastmcp import FastMCP
 from pydantic import BaseModel, Field
 
 from .base_tool import BaseTool
+
+logger = logging.getLogger(__name__)
 
 
 class SystemOptimizationRequest(BaseModel):
@@ -83,9 +86,6 @@ class SystemTools(BaseTool):
                 except (KeyboardInterrupt, SystemExit):
                     raise
                 except Exception as e:
-                    import logging
-
-                    logger = logging.getLogger(__name__)
                     logger.warning(
                         f"Database connection test failed: {type(e).__name__}: {str(e)}",
                         exc_info=True,
@@ -181,9 +181,6 @@ class SystemTools(BaseTool):
                 except (KeyboardInterrupt, SystemExit):
                     raise
                 except Exception as e:
-                    import logging
-
-                    logger = logging.getLogger(__name__)
                     logger.error(
                         f"Database health check failed: {type(e).__name__}",
                         exc_info=True,
@@ -208,9 +205,6 @@ class SystemTools(BaseTool):
                 except (KeyboardInterrupt, SystemExit):
                     raise
                 except Exception as e:
-                    import logging
-
-                    logger = logging.getLogger(__name__)
                     logger.error(
                         f"Memory service health check failed: {type(e).__name__}",
                         exc_info=True,
@@ -234,9 +228,6 @@ class SystemTools(BaseTool):
                 except (KeyboardInterrupt, SystemExit):
                     raise
                 except Exception as e:
-                    import logging
-
-                    logger = logging.getLogger(__name__)
                     logger.warning(
                         f"Vectorization service health check failed: {type(e).__name__}",
                         exc_info=True,
@@ -284,9 +275,6 @@ class SystemTools(BaseTool):
                     except (KeyboardInterrupt, SystemExit):
                         raise
                     except Exception as e:
-                        import logging
-
-                        logger = logging.getLogger(__name__)
                         logger.warning(
                             f"Performance test failed: {type(e).__name__}",
                             exc_info=True,
@@ -382,9 +370,6 @@ class SystemTools(BaseTool):
                     except (KeyboardInterrupt, SystemExit):
                         raise
                     except Exception as e:
-                        import logging
-
-                        logger = logging.getLogger(__name__)
                         logger.error(
                             f"Vector optimization failed: {type(e).__name__}",
                             exc_info=True,
@@ -425,9 +410,6 @@ class SystemTools(BaseTool):
                     except (KeyboardInterrupt, SystemExit):
                         raise
                     except Exception as e:
-                        import logging
-
-                        logger = logging.getLogger(__name__)
                         logger.warning(
                             f"Log cleanup skipped: {type(e).__name__}",
                             exc_info=True,
@@ -478,9 +460,6 @@ class SystemTools(BaseTool):
                     except (KeyboardInterrupt, SystemExit):
                         raise
                     except Exception as e:
-                        import logging
-
-                        logger = logging.getLogger(__name__)
                         logger.error(
                             f"Performance analysis failed: {type(e).__name__}",
                             exc_info=True,
@@ -510,9 +489,6 @@ class SystemTools(BaseTool):
                     except (KeyboardInterrupt, SystemExit):
                         raise
                     except Exception as e:
-                        import logging
-
-                        logger = logging.getLogger(__name__)
                         logger.error(
                             f"Database vacuum failed: {type(e).__name__}",
                             exc_info=True,
@@ -615,9 +591,6 @@ class SystemTools(BaseTool):
                 except (KeyboardInterrupt, SystemExit):
                     raise
                 except Exception as e:
-                    import logging
-
-                    logger = logging.getLogger(__name__)
                     logger.warning(
                         f"Database activity metrics failed: {type(e).__name__}",
                         exc_info=True,
@@ -672,9 +645,6 @@ class SystemTools(BaseTool):
                     except (KeyboardInterrupt, SystemExit):
                         raise
                     except Exception as e:
-                        import logging
-
-                        logger = logging.getLogger(__name__)
                         logger.warning(
                             f"Query performance metrics failed: {type(e).__name__}",
                             exc_info=True,
@@ -711,9 +681,6 @@ class SystemTools(BaseTool):
                     except (KeyboardInterrupt, SystemExit):
                         raise
                     except Exception as e:
-                        import logging
-
-                        logger = logging.getLogger(__name__)
                         logger.warning(
                             f"Service health check failed for {service_name}: {type(e).__name__}",
                             exc_info=True,
@@ -827,9 +794,6 @@ class SystemTools(BaseTool):
                         except (KeyboardInterrupt, SystemExit):
                             raise
                         except Exception as e:
-                            import logging
-
-                            logger = logging.getLogger(__name__)
                             logger.error(
                                 f"Service restart failed for {service_name}: {type(e).__name__}",
                                 exc_info=True,
