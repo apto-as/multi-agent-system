@@ -480,7 +480,8 @@ class HybridMCPServer:
             logger.info("Chroma vector service initialized")
 
             # Register expiration tools (v2.3.0 security-integrated tools)
-            # Note: Scheduler is NOT started automatically. Use start_scheduler MCP tool to start it.
+            # Note: Scheduler is NOT started automatically.
+            # Use start_scheduler MCP tool to start it.
             # This avoids session lifecycle issues during initialization.
             expiration_tools = ExpirationTools(
                 memory_service=None,  # Tools create their own session
@@ -540,7 +541,8 @@ class HybridMCPServer:
             learning_tools = LearningTools()
             await learning_tools.register_tools(self.mcp)
             logger.info(
-                "Learning tools registered (6 MCP tools for pattern learning, evolution & chain execution)"
+                "Learning tools registered "
+                "(6 MCP tools for pattern learning, evolution & chain execution)"
             )
 
             # Register pattern-skill tools (v2.4.12+ Pattern to Skill Auto-Generation)
@@ -634,14 +636,20 @@ class HybridMCPServer:
 
                         internal_tools.append(ToolMetadata(
                             name=tool_name,
-                            description=description if description else f"TMWS internal tool: {tool_name}",
+                            description=(
+                                description if description
+                                else f"TMWS internal tool: {tool_name}"
+                            ),
                             input_schema=parameters,
                             tags=tags,
                         ))
 
                 if internal_tools:
                     await tool_search_service.register_internal_tools(internal_tools)
-                    logger.info(f"Registered {len(internal_tools)} internal TMWS tools in Tool Search index")
+                    logger.info(
+                        f"Registered {len(internal_tools)} internal TMWS tools "
+                        "in Tool Search index"
+                    )
 
                 # Register Skills from database (if available)
                 try:
@@ -680,7 +688,10 @@ class HybridMCPServer:
 
                             if skill_metadata:
                                 await tool_search_service.register_skills(skill_metadata)
-                                logger.info(f"Registered {len(skill_metadata)} Skills in Tool Search index")
+                                logger.info(
+                                    f"Registered {len(skill_metadata)} Skills "
+                                    "in Tool Search index"
+                                )
                 except Exception as skill_err:
                     logger.debug(f"Skills registration skipped (non-critical): {skill_err}")
 
@@ -730,18 +741,21 @@ class HybridMCPServer:
                                 )
                             else:
                                 logger.info(
-                                    f"✅ Trinitas integrity verified: All {len(integrity_results)} agents valid"
+                                    f"✅ Trinitas integrity verified: "
+                                    f"All {len(integrity_results)} agents valid"
                                 )
                         else:
                             logger.warning(
-                                f"⚠️  Trinitas Agent Files disabled: {trinitas_result.get('reason', 'Unknown')}\n"
+                                f"⚠️  Trinitas Agent Files disabled: "
+                                f"{trinitas_result.get('reason', 'Unknown')}\n"
                                 f"   Current tier: {trinitas_result.get('tier', 'Unknown')}"
                             )
                 except Exception as e:
                     # Non-critical error: Trinitas file loading is optional feature
                     logger.warning(f"Trinitas agent file loading failed (non-critical): {e}")
                     logger.info(
-                        "TMWS will continue without agent files (database registration will still work)"
+                        "TMWS will continue without agent files "
+                        "(database registration will still work)"
                     )
 
                 # Phase 4: Trinitas Agent Auto-Registration (v2.4.0+, INDEPENDENT)
@@ -1268,13 +1282,19 @@ class HybridMCPServer:
                     logger.warning(f"Error disconnecting external MCP servers: {e}")
 
             # Log final metrics
+            hit_rate = "N/A"
+            if (self.metrics["chroma_hits"] + self.metrics["sqlite_fallbacks"]) > 0:
+                total_searches = (
+                    self.metrics["chroma_hits"] + self.metrics["sqlite_fallbacks"]
+                )
+                hit_percentage = (
+                    self.metrics["chroma_hits"] / total_searches * 100
+                )
+                hit_rate = f"{hit_percentage:.1f}%"
             logger.info(
                 f"HybridMCPServer shutdown: {self.instance_id}\n"
                 f"Final metrics: {self.metrics}\n"
-                f"ChromaDB hit rate: "
-                f"{self.metrics['chroma_hits'] / (self.metrics['chroma_hits'] + self.metrics['sqlite_fallbacks']) * 100:.1f}%"
-                if (self.metrics["chroma_hits"] + self.metrics["sqlite_fallbacks"]) > 0
-                else "N/A",
+                f"ChromaDB hit rate: {hit_rate}",
             )
 
         except (KeyboardInterrupt, SystemExit):
@@ -1339,7 +1359,10 @@ def first_run_setup():
 
             default_mcp_config = {
                 "$schema": "https://tmws.dev/schemas/mcp-servers.json",
-                "$comment": "TMWS MCP Server Configuration. Edit this file to add/remove MCP servers.",
+                "$comment": (
+                    "TMWS MCP Server Configuration. "
+                    "Edit this file to add/remove MCP servers."
+                ),
                 "mcpServers": {
                     "context7": {
                         "type": "stdio",
@@ -1367,7 +1390,10 @@ def first_run_setup():
                         "command": "npx",
                         "args": ["-y", "@anthropic/mcp-chrome-devtools@latest"],
                         "autoConnect": False,
-                        "$comment": "Chrome DevTools - requires Chrome with remote debugging (chrome --remote-debugging-port=9222)",
+                        "$comment": (
+                            "Chrome DevTools - requires Chrome with remote debugging "
+                            "(chrome --remote-debugging-port=9222)"
+                        ),
                     },
                 },
             }

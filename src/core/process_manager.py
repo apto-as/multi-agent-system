@@ -328,7 +328,8 @@ class TacticalProcessManager:
             for service_name in startup_order:
                 service = self.services[service_name]
                 logger.info(
-                    f"[TACTICAL] Starting {service_name} (Priority: {service.config.priority.name})",
+                    f"[TACTICAL] Starting {service_name} "
+                    f"(Priority: {service.config.priority.name})",
                 )
 
                 success = await service.start()

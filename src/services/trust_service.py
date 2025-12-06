@@ -140,7 +140,10 @@ class TrustService(BaseService):
                 if verification_id is None:
                     log_and_raise(
                         AuthorizationError,
-                        "Unauthorized trust score update: verification_id required for automated updates",
+                        (
+                            "Unauthorized trust score update: verification_id "
+                            "required for automated updates"
+                        ),
                         details={
                             "agent_id": agent_id,
                             "reason": reason,

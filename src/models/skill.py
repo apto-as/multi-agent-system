@@ -193,7 +193,8 @@ class Skill(TMWSBase):
 
         Args:
             requesting_agent_id: ID of the agent requesting access
-            requesting_agent_namespace: Verified namespace of the requesting agent (MUST be verified against DB)
+            requesting_agent_namespace: Verified namespace of the requesting agent
+                (MUST be verified against DB)
 
         Returns:
             bool: True if access is allowed, False otherwise
@@ -243,7 +244,10 @@ class Skill(TMWSBase):
         return result
 
     def __repr__(self) -> str:
-        return f"<Skill(name='{self.name}', namespace='{self.namespace}', version={self.active_version})>"
+        return (
+            f"<Skill(name='{self.name}', namespace='{self.namespace}', "
+            f"version={self.active_version})>"
+        )
 
 
 class SkillVersion(TMWSBase):
@@ -441,7 +445,10 @@ class SkillActivation(TMWSBase):
     __table_args__ = (Index("ix_skill_activations_agent_time", "agent_id", "activated_at"),)
 
     def __repr__(self) -> str:
-        return f"<SkillActivation(skill_id='{self.skill_id}', agent_id='{self.agent_id}', layer={self.layer_loaded})>"
+        return (
+            f"<SkillActivation(skill_id='{self.skill_id}', "
+            f"agent_id='{self.agent_id}', layer={self.layer_loaded})>"
+        )
 
 
 class SkillMCPTool(TMWSBase):
@@ -510,7 +517,10 @@ class SkillMCPTool(TMWSBase):
         self.load_when_condition = json.dumps(value)
 
     def __repr__(self) -> str:
-        return f"<SkillMCPTool(skill_id='{self.skill_id}', tool='{self.mcp_server_name}:{self.tool_name}')>"
+        return (
+            f"<SkillMCPTool(skill_id='{self.skill_id}', "
+            f"tool='{self.mcp_server_name}:{self.tool_name}')>"
+        )
 
 
 class SkillSharedAgent(TMWSBase):

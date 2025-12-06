@@ -224,7 +224,8 @@ class VerificationService(BaseService):
                 if verifier_role not in ["agent", "namespace_admin", "system_admin", "super_admin"]:
                     log_and_raise(
                         ValidationError,
-                        f"Verifier '{verified_by_agent_id}' requires AGENT or ADMIN role, has {verifier_role}",
+                        f"Verifier '{verified_by_agent_id}' requires "
+                        f"AGENT or ADMIN role, has {verifier_role}",
                         details={
                             "agent_id": agent_id,
                             "verified_by_agent_id": verified_by_agent_id,
@@ -243,7 +244,8 @@ class VerificationService(BaseService):
 
                 logger = logging.getLogger(__name__)
                 logger.info(
-                    f"✅ Verifier RBAC check passed: {verified_by_agent_id} (role: {verifier_role})",
+                    f"✅ Verifier RBAC check passed: "
+                    f"{verified_by_agent_id} (role: {verifier_role})",
                     extra={
                         "agent_id": agent_id,
                         "verified_by_agent_id": verified_by_agent_id,
@@ -372,9 +374,11 @@ class VerificationService(BaseService):
             # Check if base command is in allowlist
             base_command = cmd_parts[0]
             if base_command not in ALLOWED_COMMANDS:
+                allowed_list = sorted(ALLOWED_COMMANDS)
                 log_and_raise(
                     ValidationError,
-                    f"Command not allowed: {base_command}. Allowed commands: {sorted(ALLOWED_COMMANDS)}",
+                    f"Command not allowed: {base_command}. "
+                    f"Allowed commands: {allowed_list}",
                     details={
                         "command": command,
                         "base_command": base_command,

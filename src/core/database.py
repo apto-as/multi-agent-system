@@ -51,8 +51,11 @@ def _setup_connection_events(engine) -> None:
     def receive_checkout(_dbapi_connection, connection_record, _connection_proxy):
         """Monitor connection checkout and detect slow queries."""
         connection_record.info["checkout_time"] = sa.func.now()
+        pool_size = (
+            engine.pool.size() if hasattr(engine.pool, "size") else "N/A"
+        )
         logger.debug(
-            f"Connection checked out from pool (pool size: {engine.pool.size() if hasattr(engine.pool, 'size') else 'N/A'})",
+            f"Connection checked out from pool (pool size: {pool_size})"
         )
 
     @event.listens_for(engine.sync_engine, "checkin")
@@ -60,8 +63,11 @@ def _setup_connection_events(engine) -> None:
         """Monitor connection checkin and track connection lifetime."""
         if "checkout_time" in connection_record.info:
             # Track connection usage time for performance monitoring
+            pool_size = (
+                engine.pool.size() if hasattr(engine.pool, "size") else "N/A"
+            )
             logger.debug(
-                f"Connection checked in to pool (pool size: {engine.pool.size() if hasattr(engine.pool, 'size') else 'N/A'})",
+                f"Connection checked in to pool (pool size: {pool_size})"
             )
             del connection_record.info["checkout_time"]
 

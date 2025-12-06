@@ -291,7 +291,8 @@ class ToolSearchService:
             defer_loading: If True, return ToolReference without input_schema (85% token reduction)
 
         Returns:
-            List of tool dictionaries (ToolReference if defer_loading=True, full ToolSearchResult otherwise)
+            List of tool dictionaries (ToolReference if defer_loading=True,
+            full ToolSearchResult otherwise)
         """
         import re
 
@@ -301,7 +302,9 @@ class ToolSearchService:
                 logger.warning(f"Invalid agent_id rejected at service layer: {agent_id[:20]}")
                 agent_id = None  # Fallback to non-personalized search
 
-        search_query = ToolSearchQuery(query=query, source=source, limit=limit, defer_loading=defer_loading)
+        search_query = ToolSearchQuery(
+            query=query, source=source, limit=limit, defer_loading=defer_loading
+        )
         response = await self.search(search_query, agent_id=agent_id)
 
         if defer_loading:
@@ -656,7 +659,9 @@ class ToolSearchService:
         ]
         for dangerous in redos_patterns:
             if dangerous in pattern:
-                logger.warning(f"Potentially dangerous regex pattern rejected (ReDoS risk): {pattern[:50]}")
+                logger.warning(
+                    f"Potentially dangerous regex pattern rejected (ReDoS risk): {pattern[:50]}"
+                )
                 return []
 
         # Security: Limit quantifier repetitions
@@ -732,7 +737,11 @@ class ToolSearchService:
                                 description=description,
                                 relevance_score=1.0,  # Exact match = full score
                                 source_type=ToolSourceType(source_type),
-                                tags=metadata.get("tags", "").split(",") if metadata.get("tags") else [],
+                                tags=(
+                                    metadata.get("tags", "").split(",")
+                                    if metadata.get("tags")
+                                    else []
+                                ),
                             )
                         )
                 except Exception as e:
