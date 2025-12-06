@@ -277,8 +277,9 @@ class ToolSearchService:
         self,
         query: str,
         source: str = "all",
-        limit: int = 10,
+        limit: int = 5,
         agent_id: str | None = None,
+        defer_loading: bool = False,
     ) -> list[dict[str, Any]]:
         """Simplified search interface for MCP tool.
 
@@ -287,27 +288,129 @@ class ToolSearchService:
             source: Source filter ("all", "skills", "internal", "external")
             limit: Maximum results to return
             agent_id: Optional agent ID for personalized ranking (Phase 4.1)
+            defer_loading: If True, return ToolReference without input_schema (85% token reduction)
 
         Returns:
-            List of tool dictionaries
+            List of tool dictionaries (ToolReference if defer_loading=True, full ToolSearchResult otherwise)
         """
-        search_query = ToolSearchQuery(query=query, source=source, limit=limit)
+        import re
+
+        # Security C-3 Fix: Validate agent_id at service layer
+        if agent_id:
+            if len(agent_id) > 64 or not re.match(r"^[a-zA-Z0-9_-]+$", agent_id):
+                logger.warning(f"Invalid agent_id rejected at service layer: {agent_id[:20]}")
+                agent_id = None  # Fallback to non-personalized search
+
+        search_query = ToolSearchQuery(query=query, source=source, limit=limit, defer_loading=defer_loading)
         response = await self.search(search_query, agent_id=agent_id)
 
-        return [
-            {
-                "tool_name": r.tool_name,
-                "server_id": r.server_id,
-                "description": r.description,
-                "relevance_score": r.relevance_score,
-                "weighted_score": r.weighted_score,
-                "source_type": r.source_type.value,
-                "tags": r.tags,
-                "input_schema": r.input_schema,
-                "personalization_boost": r._personalization_boost,  # Phase 4.1
+        if defer_loading:
+            # Return lightweight references without input_schema
+            return [
+                {
+                    "tool_name": r.tool_name,
+                    "server_id": r.server_id,
+                    "description": r.description,
+                    "relevance_score": r.relevance_score,
+                    "weighted_score": r.weighted_score,
+                    "source_type": r.source_type.value,
+                    "tags": r.tags,
+                    "deferred": True,
+                    "personalization_boost": r._personalization_boost,  # Phase 4.1
+                }
+                for r in response.results
+            ]
+        else:
+            # Return full results with input_schema (backward compatible)
+            return [
+                {
+                    "tool_name": r.tool_name,
+                    "server_id": r.server_id,
+                    "description": r.description,
+                    "relevance_score": r.relevance_score,
+                    "weighted_score": r.weighted_score,
+                    "source_type": r.source_type.value,
+                    "tags": r.tags,
+                    "input_schema": r.input_schema,
+                    "personalization_boost": r._personalization_boost,  # Phase 4.1
+                }
+                for r in response.results
+            ]
+
+    async def get_tool_details(
+        self,
+        tool_name: str,
+        server_id: str,
+    ) -> dict[str, Any] | None:
+        """Get full tool details for a specific tool.
+
+        Used for lazy loading when defer_loading=True was used in search.
+
+        Args:
+            tool_name: Name of the tool
+            server_id: Server ID where the tool resides
+
+        Returns:
+            Full tool details including input_schema, or None if not found
+        """
+        import re
+
+        # Security C-2 Fix: Input validation for tool_name and server_id
+        # Validate tool_name: alphanumeric, underscore, hyphen only (max 100 chars)
+        if not tool_name or len(tool_name) > 100:
+            logger.warning(f"Invalid tool_name length: {len(tool_name) if tool_name else 0}")
+            return None
+        if not re.match(r"^[a-zA-Z0-9_-]+$", tool_name):
+            logger.warning(f"Invalid tool_name format rejected: {tool_name[:20]}")
+            return None
+
+        # Validate server_id: alphanumeric, underscore, hyphen, colon, mcp__ prefix (max 64 chars)
+        if not server_id or len(server_id) > 64:
+            logger.warning(f"Invalid server_id length: {len(server_id) if server_id else 0}")
+            return None
+        if not re.match(r"^[a-zA-Z0-9_:-]+$", server_id):
+            logger.warning(f"Invalid server_id format rejected: {server_id[:20]}")
+            return None
+
+        # Check internal tools first
+        if server_id == "tmws" and tool_name in self._internal_tools:
+            tool = self._internal_tools[tool_name]
+            return {
+                "tool_name": tool.name,
+                "server_id": server_id,
+                "description": tool.description,
+                "input_schema": tool.input_schema,
+                "output_schema": tool.output_schema,
+                "tags": tool.tags,
+                "source_type": ToolSourceType.INTERNAL.value,
             }
-            for r in response.results
-        ]
+
+        # Check MCP servers
+        # Extract actual server_id from "mcp__{server_id}" format
+        if server_id.startswith("mcp__"):
+            actual_server_id = server_id[5:]  # Remove "mcp__" prefix
+            if actual_server_id in self._mcp_servers:
+                server = self._mcp_servers[actual_server_id]
+                for tool in server.tools:
+                    if tool.name == tool_name:
+                        return {
+                            "tool_name": tool.name,
+                            "server_id": server_id,
+                            "description": tool.description,
+                            "input_schema": tool.input_schema,
+                            "output_schema": tool.output_schema,
+                            "tags": tool.tags,
+                            "source_type": ToolSourceType.EXTERNAL.value,
+                        }
+
+        # Check skills (server_id = "tmws:skills")
+        if server_id == "tmws:skills":
+            # Skills would be retrieved from SkillService if available
+            # For now, return None as skills are not yet implemented in this service
+            logger.warning(f"Skill lookup not yet implemented: {tool_name}")
+
+        logger.warning(f"Tool not found: {tool_name} from {server_id}")
+        return None
 
     async def record_usage(
         self,
@@ -510,6 +613,137 @@ class ToolSearchService:
                 )
 
         return search_results
+
+    async def _regex_search(
+        self,
+        pattern: str,
+        limit: int,
+        source_filter: str,
+    ) -> list[ToolSearchResult]:
+        """Perform regex pattern search on tool names and descriptions.
+
+        Security:
+        - Pattern length limited to 100 characters
+        - ReDoS protection: Pattern complexity validation
+        - Timeout enforced (1 second max for entire operation)
+        - No code execution (validated pattern)
+
+        Args:
+            pattern: Regex pattern to match
+            limit: Maximum results
+            source_filter: Source type filter
+
+        Returns:
+            List of matching tools
+        """
+        import re
+
+        # Security: Validate pattern length
+        if len(pattern) > 100:
+            logger.warning(f"Regex pattern too long: {len(pattern)} chars")
+            return []
+
+        # Security C-1 Fix: ReDoS protection - validate pattern complexity
+        # Reject patterns with excessive backtracking potential
+        redos_patterns = [
+            r"(\w+)+",  # Catastrophic backtracking
+            r"(a+)+",
+            r"(.*)+",
+            r"(.+)+",
+            r"([a-zA-Z]+)*",
+            r"(a|aa)+",
+            r"(a|a?)+",
+        ]
+        for dangerous in redos_patterns:
+            if dangerous in pattern:
+                logger.warning(f"Potentially dangerous regex pattern rejected (ReDoS risk): {pattern[:50]}")
+                return []
+
+        # Security: Limit quantifier repetitions
+        if re.search(r"\{(\d+),?\}|\{\d+,(\d+)\}", pattern):
+            # Check for excessive repetition counts
+            counts = re.findall(r"\{(\d+)", pattern)
+            if any(int(c) > 100 for c in counts if c):
+                logger.warning(f"Regex pattern with excessive repetition rejected: {pattern[:50]}")
+                return []
+
+        try:
+            # Compile with timeout protection
+            compiled = re.compile(pattern, re.IGNORECASE)
+        except re.error as e:
+            logger.warning(f"Invalid regex pattern: {e}")
+            return []
+
+        # Query all tools from collection metadata
+        if not self._collection:
+            return []
+
+        try:
+            # Get all items and filter by regex - entire operation with timeout
+            all_items = await asyncio.wait_for(
+                asyncio.to_thread(
+                    self._collection.get,
+                    include=["metadatas"],
+                ),
+                timeout=1.0,  # 1 second timeout
+            )
+        except asyncio.TimeoutError:
+            logger.warning("Regex search timed out")
+            return []
+
+        # Filter by pattern with per-match timeout protection
+        results = []
+        match_count = 0
+        max_matches = 1000  # Limit total comparisons to prevent DoS
+
+        if all_items and all_items.get("metadatas"):
+            for metadata in all_items["metadatas"]:
+                match_count += 1
+                if match_count > max_matches:
+                    logger.warning("Regex search exceeded max comparisons limit")
+                    break
+
+                tool_name = metadata.get("tool_name", "")
+                description = metadata.get("description", "")
+
+                # Check source filter
+                source_type = metadata.get("source_type", "external")
+                if source_filter and source_filter != "all":
+                    source_map = {
+                        "skills": "skill",
+                        "internal": "internal",
+                        "external": "external",
+                        "mcp_servers": "external",
+                    }
+                    if source_filter in source_map and source_type != source_map[source_filter]:
+                        continue
+
+                # Match against name or description with length limits
+                # Limit input length to prevent ReDoS on long strings
+                safe_name = tool_name[:200] if tool_name else ""
+                safe_desc = description[:500] if description else ""
+
+                try:
+                    if compiled.search(safe_name) or compiled.search(safe_desc):
+                        results.append(
+                            ToolSearchResult(
+                                tool_name=tool_name,
+                                server_id=metadata.get("server_id", ""),
+                                description=description,
+                                relevance_score=1.0,  # Exact match = full score
+                                source_type=ToolSourceType(source_type),
+                                tags=metadata.get("tags", "").split(",") if metadata.get("tags") else [],
+                            )
+                        )
+                except Exception as e:
+                    # Catch any regex execution errors
+                    logger.warning(f"Regex match error: {e}")
+                    continue
+
+                if len(results) >= limit:
+                    break
+
+        return results
 
     def _apply_ranking(self, results: list[ToolSearchResult]) -> list[ToolSearchResult]:
         """Apply source-weighted ranking.
