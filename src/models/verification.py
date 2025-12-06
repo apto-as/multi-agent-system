@@ -83,7 +83,11 @@ class TrustScoreHistory(TMWSBase):
 
 # Security: Prevent deletion of immutable records (V-TRUST-3, V-TRUST-6)
 @event.listens_for(VerificationRecord, "before_delete")
-def prevent_verification_record_deletion(mapper, connection, target):
+def prevent_verification_record_deletion(
+    mapper,  # noqa: ARG001 - Required by SQLAlchemy event signature
+    connection,  # noqa: ARG001 - Required by SQLAlchemy event signature
+    target,
+):
     """Prevent deletion of VerificationRecord (immutable audit evidence)
 
     Security: V-TRUST-3 - Evidence deletion prevention
@@ -101,7 +105,11 @@ def prevent_verification_record_deletion(mapper, connection, target):
 
 
 @event.listens_for(TrustScoreHistory, "before_delete")
-def prevent_trust_history_deletion(mapper, connection, target):
+def prevent_trust_history_deletion(
+    mapper,  # noqa: ARG001 - Required by SQLAlchemy event signature
+    connection,  # noqa: ARG001 - Required by SQLAlchemy event signature
+    target,
+):
     """Prevent deletion of TrustScoreHistory (immutable audit trail)
 
     Security: V-TRUST-6 - Audit tampering prevention

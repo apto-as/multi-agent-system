@@ -193,11 +193,11 @@ class ToolPromotionService:
         candidates: list[PromotionCandidate] = []
 
         # Get all agent patterns
-        if agent_id:
-            agent_ids = [agent_id]
-        else:
-            # Get all known agents
-            agent_ids = list(self._adaptive_ranker._agent_patterns.keys())
+        agent_ids = (
+            [agent_id]
+            if agent_id
+            else list(self._adaptive_ranker._agent_patterns.keys())
+        )
 
         for aid in agent_ids:
             patterns = await self._adaptive_ranker._get_agent_patterns(aid)

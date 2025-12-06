@@ -465,9 +465,10 @@ class VerificationService(BaseService):
 
                 # Check numeric tolerance (default 5%)
                 tolerance = claim.get("tolerance", 0.05)
-                if isinstance(claimed_value, int | float):
-                    if abs(actual_value - claimed_value) > abs(claimed_value * tolerance):
-                        return False
+                if isinstance(claimed_value, int | float) and abs(
+                    actual_value - claimed_value
+                ) > abs(claimed_value * tolerance):
+                    return False
 
             # All metrics passed validation
             return True

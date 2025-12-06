@@ -75,7 +75,13 @@ class CacheManager:
         self.stats["misses"] += 1
         return None
 
-    async def set(self, key: str, value: Any, namespace: str = "default", ttl: int = None):
+    async def set(
+        self,
+        key: str,
+        value: Any,
+        namespace: str = "default",
+        ttl: int = None,  # noqa: ARG002 - API compatibility, not used in local cache
+    ):
         """Set value in cache.
 
         Args:
@@ -217,7 +223,11 @@ class InvalidationManager:
         self.cache_manager = cache_manager
         self.invalidation_queue = asyncio.Queue()
 
-    async def invalidate_pattern(self, pattern: str, reason: str = None):
+    async def invalidate_pattern(
+        self,
+        pattern: str,
+        reason: str = None,  # noqa: ARG002 - Reserved for future logging/audit
+    ):
         """Invalidate cache entries matching pattern."""
         # Local invalidation
         keys_to_delete = [

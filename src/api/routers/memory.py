@@ -304,7 +304,7 @@ async def get_memory_service(
 @router.post("/cleanup-namespace", response_model=CleanupNamespaceResponse)
 async def cleanup_namespace_endpoint(
     request_body: CleanupNamespaceRequest,
-    request: Request,
+    request: Request,  # noqa: ARG001 - Required by FastAPI for rate limiting
     current_user: Annotated[User, Depends(get_current_user)],
     memory_service: Annotated[HybridMemoryService, Depends(get_memory_service)],
     _rate_limit: Annotated[None, Depends(check_rate_limit_memory_cleanup)],
@@ -412,7 +412,7 @@ async def cleanup_namespace_endpoint(
 @router.post("/prune-expired", response_model=PruneExpiredResponse)
 async def prune_expired_endpoint(
     request_body: PruneExpiredRequest,
-    request: Request,
+    request: Request,  # noqa: ARG001 - Required by FastAPI for rate limiting
     current_user: Annotated[User, Depends(get_current_user)],
     memory_service: Annotated[HybridMemoryService, Depends(get_memory_service)],
     _rate_limit: Annotated[None, Depends(check_rate_limit_memory_prune)],
@@ -518,7 +518,7 @@ async def prune_expired_endpoint(
 @router.post("/set-ttl", response_model=SetMemoryTTLResponse)
 async def set_memory_ttl_endpoint(
     request_body: SetMemoryTTLRequest,
-    request: Request,
+    request: Request,  # noqa: ARG001 - Required by FastAPI for rate limiting
     current_user: Annotated[User, Depends(get_current_user)],
     memory_service: Annotated[HybridMemoryService, Depends(get_memory_service)],
     _rate_limit: Annotated[None, Depends(check_rate_limit_memory_ttl)],
