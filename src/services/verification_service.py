@@ -11,6 +11,7 @@ Performance target: <500ms P95 per verification
 
 import asyncio
 import json
+import logging
 import shlex
 from datetime import datetime
 from enum import Enum
@@ -34,6 +35,8 @@ from src.services.base_service import BaseService
 from src.services.learning_trust_integration import LearningTrustIntegration
 from src.services.memory_service import HybridMemoryService
 from src.services.trust_service import TrustService
+
+logger = logging.getLogger(__name__)
 
 # Security: Command allowlist for verification
 # Prevents command injection from AI agent mistakes
@@ -240,9 +243,6 @@ class VerificationService(BaseService):
                     )
 
                 # Log successful RBAC check
-                import logging
-
-                logger = logging.getLogger(__name__)
                 logger.info(
                     f"✅ Verifier RBAC check passed: "
                     f"{verified_by_agent_id} (role: {verifier_role})",
@@ -740,11 +740,7 @@ class VerificationService(BaseService):
             - V-TRUST-1: pattern_id serves as verification_id
             - V-TRUST-4: Namespace isolation via verified namespace parameter
         """
-        import logging
-
         from src.core.exceptions import AuthorizationError, NotFoundError, ValidationError
-
-        logger = logging.getLogger(__name__)
 
         try:
             # Step 1: Detect pattern linkage from claim_content
