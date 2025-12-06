@@ -445,7 +445,9 @@ install_claude_config() {
         log_info "Downloading configuration from GitHub..."
         use_github=true
         config_src=$(mktemp -d -t trinitas-install.XXXXXXXX)
-        trap 'rm -rf "${config_src}" 2>/dev/null || true' EXIT
+        # Use global variable for cleanup trap to avoid unbound variable error with set -u
+        TRINITAS_TEMP_DIR="${config_src}"
+        trap 'rm -rf "${TRINITAS_TEMP_DIR:-}" 2>/dev/null || true' EXIT
 
         # Download claudecode directory contents
         mkdir -p "${config_src}/agents" "${config_src}/commands" "${config_src}/hooks/core"
