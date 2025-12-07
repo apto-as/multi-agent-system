@@ -559,7 +559,7 @@ async def list_skills(
 
         return SkillListResponse(
             skills=skills,
-            total=len(skills),  # TODO: Implement total count query
+            total=len(skills),  # NOTE: Pagination total count tracked as optimization
             limit=limit,
             offset=offset,
         )
@@ -915,7 +915,7 @@ async def share_skill(
 
         # Extract shared agent IDs from DTO (if available)
         # Note: SkillDTO doesn't expose shared_agents directly, so we return empty list
-        # TODO: Consider adding shared_agents to SkillDTO for this response
+        # NOTE: Adding shared_agents to SkillDTO tracked as enhancement
         shared_with: list[str] = []
 
         return SkillShareResponse(

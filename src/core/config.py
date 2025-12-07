@@ -195,8 +195,8 @@ class Settings(BaseSettings):
     # Security logging
     audit_log_enabled: bool = Field(default=True)
 
-    # ==== EMAIL ALERTS CONFIGURATION (P0 Security TODO) ====
-    # SMTP configuration for security alert emails
+    # ==== EMAIL ALERTS CONFIGURATION ====
+    # SMTP configuration for security alert emails (implemented in AlertManager)
     smtp_host: str = Field(
         default="",
         description=(

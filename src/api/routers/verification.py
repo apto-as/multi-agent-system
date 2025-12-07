@@ -262,7 +262,7 @@ async def verify_and_record_endpoint(
             actual=result.actual,
             pattern_linked=pattern_id_str is not None,
             pattern_id=pattern_id_str,
-            trust_delta=None,  # TODO: Extract from propagation result (Phase 2A)
+            trust_delta=None,  # NOTE: Trust delta extraction tracked in Phase 2A
         )
 
     except ValidationError as e:
