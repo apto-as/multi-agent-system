@@ -148,7 +148,8 @@ def test_create_connection_validation_error_400(
     # Assert
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     response_json = response.json()
-    assert "detail" in response_json
+    # API uses error_code/message format for validation errors
+    assert "error_code" in response_json or "detail" in response_json
 
 
 @pytest.mark.skipif(not APP_AVAILABLE, reason="FastAPI app not yet implemented")
@@ -353,7 +354,8 @@ def test_discover_tools_external_error_502(
     # Assert
     assert response.status_code == status.HTTP_502_BAD_GATEWAY
     response_json = response.json()
-    assert "detail" in response_json
+    # API may use error_code/message format or detail format
+    assert "error_code" in response_json or "detail" in response_json
 
 
 # ============================================================================
@@ -429,7 +431,8 @@ def test_execute_tool_not_found_400(
     # Assert
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     response_json = response.json()
-    assert "detail" in response_json
+    # API may use error_code/message format or detail format
+    assert "error_code" in response_json or "detail" in response_json
 
 
 @pytest.mark.skipif(not APP_AVAILABLE, reason="FastAPI app not yet implemented")

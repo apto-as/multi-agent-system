@@ -10,9 +10,11 @@ Security: Complies with CWE-22 (Path Traversal), CWE-73 (External Control of Fil
 
 from __future__ import annotations
 
+import logging
 import os
-import sys
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 class SecurityError(Exception):
@@ -199,9 +201,9 @@ class SecureFileLoader:
             # CRITICAL SECURITY: Symlink check BEFORE resolution (CWE-61 TOCTOU protection)
             # Must check before realpath() to prevent symlink-based attacks
             if full_path.exists() and full_path.is_symlink():
-                print(
-                    f"Security: Symlink access denied (CWE-61): {file_path}",
-                    file=sys.stderr,
+                logger.error(
+                    "Security: Symlink access denied (CWE-61)",
+                    extra={"file_path": str(file_path)},
                 )
                 return None
 
@@ -212,9 +214,9 @@ class SecureFileLoader:
             is_allowed = any(resolved.startswith(root) for root in self.allowed_roots)
 
             if not is_allowed:
-                print(
-                    f"Security: Path outside allowed roots: {file_path}",
-                    file=sys.stderr,
+                logger.error(
+                    "Security: Path outside allowed roots",
+                    extra={"file_path": str(file_path), "resolved": resolved},
                 )
                 return None
 
@@ -222,9 +224,9 @@ class SecureFileLoader:
             if self.allowed_extensions:
                 has_allowed_ext = any(resolved.endswith(ext) for ext in self.allowed_extensions)
                 if not has_allowed_ext:
-                    print(
-                        f"Security: File extension not allowed: {file_path}",
-                        file=sys.stderr,
+                    logger.error(
+                        "Security: File extension not allowed",
+                        extra={"file_path": str(file_path), "resolved": resolved},
                     )
                     return None
 
@@ -232,16 +234,16 @@ class SecureFileLoader:
             if (
                 ".." in str(file_path) or "~" in str(file_path)
             ) and not any(resolved.startswith(root) for root in self.allowed_roots):
-                print(
-                    f"Security: Potential path traversal attempt: {file_path}",
-                    file=sys.stderr,
+                logger.error(
+                    "Security: Potential path traversal attempt",
+                    extra={"file_path": str(file_path)},
                 )
                 return None
 
             return resolved
 
-        except (ValueError, OSError, RuntimeError) as e:
-            print(f"Security: Path validation error: {e}", file=sys.stderr)
+        except (ValueError, OSError, RuntimeError):
+            logger.error("Security: Path validation error", exc_info=True)
             return None
 
     def load_file(
@@ -295,9 +297,9 @@ class SecureFileLoader:
         validated_path = self.validate_path(file_path, base_path)
         if not validated_path:
             if not silent:
-                print(
-                    f"Error: File path validation failed: {file_path}",
-                    file=sys.stderr,
+                logger.error(
+                    "File path validation failed",
+                    extra={"file_path": str(file_path)},
                 )
             return None
 
@@ -308,25 +310,34 @@ class SecureFileLoader:
 
         except FileNotFoundError:
             if not silent:
-                print(f"Error: File not found: {file_path}", file=sys.stderr)
+                logger.error("File not found", extra={"file_path": str(file_path)})
             return None
 
-        except PermissionError as e:
+        except PermissionError:
             if not silent:
-                print(
-                    f"Error: Permission denied loading {file_path}: {e}",
-                    file=sys.stderr,
+                logger.error(
+                    "Permission denied loading file",
+                    extra={"file_path": str(file_path)},
+                    exc_info=True,
                 )
             return None
 
-        except OSError as e:
+        except OSError:
             if not silent:
-                print(f"Error: I/O error loading {file_path}: {e}", file=sys.stderr)
+                logger.error(
+                    "I/O error loading file",
+                    extra={"file_path": str(file_path)},
+                    exc_info=True,
+                )
             return None
 
-        except UnicodeDecodeError as e:
+        except UnicodeDecodeError:
             if not silent:
-                print(f"Error: Encoding error in {file_path}: {e}", file=sys.stderr)
+                logger.error(
+                    "Encoding error in file",
+                    extra={"file_path": str(file_path)},
+                    exc_info=True,
+                )
             return None
 
     def load_binary(
@@ -377,9 +388,9 @@ class SecureFileLoader:
         validated_path = self.validate_path(file_path, base_path)
         if not validated_path:
             if not silent:
-                print(
-                    f"Error: File path validation failed: {file_path}",
-                    file=sys.stderr,
+                logger.error(
+                    "File path validation failed",
+                    extra={"file_path": str(file_path)},
                 )
             return None
 
@@ -390,20 +401,25 @@ class SecureFileLoader:
 
         except FileNotFoundError:
             if not silent:
-                print(f"Error: File not found: {file_path}", file=sys.stderr)
+                logger.error("File not found", extra={"file_path": str(file_path)})
             return None
 
-        except PermissionError as e:
+        except PermissionError:
             if not silent:
-                print(
-                    f"Error: Permission denied loading {file_path}: {e}",
-                    file=sys.stderr,
+                logger.error(
+                    "Permission denied loading file",
+                    extra={"file_path": str(file_path)},
+                    exc_info=True,
                 )
             return None
 
-        except OSError as e:
+        except OSError:
             if not silent:
-                print(f"Error: I/O error loading {file_path}: {e}", file=sys.stderr)
+                logger.error(
+                    "I/O error loading file",
+                    extra={"file_path": str(file_path)},
+                    exc_info=True,
+                )
             return None
 
     def file_exists(self, file_path: str | Path, base_path: str | Path | None = None) -> bool:

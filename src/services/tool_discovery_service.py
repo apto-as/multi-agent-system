@@ -198,7 +198,14 @@ class ToolDiscoveryService:
             await self.session.commit()
             await self.session.refresh(tool)
 
-            logger.info(f"Tool registered: {tool_id} (v{version}) in namespace '{namespace}'")
+            logger.info(
+                "Tool registered",
+                extra={
+                    "tool_id": tool_id,
+                    "version": version,
+                    "namespace": namespace,
+                },
+            )
             return tool
 
         except SQLAlchemyError as e:
@@ -345,8 +352,12 @@ class ToolDiscoveryService:
             await self.session.refresh(verification)
 
             logger.info(
-                f"Tool verification recorded: {tool.tool_id} "
-                f"(method: {verification_method}, success: {success})"
+                "Tool verification recorded",
+                extra={
+                    "tool_id": tool.tool_id,
+                    "verification_method": verification_method,
+                    "success": success,
+                },
             )
             return verification
 
@@ -386,7 +397,10 @@ class ToolDiscoveryService:
 
         try:
             await self.session.commit()
-            logger.info(f"Tool deactivated: {tool_id} in namespace '{namespace}'")
+            logger.info(
+                "Tool deactivated",
+                extra={"tool_id": tool_id, "namespace": namespace},
+            )
 
         except SQLAlchemyError as e:
             await self.session.rollback()

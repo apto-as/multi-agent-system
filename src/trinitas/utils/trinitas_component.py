@@ -9,15 +9,19 @@ Purpose: Eliminate initialization code duplication across components
 
 from __future__ import annotations
 
-import sys
+import logging
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 try:
     from .json_loader import JSONLoader
 except ImportError:
     # Fallback for direct execution
     import json
+    import logging as _logging
+    _logger = _logging.getLogger(__name__)
 
     class JSONLoader:
         @staticmethod
@@ -25,9 +29,9 @@ except ImportError:
             try:
                 with open(file_path, encoding="utf-8") as f:
                     return json.load(f)
-            except Exception as e:
+            except Exception:
                 if not silent:
-                    print(f"Error loading JSON: {e}", file=sys.stderr)
+                    _logger.error("Failed to load JSON", exc_info=True)
                 return default
 
 
@@ -244,10 +248,11 @@ class TrinitasComponent:
         """
         try:
             return JSONLoader.load_from_file(config_path, default={})
-        except Exception as e:
-            print(
-                f"Warning: {self.COMPONENT_NAME} config load failed: {e}",
-                file=sys.stderr,
+        except Exception:
+            logger.warning(
+                "Config load failed",
+                extra={"component": self.COMPONENT_NAME},
+                exc_info=True,
             )
             return {}
 

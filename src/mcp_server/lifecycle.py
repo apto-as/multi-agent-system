@@ -338,7 +338,11 @@ async def initialize_server(server):
                     # Get license key from environment
                     license_key = os.getenv("TMWS_LICENSE_KEY")
                     if not license_key:
-                        raise Exception("TMWS_LICENSE_KEY not set")
+                        log_and_raise(
+                            Exception,
+                            "TMWS_LICENSE_KEY not set for agent registration",
+                            details={"feature": "trinitas_agent_registration"}
+                        )
 
                     # Validate license and check tier
                     validation_result = await license_service.validate_license_key(
@@ -346,7 +350,14 @@ async def initialize_server(server):
                     )
 
                     if not validation_result.valid:
-                        raise Exception(f"Invalid license: {validation_result.error_message}")
+                        log_and_raise(
+                            Exception,
+                            "Invalid license for agent registration",
+                            details={
+                                "error_message": validation_result.error_message,
+                                "feature": "trinitas_agent_registration",
+                            }
+                        )
 
                     # Check if tier is sufficient (PRO/ENTERPRISE)
                     from src.services.license_service import TierEnum
