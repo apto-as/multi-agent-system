@@ -121,7 +121,10 @@ class DiscoveredTool(TMWSBase, MetadataMixin):
     )
 
     def __repr__(self) -> str:
-        return f"<DiscoveredTool(id={self.id}, tool_id='{self.tool_id}', name='{self.name}', version='{self.version}')>"
+        return (
+            f"<DiscoveredTool(id={self.id}, tool_id='{self.tool_id}', "
+            f"name='{self.name}', version='{self.version}')>"
+        )
 
 
 class ToolDependency(TMWSBase):
@@ -158,7 +161,10 @@ class ToolDependency(TMWSBase):
     __table_args__ = (Index("idx_tool_dependencies_tool_id", "tool_id"),)
 
     def __repr__(self) -> str:
-        return f"<ToolDependency(tool_id={self.tool_id}, depends_on={self.depends_on_tool_id}, type='{self.dependency_type}')>"
+        return (
+            f"<ToolDependency(tool_id={self.tool_id}, "
+            f"depends_on={self.depends_on_tool_id}, type='{self.dependency_type}')>"
+        )
 
 
 class ToolInstance(TMWSBase, MetadataMixin):
@@ -235,7 +241,10 @@ class ToolInstance(TMWSBase, MetadataMixin):
     )
 
     def __repr__(self) -> str:
-        return f"<ToolInstance(id={self.id}, instance_id='{self.instance_id}', status='{self.status}')>"
+        return (
+            f"<ToolInstance(id={self.id}, instance_id='{self.instance_id}', "
+            f"status='{self.status}')>"
+        )
 
 
 class ToolVerificationHistory(TMWSBase):
@@ -295,4 +304,7 @@ class ToolVerificationHistory(TMWSBase):
     )
 
     def __repr__(self) -> str:
-        return f"<ToolVerificationHistory(id={self.id}, tool_id={self.tool_id}, success={self.success})>"
+        return (
+            f"<ToolVerificationHistory(id={self.id}, tool_id={self.tool_id}, "
+            f"success={self.success})>"
+        )

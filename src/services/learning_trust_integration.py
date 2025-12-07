@@ -382,9 +382,15 @@ class LearningTrustIntegration:
 
             # Recommendation message
             if not eligible_for_trust:
-                recommendation = f"Pattern is {access_level}, not eligible for trust updates (must be public/system)"
+                recommendation = (
+                    f"Pattern is {access_level}, not eligible for "
+                    f"trust updates (must be public/system)"
+                )
             elif not has_sufficient_usage:
-                recommendation = f"Needs {self.MIN_USAGE_FOR_RELIABILITY - usage_count} more uses for reliability"
+                needed = self.MIN_USAGE_FOR_RELIABILITY - usage_count
+                recommendation = (
+                    f"Needs {needed} more uses for reliability"
+                )
             elif is_low_success:
                 recommendation = "Low success rate (<30%), may penalize trust heavily"
             elif is_high_success:
@@ -530,7 +536,8 @@ class LearningTrustIntegration:
         if pattern.access_level not in ["public", "system"]:
             log_and_raise(
                 ValidationError,
-                f"Pattern '{pattern.pattern_name}' is {pattern.access_level}, not eligible for trust updates",
+                f"Pattern '{pattern.pattern_name}' is "
+                f"{pattern.access_level}, not eligible for trust updates",
                 details={
                     "pattern_id": str(pattern_id),
                     "pattern_name": pattern.pattern_name,

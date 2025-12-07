@@ -11,6 +11,7 @@ Performance target: <500ms P95 per verification
 
 import asyncio
 import json
+import logging
 import shlex
 from datetime import datetime
 from enum import Enum
@@ -30,9 +31,12 @@ from src.core.exceptions import (
 from src.models.agent import Agent
 from src.models.memory import Memory
 from src.models.verification import VerificationRecord
+from src.services.base_service import BaseService
 from src.services.learning_trust_integration import LearningTrustIntegration
 from src.services.memory_service import HybridMemoryService
 from src.services.trust_service import TrustService
+
+logger = logging.getLogger(__name__)
 
 # Security: Command allowlist for verification
 # Prevents command injection from AI agent mistakes
@@ -105,7 +109,7 @@ class VerificationResult:
         }
 
 
-class VerificationService:
+class VerificationService(BaseService):
     """Service for claim verification and evidence recording"""
 
     def __init__(
@@ -123,7 +127,7 @@ class VerificationService:
             trust_service: Trust service for score updates
             learning_trust_integration: Learning-Trust integration service (Phase 2A)
         """
-        self.session = session
+        super().__init__(session)
         self.memory_service = memory_service or HybridMemoryService(session)
         self.trust_service = trust_service or TrustService(session)
         self.learning_trust_integration = learning_trust_integration or LearningTrustIntegration(
@@ -223,7 +227,8 @@ class VerificationService:
                 if verifier_role not in ["agent", "namespace_admin", "system_admin", "super_admin"]:
                     log_and_raise(
                         ValidationError,
-                        f"Verifier '{verified_by_agent_id}' requires AGENT or ADMIN role, has {verifier_role}",
+                        f"Verifier '{verified_by_agent_id}' requires "
+                        f"AGENT or ADMIN role, has {verifier_role}",
                         details={
                             "agent_id": agent_id,
                             "verified_by_agent_id": verified_by_agent_id,
@@ -238,11 +243,9 @@ class VerificationService:
                     )
 
                 # Log successful RBAC check
-                import logging
-
-                logger = logging.getLogger(__name__)
                 logger.info(
-                    f"✅ Verifier RBAC check passed: {verified_by_agent_id} (role: {verifier_role})",
+                    f"✅ Verifier RBAC check passed: "
+                    f"{verified_by_agent_id} (role: {verifier_role})",
                     extra={
                         "agent_id": agent_id,
                         "verified_by_agent_id": verified_by_agent_id,
@@ -371,9 +374,11 @@ class VerificationService:
             # Check if base command is in allowlist
             base_command = cmd_parts[0]
             if base_command not in ALLOWED_COMMANDS:
+                allowed_list = sorted(ALLOWED_COMMANDS)
                 log_and_raise(
                     ValidationError,
-                    f"Command not allowed: {base_command}. Allowed commands: {sorted(ALLOWED_COMMANDS)}",
+                    f"Command not allowed: {base_command}. "
+                    f"Allowed commands: {allowed_list}",
                     details={
                         "command": command,
                         "base_command": base_command,
@@ -460,9 +465,10 @@ class VerificationService:
 
                 # Check numeric tolerance (default 5%)
                 tolerance = claim.get("tolerance", 0.05)
-                if isinstance(claimed_value, int | float):
-                    if abs(actual_value - claimed_value) > abs(claimed_value * tolerance):
-                        return False
+                if isinstance(claimed_value, int | float) and abs(
+                    actual_value - claimed_value
+                ) > abs(claimed_value * tolerance):
+                    return False
 
             # All metrics passed validation
             return True
@@ -735,11 +741,7 @@ class VerificationService:
             - V-TRUST-1: pattern_id serves as verification_id
             - V-TRUST-4: Namespace isolation via verified namespace parameter
         """
-        import logging
-
         from src.core.exceptions import AuthorizationError, NotFoundError, ValidationError
-
-        logger = logging.getLogger(__name__)
 
         try:
             # Step 1: Detect pattern linkage from claim_content

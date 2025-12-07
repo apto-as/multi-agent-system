@@ -279,12 +279,7 @@ class MCPAuthService:
 
             elif api_key:
                 # Verify API key against stored hash
-                # P1b: Dual support for bcrypt (NEW) and SHA256 (DEPRECATED)
-                from ..utils.security import (
-                    detect_hash_format,
-                    verify_password,
-                    verify_password_with_salt,
-                )
+                from ..utils.security import detect_hash_format, verify_password
 
                 if not agent.api_key_hash:
                     raise MCPAuthenticationError(
@@ -307,37 +302,46 @@ class MCPAuthService:
 
                 # Verify API key based on hash format
                 if hash_format == "bcrypt":
-                    # NEW: Secure bcrypt verification
+                    # Secure bcrypt verification
                     is_valid = verify_password(api_key, agent.api_key_hash)
 
+                    # Check verification result
+                    if not is_valid:
+                        logger.warning(
+                            f"🚨 Authentication failed: Invalid API key for agent: {agent_id}",
+                            extra={
+                                "agent_id": agent_id,
+                                "tool_name": tool_name,
+                                "hash_format": hash_format,
+                            },
+                        )
+                        raise MCPAuthenticationError(
+                            "Invalid API key",
+                            details={"agent_id": agent_id},
+                        )
+
+                    auth_method = "api_key"
+
                 elif hash_format == "sha256_salt":
-                    # DEPRECATED: SHA256 with salt (backward compatibility)
-                    logger.warning(
-                        f"⚠️  Agent {agent_id} using DEPRECATED SHA256 API key. "
-                        "Please regenerate API key for improved security (bcrypt).",
+                    # REMOVED: SHA256 authentication no longer supported
+                    logger.error(
+                        f"🚨 SHA256 API key authentication BLOCKED for agent {agent_id}. "
+                        "SHA256 hashing is insecure (CVSS 7.5 HIGH). Please regenerate API key.",
                         extra={
                             "agent_id": agent_id,
                             "hash_format": "sha256_salt",
                             "security_risk": "CVSS 7.5 HIGH - vulnerable to GPU brute force",
-                            "recommendation": "Regenerate API key to use bcrypt",
+                            "action_required": "Regenerate API key with bcrypt",
                         },
                     )
-
-                    try:
-                        # Parse SHA256 format: "salt:hash"
-                        salt, hashed = agent.api_key_hash.split(":", 1)
-                    except ValueError:
-                        logger.error(
-                            f"Invalid SHA256 api_key_hash format for agent {agent_id}",
-                            extra={"agent_id": agent_id, "tool_name": tool_name},
-                        )
-                        raise MCPAuthenticationError(
-                            "Authentication failed",
-                            details={"agent_id": agent_id},
-                        )
-
-                    # Verify with SHA256
-                    is_valid = verify_password_with_salt(api_key, hashed, salt)
+                    raise MCPAuthenticationError(
+                        "SHA256 API keys are no longer supported. Please regenerate your API key.",
+                        details={
+                            "agent_id": agent_id,
+                            "action": "Regenerate API key with: tmws agent regenerate-key",
+                            "migration_guide": "https://github.com/apto-as/tmws/issues/1",
+                        },
+                    )
 
                 else:
                     # Should never reach here due to detect_hash_format validation
@@ -349,23 +353,6 @@ class MCPAuthService:
                         "Authentication failed",
                         details={"agent_id": agent_id},
                     )
-
-                # Check verification result
-                if not is_valid:
-                    logger.warning(
-                        f"🚨 Authentication failed: Invalid API key for agent: {agent_id}",
-                        extra={
-                            "agent_id": agent_id,
-                            "tool_name": tool_name,
-                            "hash_format": hash_format,
-                        },
-                    )
-                    raise MCPAuthenticationError(
-                        "Invalid API key",
-                        details={"agent_id": agent_id},
-                    )
-
-                auth_method = "api_key"
 
         except (KeyboardInterrupt, SystemExit):
             raise
@@ -399,7 +386,8 @@ class MCPAuthService:
 
         # Audit log successful authentication
         logger.info(
-            f"✅ MCP authentication successful: agent={agent_id}, tool={tool_name}, method={auth_method}",
+            f"✅ MCP authentication successful: agent={agent_id}, "
+            f"tool={tool_name}, method={auth_method}",
             extra={
                 "agent_id": agent_id,
                 "namespace": agent.namespace,
@@ -603,7 +591,8 @@ class MCPAuthService:
         # Check if agent role is in required roles
         if context.role not in required_roles:
             logger.warning(
-                f"🚨 Authorization denied: Role {context.role.value} not allowed for {operation.value}",
+                f"🚨 Authorization denied: Role {context.role.value} "
+                f"not allowed for {operation.value}",
                 extra={
                     "agent_id": context.agent_id,
                     "role": context.role.value,

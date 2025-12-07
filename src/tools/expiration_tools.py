@@ -85,7 +85,9 @@ class ExpirationTools:
             dry_run: bool = False,
             confirm_mass_deletion: bool = False,
         ) -> dict[str, Any]:
-            """Remove expired memories from a namespace (REQ-3: Requires confirmation for >10 items).
+            """Remove expired memories from a namespace.
+
+            (REQ-3: Requires confirmation for >10 items)
 
             Security:
             - Requires authentication (REQ-1)
@@ -170,7 +172,10 @@ class ExpirationTools:
                         )
                         return {
                             "error": "mass_deletion_confirmation_required",
-                            "message": f"Mass deletion blocked: {len(expired_memories)} items > 10. Set confirm_mass_deletion=True to proceed.",
+                            "message": (
+                                f"Mass deletion blocked: {len(expired_memories)} items > 10. "
+                                "Set confirm_mass_deletion=True to proceed."
+                            ),
                             "would_delete_count": len(expired_memories),
                             "dry_run": True,
                         }
@@ -421,7 +426,8 @@ class ExpirationTools:
                     # Only owner can modify TTL
                     if memory.agent_id != agent_id:
                         raise MCPAuthorizationError(
-                            f"Only memory owner can modify TTL. Owner: {memory.agent_id}, Requester: {agent_id}"
+                            f"Only memory owner can modify TTL. "
+                            f"Owner: {memory.agent_id}, Requester: {agent_id}"
                         )
 
                     # Validate TTL
@@ -483,7 +489,9 @@ class ExpirationTools:
             dry_run: bool = False,
             confirm_mass_deletion: bool = False,
         ) -> dict[str, Any]:
-            """Delete ALL memories from a namespace (REQ-3: Requires confirmation, REQ-5: Admin only).
+            """Delete ALL memories from a namespace.
+
+            (REQ-3: Requires confirmation, REQ-5: Admin only)
 
             ⚠️  WARNING: This is a DESTRUCTIVE operation that deletes ALL memories in the namespace.
 
@@ -547,7 +555,10 @@ class ExpirationTools:
                         )
                         return {
                             "error": "mass_deletion_confirmation_required",
-                            "message": f"Namespace cleanup blocked: {total_count} items > 10. Set confirm_mass_deletion=True to proceed.",
+                            "message": (
+                                f"Namespace cleanup blocked: {total_count} items > 10. "
+                                "Set confirm_mass_deletion=True to proceed."
+                            ),
                             "would_delete_count": total_count,
                             "dry_run": True,
                         }
@@ -579,7 +590,10 @@ class ExpirationTools:
                     await session.commit()
 
                     logger.warning(
-                        f"🗑️  Namespace cleanup completed: {deleted_count} memories deleted from {namespace}",
+                        (
+                            f"🗑️  Namespace cleanup completed: {deleted_count} memories "
+                            f"deleted from {namespace}"
+                        ),
                         extra={
                             "agent_id": agent_id,
                             "namespace": namespace,
@@ -1060,14 +1074,19 @@ class ExpirationTools:
                     deleted_count = await self.scheduler.trigger_cleanup()
 
                     logger.info(
-                        f"✅ Manual cleanup triggered by {agent_id}: {deleted_count} memories deleted",
+                        (
+                            f"✅ Manual cleanup triggered by {agent_id}: "
+                            f"{deleted_count} memories deleted"
+                        ),
                         extra={"agent_id": agent_id, "deleted_count": deleted_count},
                     )
 
                     return {
                         "success": True,
                         "deleted_count": deleted_count,
-                        "message": f"Manual cleanup completed: {deleted_count} expired memories deleted",
+                        "message": (
+                            f"Manual cleanup completed: {deleted_count} expired memories deleted"
+                        ),
                     }
 
                 except (KeyboardInterrupt, SystemExit):

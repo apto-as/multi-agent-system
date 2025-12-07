@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.17] - 2025-12-06
+
+### Added - Tool Search Enhancement (Claude Official Parity)
+
+**defer_loading + Lazy Loading** (`src/services/tool_search_service.py`):
+- New `defer_loading=True` parameter reduces context tokens by ~85%
+- Returns lightweight `ToolReference` without `input_schema`
+- New `get_tool_details()` for on-demand schema loading
+- Default result limit changed from 10 to 5
+
+**search_tools_regex MCP Tool** (`src/tools/tool_search_tools.py`):
+- Regex pattern matching for precise tool name discovery
+- Pattern matched against tool names and descriptions
+- Complements semantic search for exact matches
+
+**Internal Tools + Skills Indexing** (`src/mcp_server.py`):
+- 42+ internal TMWS tools now indexed in ChromaDB
+- Skills from database automatically registered
+- Enables semantic search across entire tool ecosystem
+
+### Security - v2.4.17 (Hestia Audit)
+
+**4 CRITICAL Vulnerabilities Fixed**:
+
+| ID | Vulnerability | Fix |
+|----|---------------|-----|
+| C-1 | ReDoS in regex search | Pattern blocklist, max comparisons, input length limits |
+| C-2 | get_tool_details input validation | tool_name/server_id format validation |
+| C-3 | Agent ID injection | Service-layer validation with regex |
+| C-4 | ChromaDB metadata injection | `sanitize_metadata()` + `sanitize_tag()` functions |
+
+**Security Controls Added**:
+- ReDoS-safe regex patterns blocklist
+- Input sanitization for all user-provided parameters
+- Control character and injection pattern removal
+- Strict format validation (alphanumeric + limited special chars)
+
+### Changed
+
+- `ToolSearchQuery.limit` default: 10 → 5
+- Added `SearchMode` enum (SEMANTIC, REGEX, HYBRID)
+- Added `ToolReference` dataclass for lightweight responses
+
+---
+
 ## [2.4.6] - 2025-11-28
 
 ### Added - P3 Security Enhancements

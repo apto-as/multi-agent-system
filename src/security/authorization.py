@@ -2,6 +2,7 @@
 Implements fine-grained access control with high performance.
 """
 
+import logging
 from dataclasses import dataclass
 from enum import Enum
 from functools import wraps
@@ -15,6 +16,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..models.agent import AccessLevel, Agent
 from ..models.memory import Memory
 from ..models.user import APIKeyScope, User, UserRole
+
+logger = logging.getLogger(__name__)
 
 
 class Resource(str, Enum):
@@ -540,9 +543,22 @@ class AuthorizationService:
             # STEP 3: Use Memory's built-in access control with verified namespace
             return memory.is_accessible_by(agent_id, verified_namespace)
 
-        except Exception:
-            # On any error, deny access for security
-            # Do not expose error details to potential attackers
+        except Exception as e:
+            # Security: Log authorization errors for SOC/SIEM audit trail
+            # Fail-secure: Deny access on any unexpected error
+            logger.error(
+                f"Authorization error during memory access check: {type(e).__name__}",
+                extra={
+                    "resource_id": (
+                        str(context.resource_id)
+                        if hasattr(context, "resource_id")
+                        else None
+                    ),
+                    "agent_id": agent_id if 'agent_id' in dir() else None,
+                    "error_type": type(e).__name__,
+                },
+                exc_info=True,
+            )
             return False
 
     def get_user_permissions(self, user: User, resource: Resource) -> list[Permission]:

@@ -400,7 +400,10 @@ class DetectedPattern(TMWSBase):
     __table_args__ = (
         # Check constraints
         CheckConstraint(
-            "state IN ('DETECTED', 'VALIDATING', 'VALIDATED', 'APPROVED', 'SKILL_CREATED', 'REJECTED')",
+            (
+                "state IN ('DETECTED', 'VALIDATING', 'VALIDATED', "
+                "'APPROVED', 'SKILL_CREATED', 'REJECTED')"
+            ),
             name="ck_detected_patterns_state",
         ),
         CheckConstraint(

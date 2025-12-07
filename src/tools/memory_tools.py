@@ -60,8 +60,9 @@ class MemoryTools(BaseTool):
         ) -> dict[str, Any]:
             """Create a new memory with vector embedding.
 
-            This tool stores knowledge in the Trinitas memory system with semantic search capabilities.
-            Memory content is automatically vectorized for similarity search.
+            This tool stores knowledge in the Trinitas memory system with
+            semantic search capabilities. Memory content is automatically
+            vectorized for similarity search.
 
             Args:
                 content: The memory content to store

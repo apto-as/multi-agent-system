@@ -173,8 +173,34 @@ class RBACEngine(PolicyEngine):
         return AccessDecision.DENY
 
     def _get_agent_role(self, agent_id: str) -> str:
-        """Get agent role (placeholder implementation)."""
-        # In real implementation, this would query agent database
+        """Get agent role using simple pattern matching.
+
+        PLACEHOLDER IMPLEMENTATION - NOT PRODUCTION READY
+        This uses simple string pattern matching to determine agent roles.
+
+        Production implementation should:
+        - Query AgentService.get_agent_by_id() for Agent.access_level
+        - Cache results with TTL to avoid database overhead
+        - Support dynamic role assignment and revocation
+        - Integrate with external IAM systems if needed
+
+        Current fallback logic:
+        - '*-admin' suffix -> system_admin
+        - 'system-*' prefix -> agent_admin
+        - all others -> standard_agent
+
+        Args:
+            agent_id: Agent identifier
+
+        Returns:
+            Role string matching role_permissions keys
+        """
+        # Log placeholder usage for monitoring
+        logger.debug(
+            f"Using placeholder role resolution for agent '{agent_id}'. "
+            "Replace with AgentService integration for production."
+        )
+
         if agent_id.endswith("-admin"):
             return "system_admin"
         elif agent_id.startswith("system-"):
@@ -529,7 +555,8 @@ class AccessControlManager:
         # Log security events for denied access
         if decision == AccessDecision.DENY:
             logger.warning(
-                f"Access denied: {context.requesting_agent} -> {context.action.value} on {context.resource_type.value}:{context.target_resource}",
+                f"Access denied: {context.requesting_agent} -> {context.action.value} "
+                f"on {context.resource_type.value}:{context.target_resource}",
             )
 
     async def _setup_monitoring(self, context: AccessContext):
@@ -578,7 +605,10 @@ class AccessControlManager:
                     event_type="repeated_access_denial",
                     event_data={
                         "severity": "HIGH",
-                        "message": f"Agent {context.requesting_agent} had {len(recent_denials)} access denials in 10 minutes",
+                        "message": (
+                            f"Agent {context.requesting_agent} had "
+                            f"{len(recent_denials)} access denials in 10 minutes"
+                        ),
                         "blocked": True,
                         "denial_count": len(recent_denials),
                         "resource_type": context.resource_type.value,

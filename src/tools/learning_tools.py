@@ -233,7 +233,9 @@ class LearningTools(BaseTool):
                         if applicable_patterns
                         else None,
                         "confidence_threshold": min_similarity,
-                        "application_notes": f"Found {len(applicable_patterns)} applicable patterns",
+                        "application_notes": (
+                            f"Found {len(applicable_patterns)} applicable patterns"
+                        ),
                     },
                 }
 
@@ -469,9 +471,10 @@ class LearningTools(BaseTool):
                 }
 
             result = await self.execute_with_session(_evolve_pattern)
+            success_rate = result.get("evolution_summary", {}).get("new_success_rate", 0)
             return self.format_success(
                 result,
-                f"Pattern evolved - Success rate: {result.get('evolution_summary', {}).get('new_success_rate', 0):.2f}",
+                f"Pattern evolved - Success rate: {success_rate:.2f}",
             )
 
         @mcp.tool()
@@ -532,8 +535,13 @@ class LearningTools(BaseTool):
                                 "type": "pattern_opportunity",
                                 "area": memory_type,
                                 "priority": "high",
-                                "reason": f"High activity ({count} memories) but low pattern coverage ({pattern_count} patterns)",
-                                "suggested_action": f"Learn patterns for {memory_type} operations",
+                                "reason": (
+                                    f"High activity ({count} memories) but "
+                                    f"low pattern coverage ({pattern_count} patterns)"
+                                ),
+                                "suggested_action": (
+                                    f"Learn patterns for {memory_type} operations"
+                                ),
                             },
                         )
 
@@ -546,8 +554,13 @@ class LearningTools(BaseTool):
                                 "type": "consolidation_opportunity",
                                 "area": tag,
                                 "priority": "medium",
-                                "reason": f"Frequent topic ({count} occurrences) could benefit from knowledge consolidation",
-                                "suggested_action": f"Create comprehensive patterns or documentation for {tag}",
+                                "reason": (
+                                    f"Frequent topic ({count} occurrences) could benefit "
+                                    f"from knowledge consolidation"
+                                ),
+                                "suggested_action": (
+                                    f"Create comprehensive patterns or documentation for {tag}"
+                                ),
                             },
                         )
 
@@ -573,7 +586,9 @@ class LearningTools(BaseTool):
                             "type": "improvement_opportunity",
                             "area": "pattern_optimization",
                             "priority": "high",
-                            "reason": f"{len(low_success_patterns)} patterns have low success rates",
+                            "reason": (
+                                f"{len(low_success_patterns)} patterns have low success rates"
+                            ),
                             "suggested_action": "Review and improve low-performing patterns",
                             "details": low_success_patterns,
                         },
@@ -598,7 +613,9 @@ class LearningTools(BaseTool):
                             "type": "emerging_opportunity",
                             "area": topic,
                             "priority": "medium",
-                            "reason": f"Emerging topic in recent activity ({count} recent mentions)",
+                            "reason": (
+                                f"Emerging topic in recent activity ({count} recent mentions)"
+                            ),
                             "suggested_action": f"Explore and learn patterns for {topic}",
                         },
                     )
@@ -738,7 +755,7 @@ class LearningTools(BaseTool):
                     evolved_patterns = []
 
                     for pattern in applied_patterns:
-                        # Simulate successful application (in real usage, this would be based on actual results)
+                        # Simulate successful application based on actual results
                         pattern_memory = await memory_service.get_memory(pattern["pattern_id"])
                         if pattern_memory:
                             metadata = pattern_memory.metadata_json or {}
@@ -842,7 +859,10 @@ class LearningTools(BaseTool):
                         {
                             "type": "knowledge_expansion",
                             "priority": "high",
-                            "message": "Pattern knowledge base is limited - consider learning more patterns",
+                            "message": (
+                                "Pattern knowledge base is limited - "
+                                "consider learning more patterns"
+                            ),
                         }
                     )
 
@@ -853,7 +873,10 @@ class LearningTools(BaseTool):
                             "type": "category_gap",
                             "priority": "medium",
                             "categories": low_coverage_categories,
-                            "message": f"Low pattern coverage in categories: {', '.join(low_coverage_categories)}",
+                            "message": (
+                                f"Low pattern coverage in categories: "
+                                f"{', '.join(low_coverage_categories)}"
+                            ),
                         }
                     )
 

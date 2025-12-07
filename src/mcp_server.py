@@ -480,7 +480,8 @@ class HybridMCPServer:
             logger.info("Chroma vector service initialized")
 
             # Register expiration tools (v2.3.0 security-integrated tools)
-            # Note: Scheduler is NOT started automatically. Use start_scheduler MCP tool to start it.
+            # Note: Scheduler is NOT started automatically.
+            # Use start_scheduler MCP tool to start it.
             # This avoids session lifecycle issues during initialization.
             expiration_tools = ExpirationTools(
                 memory_service=None,  # Tools create their own session
@@ -540,7 +541,8 @@ class HybridMCPServer:
             learning_tools = LearningTools()
             await learning_tools.register_tools(self.mcp)
             logger.info(
-                "Learning tools registered (6 MCP tools for pattern learning, evolution & chain execution)"
+                "Learning tools registered "
+                "(6 MCP tools for pattern learning, evolution & chain execution)"
             )
 
             # Register pattern-skill tools (v2.4.12+ Pattern to Skill Auto-Generation)
@@ -567,6 +569,134 @@ class HybridMCPServer:
 
             await mcp_hub_tools.register_tools(self.mcp)
             logger.info("MCP Hub tools registered (5 MCP tools for server connection management)")
+
+            # Register internal TMWS tools in Tool Search index (v2.4.17+)
+            # This enables semantic search across all 42+ internal MCP tools
+            try:
+                import re
+
+                from src.models.tool_search import ToolMetadata
+                from src.services.tool_search_service import get_tool_search_service
+
+                tool_search_service = get_tool_search_service()
+
+                # Security C-4 Fix: Sanitize metadata before ChromaDB indexing
+                def sanitize_metadata(text: str, max_length: int = 500) -> str:
+                    """Sanitize text for safe ChromaDB storage."""
+                    if not text:
+                        return ""
+                    # Remove control characters and null bytes
+                    sanitized = re.sub(r"[\x00-\x1f\x7f-\x9f]", "", text)
+                    # Remove potential injection patterns
+                    sanitized = sanitized.replace("${", "").replace("$(", "")
+                    # Limit length
+                    return sanitized[:max_length].strip()
+
+                def sanitize_tag(tag: str) -> str:
+                    """Sanitize a tag for ChromaDB."""
+                    if not tag:
+                        return ""
+                    # Only allow alphanumeric, underscore, hyphen
+                    sanitized = re.sub(r"[^a-zA-Z0-9_-]", "", tag)
+                    return sanitized[:50]  # Max tag length
+
+                # Extract internal tools from FastMCP registry
+                internal_tools: list[ToolMetadata] = []
+
+                # Skip tool search tools themselves to avoid recursion
+                skip_tools = {
+                    "search_tools", "search_tools_regex", "get_tool_search_stats",
+                    "record_tool_outcome", "get_tool_details", "get_promotion_candidates",
+                    "promote_tool", "list_mcp_servers", "connect_mcp_server",
+                    "disconnect_mcp_server", "get_mcp_status", "invalidate_cache",
+                }
+
+                if hasattr(self.mcp, "_tool_manager") and hasattr(self.mcp._tool_manager, "_tools"):
+                    for tool_name, tool_obj in self.mcp._tool_manager._tools.items():
+                        if tool_name in skip_tools:
+                            continue
+
+                        # Validate tool_name format (Security C-4)
+                        if not re.match(r"^[a-zA-Z0-9_-]+$", tool_name) or len(tool_name) > 100:
+                            logger.warning(f"Skipping tool with invalid name: {tool_name[:20]}")
+                            continue
+
+                        # Extract and sanitize tool metadata (Security C-4)
+                        raw_description = getattr(tool_obj, "description", "") or ""
+                        description = sanitize_metadata(raw_description, 500)
+                        parameters = getattr(tool_obj, "parameters", {}) or {}
+
+                        # Auto-generate and sanitize tags from tool name
+                        name_parts = tool_name.split("_")
+                        tags = ["internal", "tmws"]
+                        if name_parts:
+                            sanitized_tag = sanitize_tag(name_parts[0])
+                            if sanitized_tag:
+                                tags.append(sanitized_tag)
+
+                        internal_tools.append(ToolMetadata(
+                            name=tool_name,
+                            description=(
+                                description if description
+                                else f"TMWS internal tool: {tool_name}"
+                            ),
+                            input_schema=parameters,
+                            tags=tags,
+                        ))
+
+                if internal_tools:
+                    await tool_search_service.register_internal_tools(internal_tools)
+                    logger.info(
+                        f"Registered {len(internal_tools)} internal TMWS tools "
+                        "in Tool Search index"
+                    )
+
+                # Register Skills from database (if available)
+                try:
+                    from src.services.skill_service import SkillService
+
+                    async with get_session() as session:
+                        skill_service = SkillService(session)
+                        skills = await skill_service.list_skills(is_active=True, limit=100)
+
+                        if skills:
+                            skill_metadata = []
+                            for skill in skills:
+                                # Security C-4: Validate and sanitize skill metadata
+                                if not skill.name or not re.match(r"^[a-zA-Z0-9_-]+$", skill.name):
+                                    logger.warning("Skipping skill with invalid name")
+                                    continue
+
+                                # Sanitize description and tags
+                                safe_desc = sanitize_metadata(
+                                    skill.description or f"TMWS Skill: {skill.display_name}",
+                                    500
+                                )
+                                raw_tags = list(skill.tags) if skill.tags else []
+                                safe_tags = [sanitize_tag(t) for t in raw_tags if sanitize_tag(t)]
+                                safe_tags.append("skill")
+                                if skill.persona:
+                                    safe_persona = sanitize_tag(skill.persona)
+                                    if safe_persona:
+                                        safe_tags.append(safe_persona)
+
+                                skill_metadata.append(ToolMetadata(
+                                    name=skill.name,
+                                    description=safe_desc,
+                                    tags=safe_tags,
+                                ))
+
+                            if skill_metadata:
+                                await tool_search_service.register_skills(skill_metadata)
+                                logger.info(
+                                    f"Registered {len(skill_metadata)} Skills "
+                                    "in Tool Search index"
+                                )
+                except Exception as skill_err:
+                    logger.debug(f"Skills registration skipped (non-critical): {skill_err}")
+
+            except Exception as index_err:
+                logger.warning(f"Internal tools indexing failed (non-critical): {index_err}")
 
             # Phase 3: Trinitas Agent File Loading (v2.4.0+, license-gated, OPTIONAL)
             # This phase generates agent markdown files for Claude Desktop
@@ -611,18 +741,21 @@ class HybridMCPServer:
                                 )
                             else:
                                 logger.info(
-                                    f"✅ Trinitas integrity verified: All {len(integrity_results)} agents valid"
+                                    f"✅ Trinitas integrity verified: "
+                                    f"All {len(integrity_results)} agents valid"
                                 )
                         else:
                             logger.warning(
-                                f"⚠️  Trinitas Agent Files disabled: {trinitas_result.get('reason', 'Unknown')}\n"
+                                f"⚠️  Trinitas Agent Files disabled: "
+                                f"{trinitas_result.get('reason', 'Unknown')}\n"
                                 f"   Current tier: {trinitas_result.get('tier', 'Unknown')}"
                             )
                 except Exception as e:
                     # Non-critical error: Trinitas file loading is optional feature
                     logger.warning(f"Trinitas agent file loading failed (non-critical): {e}")
                     logger.info(
-                        "TMWS will continue without agent files (database registration will still work)"
+                        "TMWS will continue without agent files "
+                        "(database registration will still work)"
                     )
 
                 # Phase 4: Trinitas Agent Auto-Registration (v2.4.0+, INDEPENDENT)
@@ -1149,13 +1282,19 @@ class HybridMCPServer:
                     logger.warning(f"Error disconnecting external MCP servers: {e}")
 
             # Log final metrics
+            hit_rate = "N/A"
+            if (self.metrics["chroma_hits"] + self.metrics["sqlite_fallbacks"]) > 0:
+                total_searches = (
+                    self.metrics["chroma_hits"] + self.metrics["sqlite_fallbacks"]
+                )
+                hit_percentage = (
+                    self.metrics["chroma_hits"] / total_searches * 100
+                )
+                hit_rate = f"{hit_percentage:.1f}%"
             logger.info(
                 f"HybridMCPServer shutdown: {self.instance_id}\n"
                 f"Final metrics: {self.metrics}\n"
-                f"ChromaDB hit rate: "
-                f"{self.metrics['chroma_hits'] / (self.metrics['chroma_hits'] + self.metrics['sqlite_fallbacks']) * 100:.1f}%"
-                if (self.metrics["chroma_hits"] + self.metrics["sqlite_fallbacks"]) > 0
-                else "N/A",
+                f"ChromaDB hit rate: {hit_rate}",
             )
 
         except (KeyboardInterrupt, SystemExit):
@@ -1171,11 +1310,6 @@ def first_run_setup():
 
     Creates necessary directories, initializes database schema, and displays setup information.
     """
-    import asyncio
-    import logging
-    import sys
-    from pathlib import Path
-
     # Configure logging to stderr early to keep stdout clean for MCP STDIO protocol
     logging.basicConfig(
         level=logging.INFO,
@@ -1221,7 +1355,10 @@ def first_run_setup():
 
             default_mcp_config = {
                 "$schema": "https://tmws.dev/schemas/mcp-servers.json",
-                "$comment": "TMWS MCP Server Configuration. Edit this file to add/remove MCP servers.",
+                "$comment": (
+                    "TMWS MCP Server Configuration. "
+                    "Edit this file to add/remove MCP servers."
+                ),
                 "mcpServers": {
                     "context7": {
                         "type": "stdio",
@@ -1249,7 +1386,10 @@ def first_run_setup():
                         "command": "npx",
                         "args": ["-y", "@anthropic/mcp-chrome-devtools@latest"],
                         "autoConnect": False,
-                        "$comment": "Chrome DevTools - requires Chrome with remote debugging (chrome --remote-debugging-port=9222)",
+                        "$comment": (
+                            "Chrome DevTools - requires Chrome with remote debugging "
+                            "(chrome --remote-debugging-port=9222)"
+                        ),
                     },
                 },
             }

@@ -16,7 +16,7 @@ Created: 2025-12-05
 
 import time
 from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -27,7 +27,6 @@ from src.services.tool_promotion_service import (
     PromotionResult,
     ToolPromotionService,
 )
-
 
 # ============================================================================
 # Fixtures

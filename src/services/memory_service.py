@@ -405,7 +405,8 @@ class HybridMemoryService:
                 )
 
             logger.info(
-                f"Memory created: {memory.id} (agent: {agent_id}, importance_score: {importance_score})",
+                f"Memory created: {memory.id} "
+                f"(agent: {agent_id}, importance_score: {importance_score})"
             )
             return memory
 
@@ -463,10 +464,12 @@ class HybridMemoryService:
         Args:
             memory_id: UUID of the memory to retrieve
             caller_agent_id: ID of the agent requesting access (for authorization).
-                             If None, skips authorization (backward compatibility, Phase 1A behavior).
-                             If provided with track_access=True, authorization is checked BEFORE tracking.
-            track_access: If True (default), increment access_count and update accessed_at.
-                          Set to False for internal operations (e.g., admin queries, batch processing)
+                If None, skips authorization (backward compatibility, Phase 1A behavior).
+                If provided with track_access=True, authorization is checked BEFORE
+                tracking.
+            track_access: If True (default), increment access_count and update
+                accessed_at. Set to False for internal operations (e.g., admin
+                queries, batch processing)
 
         Returns:
             Memory object or None if not found
@@ -538,7 +541,8 @@ class HybridMemoryService:
                     )
 
             if should_track:
-                memory.update_access()  # Increment access_count, update accessed_at, adjust relevance
+                # Increment access_count, update accessed_at, adjust relevance
+                memory.update_access()
                 await self.session.commit()
                 await self.session.refresh(memory)
 
@@ -703,7 +707,10 @@ class HybridMemoryService:
             def restore_uuid_hyphens(uuid_str: str) -> str:
                 """Restore hyphens to UUID (ChromaDB removes them). Format: 8-4-4-4-12"""
                 if len(uuid_str) == 32 and "-" not in uuid_str:
-                    restored = f"{uuid_str[:8]}-{uuid_str[8:12]}-{uuid_str[12:16]}-{uuid_str[16:20]}-{uuid_str[20:]}"
+                    restored = (
+                        f"{uuid_str[:8]}-{uuid_str[8:12]}-{uuid_str[12:16]}-"
+                        f"{uuid_str[16:20]}-{uuid_str[20:]}"
+                    )
                     logger.debug(f"🔧 Restored UUID: {uuid_str} → {restored}")
                     return restored
                 return uuid_str
@@ -846,7 +853,8 @@ class HybridMemoryService:
                 if "namespace" not in data:
                     raise ValueError(
                         "namespace is required in memory data. "
-                        "Explicit 'default' namespace is rejected to prevent cross-project leakage.",
+                        "Explicit 'default' namespace is rejected to prevent "
+                        "cross-project leakage."
                     )
 
                 memory = Memory(
@@ -1106,7 +1114,8 @@ class HybridMemoryService:
                     except Exception as e:
                         # Unexpected errors (best-effort, log warning and continue)
                         logger.warning(
-                            f"Unexpected error during ChromaDB deletion for memory {memory.id}: {e}",
+                            f"Unexpected error during ChromaDB deletion for memory "
+                            f"{memory.id}: {e}",
                             extra={
                                 "memory_id": str(memory.id),
                                 "agent_id": memory.agent_id,
@@ -1332,7 +1341,8 @@ class HybridMemoryService:
             )
             log_and_raise(
                 AuthorizationError,
-                f"Agent {agent_id} (namespace: {agent.namespace}) not authorized to cleanup namespace {namespace}",
+                f"Agent {agent_id} (namespace: {agent.namespace}) not authorized "
+                f"to cleanup namespace {namespace}",
                 details={
                     "agent_id": agent_id,
                     "agent_namespace": agent.namespace,
@@ -1618,7 +1628,8 @@ class HybridMemoryService:
             )
             log_and_raise(
                 AuthorizationError,
-                f"Agent {agent_id} (namespace: {agent.namespace}) not authorized to prune namespace {namespace}",
+                f"Agent {agent_id} (namespace: {agent.namespace}) not authorized "
+                f"to prune namespace {namespace}",
                 details={
                     "agent_id": agent_id,
                     "agent_namespace": agent.namespace,
@@ -1875,7 +1886,8 @@ class HybridMemoryService:
             )
             log_and_raise(
                 AuthorizationError,
-                f"Agent {agent_id} not authorized to update memory {memory_id} (owner: {memory.agent_id})",
+                f"Agent {agent_id} not authorized to update memory {memory_id} "
+                f"(owner: {memory.agent_id})",
                 details={
                     "memory_id": str(memory_id),
                     "memory_agent_id": memory.agent_id,

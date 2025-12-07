@@ -170,7 +170,11 @@ class RoutingTools(BaseTool):
 
             Example:
                 get_collaboration_matrix("security_audit")
-                -> {"primary": "hestia-auditor", "support": ["aurora-researcher"], "review": "artemis-optimizer"}
+                -> {
+                    "primary": "hestia-auditor",
+                    "support": ["aurora-researcher"],
+                    "review": "artemis-optimizer"
+                }
 
             """
             matrix = TaskRoutingService.COLLABORATION_MATRIX
@@ -324,7 +328,9 @@ class RoutingTools(BaseTool):
                         "support_from": ["aurora-researcher"],
                         "reports_to": ["athena-conductor"],
                     },
-                    "invocation_style": "precise, analytical, performance-focused, demanding excellence",
+                    "invocation_style": (
+                        "precise, analytical, performance-focused, demanding excellence"
+                    ),
                 },
                 "hestia-auditor": {
                     "display_name": "Hestia - Security Guardian 🔥",
@@ -399,7 +405,9 @@ class RoutingTools(BaseTool):
                         "support_from": ["muses-documenter"],
                         "reports_to": ["athena-conductor"],
                     },
-                    "invocation_style": "aesthetic, user-centered, accessibility-focused, beautiful",
+                    "invocation_style": (
+                        "aesthetic, user-centered, accessibility-focused, beautiful"
+                    ),
                 },
                 "metis-developer": {
                     "display_name": "Metis - Development Assistant 🔧",
@@ -491,7 +499,9 @@ class RoutingTools(BaseTool):
                     system_prompt = f"""# {persona_info["display_name"]}
 
 ## Core Identity
-You are {persona_id.split("-")[0].capitalize()}, embodying the {persona_info["invocation_style"]} approach.
+You are {persona_id.split("-")[0].capitalize()}, embodying the (
+    {persona_info["invocation_style"]}
+) approach.
 
 ## Capabilities
 {", ".join(persona_info["capabilities"])}
@@ -510,7 +520,9 @@ You are {persona_id.split("-")[0].capitalize()}, embodying the {persona_info["in
 {task_description}
 
 ## Execution Guidance
-As {persona_info["display_name"]}, approach this task with your characteristic {persona_info["invocation_style"]} style.
+As {persona_info["display_name"]}, approach this task with your (
+characteristic {persona_info["invocation_style"]} style
+).
 
 Focus on your core capabilities:
 {chr(10).join(f"- {cap}" for cap in persona_info["capabilities"])}
@@ -524,8 +536,12 @@ Consider collaborating with your primary partners if needed:
 To embody {persona_id}:
 
 1. **Adopt the persona's voice**: Be {persona_info["invocation_style"]}
-2. **Leverage capabilities**: Your strengths are {", ".join(persona_info["capabilities"][:3])}
-3. **Collaborate appropriately**: Work with {", ".join(persona_info["collaboration"].get("primary_partners", [])[:2])} when needed
+2. **Leverage capabilities**: Your strengths are (
+   {", ".join(persona_info["capabilities"][:3])}
+)
+3. **Collaborate appropriately**: Work with (
+   {", ".join(persona_info["collaboration"].get("primary_partners", [])[:2])}
+) when needed
 4. **Report to hierarchy**: Your tier is {persona_info["tier"]}
 
 Begin your response by acknowledging your role and approach.
@@ -565,7 +581,12 @@ Begin your response by acknowledging your role and approach.
                     personas: [...],
                     by_tier: {
                         STRATEGIC: ["athena-conductor", "hera-strategist"],
-                        SPECIALIST: ["artemis-optimizer", "hestia-auditor", "eris-coordinator", "muses-documenter"],
+                        SPECIALIST: [
+                            "artemis-optimizer",
+                            "hestia-auditor",
+                            "eris-coordinator",
+                            "muses-documenter"
+                        ],
                         SUPPORT: ["aphrodite-designer", "metis-developer", "aurora-researcher"]
                     }
                 }
@@ -648,7 +669,9 @@ Begin your response by acknowledging your role and approach.
                     "personas": personas,
                     "by_tier": by_tier,
                     "count": len(personas),
-                    "usage_hint": "Use invoke_persona(persona_id, task_description) to activate a persona",
+                    "usage_hint": (
+                        "Use invoke_persona(persona_id, task_description) to activate a persona"
+                    ),
                 },
                 f"Found {len(personas)} available personas",
             )

@@ -738,7 +738,11 @@ class TrinitasSecurityValidator:
             or re.match(f"^{regex_pattern}/", path_str) is not None
         )
 
-    def _calculate_risk_level(self, attempt: AccessAttempt, persona_config: dict) -> int:
+    def _calculate_risk_level(
+        self,
+        attempt: AccessAttempt,
+        persona_config: dict,  # noqa: ARG002 - Reserved for persona-specific risk rules
+    ) -> int:
         """Calculate security risk level from 1-10 based on access characteristics.
 
         Computes risk score by evaluating multiple factors including tool type,

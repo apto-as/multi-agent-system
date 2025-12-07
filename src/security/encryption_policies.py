@@ -82,7 +82,10 @@ class CrossAgentAccessPolicy:
             else:
                 return (
                     False,
-                    f"Access denied: Different namespace (owner: {owner_namespace}, requester: {requesting_namespace})",
+                    (
+                        f"Access denied: Different namespace "
+                        f"(owner: {owner_namespace}, requester: {requesting_namespace})"
+                    ),
                 )
 
         # 3. SHARED: Explicit agent list
@@ -95,7 +98,10 @@ class CrossAgentAccessPolicy:
             if not shared_with_agents or requesting_agent_id not in shared_with_agents:
                 return (
                     False,
-                    f"Access denied: Not in shared agent list (allowed: {shared_with_agents or []})",
+                    (
+                        f"Access denied: Not in shared agent list "
+                        f"(allowed: {shared_with_agents or []})"
+                    ),
                 )
 
             # Additional check: verify namespace matches
@@ -103,7 +109,10 @@ class CrossAgentAccessPolicy:
             if requesting_namespace != owner_namespace:
                 return (
                     False,
-                    f"Access denied: Namespace mismatch in SHARED access (owner: {owner_namespace}, requester: {requesting_namespace})",
+                    (
+                        f"Access denied: Namespace mismatch in SHARED access "
+                        f"(owner: {owner_namespace}, requester: {requesting_namespace})"
+                    ),
                 )
 
             return (True, f"Shared access (agent: {requesting_agent_id})")
@@ -158,14 +167,14 @@ class CrossAgentAccessPolicy:
                 return (False, f"Invalid access_level: {access_level}")
 
         # If SHARED, must have shared_with_agents
-        if metadata.get("access_level") == AccessLevel.SHARED.value:
-            if "shared_with_agents" not in metadata or not isinstance(
-                metadata["shared_with_agents"], list
-            ):
-                return (
-                    False,
-                    "SHARED access level requires 'shared_with_agents' list",
-                )
+        if metadata.get("access_level") == AccessLevel.SHARED.value and (
+            "shared_with_agents" not in metadata
+            or not isinstance(metadata["shared_with_agents"], list)
+        ):
+            return (
+                False,
+                "SHARED access level requires 'shared_with_agents' list",
+            )
 
         return (True, None)
 

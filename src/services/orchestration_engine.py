@@ -475,7 +475,10 @@ class OrchestrationEngine:
             await self._comm_service.send_message(
                 from_agent="eris-coordinator",
                 to_agents=list(involved_agents),
-                content=f"Orchestration '{task.title}' has been cancelled. Reason: {reason or 'Not specified'}",
+                content=(
+                    f"Orchestration '{task.title}' has been cancelled. "
+                    f"Reason: {reason or 'Not specified'}"
+                ),
                 priority=MessagePriority.HIGH,
             )
 

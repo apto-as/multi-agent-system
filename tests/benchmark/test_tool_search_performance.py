@@ -16,7 +16,6 @@ import asyncio
 import statistics
 import time
 from datetime import datetime, timedelta
-from unittest.mock import AsyncMock
 
 import pytest
 
@@ -31,7 +30,6 @@ from src.services.tool_promotion_service import (
     PromotionCriteria,
     ToolPromotionService,
 )
-
 
 # ============================================================================
 # Fixtures
