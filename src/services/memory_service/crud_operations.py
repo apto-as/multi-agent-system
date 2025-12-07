@@ -27,7 +27,6 @@ from src.core.exceptions import (
     ChromaOperationError,
     EmbeddingGenerationError,
     MemoryCreationError,
-    NotFoundError,
     log_and_raise,
 )
 from src.models.agent import AccessLevel

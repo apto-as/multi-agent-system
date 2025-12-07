@@ -59,7 +59,7 @@ def validate_cors_origins(origins: list[str], environment: str) -> list[str]:
 def _validate_single_origin(
     origin: str,
     environment: str,
-    has_wildcard: bool,
+    has_wildcard: bool,  # noqa: ARG001 - Reserved for future wildcard validation
     total_origins: int,
 ) -> None:
     """Validate a single CORS origin.

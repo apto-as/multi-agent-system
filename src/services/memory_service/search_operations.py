@@ -19,7 +19,6 @@ from src.core.exceptions import (
     MemorySearchError,
     log_and_raise,
 )
-from src.models.memory import Memory
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession

@@ -98,7 +98,7 @@ class MemoryNamespaceOperations:
         self._validate_cleanup_params(namespace, days, min_importance)
 
         # STEP 2: Verify agent exists and get VERIFIED namespace (V-NS-1)
-        agent = await self._verify_agent_namespace(agent_id, namespace)
+        await self._verify_agent_namespace(agent_id, namespace)
 
         # AUDIT LOG: Namespace cleanup initiated (BEFORE operation)
         await self._ensure_audit_initialized()
@@ -278,7 +278,7 @@ class MemoryNamespaceOperations:
         self._validate_prune_params(namespace, limit)
 
         # STEP 2: Verify agent exists and get VERIFIED namespace (V-NS-1)
-        agent = await self._verify_agent_namespace(agent_id, namespace)
+        await self._verify_agent_namespace(agent_id, namespace)
 
         # AUDIT LOG: Expired memory prune initiated (BEFORE operation)
         await self._ensure_audit_initialized()
