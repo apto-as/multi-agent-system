@@ -4,7 +4,6 @@
 
 import logging
 import os
-import secrets
 from contextlib import suppress
 from functools import lru_cache
 from pathlib import Path
@@ -17,10 +16,9 @@ from .exceptions import ConfigurationError
 logger = logging.getLogger(__name__)
 
 # Smart defaults for uvx one-command installation
+# NOTE: TMWS_DATA_DIR and TMWS_SECRET_FILE moved to config_validators/
 TMWS_HOME = Path.home() / ".tmws"
-TMWS_DATA_DIR = TMWS_HOME / "data"
 TMWS_CHROMA_DIR = TMWS_HOME / "chroma"
-TMWS_SECRET_FILE = TMWS_HOME / ".secret_key"
 
 
 class Settings(BaseSettings):
@@ -281,87 +279,12 @@ class Settings(BaseSettings):
         1. Explicit environment variables (TMWS_*)
         2. Smart defaults (development only)
         3. Error for production without explicit config
+
+        Delegates to config_validators.env_resolver for complexity reduction.
         """
-        import os
+        from .config_validators import resolve_environment_variables
 
-        # Get environment
-        environment = (
-            values.get("environment")
-            or values.get("ENVIRONMENT")
-            or os.environ.get("TMWS_ENVIRONMENT")
-            or os.environ.get("ENVIRONMENT", "development")
-        )
-        values["environment"] = environment
-
-        # Database URL
-        if not values.get("database_url"):
-            values["database_url"] = (
-                values.get("DATABASE_URL")
-                or os.environ.get("TMWS_DATABASE_URL")
-                or os.environ.get("DATABASE_URL", "")
-            )
-
-        # Smart default for database (development only)
-        if not values.get("database_url") and environment == "development":
-            TMWS_DATA_DIR.mkdir(parents=True, exist_ok=True)
-            values["database_url"] = f"sqlite+aiosqlite:///{TMWS_DATA_DIR}/tmws.db"
-            logger.info(f"📁 Using smart default database: {values['database_url']}")
-
-        # SMTP Configuration (Email Alerts - Optional)
-        smtp_fields = {
-            "smtp_host": ["SMTP_HOST", "TMWS_SMTP_HOST"],
-            "smtp_port": ["SMTP_PORT", "TMWS_SMTP_PORT"],
-            "smtp_use_tls": ["SMTP_USE_TLS", "TMWS_SMTP_USE_TLS"],
-            "smtp_username": ["SMTP_USERNAME", "TMWS_SMTP_USERNAME"],
-            "smtp_password": ["SMTP_PASSWORD", "TMWS_SMTP_PASSWORD"],
-            "alert_email_from": ["ALERT_EMAIL_FROM", "TMWS_ALERT_EMAIL_FROM"],
-            "alert_email_to": ["ALERT_EMAIL_TO", "TMWS_ALERT_EMAIL_TO"],
-            "alert_webhook_url": ["ALERT_WEBHOOK_URL", "TMWS_ALERT_WEBHOOK_URL"],
-        }
-
-        for field, env_vars in smtp_fields.items():
-            if not values.get(field):
-                for env_var in env_vars:
-                    env_value = os.environ.get(env_var, "")
-                    if env_value:
-                        values[field] = env_value
-                        break
-
-        # Secret Key
-        if not values.get("secret_key"):
-            values["secret_key"] = (
-                values.get("SECRET_KEY")
-                or os.environ.get("TMWS_SECRET_KEY")
-                or os.environ.get("SECRET_KEY", "")
-            )
-
-        # Smart default for secret key (development only)
-        if not values.get("secret_key") and environment == "development":
-            TMWS_HOME.mkdir(parents=True, exist_ok=True)
-
-            # Try to load existing secret key
-            if TMWS_SECRET_FILE.exists():
-                values["secret_key"] = TMWS_SECRET_FILE.read_text().strip()
-                logger.info("🔐 Using existing secret key from ~/.tmws/.secret_key")
-            else:
-                # Generate and save new secret key
-                values["secret_key"] = secrets.token_urlsafe(32)
-                TMWS_SECRET_FILE.write_text(values["secret_key"])
-                TMWS_SECRET_FILE.chmod(0o600)  # Read-only for owner
-                logger.info("🔑 Generated new secret key and saved to ~/.tmws/.secret_key")
-
-        # Validate required fields for production
-        if environment == "production":
-            errors = []
-            if not values.get("database_url"):
-                errors.append("TMWS_DATABASE_URL environment variable is required in production")
-            if not values.get("secret_key"):
-                errors.append("TMWS_SECRET_KEY environment variable is required in production")
-
-            if errors:
-                raise ValueError(f"Critical configuration missing: {'; '.join(errors)}")
-
-        return values
+        return resolve_environment_variables(values)
 
     @field_validator("secret_key")
     @classmethod
@@ -429,54 +352,12 @@ class Settings(BaseSettings):
         3. Trailing slashes in origins
         4. Empty origin strings
 
-        Raises:
-            ValueError: If validation fails
+        Delegates to config_validators.cors_validator for complexity reduction.
         """
+        from .config_validators import validate_cors_origins
+
         environment = info.data.get("environment", "development") if info.data else "development"
-
-        # Empty list check
-        if not v:
-            if environment == "production":
-                raise ValueError("CORS origins must be explicitly configured in production")
-            return v  # Allow empty in development
-
-        # Validate each origin
-        for origin in v:
-            # Empty string check
-            if not origin or not origin.strip():
-                raise ValueError("CORS origin cannot be empty string")
-
-            # Block wildcard
-            if origin == "*":
-                if environment == "production":
-                    raise ValueError(
-                        "Wildcard CORS origin '*' not allowed in production. "
-                        "Specify explicit origins like 'https://example.com'"
-                    )
-                # Also check for mixed wildcard + specific origins
-                if len(v) > 1:
-                    raise ValueError("Cannot use wildcard '*' with specific origins")
-
-            # Validate URL scheme (skip wildcard)
-            if origin != "*":
-                if not origin.startswith(("http://", "https://")):
-                    raise ValueError(
-                        f"Invalid CORS origin '{origin}': Must start with 'http://' or 'https://'"
-                    )
-
-                # No trailing slash
-                if origin.endswith("/"):
-                    raise ValueError(
-                        f"Invalid CORS origin '{origin}': Must not end with trailing slash"
-                    )
-
-        # Check for localhost origins in production
-        if environment == "production":
-            localhost_origins = [o for o in v if "localhost" in o or "127.0.0.1" in o]
-            if localhost_origins:
-                logger.warning(f"Localhost CORS origins in production: {localhost_origins}")
-
-        return v
+        return validate_cors_origins(v, environment)
 
     @field_validator("api_host")
     @classmethod
@@ -641,66 +522,21 @@ def get_settings() -> Settings:
 def _validate_production_settings(settings: Settings) -> None:
     """404 Production Validation: Zero tolerance for security issues.
 
-    Raises:
-        ValueError: If any production security issue is detected
-
+    Delegates to config_validators.production_validator for complexity reduction.
     """
-    issues = []
+    from .config_validators import validate_production_settings
 
-    # Security validations
-    if settings.api_host == "0.0.0.0":
-        issues.append("API host is 0.0.0.0 in production - security risk")
-
-    if settings.db_echo_sql:
-        issues.append("SQL echo is enabled in production - data exposure risk")
-
-    if settings.api_reload:
-        issues.append("API reload is enabled in production - instability risk")
-
-    if not settings.cors_origins:
-        issues.append("CORS origins not configured in production")
-
-    if settings.log_level == "DEBUG":
-        issues.append("Debug logging enabled in production - information disclosure")
-
-    if not settings.session_cookie_secure:
-        issues.append("Insecure session cookies in production")
-
-    if settings.session_cookie_samesite != "strict":
-        logger.warning("Session cookies not using 'strict' SameSite in production")
-
-    if not settings.security_headers_enabled:
-        issues.append("Security headers disabled in production")
-
-    # Authentication validation
-    if not settings.auth_enabled:
-        issues.append("Authentication disabled in production - critical security risk")
-
-    # Rate limiting validation
-    if not settings.rate_limit_enabled:
-        issues.append("Rate limiting disabled in production")
-
-    if settings.rate_limit_requests > 1000:
-        logger.warning("High rate limit in production - consider lowering")
-
-    if issues:
-        raise ValueError(f"PRODUCTION SECURITY ISSUES DETECTED: {'; '.join(issues)}")
-
-    logger.info("✅ Production security validation passed")
+    validate_production_settings(settings)
 
 
 def _validate_staging_settings(settings: Settings) -> None:
-    """Validate settings for staging environment."""
-    warnings = []
+    """Validate settings for staging environment.
 
-    if settings.db_echo_sql:
-        warnings.append("SQL echo enabled in staging")
+    Delegates to config_validators.production_validator for complexity reduction.
+    """
+    from .config_validators import validate_staging_settings
 
-    if settings.log_level == "DEBUG":
-        warnings.append("Debug logging in staging")
-
-    if warnings:
-        logger.warning(f"Staging configuration warnings: {'; '.join(warnings)}")
+    validate_staging_settings(settings)
 
 
 def create_secure_env_template() -> str:
