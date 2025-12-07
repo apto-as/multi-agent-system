@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
+from pydantic import BaseModel, Field
+
 
 @dataclass(frozen=True)
 class ToolDTO:
@@ -121,9 +123,6 @@ class DisconnectionResultDTO:
             "server_name": self.server_name,
             "disconnected_at": self.disconnected_at.isoformat(),
         }
-
-
-from pydantic import BaseModel, Field
 
 
 class SkillDTO(BaseModel):

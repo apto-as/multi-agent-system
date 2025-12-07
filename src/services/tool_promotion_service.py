@@ -13,9 +13,7 @@ Author: Artemis (Implementation)
 Created: 2025-12-05
 """
 
-import hashlib
 import logging
-import os
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -195,11 +193,11 @@ class ToolPromotionService:
         candidates: list[PromotionCandidate] = []
 
         # Get all agent patterns
-        if agent_id:
-            agent_ids = [agent_id]
-        else:
-            # Get all known agents
-            agent_ids = list(self._adaptive_ranker._agent_patterns.keys())
+        agent_ids = (
+            [agent_id]
+            if agent_id
+            else list(self._adaptive_ranker._agent_patterns.keys())
+        )
 
         for aid in agent_ids:
             patterns = await self._adaptive_ranker._get_agent_patterns(aid)
@@ -447,7 +445,8 @@ class ToolPromotionService:
 
         if pattern.average_latency_ms > self.criteria.max_average_latency_ms:
             missing_criteria.append(
-                f"latency ({pattern.average_latency_ms:.0f}ms > {self.criteria.max_average_latency_ms:.0f}ms)"
+                f"latency ({pattern.average_latency_ms:.0f}ms > "
+                f"{self.criteria.max_average_latency_ms:.0f}ms)"
             )
 
         # Calculate days active (from last_used)

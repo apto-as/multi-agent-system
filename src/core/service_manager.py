@@ -413,7 +413,8 @@ class ServiceManager:
 
         except (KeyboardInterrupt, SystemExit):
             logger.warning(
-                f"User interrupt during '{service_name}' shutdown - service may be in inconsistent state"
+                f"User interrupt during '{service_name}' shutdown - "
+                f"service may be in inconsistent state"
             )
             self.registry.update_health_status(
                 service_name, "interrupted", "User interrupt during shutdown"

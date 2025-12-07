@@ -264,7 +264,11 @@ class TrinitasLoader:
 
         return bundled_path.read_text(encoding="utf-8")
 
-    def _filter_content_by_tier(self, full_content: str, content_level: float) -> str:
+    def _filter_content_by_tier(
+        self,
+        full_content: str,
+        content_level: float,  # noqa: ARG002 - Reserved for v2.4.1 tier filtering
+    ) -> str:
         """
         Filter agent content based on tier level.
 

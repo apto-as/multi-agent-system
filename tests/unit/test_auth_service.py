@@ -75,7 +75,6 @@ class TestAuthServiceUserCreation:
 
             # Verify password is hashed with bcrypt
             assert user.password_hash != "secure_password_123"
-            assert user.password_salt is None  # bcrypt embeds salt in hash
             assert len(user.password_hash) == 60  # bcrypt hash length
 
     @pytest.mark.asyncio
@@ -157,7 +156,6 @@ def mock_user():
         username="testuser",
         email="test@example.com",
         password_hash=password_hash,
-        password_salt=None,  # bcrypt embeds salt in hash
         status=UserStatus.ACTIVE,
         roles=[UserRole.USER],
         failed_login_attempts=0,

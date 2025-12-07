@@ -368,7 +368,10 @@ async def get_skill_service(
     response_model=SkillResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create a new skill",
-    description="Create a new skill with Progressive Disclosure structure. Requires authentication.",
+    description=(
+        "Create a new skill with Progressive Disclosure structure. "
+        "Requires authentication."
+    ),
     dependencies=[Depends(check_rate_limit_skill_create)],
 )
 async def create_skill(

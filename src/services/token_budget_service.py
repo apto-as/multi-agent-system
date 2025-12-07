@@ -27,6 +27,7 @@ Phase: 2D-2 - V-2 Progressive Disclosure Implementation (SQLite-Only)
 Version: 2.0.0 (Redis → SQLite migration)
 """
 
+import logging
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
@@ -41,6 +42,8 @@ from src.core.exceptions import (
 )
 from src.models.token_consumption import TokenConsumption
 from src.services.license_service import LicenseService, TierEnum
+
+logger = logging.getLogger(__name__)
 
 
 class TokenBudgetStatus(BaseModel):
@@ -87,7 +90,10 @@ class TokenBudgetService:
         self.license_service = license_service
         self.db_session = db_session
 
-    def _get_window_key(self, agent_id: UUID) -> tuple[str, datetime, datetime]:
+    def _get_window_key(
+        self,
+        agent_id: UUID,  # noqa: ARG002 - Reserved for per-agent window tracking
+    ) -> tuple[str, datetime, datetime]:
         """
         Generate window_hour key for current hourly window.
 
@@ -285,9 +291,6 @@ class TokenBudgetService:
             await self.db_session.rollback()
             # Log error but don't fail operation (best-effort tracking)
             # Operation has already completed at this point
-            import logging
-
-            logger = logging.getLogger(__name__)
             logger.error(
                 f"Token consumption tracking failed for agent {agent_id}: {e}",
                 exc_info=True,

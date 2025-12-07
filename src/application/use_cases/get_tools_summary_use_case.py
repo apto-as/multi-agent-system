@@ -123,7 +123,7 @@ class GetToolsSummaryUseCase:
     def _filter_tools_by_namespace(
         self,
         all_tools: dict[str, list[Any]],
-        namespace: str,
+        namespace: str,  # noqa: ARG002 - Reserved for future namespace filtering
     ) -> dict[str, list[Any]]:
         """Filter tools by namespace (V-TOOL-1 compliance).
 
@@ -185,7 +185,7 @@ class GetToolsSummaryUseCase:
     def _estimate_tokens(
         self,
         frequently_used: list[ToolSummaryItem],
-        total_count: int,
+        total_count: int,  # noqa: ARG002 - Reserved for future total count estimation
     ) -> int:
         """Estimate token count for the response.
 

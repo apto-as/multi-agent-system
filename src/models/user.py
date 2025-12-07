@@ -80,12 +80,6 @@ class User(TMWSBase, MetadataMixin):
         comment="Bcrypt hashed password",
     )
 
-    password_salt: Mapped[str] = mapped_column(
-        Text,
-        nullable=False,
-        comment="Password salt for additional security",
-    )
-
     # Security tracking
     failed_login_attempts: Mapped[int] = mapped_column(
         sa.Integer,

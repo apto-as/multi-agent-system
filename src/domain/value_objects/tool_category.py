@@ -79,8 +79,10 @@ class ToolCategory(str, Enum):
         merged into the 5 Go-defined categories.
 
         Inference Rules (Priority Order):
-        1. DATA_PROCESSING: data, process, transform, analys, etl, workflow, task, automation, orchestrat
-        2. API_INTEGRATION: api, rest, graphql, client, sdk, mcp, server, connection, message, email, notify, chat, slack, webhook
+        1. DATA_PROCESSING: data, process, transform, analys, etl, workflow, task,
+           automation, orchestrat
+        2. API_INTEGRATION: api, rest, graphql, client, sdk, mcp, server, connection,
+           message, email, notify, chat, slack, webhook
         3. FILE_MANAGEMENT: file, document, storage, upload, download
         4. SECURITY: auth, security, encrypt, vault, secret
         5. MONITORING: monitor, log, metric, health, observ

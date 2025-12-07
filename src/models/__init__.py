@@ -80,4 +80,7 @@ __all__ = [
     "ExecutionTrace",
     "DetectedPattern",
     "SkillSuggestion",
+    # License Management
+    "LicenseKey",
+    "LicenseKeyUsage",
 ]

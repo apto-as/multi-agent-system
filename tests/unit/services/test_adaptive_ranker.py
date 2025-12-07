@@ -18,7 +18,7 @@ Created: 2025-12-05
 
 import asyncio
 from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -30,7 +30,6 @@ from src.services.adaptive_ranker import (
     ToolRecommendation,
     ToolUsagePattern,
 )
-
 
 # ============================================================================
 # Fixtures

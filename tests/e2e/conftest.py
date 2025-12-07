@@ -301,7 +301,6 @@ def auth_headers(test_agent: Agent) -> dict[str, str]:
         username=test_agent.agent_id,
         email=f"{test_agent.agent_id}@test.local",
         password_hash="dummy",  # Not used for token generation
-        password_salt="dummy",
         roles=[UserRole.SERVICE],  # Use SERVICE role for agent authentication
         agent_namespace=test_agent.namespace,
         preferred_agent_id=test_agent.agent_id,
@@ -338,7 +337,6 @@ def auth_headers_other_namespace(test_agent_other_namespace: Agent) -> dict[str,
         username=test_agent_other_namespace.agent_id,
         email=f"{test_agent_other_namespace.agent_id}@test.local",
         password_hash="dummy",
-        password_salt="dummy",
         roles=[UserRole.SERVICE],  # Use SERVICE role for agent authentication
         agent_namespace=test_agent_other_namespace.namespace,
         preferred_agent_id=test_agent_other_namespace.agent_id,
@@ -379,7 +377,6 @@ def create_jwt_token(agent: Agent, expires_delta: timedelta | None = None) -> st
         username=agent.agent_id,
         email=f"{agent.agent_id}@test.local",
         password_hash="dummy",
-        password_salt="dummy",
         roles=[UserRole.SERVICE],  # Use SERVICE role for agent authentication
         agent_namespace=agent.namespace,
         preferred_agent_id=agent.agent_id,

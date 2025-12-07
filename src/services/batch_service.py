@@ -353,12 +353,14 @@ class BatchProcessor:
             if job.processed_count == job.total_items:
                 job.status = BatchJobStatus.COMPLETED
                 logger.info(
-                    f"Completed batch job {job.job_id}: {job.success_count}/{job.total_items} successful",
+                    f"Completed batch job {job.job_id}: "
+                    f"{job.success_count}/{job.total_items} successful"
                 )
             else:
                 job.status = BatchJobStatus.FAILED
                 logger.error(
-                    f"Failed batch job {job.job_id}: {job.success_count}/{job.total_items} successful",
+                    f"Failed batch job {job.job_id}: "
+                    f"{job.success_count}/{job.total_items} successful"
                 )
 
         except asyncio.CancelledError:
@@ -495,7 +497,9 @@ class BatchProcessor:
 
             batch_time = (datetime.now() - batch_start_time).total_seconds()
             logger.debug(
-                f"Processed batch {batch_id}: {batch_success_count}/{len(items)} successful in {batch_time:.2f}s",
+                f"Processed batch {batch_id}: "
+                f"{batch_success_count}/{len(items)} successful "
+                f"in {batch_time:.2f}s"
             )
 
     async def _calculate_optimal_batch_size(self, job: BatchJob) -> int:

@@ -103,12 +103,13 @@ config/development.env
 tmp/
 temp/
 backups/
-archive/
-archives/
+/archive/
+/archives/
 ssl/
+# Note: scripts/archive/ is tracked (contains archived scripts)
 
 # MCP Server cache
-.serena/cache/
+.serena/
 
 # TMWS Consolidated Directory (Phase 2E-3: FORTRESS CONSOLIDATION)
 # Track directory structure but exclude sensitive data

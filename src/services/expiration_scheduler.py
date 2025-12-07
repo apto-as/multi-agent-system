@@ -7,6 +7,7 @@ Provides configurable interval, manual triggering, and metrics tracking.
 
 import asyncio
 import logging
+from contextlib import suppress
 from datetime import datetime, timedelta, timezone
 
 from src.services.memory_service import HybridMemoryService
@@ -83,10 +84,8 @@ class ExpirationScheduler:
 
         if self._task:
             self._task.cancel()
-            try:
-                await self._task
-            except asyncio.CancelledError:
-                pass  # Expected when stopping
+            with suppress(asyncio.CancelledError):
+                await self._task  # Expected when stopping
 
         logger.info(
             "Expiration scheduler stopped",

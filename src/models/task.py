@@ -566,7 +566,10 @@ class Task(TMWSBase, MetadataMixin):
         return False
 
     def __repr__(self) -> str:
-        return f"<Task(id={self.id}, title='{self.title}', status='{self.status}', assigned_to='{self.assigned_agent_id}')>"
+        return (
+            f"<Task(id={self.id}, title='{self.title}', "
+            f"status='{self.status}', assigned_to='{self.assigned_agent_id}')>"
+        )
 
 
 class TaskTemplate(TMWSBase):
@@ -749,4 +752,7 @@ class TaskTemplate(TMWSBase):
             self.success_rate = successful_tasks / completed_tasks
 
     def __repr__(self) -> str:
-        return f"<TaskTemplate(template_id='{self.template_id}', name='{self.name}', usage={self.usage_count})>"
+        return (
+            f"<TaskTemplate(template_id='{self.template_id}', "
+            f"name='{self.name}', usage={self.usage_count})>"
+        )

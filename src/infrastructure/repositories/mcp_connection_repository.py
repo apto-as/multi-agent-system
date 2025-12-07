@@ -289,7 +289,8 @@ class SQLAlchemyMCPConnectionRepository(MCPConnectionRepositoryInterface):
             agent_id: Agent requesting deletion (must be owner)
 
         Raises:
-            AggregateNotFoundError: If connection not found, in different namespace, or not owned by agent
+            AggregateNotFoundError: If connection not found, in different
+                namespace, or not owned by agent
             RepositoryError: If deletion fails
 
         Example:
@@ -461,7 +462,10 @@ class SQLAlchemyMCPConnectionRepository(MCPConnectionRepositoryInterface):
 
     # Interface-compliant methods (wrappers around existing methods)
 
-    async def list_by_agent(self, agent_id: UUID) -> list[MCPConnection]:
+    async def list_by_agent(
+        self,
+        agent_id: UUID,  # noqa: ARG002 - Reserved for future per-agent filtering
+    ) -> list[MCPConnection]:
         """List all connections for an agent.
 
         Args:
@@ -475,8 +479,8 @@ class SQLAlchemyMCPConnectionRepository(MCPConnectionRepositoryInterface):
 
     async def find_by_server_name(
         self,
-        agent_id: UUID,
-        server_name: str,
+        agent_id: UUID,  # noqa: ARG002 - Reserved for future per-agent filtering
+        server_name: str,  # noqa: ARG002 - Reserved for future server lookup
     ) -> MCPConnection | None:
         """Find a connection by server name for an agent.
 

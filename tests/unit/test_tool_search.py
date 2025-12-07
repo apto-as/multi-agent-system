@@ -141,8 +141,9 @@ class TestToolSearchModels:
         """Test query defaults."""
         query = ToolSearchQuery(query="test")
         assert query.source == "all"
-        assert query.limit == 10
+        assert query.limit == 5  # Changed from 10 to 5 for defer_loading optimization
         assert query.min_score == 0.3
+        assert query.defer_loading is False  # Default is False for backward compatibility
 
     def test_tool_search_response_has_skills(self):
         """Test has_skills property."""

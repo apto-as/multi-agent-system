@@ -385,7 +385,10 @@ with a {pattern.success_rate * 100:.1f}% success rate.
             if pattern.usage_count < self.min_usage:
                 log_and_raise(
                     ValidationError,
-                    f"Pattern does not meet usage threshold: {pattern.usage_count} < {self.min_usage}",
+                    (
+                        f"Pattern does not meet usage threshold: "
+                        f"{pattern.usage_count} < {self.min_usage}"
+                    ),
                     details={
                         "usage_count": pattern.usage_count,
                         "min_usage": self.min_usage,
@@ -395,7 +398,10 @@ with a {pattern.success_rate * 100:.1f}% success rate.
             if pattern.success_rate < self.min_success_rate:
                 log_and_raise(
                     ValidationError,
-                    f"Pattern does not meet success rate threshold: {pattern.success_rate:.2f} < {self.min_success_rate:.2f}",
+                    (
+                        f"Pattern does not meet success rate threshold: "
+                        f"{pattern.success_rate:.2f} < {self.min_success_rate:.2f}"
+                    ),
                     details={
                         "success_rate": pattern.success_rate,
                         "min_success_rate": self.min_success_rate,

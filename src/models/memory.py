@@ -201,7 +201,8 @@ class Memory(TMWSBase, MetadataMixin):
 
         Args:
             requesting_agent_id: ID of the agent requesting access
-            requesting_agent_namespace: Verified namespace of the requesting agent (MUST be verified against DB)
+            requesting_agent_namespace: Verified namespace of the requesting
+                agent (MUST be verified against DB)
 
         Returns:
             bool: True if access is allowed, False otherwise

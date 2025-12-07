@@ -5,6 +5,7 @@
 import logging
 import os
 import secrets
+from contextlib import suppress
 from functools import lru_cache
 from pathlib import Path
 
@@ -95,7 +96,10 @@ class Settings(BaseSettings):
     # Content Security Policy
     csp_enabled: bool = Field(default=True)
     csp_policy: str = Field(
-        default="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'",
+        default=(
+            "default-src 'self'; script-src 'self' 'unsafe-inline'; "
+            "style-src 'self' 'unsafe-inline'"
+        ),
     )
 
     # ==== RATE LIMITING & SECURITY ====
@@ -145,7 +149,10 @@ class Settings(BaseSettings):
         default=500,
         ge=100,
         le=10000,
-        description="Maximum length of core instructions extracted from skill content (default: 500 chars)",
+        description=(
+            "Maximum length of core instructions extracted from skill content "
+            "(default: 500 chars)"
+        ),
     )
 
     # Input validation limits (S-3-M1: Input Size Validation)
@@ -153,7 +160,10 @@ class Settings(BaseSettings):
         default=255,
         ge=1,
         le=1000,
-        description="Maximum length for skill name, persona, and namespace fields (default: 255 chars)",
+        description=(
+            "Maximum length for skill name, persona, and namespace fields "
+            "(default: 255 chars)"
+        ),
     )
 
     # ==== OLLAMA EMBEDDING CONFIGURATION (v2.3.0 - Ollama Required) ====
@@ -191,7 +201,10 @@ class Settings(BaseSettings):
     # SMTP configuration for security alert emails
     smtp_host: str = Field(
         default="",
-        description="SMTP server hostname (e.g., smtp.gmail.com) - Optional, set via TMWS_SMTP_HOST",
+        description=(
+            "SMTP server hostname (e.g., smtp.gmail.com) - "
+            "Optional, set via TMWS_SMTP_HOST"
+        ),
     )
     smtp_port: int = Field(
         default=587,
@@ -221,7 +234,10 @@ class Settings(BaseSettings):
     )
     alert_webhook_url: str = Field(
         default="",
-        description="Webhook URL for security alerts (Slack, Discord, etc.) - Optional, set via TMWS_ALERT_WEBHOOK_URL",
+        description=(
+            "Webhook URL for security alerts (Slack, Discord, etc.) - "
+            "Optional, set via TMWS_ALERT_WEBHOOK_URL"
+        ),
     )
 
     # ==== PERFORMANCE & CACHING ====
@@ -860,11 +876,9 @@ LOGS_DIR = PROJECT_ROOT / "logs"
 
 # Ensure critical directories exist (skip in Docker/production environments)
 # In Docker, directories are created by docker-compose volumes
-try:
+with suppress(PermissionError):
     LOGS_DIR.mkdir(exist_ok=True, mode=0o750)  # Secure directory permissions
-except PermissionError:
     # In Docker/production, directories are managed externally
-    pass
 
 # Global settings instance for application use
 settings = get_settings()

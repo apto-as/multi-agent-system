@@ -108,10 +108,7 @@ def has_potential_sensitive_data(text: str) -> bool:
 
     # Check for numeric patterns (credit cards, SSN, IP addresses)
     digit_count = sum(c.isdigit() for c in text)
-    if digit_count >= 7:  # Potential CC, SSN, or IP (lowered from 9 to catch IPs like 192.168.1.1)
-        return True
-
-    return False
+    return digit_count >= 7  # Potential CC, SSN, or IP (lowered from 9 to catch IPs like 192.168.1.1)
 
 
 # Compile patterns ONCE at module load (not per-call)

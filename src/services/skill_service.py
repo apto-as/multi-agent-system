@@ -381,7 +381,8 @@ class SkillService:
 
             # 2. Check if skill exists
             if not row:
-                # Return 404 for both "not found" and "access denied" (security: no information leak)
+                # Return 404 for both "not found" and "access denied"
+                # (security: no information leak)
                 raise NotFoundError("Skill", str(skill_id))
 
             skill, skill_version = row
@@ -896,7 +897,8 @@ class SkillService:
                 skills.append(dto)
 
             logger.info(
-                f"✅ Listed {len(skills)} skills (agent: {agent_id}, limit: {limit}, offset: {offset})",
+                f"✅ Listed {len(skills)} skills "
+                f"(agent: {agent_id}, limit: {limit}, offset: {offset})",
                 extra={
                     "agent_id": agent_id,
                     "namespace": namespace,
@@ -978,7 +980,8 @@ class SkillService:
             None (success indicated by no exception)
 
         Raises:
-            NotFoundError: Skill doesn't exist, already deleted, or access denied (404 for all cases)
+            NotFoundError: Skill doesn't exist, already deleted, or access denied
+                (404 for all cases)
             ValidationError: Skill is activated (cannot delete, must deactivate first)
             DatabaseError: Transaction failure
 
@@ -1044,7 +1047,10 @@ class SkillService:
                     details={
                         "skill_id": str(skill_id),
                         "error_code": "SKILL_ACTIVATED",
-                        "action_required": "Skill has been activated in the last 24 hours. Please wait before deletion.",
+                        "action_required": (
+                            "Skill has been activated in the last 24 hours. "
+                            "Please wait before deletion."
+                        ),
                     },
                 )
 
@@ -1329,7 +1335,8 @@ class SkillService:
             await self.session.refresh(skill)
 
             logger.info(
-                f"Skill {skill.name} (ID: {skill_id}) sharing updated: +{added_count} agents, -{removed_count} agents",
+                f"Skill {skill.name} (ID: {skill_id}) sharing updated: "
+                f"+{added_count} agents, -{removed_count} agents",
                 extra={
                     "skill_id": str(skill_id),
                     "skill_name": skill.name,
@@ -1481,8 +1488,8 @@ class SkillService:
             latest_activation = active_check_result.scalar_one_or_none()
 
             # Check if latest activation is still active
-            # Active = success is None (not yet completed) or success is True (completed successfully)
-            # Deactivated = success is False
+            # Active = success is None (not yet completed) or success is True
+            # (completed successfully). Deactivated = success is False
             if latest_activation and (
                 latest_activation.success is None or latest_activation.success is True
             ):

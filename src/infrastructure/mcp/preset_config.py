@@ -81,9 +81,8 @@ class MCPServerPreset:
         if self.transport_type == MCPTransportType.STDIO:
             if not self.command:
                 raise ValueError(f"STDIO server '{self.name}' requires 'command' field")
-        elif self.transport_type in (MCPTransportType.HTTP, MCPTransportType.SSE):
-            if not self.url:
-                raise ValueError(f"HTTP server '{self.name}' requires 'url' field")
+        elif self.transport_type in (MCPTransportType.HTTP, MCPTransportType.SSE) and not self.url:
+            raise ValueError(f"HTTP server '{self.name}' requires 'url' field")
 
     def get_resolved_env(self) -> dict[str, str]:
         """Get environment variables with ${VAR} references resolved.

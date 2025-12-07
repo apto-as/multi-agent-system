@@ -83,7 +83,9 @@ try:
 except ImportError:
     ED25519_AVAILABLE = False
     Ed25519PublicKey = None
-    InvalidSignature = Exception  # Placeholder
+    # Security: Do NOT create placeholder Exception class
+    # InvalidSignature is only used when cryptography is available
+    InvalidSignature = None  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -377,10 +379,12 @@ class LicenseService:
                 signature_bytes, signature_data.encode()
             )
             return True
-        except InvalidSignature:
-            return False
         except Exception as e:
-            logger.warning(f"Ed25519 signature verification error: {e}")
+            # Security: Handle InvalidSignature specifically when cryptography is available
+            # Other exceptions are logged for debugging (fail-secure: return False)
+            if InvalidSignature is not None and isinstance(e, InvalidSignature):
+                return False  # Invalid signature - expected case
+            logger.warning(f"Ed25519 signature verification error: {type(e).__name__}: {e}")
             return False
 
     def _is_ed25519_signature(self, signature: str) -> bool:

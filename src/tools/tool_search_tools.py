@@ -54,13 +54,20 @@ async def register_tools(mcp: FastMCP, **kwargs: Any) -> None:
 
     @mcp.tool(
         name="search_tools",
-        description="Search for available tools using semantic search. Skills are prioritized (2.0x weight), followed by internal tools (1.5x), then external MCP tools (1.0x). Provides personalized ranking when agent_id is provided.",
+        description=(
+            "Search for available tools using semantic search. "
+            "Skills are prioritized (2.0x weight), followed by "
+            "internal tools (1.5x), then external MCP tools (1.0x). "
+            "Provides personalized ranking when agent_id is provided. "
+            "Use defer_loading=True to reduce context tokens by 85%."
+        ),
     )
     async def search_tools(
         query: str,
         source: str = "all",
-        limit: int = 10,
+        limit: int = 5,
         agent_id: str | None = None,
+        defer_loading: bool = False,
     ) -> dict[str, Any]:
         """Search for tools using semantic search.
 
@@ -77,18 +84,23 @@ async def register_tools(mcp: FastMCP, **kwargs: Any) -> None:
                    - "internal": Only search built-in TMWS tools
                    - "external": Only search external MCP server tools
                    - "mcp_servers": Alias for "external"
-            limit: Maximum number of results (default: 10, max: 50)
+            limit: Maximum number of results (default: 5, max: 50)
             agent_id: Optional agent identifier for personalized ranking.
                      When provided, results are ranked based on agent's usage history.
+            defer_loading: If True, return lightweight ToolReference without input_schema.
+                          Reduces context tokens by ~85%. Use get_tool_details() to fetch
+                          full schema when needed. Default: False (backward compatible).
 
         Returns:
             Dictionary with:
             - results: List of matching tools with scores and personalization_boost
+                      (includes input_schema if defer_loading=False)
             - query: Original query
             - total_found: Total matches found
             - search_latency_ms: Search time in milliseconds
             - sources_searched: Which sources were queried
             - personalized: Whether personalization was applied
+            - deferred: True if defer_loading was used
 
         Examples:
             >>> search_tools("search code repository")
@@ -96,19 +108,37 @@ async def register_tools(mcp: FastMCP, **kwargs: Any) -> None:
 
             >>> search_tools("database operations", source="skills", agent_id="artemis")
             {"results": [{"tool_name": "sql_query_skill", "personalization_boost": 0.15, ...}], ...}
+
+            >>> search_tools("file operations", defer_loading=True)
+            {"results": [{"tool_name": "read_file", "deferred": True, ...}], "deferred": True}
         """
         # M-4 Security Fix: Validate all inputs
         # Validate query length
         if not query or not query.strip():
-            return {"error": "Query cannot be empty", "results": [], "query": query, "total_found": 0}
+            return {
+                "error": "Query cannot be empty",
+                "results": [],
+                "query": query,
+                "total_found": 0,
+            }
         if len(query) > 1000:
-            return {"error": "Query exceeds maximum length of 1000 characters", "results": [], "query": query[:50] + "...", "total_found": 0}
+            return {
+                "error": "Query exceeds maximum length of 1000 characters",
+                "results": [],
+                "query": query[:50] + "...",
+                "total_found": 0,
+            }
         query = query.strip()
 
         # Validate source (whitelist)
         valid_sources = {"all", "skills", "internal", "external", "mcp_servers"}
         if source not in valid_sources:
-            return {"error": f"Invalid source: {source}", "results": [], "query": query, "total_found": 0}
+            return {
+                "error": f"Invalid source: {source}",
+                "results": [],
+                "query": query,
+                "total_found": 0,
+            }
 
         # Validate limit
         limit = max(1, min(limit, 50))
@@ -117,7 +147,12 @@ async def register_tools(mcp: FastMCP, **kwargs: Any) -> None:
         if agent_id:
             import re
             if len(agent_id) > 64 or not re.match(r'^[a-zA-Z0-9_-]+$', agent_id):
-                return {"error": "Invalid agent_id format", "results": [], "query": query, "total_found": 0}
+                return {
+                    "error": "Invalid agent_id format",
+                    "results": [],
+                    "query": query,
+                    "total_found": 0,
+                }
 
         try:
             results = await service.search_tools(
@@ -125,6 +160,7 @@ async def register_tools(mcp: FastMCP, **kwargs: Any) -> None:
                 source=source,
                 limit=limit,
                 agent_id=agent_id,
+                defer_loading=defer_loading,
             )
 
             stats = await service.get_stats()
@@ -136,6 +172,7 @@ async def register_tools(mcp: FastMCP, **kwargs: Any) -> None:
                 "search_latency_ms": 0,  # Will be added from response
                 "sources_searched": _get_sources(source),
                 "personalized": agent_id is not None,
+                "deferred": defer_loading,
                 "stats": {
                     "total_indexed": stats["total_indexed"],
                     "skills_count": 0,  # Will be populated when skills are registered
@@ -153,8 +190,113 @@ async def register_tools(mcp: FastMCP, **kwargs: Any) -> None:
             }
 
     @mcp.tool(
+        name="search_tools_regex",
+        description=(
+            "Search for tools using regex pattern matching. "
+            "Faster than semantic search for exact name matching. "
+            "Use for precise tool name patterns."
+        ),
+    )
+    async def search_tools_regex(
+        pattern: str,
+        source: str = "all",
+        limit: int = 5,
+    ) -> dict[str, Any]:
+        """Search tools using regex pattern.
+
+        Complements search_tools for precise matching.
+        Pattern is matched against tool names and descriptions.
+
+        Args:
+            pattern: Regex pattern (e.g., "memory.*search", "^get_")
+            source: Filter by source type (same as search_tools)
+            limit: Maximum results (default: 5)
+
+        Returns:
+            Same format as search_tools
+
+        Security:
+            - Pattern length limited to 100 characters
+            - Timeout enforced (1 second)
+        """
+        # M-4 Security Fix: Validate all inputs
+        # Validate pattern length
+        if not pattern or not pattern.strip():
+            return {
+                "error": "Pattern cannot be empty",
+                "results": [],
+                "pattern": pattern,
+                "total_found": 0,
+            }
+        if len(pattern) > 100:
+            return {
+                "error": "Pattern exceeds maximum length of 100 characters",
+                "results": [],
+                "pattern": pattern[:50] + "...",
+                "total_found": 0,
+            }
+        pattern = pattern.strip()
+
+        # Validate source (whitelist)
+        valid_sources = {"all", "skills", "internal", "external", "mcp_servers"}
+        if source not in valid_sources:
+            return {
+                "error": f"Invalid source: {source}",
+                "results": [],
+                "pattern": pattern,
+                "total_found": 0,
+            }
+
+        # Validate limit
+        limit = max(1, min(limit, 50))
+
+        try:
+            # Use the internal _regex_search method
+            results = await service._regex_search(
+                pattern=pattern,
+                limit=limit,
+                source_filter=source,
+            )
+
+            # Apply ranking
+            ranked_results = service._apply_ranking(results)
+
+            # Convert to dictionary format
+            result_dicts = [
+                {
+                    "tool_name": r.tool_name,
+                    "server_id": r.server_id,
+                    "description": r.description,
+                    "relevance_score": r.relevance_score,
+                    "weighted_score": r.weighted_score,
+                    "source_type": r.source_type.value,
+                    "tags": r.tags,
+                }
+                for r in ranked_results[:limit]
+            ]
+
+            return {
+                "results": result_dicts,
+                "pattern": pattern,
+                "total_found": len(ranked_results),
+                "search_mode": "regex",
+                "sources_searched": _get_sources(source),
+            }
+        except Exception as e:
+            logger.error(f"Regex tool search failed: {e}")
+            return {
+                "error": str(e),
+                "results": [],
+                "pattern": pattern,
+                "total_found": 0,
+            }
+
+    @mcp.tool(
         name="get_tool_search_stats",
-        description="Get statistics about the tool search index, including counts of skills, internal tools, and external MCP tools.",
+        description=(
+            "Get statistics about the tool search index, including counts "
+            "of skills, internal tools, and external MCP tools."
+        ),
     )
     async def get_tool_search_stats() -> dict[str, Any]:
         """Get tool search statistics.
@@ -176,7 +318,11 @@ async def register_tools(mcp: FastMCP, **kwargs: Any) -> None:
 
     @mcp.tool(
         name="record_tool_outcome",
-        description="Record the outcome of a tool execution for learning. This enables personalized ranking in future searches. Call after executing any tool.",
+        description=(
+            "Record the outcome of a tool execution for learning. "
+            "This enables personalized ranking in future searches. "
+            "Call after executing any tool."
+        ),
     )
     async def record_tool_outcome(
         tool_name: str,
@@ -243,6 +389,60 @@ async def register_tools(mcp: FastMCP, **kwargs: Any) -> None:
                 "tool_name": tool_name,
             }
 
+    @mcp.tool(
+        name="get_tool_details",
+        description=(
+            "Get full details for a specific tool. "
+            "Use after search_tools with defer_loading=True to get the input_schema."
+        ),
+    )
+    async def get_tool_details(
+        tool_name: str,
+        server_id: str,
+    ) -> dict[str, Any]:
+        """Get full tool details for lazy loading.
+
+        Args:
+            tool_name: Name of the tool
+            server_id: Server ID where the tool resides (e.g., "tmws", "mcp__context7")
+
+        Returns:
+            Dictionary with:
+            - tool_name: Name of the tool
+            - server_id: Server ID
+            - description: Tool description
+            - input_schema: Full JSON schema for tool parameters
+            - output_schema: Output schema (if available)
+            - tags: List of tags
+            - source_type: Tool source type
+            - error: Error message if tool not found
+
+        Examples:
+            >>> get_tool_details("grep", "tmws")
+            {"tool_name": "grep", "input_schema": {...}, ...}
+        """
+        try:
+            details = await service.get_tool_details(
+                tool_name=tool_name,
+                server_id=server_id,
+            )
+
+            if details is None:
+                return {
+                    "error": f"Tool not found: {tool_name} from {server_id}",
+                    "tool_name": tool_name,
+                    "server_id": server_id,
+                }
+
+            return details
+        except Exception as e:
+            logger.error(f"Failed to get tool details: {e}")
+            return {
+                "error": str(e),
+                "tool_name": tool_name,
+                "server_id": server_id,
+            }
+
     # Phase 4.2: Tool Promotion tools
     # Initialize promotion service (lazy)
     promotion_service = None
@@ -260,7 +460,10 @@ async def register_tools(mcp: FastMCP, **kwargs: Any) -> None:
 
     @mcp.tool(
         name="get_promotion_candidates",
-        description="Get tools that are candidates for promotion to Skills. Shows tools with high usage and success rates that could become Skills.",
+        description=(
+            "Get tools that are candidates for promotion to Skills. "
+            "Shows tools with high usage and success rates that could become Skills."
+        ),
     )
     async def get_promotion_candidates(
         agent_id: str | None = None,
@@ -308,7 +511,10 @@ async def register_tools(mcp: FastMCP, **kwargs: Any) -> None:
 
     @mcp.tool(
         name="promote_tool",
-        description="Promote a frequently-used tool to a Skill. This creates a new Skill based on the tool's usage patterns.",
+        description=(
+            "Promote a frequently-used tool to a Skill. "
+            "This creates a new Skill based on the tool's usage patterns."
+        ),
     )
     async def promote_tool(
         tool_name: str,
@@ -360,7 +566,7 @@ async def register_tools(mcp: FastMCP, **kwargs: Any) -> None:
                 "error": str(e),
             }
 
-    logger.info("Tool Search MCP tools registered (5 tools)")
+    logger.info("Tool Search MCP tools registered (7 tools)")
 
 
 def _get_sources(source: str) -> list[str]:
