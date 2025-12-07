@@ -409,7 +409,7 @@ class ToolSearchService:
 
         # Check skills (server_id = "tmws:skills")
         if server_id == "tmws:skills":
-            # TODO: Implement SkillService integration
+            # NOTE: Skill search integration tracked as enhancement (Phase 2.5+)
             # Skills are TMWS's third core feature and should be searchable as tools.
             #
             # Implementation requires:

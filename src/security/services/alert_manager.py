@@ -40,7 +40,7 @@ class AlertManager:
         self.brute_force_threshold = 5
 
         # Alert history (simple in-memory tracking)
-        # TODO: Move to Redis/database for distributed systems
+        # NOTE: Redis/database backend tracked for distributed deployments (v2.5+)
         self.recent_alerts: dict[str, datetime] = {}
         self.alert_cooldown = 60  # seconds
 

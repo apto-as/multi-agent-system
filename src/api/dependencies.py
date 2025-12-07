@@ -119,11 +119,11 @@ async def get_current_user(
         # 3. Extract VERIFIED namespace from database (NOT from JWT)
         verified_namespace = agent.namespace
 
-        # 4. Return User with verified namespace
+        # 4. Return User with verified namespace and role
         return User(
             agent_id=str(agent.agent_id),
             namespace=verified_namespace,
-            roles=["user"],  # TODO: Load roles from agent.roles
+            roles=[agent.role] if agent.role else ["viewer"],
         )
 
     except JWTError:

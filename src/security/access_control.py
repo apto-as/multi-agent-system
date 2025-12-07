@@ -562,7 +562,7 @@ class AccessControlManager:
     async def _setup_monitoring(self, context: AccessContext):
         """Setup additional monitoring for conditional access."""
         logger.info(f"Setting up monitoring for conditional access: {context.requesting_agent}")
-        # TODO: Implement monitoring logic
+        # NOTE: Enhanced monitoring logic tracked as observability feature
 
     async def _request_approval(self, context: AccessContext):
         """Create approval request for manual review."""

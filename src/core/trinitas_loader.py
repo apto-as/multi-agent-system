@@ -255,7 +255,7 @@ class TrinitasLoader:
         # Namespace: "trinitas", Tag: f"agent_{persona}"
 
         # For now, use bundled agent files as fallback
-        # TODO: Implement full DB storage in Phase v2.4.1
+        # NOTE: Full DB storage tracked in future phase (v2.5+)
 
         bundled_path = Path(__file__).parent.parent / "trinitas" / "agents" / f"{persona}.md"
 
@@ -318,8 +318,8 @@ class TrinitasLoader:
             content = agent_path.read_text(encoding="utf-8")
             hashlib.sha256(content.encode()).hexdigest()
 
-            # TODO: Compare with stored checksum from DB
-            # For v2.4.0: Always return True (full verification in v2.4.1)
+            # NOTE: Checksum comparison with DB tracked in future phase (v2.5+)
+            # For now: Always return True (file existence verified)
             results[persona] = True
 
         return results

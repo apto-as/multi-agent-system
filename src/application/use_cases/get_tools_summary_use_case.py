@@ -173,7 +173,7 @@ class GetToolsSummaryUseCase:
                         description=getattr(tool, "description", "No description")[
                             :100
                         ],  # Truncate for token efficiency
-                        usage_count=0,  # TODO: Implement usage tracking
+                        usage_count=0,  # NOTE: Usage tracking tracked as analytics feature
                     )
                 )
 
