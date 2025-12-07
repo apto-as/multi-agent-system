@@ -121,7 +121,11 @@ class PatternSkillTools:
                     )
 
                     logger.info(
-                        f"find_mature_patterns: agent={agent_id}, found={len(result['patterns'])}"
+                        "find_mature_patterns completed",
+                        extra={
+                            "agent_id": agent_id,
+                            "patterns_found": len(result["patterns"]),
+                        },
                     )
 
                     return result
@@ -212,8 +216,12 @@ class PatternSkillTools:
                         await session.commit()
 
                     logger.info(
-                        f"promote_pattern_to_skill: pattern={pattern_id}, "
-                        f"dry_run={dry_run}, success={result['success']}"
+                        "promote_pattern_to_skill completed",
+                        extra={
+                            "pattern_id": pattern_id,
+                            "dry_run": dry_run,
+                            "success": result["success"],
+                        },
                     )
 
                     return result
@@ -302,8 +310,12 @@ class PatternSkillTools:
                         await session.commit()
 
                     logger.info(
-                        f"batch_promote_patterns: agent={agent_id}, "
-                        f"promoted={len(result['promoted'])}, dry_run={dry_run}"
+                        "batch_promote_patterns completed",
+                        extra={
+                            "agent_id": agent_id,
+                            "promoted_count": len(result["promoted"]),
+                            "dry_run": dry_run,
+                        },
                     )
 
                     return result
@@ -376,8 +388,11 @@ class PatternSkillTools:
                     )
 
                     logger.info(
-                        f"get_pattern_promotion_status: agent={agent_id}, "
-                        f"eligible={result['eligible_patterns']}"
+                        "get_pattern_promotion_status completed",
+                        extra={
+                            "agent_id": agent_id,
+                            "eligible_patterns": result["eligible_patterns"],
+                        },
                     )
 
                     return result

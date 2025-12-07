@@ -6,6 +6,7 @@ Provides user-facing interface for:
 3. Viewing verification history
 """
 
+import logging
 from typing import Any
 
 from mcp.server import Server
@@ -13,6 +14,8 @@ from mcp.server import Server
 from src.core.database import get_session
 from src.services.trust_service import TrustService
 from src.services.verification_service import ClaimType, VerificationService
+
+logger = logging.getLogger(__name__)
 
 
 async def register_verification_tools(mcp: Server) -> None:

@@ -57,6 +57,13 @@ class DisconnectMCPServerUseCase:
         # [3] Retrieve connection
         connection = await self._repository.get_by_id(request.connection_id, verified_namespace)
         if not connection:
+            logger.error(
+                "MCPConnection not found during disconnect",
+                extra={
+                    "connection_id": str(request.connection_id),
+                    "namespace": verified_namespace,
+                }
+            )
             raise AggregateNotFoundError("MCPConnection", str(request.connection_id))
 
         # [4] Disconnect from external server
@@ -104,19 +111,38 @@ class DisconnectMCPServerUseCase:
         agent = await self._agent_repository.get_by_id(agent_id)
 
         if not agent:
-            raise AuthorizationError(f"Agent {agent_id} not found")
+            logger.error(
+                "Agent not found during namespace verification",
+                extra={"agent_id": agent_id}
+            )
+            raise AuthorizationError(
+                f"Agent {agent_id} not found",
+                details={"agent_id": agent_id}
+            )
 
         # [2] Verify namespace matches database
         verified_namespace = agent.namespace
 
         if claimed_namespace != verified_namespace:
-            # Log potential attack attempt
-            logger.warning(
-                f"Namespace mismatch for agent {agent_id}: "
-                f"claimed={claimed_namespace}, actual={verified_namespace}"
+            # Log potential attack attempt (SECURITY-CRITICAL)
+            logger.error(
+                "Namespace verification failed - possible attack attempt",
+                extra={
+                    "agent_id": agent_id,
+                    "claimed_namespace": claimed_namespace,
+                    "verified_namespace": verified_namespace,
+                    "security_event": "namespace_mismatch",
+                }
             )
 
-            raise AuthorizationError("Namespace verification failed (access denied)")
+            raise AuthorizationError(
+                "Namespace verification failed (access denied)",
+                details={
+                    "agent_id": agent_id,
+                    "claimed_namespace": claimed_namespace,
+                    "verified_namespace": verified_namespace,
+                }
+            )
 
         # [3] Return verified namespace
         return verified_namespace

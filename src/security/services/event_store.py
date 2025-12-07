@@ -7,7 +7,6 @@ Extracted from AsyncSecurityAuditLogger as part of Phase 4.2 refactoring.
 
 import json
 import logging
-import sys
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -254,17 +253,22 @@ class EventStore:
 
         except (KeyboardInterrupt, SystemExit):
             raise
-        except Exception as e:
+        except Exception:
             # CRITICAL: File logging failed (this is the fallback!)
             logger.critical(
-                f"❌ CRITICAL: File audit logging failed! Event: {event_type}, "
-                f"IP: {event_data.get('client_ip')}, Error: {e}",
+                "CRITICAL: File audit logging failed",
+                extra={
+                    "event_type": event_type,
+                    "client_ip": event_data.get("client_ip"),
+                },
                 exc_info=True,
             )
-            print(
-                f"EMERGENCY_AUDIT: {event_type} from {event_data.get('client_ip')} - "
-                f"File logging failed: {e}",
-                file=sys.stderr,
+            logger.debug(
+                "Emergency audit fallback triggered",
+                extra={
+                    "event_type": event_type,
+                    "client_ip": event_data.get("client_ip"),
+                },
             )
             # Re-raise so caller knows file logging failed
             raise
@@ -303,16 +307,19 @@ class EventStore:
             "file_error": str(file_error),
         }
 
-        print(
-            f"\n🚨 EMERGENCY AUDIT LOG (ALL BACKENDS FAILED):\n"
-            f"{json.dumps(emergency_log, indent=2)}\n",
-            file=sys.stderr,
+        logger.critical(
+            "CATASTROPHIC: All audit log backends failed",
+            extra={
+                "emergency_log": emergency_log,
+                "db_error": str(db_error),
+                "file_error": str(file_error),
+            },
+            exc_info=True,
         )
 
-        logger.critical(
-            f"🚨🚨🚨 CATASTROPHIC: All audit log backends failed! "
-            f"Event dumped to stderr. DB error: {db_error}, File error: {file_error}",
-            exc_info=True,
+        logger.debug(
+            "Emergency audit log dumped",
+            extra={"emergency_audit_data": emergency_log},
         )
 
     async def get_recent(

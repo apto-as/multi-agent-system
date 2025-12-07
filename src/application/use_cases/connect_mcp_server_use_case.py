@@ -80,20 +80,56 @@ class ConnectMCPServerUseCase:
         # [2] Namespace verification from DB (SECURITY CRITICAL)
         agent = await self._agent_repository.get_by_id(request.agent_id)
         if not agent:
-            raise AuthorizationError("Agent not found")
+            logger.error(
+                "Agent not found during MCP connection",
+                extra={"agent_id": str(request.agent_id)}
+            )
+            raise AuthorizationError(
+                "Agent not found",
+                details={"agent_id": str(request.agent_id)}
+            )
 
         verified_namespace = agent.namespace  # ✅ From DB, not from request
 
         # [3] Authorization check
         if request.namespace != verified_namespace:
-            raise AuthorizationError("Namespace mismatch")
+            logger.error(
+                "Namespace mismatch during MCP connection - possible attack",
+                extra={
+                    "agent_id": str(request.agent_id),
+                    "claimed_namespace": request.namespace,
+                    "verified_namespace": verified_namespace,
+                    "security_event": "namespace_mismatch",
+                }
+            )
+            raise AuthorizationError(
+                "Namespace mismatch",
+                details={
+                    "agent_id": str(request.agent_id),
+                    "claimed_namespace": request.namespace,
+                    "verified_namespace": verified_namespace,
+                }
+            )
 
         # [4] Check for duplicate connection
         existing = await self._repository.get_by_server_name_and_namespace(
             request.server_name, verified_namespace
         )
         if existing:
-            raise ValidationError(f"Connection to {request.server_name} already exists")
+            logger.error(
+                "Duplicate MCP connection attempt",
+                extra={
+                    "server_name": request.server_name,
+                    "namespace": verified_namespace,
+                }
+            )
+            raise ValidationError(
+                f"Connection to {request.server_name} already exists",
+                details={
+                    "server_name": request.server_name,
+                    "namespace": verified_namespace,
+                }
+            )
 
         async with self._uow:
             # [5-6] Create aggregate

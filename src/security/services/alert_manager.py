@@ -190,7 +190,13 @@ class AlertManager:
                 "brute_force_info": brute_force_info,
             },
         )
-        print(alert_message)  # Also print to console for immediate visibility
+        logger.warning(
+            "Security alert triggered",
+            extra={
+                "alert_message": alert_message,
+                "alert_reason": alert_reason,
+            },
+        )
 
         # Record alert to prevent spam
         self.recent_alerts[alert_key] = datetime.utcnow()
