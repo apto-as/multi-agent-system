@@ -464,7 +464,7 @@ class SQLAlchemyMCPConnectionRepository(MCPConnectionRepositoryInterface):
 
     async def list_by_agent(
         self,
-        agent_id: UUID,  # noqa: ARG002 - Reserved for future per-agent filtering
+        agent_id: UUID,
     ) -> list[MCPConnection]:
         """List all connections for an agent.
 
@@ -474,13 +474,21 @@ class SQLAlchemyMCPConnectionRepository(MCPConnectionRepositoryInterface):
         Returns:
             List of connections
         """
-        # Implementation needed - for now return empty list
-        return []
+        try:
+            result = await self._session.execute(
+                select(MCPConnectionModel).where(
+                    MCPConnectionModel.agent_id == str(agent_id)
+                )
+            )
+            models = result.scalars().all()
+            return [self._model_to_aggregate(model) for model in models]
+        except Exception as e:
+            raise RepositoryError(f"Failed to list connections for agent {agent_id}: {e}")
 
     async def find_by_server_name(
         self,
-        agent_id: UUID,  # noqa: ARG002 - Reserved for future per-agent filtering
-        server_name: str,  # noqa: ARG002 - Reserved for future server lookup
+        agent_id: UUID,
+        server_name: str,
     ) -> MCPConnection | None:
         """Find a connection by server name for an agent.
 
@@ -491,8 +499,17 @@ class SQLAlchemyMCPConnectionRepository(MCPConnectionRepositoryInterface):
         Returns:
             MCPConnection if found, None otherwise
         """
-        # Implementation needed - for now return None
-        return None
+        try:
+            result = await self._session.execute(
+                select(MCPConnectionModel).where(
+                    MCPConnectionModel.agent_id == str(agent_id),
+                    MCPConnectionModel.server_name == server_name,
+                )
+            )
+            model = result.scalar_one_or_none()
+            return self._model_to_aggregate(model) if model else None
+        except Exception as e:
+            raise RepositoryError(f"Failed to find connection '{server_name}' for agent {agent_id}: {e}")
 
 
 # Maintain backwards compatibility

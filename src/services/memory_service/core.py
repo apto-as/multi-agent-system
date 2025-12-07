@@ -72,7 +72,7 @@ class HybridMemoryService:
         self.session = session
         self._embedding_service = embedding_service
         self._vector_service = vector_service
-        self._agent_service: "AgentService | None" = None
+        self._agent_service: AgentService | None = None
         self._initialized = False
         self._init_lock = asyncio.Lock()
 
@@ -82,7 +82,7 @@ class HybridMemoryService:
         self.embedding_dimension = model_info.get("dimension", settings.vector_dimension)
 
         # Audit logger (lazy init)
-        self.audit_logger: "AuditLogger | None" = None
+        self.audit_logger: AuditLogger | None = None
 
         # Sub-services (initialized lazily after ChromaDB init)
         self._crud: MemoryCRUDOperations | None = None
