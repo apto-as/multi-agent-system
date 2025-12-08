@@ -94,7 +94,7 @@ class PatternSkillTools:
                     limit=5
                 )
                 for pattern in result["patterns"]:
-                    print(f"{pattern['pattern_name']}: {pattern['success_rate']*100}%")
+                    logger.info(f"{pattern['pattern_name']}: {pattern['success_rate']*100}%")
             """
             try:
                 # REQ-4: Rate limiting (V-AUTH-1 fix)
@@ -179,7 +179,7 @@ class PatternSkillTools:
                     pattern_id="abc123...",
                     dry_run=True
                 )
-                print(preview["skill_content"])
+                logger.info(f"Preview content: {preview['skill_content']}")
 
                 # Then create
                 result = await promote_pattern_to_skill(
@@ -187,7 +187,7 @@ class PatternSkillTools:
                     pattern_id="abc123...",
                     dry_run=False
                 )
-                print(f"Created skill: {result['skill_id']}")
+                logger.info(f"Created skill: {result['skill_id']}")
             """
             try:
                 # REQ-4: Rate limiting (V-AUTH-1 fix)
@@ -274,7 +274,7 @@ class PatternSkillTools:
                     limit=3,
                     dry_run=True
                 )
-                print(f"Would promote {len(preview['promoted'])} patterns")
+                logger.info(f"Would promote {len(preview['promoted'])} patterns")
 
                 # Execute batch
                 result = await batch_promote_patterns(
@@ -364,7 +364,7 @@ class PatternSkillTools:
                     agent_id="artemis-optimizer"
                 )
                 if status["feature_enabled"]:
-                    print(f"{status['eligible_patterns']} patterns ready for promotion")
+                    logger.info(f"{status['eligible_patterns']} patterns ready for promotion")
             """
             try:
                 # REQ-4: Rate limiting (V-AUTH-1 fix)

@@ -485,34 +485,7 @@ class ExampleComponent(TrinitasComponent):
         # Custom initialization logic
         self.example_setting = self.get_config("example.setting", default="default")
 
-        print(f"{self.COMPONENT_NAME} initialized with setting: {self.example_setting}")
-
-
-if __name__ == "__main__":
-    # Test cases
-    print("TrinitasComponent Test Suite")
-    print("=" * 60)
-
-    # Test 1: Basic initialization
-    component = TrinitasComponent(auto_init=False)
-    print(f"✓ Component created: {component}")
-    print(f"  Project root: {component.project_root}")
-
-    # Test 2: Auto-initialization
-    component2 = TrinitasComponent()
-    print(f"✓ Auto-initialized: {component2.is_initialized}")
-
-    # Test 3: Config access
-    component.set_config("test.nested.key", "value")
-    value = component.get_config("test.nested.key")
-    print(f"✓ Config get/set: {value}")
-
-    # Test 4: Example subclass
-    print("\n--- Testing ExampleComponent ---")
-    try:
-        example = ExampleComponent()
-        print(f"✓ Subclass created: {example}")
-    except Exception as e:
-        print(f"✓ Expected error (no config file): {type(e).__name__}")
-
-    print("\n✅ All tests completed!")
+        # Log initialization instead of printing
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.debug(f"{self.COMPONENT_NAME} initialized with setting: {self.example_setting}")
