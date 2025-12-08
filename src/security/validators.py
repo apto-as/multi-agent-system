@@ -14,18 +14,41 @@ from urllib.parse import urlparse
 import numpy as np
 
 from ..core.exceptions import ValidationError as BaseValidationError
+from ..core.exceptions import log_and_raise
 
 logger = logging.getLogger(__name__)
 
 
 class ValidationError(BaseValidationError):
-    """Extended validation error with field and value context."""
+    """Extended validation error with field and value context.
 
-    def __init__(self, message: str, field: str = None, value: Any = None):
-        self.message = message
-        self.field = field
-        self.value = value
-        super().__init__(message)
+    This class is compatible with log_and_raise() and accepts details dict.
+    For backward compatibility, it also accepts field and value parameters.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        details: dict[str, Any] | None = None,
+        log_level: int = logging.ERROR,
+        # Backward compatibility parameters
+        field: str | None = None,
+        value: Any = None,
+    ):
+        # Handle backward compatibility: if field/value provided, add to details
+        if details is None:
+            details = {}
+        if field is not None:
+            details["field"] = field
+        if value is not None:
+            details["value"] = value
+
+        # Call parent with standard signature
+        super().__init__(message, details=details, log_level=log_level)
+
+        # Store for backward compatibility
+        self.field = details.get("field")
+        self.value = details.get("value")
 
 
 class InputValidator:
@@ -142,7 +165,11 @@ class InputValidator:
         """
         # Check if required
         if required and (not value or not value.strip()):
-            raise ValidationError(f"{field_name} is required", field_name, value)
+            log_and_raise(
+                ValidationError,
+                f"{field_name} is required",
+                details={"field": field_name, "value": value}
+            )
 
         if not value:
             return ""
@@ -152,10 +179,10 @@ class InputValidator:
             max_length = self.max_lengths.get(field_name, 1000)
 
         if len(value) > max_length:
-            raise ValidationError(
+            log_and_raise(
+                ValidationError,
                 f"{field_name} exceeds maximum length of {max_length} characters",
-                field_name,
-                value,
+                details={"field": field_name, "value": value, "max_length": max_length, "actual_length": len(value)}
             )
 
         # Check for dangerous patterns
@@ -182,18 +209,30 @@ class InputValidator:
 
         """
         if not email:
-            raise ValidationError(f"{field_name} is required", field_name, email)
+            log_and_raise(
+                ValidationError,
+                f"{field_name} is required",
+                details={"field": field_name, "value": email}
+            )
 
         email = email.strip().lower()
 
         # Length check
         if len(email) > self.max_lengths.get("email", 256):
-            raise ValidationError(f"{field_name} exceeds maximum length", field_name, email)
+            log_and_raise(
+                ValidationError,
+                f"{field_name} exceeds maximum length",
+                details={"field": field_name, "value": email, "max_length": self.max_lengths.get("email", 256)}
+            )
 
         # Basic email pattern
         email_pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
         if not re.match(email_pattern, email):
-            raise ValidationError(f"Invalid {field_name} format", field_name, email)
+            log_and_raise(
+                ValidationError,
+                f"Invalid {field_name} format",
+                details={"field": field_name, "value": email, "pattern": email_pattern}
+            )
 
         # Check for dangerous patterns
         self._check_dangerous_patterns(email, field_name)
@@ -215,7 +254,11 @@ class InputValidator:
 
         """
         if not password:
-            raise ValidationError("Password is required", "password", password)
+            log_and_raise(
+                ValidationError,
+                "Password is required",
+                details={"field": "password"}  # Never log password values
+            )
 
         issues = []
 
@@ -249,7 +292,11 @@ class InputValidator:
             issues.append("Password cannot contain 3 or more repeated characters")
 
         if issues:
-            raise ValidationError(f"Password validation failed: {'; '.join(issues)}", "password")
+            log_and_raise(
+                ValidationError,
+                f"Password validation failed: {'; '.join(issues)}",
+                details={"field": "password", "issues": issues}  # Never log password or username
+            )
 
         return password
 
@@ -268,7 +315,11 @@ class InputValidator:
 
         """
         if not url:
-            raise ValidationError(f"{field_name} is required", field_name, url)
+            log_and_raise(
+                ValidationError,
+                f"{field_name} is required",
+                details={"field": field_name, "value": url}
+            )
 
         url = url.strip()
 
@@ -276,21 +327,30 @@ class InputValidator:
         dangerous_protocols = ["javascript:", "vbscript:", "data:", "file:"]
         for protocol in dangerous_protocols:
             if url.lower().startswith(protocol):
-                raise ValidationError(
+                log_and_raise(
+                    ValidationError,
                     f"{field_name} uses dangerous protocol: {protocol}",
-                    field_name,
-                    url,
+                    details={"field": field_name, "value": url, "dangerous_protocol": protocol}
                 )
 
         # Parse URL
         try:
             parsed = urlparse(url)
         except Exception as e:
-            raise ValidationError(f"Invalid {field_name} format: {e}", field_name, url)
+            log_and_raise(
+                ValidationError,
+                f"Invalid {field_name} format: {e}",
+                original_exception=e,
+                details={"field": field_name, "value": url}
+            )
 
         # Check scheme
         if parsed.scheme not in ["http", "https"]:
-            raise ValidationError(f"{field_name} must use HTTP or HTTPS", field_name, url)
+            log_and_raise(
+                ValidationError,
+                f"{field_name} must use HTTP or HTTPS",
+                details={"field": field_name, "value": url, "scheme": parsed.scheme}
+            )
 
         return url
 
@@ -309,7 +369,11 @@ class InputValidator:
 
         """
         if not ip:
-            raise ValidationError(f"{field_name} is required", field_name, ip)
+            log_and_raise(
+                ValidationError,
+                f"{field_name} is required",
+                details={"field": field_name, "value": ip}
+            )
 
         ip = ip.strip()
 
@@ -317,7 +381,12 @@ class InputValidator:
             # This validates both IPv4 and IPv6
             ipaddress.ip_address(ip)
         except ValueError as e:
-            raise ValidationError(f"Invalid {field_name}: {e}", field_name, ip)
+            log_and_raise(
+                ValidationError,
+                f"Invalid {field_name}: {e}",
+                original_exception=e,
+                details={"field": field_name, "value": ip}
+            )
 
         return ip
 
@@ -344,24 +413,28 @@ class InputValidator:
 
         """
         if not isinstance(data, dict):
-            raise ValidationError(f"{field_name} must be an object", field_name, data)
+            log_and_raise(
+                ValidationError,
+                f"{field_name} must be an object",
+                details={"field": field_name, "value": data, "type": type(data).__name__}
+            )
 
         # Check depth
         if self._get_dict_depth(data) > max_depth:
-            raise ValidationError(
+            log_and_raise(
+                ValidationError,
                 f"{field_name} exceeds maximum nesting depth of {max_depth}",
-                field_name,
-                data,
+                details={"field": field_name, "value": data, "max_depth": max_depth, "actual_depth": self._get_dict_depth(data)}
             )
 
         # Check required fields
         if required_fields:
             missing_fields = [field for field in required_fields if field not in data]
             if missing_fields:
-                raise ValidationError(
+                log_and_raise(
+                    ValidationError,
                     f"{field_name} missing required fields: {missing_fields}",
-                    field_name,
-                    data,
+                    details={"field": field_name, "value": data, "missing_fields": missing_fields}
                 )
 
         # Recursively validate string values
@@ -372,10 +445,10 @@ class InputValidator:
         for pattern in self.DANGEROUS_PATTERNS:
             if re.search(pattern, value, re.IGNORECASE):
                 logger.warning(f"Dangerous pattern detected in {field_name}: {pattern}")
-                raise ValidationError(
+                log_and_raise(
+                    ValidationError,
                     f"{field_name} contains potentially dangerous content",
-                    field_name,
-                    value,
+                    details={"field": field_name, "value": value, "dangerous_pattern": pattern}
                 )
 
     def _sanitize_text(self, text: str) -> str:
@@ -469,10 +542,10 @@ class SQLInjectionValidator:
         for pattern in self.compiled_patterns:
             if pattern.search(value):
                 logger.critical(f"SQL injection attempt detected in {parameter_name}: {value}")
-                raise ValidationError(
+                log_and_raise(
+                    ValidationError,
                     f"{parameter_name} contains potentially dangerous SQL content",
-                    parameter_name,
-                    value,
+                    details={"parameter": parameter_name, "value": value, "pattern": pattern.pattern}
                 )
 
         # Additional checks for common injection techniques
@@ -486,16 +559,20 @@ class SQLInjectionValidator:
         """Check for SQL comment-based injection."""
         if re.search(r"--.*|/\*.*?\*/", value, re.IGNORECASE | re.DOTALL):
             logger.critical(f"SQL comment injection detected in {parameter_name}")
-            raise ValidationError(f"{parameter_name} contains SQL comments", parameter_name, value)
+            log_and_raise(
+                ValidationError,
+                f"{parameter_name} contains SQL comments",
+                details={"parameter": parameter_name, "value": value}
+            )
 
     def _check_union_injection(self, value: str, parameter_name: str) -> None:
         """Check for UNION-based injection."""
         if re.search(r"\bUNION\b.*\bSELECT\b", value, re.IGNORECASE):
             logger.critical(f"UNION injection detected in {parameter_name}")
-            raise ValidationError(
+            log_and_raise(
+                ValidationError,
                 f"{parameter_name} contains UNION SQL injection",
-                parameter_name,
-                value,
+                details={"parameter": parameter_name, "value": value}
             )
 
     def _check_boolean_injection(self, value: str, parameter_name: str) -> None:
@@ -509,10 +586,10 @@ class SQLInjectionValidator:
         for pattern in boolean_patterns:
             if re.search(pattern, value, re.IGNORECASE):
                 logger.critical(f"Boolean injection detected in {parameter_name}")
-                raise ValidationError(
+                log_and_raise(
+                    ValidationError,
                     f"{parameter_name} contains boolean SQL injection",
-                    parameter_name,
-                    value,
+                    details={"parameter": parameter_name, "value": value, "pattern": pattern}
                 )
 
 
@@ -543,28 +620,36 @@ class VectorValidator:
 
         """
         if vector is None:
-            raise ValidationError("Vector cannot be None", "vector", vector)
+            log_and_raise(
+                ValidationError,
+                "Vector cannot be None",
+                details={"field": "vector", "value": vector}
+            )
 
         # Convert to list if numpy array
         if isinstance(vector, np.ndarray):
             vector = vector.tolist()
 
         if not isinstance(vector, list):
-            raise ValidationError("Vector must be a list of numbers", "vector", vector)
+            log_and_raise(
+                ValidationError,
+                "Vector must be a list of numbers",
+                details={"field": "vector", "value": vector, "type": type(vector).__name__}
+            )
 
         # Check dimensions
         if len(vector) > self.max_dimensions:
-            raise ValidationError(
+            log_and_raise(
+                ValidationError,
                 f"Vector dimensions ({len(vector)}) exceed maximum ({self.max_dimensions})",
-                "vector",
-                vector,
+                details={"field": "vector", "value": vector, "dimensions": len(vector), "max_dimensions": self.max_dimensions}
             )
 
         if expected_dimensions and len(vector) != expected_dimensions:
-            raise ValidationError(
+            log_and_raise(
+                ValidationError,
                 f"Vector dimensions ({len(vector)}) don't match expected ({expected_dimensions})",
-                "vector",
-                vector,
+                details={"field": "vector", "value": vector, "dimensions": len(vector), "expected_dimensions": expected_dimensions}
             )
 
         # Validate each component
@@ -593,13 +678,17 @@ class VectorValidator:
 
         """
         if not text:
-            raise ValidationError("Text for embedding cannot be empty", "text", text)
+            log_and_raise(
+                ValidationError,
+                "Text for embedding cannot be empty",
+                details={"field": "text", "value": text}
+            )
 
         if len(text) > max_length:
-            raise ValidationError(
+            log_and_raise(
+                ValidationError,
                 f"Text length ({len(text)}) exceeds maximum ({max_length})",
-                "text",
-                text,
+                details={"field": "text", "value": text, "length": len(text), "max_length": max_length}
             )
 
         # Use InputValidator for basic sanitization
@@ -610,26 +699,27 @@ class VectorValidator:
         """Validate individual vector component."""
         try:
             value = float(component)
-        except (ValueError, TypeError):
-            raise ValidationError(
+        except (ValueError, TypeError) as e:
+            log_and_raise(
+                ValidationError,
                 f"Vector component at index {index} must be a number",
-                f"vector[{index}]",
-                component,
+                original_exception=e,
+                details={"field": f"vector[{index}]", "value": component, "index": index}
             )
 
         # Check for NaN and infinite values
         if np.isnan(value):
-            raise ValidationError(
+            log_and_raise(
+                ValidationError,
                 f"Vector component at index {index} is NaN",
-                f"vector[{index}]",
-                value,
+                details={"field": f"vector[{index}]", "value": value, "index": index}
             )
 
         if np.isinf(value):
-            raise ValidationError(
+            log_and_raise(
+                ValidationError,
                 f"Vector component at index {index} is infinite",
-                f"vector[{index}]",
-                value,
+                details={"field": f"vector[{index}]", "value": value, "index": index}
             )
 
         # Check for reasonable bounds
@@ -688,13 +778,19 @@ def validate_agent_id(agent_id: str) -> str:
 
     """
     if not agent_id:
-        raise ValidationError("Agent ID is required")
+        log_and_raise(
+            ValidationError,
+            "Agent ID is required",
+            details={"field": "agent_id", "value": agent_id}
+        )
 
     # Agent ID format: alphanumeric, hyphens, underscores, 3-64 chars
     if not re.match(r"^[a-zA-Z][a-zA-Z0-9_-]{2,63}$", agent_id):
-        raise ValidationError(
+        log_and_raise(
+            ValidationError,
             "Agent ID must be 3-64 characters, start with a letter, "
             "and contain only letters, numbers, hyphens, and underscores",
+            details={"field": "agent_id", "value": agent_id}
         )
 
     # Check for dangerous patterns

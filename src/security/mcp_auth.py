@@ -24,6 +24,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..core.exceptions import log_and_raise
 from ..models.agent import Agent, AgentStatus
 from ..security.jwt_service import JWTService
 
@@ -191,13 +192,15 @@ class MCPAuthService:
         """
         # Input validation
         if not agent_id:
-            raise MCPAuthenticationError(
+            log_and_raise(
+                MCPAuthenticationError,
                 "Agent ID is required",
                 details={"tool_name": tool_name, "request_id": request_id},
             )
 
         if not api_key and not jwt_token:
-            raise MCPAuthenticationError(
+            log_and_raise(
+                MCPAuthenticationError,
                 "Either API key or JWT token is required",
                 details={"agent_id": agent_id, "tool_name": tool_name},
             )
@@ -215,17 +218,20 @@ class MCPAuthService:
                 exc_info=True,
                 extra={"agent_id": agent_id, "tool_name": tool_name},
             )
-            raise MCPAuthenticationError(
+            log_and_raise(
+                MCPAuthenticationError,
                 "Authentication system error",
+                original_exception=e,
                 details={"error_type": "database_error"},
-            ) from e
+            )
 
         if not agent:
             logger.warning(
                 f"🚨 Authentication failed: Agent not found: {agent_id}",
                 extra={"agent_id": agent_id, "tool_name": tool_name},
             )
-            raise MCPAuthenticationError(
+            log_and_raise(
+                MCPAuthenticationError,
                 f"Agent not found: {agent_id}",
                 details={"agent_id": agent_id},
             )
@@ -236,7 +242,8 @@ class MCPAuthService:
                 f"🚨 Authentication denied: Agent is {agent.status.value}: {agent_id}",
                 extra={"agent_id": agent_id, "status": agent.status.value, "tool_name": tool_name},
             )
-            raise MCPAuthenticationError(
+            log_and_raise(
+                MCPAuthenticationError,
                 f"Agent is {agent.status.value}: {agent_id}",
                 details={"agent_id": agent_id, "status": agent.status.value},
             )
@@ -246,7 +253,8 @@ class MCPAuthService:
                 f"⚠️  Authentication denied: Agent is not active: {agent_id}",
                 extra={"agent_id": agent_id, "status": agent.status.value, "tool_name": tool_name},
             )
-            raise MCPAuthenticationError(
+            log_and_raise(
+                MCPAuthenticationError,
                 f"Agent is not active: {agent_id}",
                 details={"agent_id": agent_id, "status": agent.status.value},
             )
@@ -258,7 +266,8 @@ class MCPAuthService:
                 # Verify JWT signature and claims
                 payload = self.jwt_service.verify_token(jwt_token)
                 if not payload:
-                    raise MCPAuthenticationError(
+                    log_and_raise(
+                        MCPAuthenticationError,
                         "Invalid or expired JWT token",
                         details={"agent_id": agent_id},
                     )
@@ -270,7 +279,8 @@ class MCPAuthService:
                         f"🚨 JWT agent_id mismatch: JWT={jwt_agent_id}, Requested={agent_id}",
                         extra={"jwt_agent_id": jwt_agent_id, "requested_agent_id": agent_id},
                     )
-                    raise MCPAuthenticationError(
+                    log_and_raise(
+                        MCPAuthenticationError,
                         "JWT agent_id mismatch",
                         details={"jwt_agent_id": jwt_agent_id, "requested_agent_id": agent_id},
                     )
@@ -282,7 +292,8 @@ class MCPAuthService:
                 from ..utils.security import detect_hash_format, verify_password
 
                 if not agent.api_key_hash:
-                    raise MCPAuthenticationError(
+                    log_and_raise(
+                        MCPAuthenticationError,
                         "Agent has no API key configured",
                         details={"agent_id": agent_id},
                     )
@@ -295,10 +306,12 @@ class MCPAuthService:
                         f"Unknown api_key_hash format for agent {agent_id}: {e}",
                         extra={"agent_id": agent_id, "tool_name": tool_name},
                     )
-                    raise MCPAuthenticationError(
+                    log_and_raise(
+                        MCPAuthenticationError,
                         "Authentication failed",
+                        original_exception=e,
                         details={"agent_id": agent_id},
-                    ) from e
+                    )
 
                 # Verify API key based on hash format
                 if hash_format == "bcrypt":
@@ -315,7 +328,8 @@ class MCPAuthService:
                                 "hash_format": hash_format,
                             },
                         )
-                        raise MCPAuthenticationError(
+                        log_and_raise(
+                            MCPAuthenticationError,
                             "Invalid API key",
                             details={"agent_id": agent_id},
                         )
@@ -334,7 +348,8 @@ class MCPAuthService:
                             "action_required": "Regenerate API key with bcrypt",
                         },
                     )
-                    raise MCPAuthenticationError(
+                    log_and_raise(
+                        MCPAuthenticationError,
                         "SHA256 API keys are no longer supported. Please regenerate your API key.",
                         details={
                             "agent_id": agent_id,
@@ -349,7 +364,8 @@ class MCPAuthService:
                         f"Unsupported hash format '{hash_format}' for agent {agent_id}",
                         extra={"agent_id": agent_id, "hash_format": hash_format},
                     )
-                    raise MCPAuthenticationError(
+                    log_and_raise(
+                        MCPAuthenticationError,
                         "Authentication failed",
                         details={"agent_id": agent_id},
                     )
@@ -364,10 +380,12 @@ class MCPAuthService:
                 exc_info=True,
                 extra={"agent_id": agent_id, "tool_name": tool_name},
             )
-            raise MCPAuthenticationError(
+            log_and_raise(
+                MCPAuthenticationError,
                 "Credential verification failed",
+                original_exception=e,
                 details={"error_type": type(e).__name__},
-            ) from e
+            )
 
         # Step 4: Determine agent role (REQ-5)
         role = self._determine_agent_role(agent)
@@ -506,7 +524,8 @@ class MCPAuthService:
                         "operation": operation.value,
                     },
                 )
-                raise MCPAuthorizationError(
+                log_and_raise(
+                    MCPAuthorizationError,
                     "Write/delete not allowed in public namespace",
                     details={
                         "agent_id": context.agent_id,
@@ -538,7 +557,8 @@ class MCPAuthService:
                 "operation": operation.value,
             },
         )
-        raise MCPAuthorizationError(
+        log_and_raise(
+            MCPAuthorizationError,
             f"Agent {context.agent_id} cannot access namespace {target_namespace}",
             details={
                 "agent_id": context.agent_id,
@@ -580,7 +600,8 @@ class MCPAuthService:
                     "operation": operation.value,
                 },
             )
-            raise MCPAuthorizationError(
+            log_and_raise(
+                MCPAuthorizationError,
                 f"Unknown operation: {operation.value}",
                 details={
                     "agent_id": context.agent_id,
@@ -600,7 +621,8 @@ class MCPAuthService:
                     "required_roles": [r.value for r in required_roles],
                 },
             )
-            raise MCPAuthorizationError(
+            log_and_raise(
+                MCPAuthorizationError,
                 f"Role {context.role.value} not allowed for operation {operation.value}",
                 details={
                     "agent_id": context.agent_id,
