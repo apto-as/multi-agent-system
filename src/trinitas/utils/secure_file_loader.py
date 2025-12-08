@@ -565,36 +565,3 @@ def validate_path(file_path: str | Path, base_path: str | Path | None = None) ->
     return _default_loader.validate_path(file_path, base_path)
 
 
-if __name__ == "__main__":
-    # Test cases
-    print("SecureFileLoader Test Suite")
-    print("=" * 60)
-
-    loader = SecureFileLoader()
-
-    # Test 1: Validate allowed path
-    test_path = "README.md"
-    validated = loader.validate_path(test_path)
-    if validated:
-        print(f"✓ Path validation passed: {test_path} → {validated}")
-    else:
-        print(f"✗ Path validation failed: {test_path}")
-
-    # Test 2: Reject path traversal
-    evil_path = "../../etc/passwd"
-    validated = loader.validate_path(evil_path)
-    if not validated:
-        print(f"✓ Path traversal blocked: {evil_path}")
-    else:
-        print(f"✗ Security breach: {evil_path} was allowed!")
-
-    # Test 3: File existence check
-    exists = loader.file_exists("README.md")
-    print(f"✓ File existence check: README.md exists = {exists}")
-
-    # Test 4: Load file content
-    content = loader.load_file("VERSION", silent=True)
-    if content:
-        print(f"✓ File loaded: VERSION (length: {len(content)} chars)")
-
-    print("\n✅ Security tests completed!")

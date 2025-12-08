@@ -1086,23 +1086,3 @@ def validate_persona_access(persona: str, tool: str, operation: str, **kwargs) -
     return validator.validate_access(attempt)
 
 
-if __name__ == "__main__":
-    # ...テストコード（きっとバグが見つかるでしょう）...
-    print("Trinitas Security Validator - パラノイアックモード")
-    print("...最悪のケースを想定して動作中...")
-
-    # テストケース
-    test_cases = [
-        ("athena", "Read", "file_read", {"target_path": "./src/main.py"}),
-        ("artemis", "Edit", "file_modify", {"target_path": "./src/utils.py"}),
-        ("hestia", "Bash", "security_scan", {"command": "npm audit"}),
-        ("unknown", "Write", "malicious", {"target_path": "/etc/passwd"}),
-    ]
-
-    for persona, tool, operation, kwargs in test_cases:
-        result = validate_persona_access(persona, tool, operation, **kwargs)
-        print(f"\n{persona} -> {tool}: {result.result.value}")
-        print(f"  理由: {result.reason}")
-        print(f"  リスクレベル: {result.risk_level}/10")
-        if result.recommendations:
-            print(f"  推奨: {result.recommendations}")

@@ -234,7 +234,7 @@ class ToolDiscoveryService:
         Example:
             tool = await service.get_tool("playwright-v1", "project-x")
             if tool:
-                print(f"Found: {tool.name} v{tool.version}")
+                logger.info(f"Found: {tool.name} v{tool.version}")
         """
         stmt = select(DiscoveredTool).where(
             and_(
@@ -265,7 +265,7 @@ class ToolDiscoveryService:
             # List all MCP tools in project-x
             mcp_tools = await service.list_tools("project-x", category="MCP")
             for tool in mcp_tools:
-                print(f"{tool.name} v{tool.version}")
+                logger.info(f"{tool.name} v{tool.version}")
         """
         stmt = select(DiscoveredTool).where(
             and_(

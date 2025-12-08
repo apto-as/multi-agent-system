@@ -114,7 +114,7 @@ async def register_verification_tools(mcp: Server) -> None:
         Example:
             score_info = await get_agent_trust_score("artemis-optimizer")
             if score_info["requires_verification"]:
-                print("This agent requires verification for reports")
+                logger.info("This agent requires verification for reports")
 
         Raises:
             AgentNotFoundError: If agent doesn't exist
@@ -205,8 +205,8 @@ async def register_verification_tools(mcp: Server) -> None:
 
         Example:
             stats = await get_verification_statistics("artemis-optimizer")
-            print(f"Trust score: {stats['trust_score']:.2%}")
-            print(f"Accuracy by type: {stats['by_claim_type']}")
+            logger.info(f"Trust score: {stats['trust_score']:.2%}")
+            logger.info(f"Accuracy by type: {stats['by_claim_type']}")
 
         Raises:
             AgentNotFoundError: If agent doesn't exist
@@ -243,7 +243,7 @@ async def register_verification_tools(mcp: Server) -> None:
             for change in history:
                 delta = change['delta']
                 sign = '+' if delta > 0 else ''
-                print(f"{change['changed_at']}: {sign}{delta:.3f} ({change['reason']})")
+                logger.info(f"{change['changed_at']}: {sign}{delta:.3f} ({change['reason']})")
 
         Raises:
             AgentNotFoundError: If agent doesn't exist

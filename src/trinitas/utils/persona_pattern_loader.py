@@ -260,22 +260,3 @@ def detect_persona(text: str, config_path: Path | None = None) -> str | None:
     return loader.detect_persona(text)
 
 
-if __name__ == "__main__":
-    # Simple CLI for testing
-    import sys
-
-    if len(sys.argv) < 2:
-        print("Usage: python persona_pattern_loader.py 'text to analyze'")
-        sys.exit(1)
-
-    text = " ".join(sys.argv[1:])
-    loader = PersonaPatternLoader()
-
-    detected = loader.detect_persona(text)
-    if detected:
-        metadata = loader.get_metadata(detected)
-        print(f"✅ Detected: {metadata['display_name']} ({metadata['emoji']} {metadata['title']})")
-        print(f"   Pattern: {metadata['pattern']}")
-        print(f"   Priority: {metadata['priority']}")
-    else:
-        print("❌ No persona detected")
