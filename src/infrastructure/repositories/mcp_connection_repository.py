@@ -31,7 +31,8 @@ from src.domain.repositories.mcp_connection_repository import (
 from src.domain.value_objects.connection_config import ConnectionConfig
 from src.domain.value_objects.connection_status import ConnectionStatus
 from src.domain.value_objects.tool_category import ToolCategory
-from src.infrastructure.exceptions import AggregateNotFoundError, RepositoryError
+from src.infrastructure.decorators.db_transaction import db_transaction
+from src.infrastructure.exceptions import AggregateNotFoundError
 from src.models.mcp_connection import MCPConnectionModel
 
 
@@ -60,6 +61,7 @@ class SQLAlchemyMCPConnectionRepository(MCPConnectionRepositoryInterface):
         """
         self._session = session
 
+    @db_transaction(error_message="Failed to save MCPConnection")
     async def save(self, connection: MCPConnection) -> MCPConnection:
         """Save or update MCPConnection aggregate.
 
@@ -79,40 +81,25 @@ class SQLAlchemyMCPConnectionRepository(MCPConnectionRepositoryInterface):
             >>> saved = await repo.save(connection)
             >>> assert saved.id == connection.id
         """
-        try:
-            # Check if connection already exists
-            stmt = select(MCPConnectionModel).where(MCPConnectionModel.id == str(connection.id))
-            result = await self._session.execute(stmt)
-            existing = result.scalar_one_or_none()
+        # Check if connection already exists
+        stmt = select(MCPConnectionModel).where(MCPConnectionModel.id == str(connection.id))
+        result = await self._session.execute(stmt)
+        existing = result.scalar_one_or_none()
 
-            if existing:
-                # Update existing record
-                self._update_model_from_domain(existing, connection)
-            else:
-                # Create new record
-                model = self._to_model(connection)
-                self._session.add(model)
+        if existing:
+            # Update existing record
+            self._update_model_from_domain(existing, connection)
+        else:
+            # Create new record
+            model = self._to_model(connection)
+            self._session.add(model)
 
-            # Commit transaction
-            await self._session.commit()
+        # Note: Domain events are NOT persisted (they are transient)
+        # Application service should dispatch events before calling save()
 
-            # Note: Domain events are NOT persisted (they are transient)
-            # Application service should dispatch events before calling save()
+        return connection
 
-            return connection
-
-        except (KeyboardInterrupt, SystemExit):
-            raise  # Never suppress system signals
-        except Exception as e:
-            await self._session.rollback()
-            raise RepositoryError(
-                message=f"Failed to save MCPConnection: {e}",
-                details={
-                    "connection_id": str(connection.id),
-                    "server_name": connection.server_name,
-                },
-            ) from e
-
+    @db_transaction(auto_commit=False, error_message="Failed to retrieve MCPConnection")
     async def get_by_id(self, connection_id: UUID, namespace: str) -> MCPConnection:
         """Retrieve MCPConnection by ID with namespace verification.
 
@@ -135,32 +122,22 @@ class SQLAlchemyMCPConnectionRepository(MCPConnectionRepositoryInterface):
             >>> connection = await repo.get_by_id(uuid4(), agent.namespace)
             >>> assert isinstance(connection, MCPConnection)
         """
-        try:
-            stmt = select(MCPConnectionModel).where(
-                MCPConnectionModel.id == str(connection_id),
-                MCPConnectionModel.namespace == namespace,  # ✅ Namespace isolation
+        stmt = select(MCPConnectionModel).where(
+            MCPConnectionModel.id == str(connection_id),
+            MCPConnectionModel.namespace == namespace,  # ✅ Namespace isolation
+        )
+        result = await self._session.execute(stmt)
+        model = result.scalar_one_or_none()
+
+        if not model:
+            raise AggregateNotFoundError(
+                aggregate_type="MCPConnection",
+                identifier=str(connection_id),
             )
-            result = await self._session.execute(stmt)
-            model = result.scalar_one_or_none()
 
-            if not model:
-                raise AggregateNotFoundError(
-                    aggregate_type="MCPConnection",
-                    identifier=str(connection_id),
-                )
+        return self._to_domain(model)
 
-            return self._to_domain(model)
-
-        except (KeyboardInterrupt, SystemExit):
-            raise  # Never suppress system signals
-        except AggregateNotFoundError:
-            raise
-        except Exception as e:
-            raise RepositoryError(
-                message=f"Failed to retrieve MCPConnection: {e}",
-                details={"connection_id": str(connection_id)},
-            ) from e
-
+    @db_transaction(auto_commit=False, error_message="Failed to find connections by namespace and agent")
     async def find_by_namespace_and_agent(
         self, namespace: str, agent_id: str
     ) -> list[MCPConnection]:
@@ -180,27 +157,19 @@ class SQLAlchemyMCPConnectionRepository(MCPConnectionRepositoryInterface):
             >>> assert all(c.namespace == "project-x" for c in connections)
             >>> assert all(c.agent_id == "agent-1" for c in connections)
         """
-        try:
-            stmt = (
-                select(MCPConnectionModel)
-                .where(MCPConnectionModel.namespace == namespace)
-                .where(MCPConnectionModel.agent_id == agent_id)
-                .order_by(MCPConnectionModel.created_at.desc())
-            )
+        stmt = (
+            select(MCPConnectionModel)
+            .where(MCPConnectionModel.namespace == namespace)
+            .where(MCPConnectionModel.agent_id == agent_id)
+            .order_by(MCPConnectionModel.created_at.desc())
+        )
 
-            result = await self._session.execute(stmt)
-            models = result.scalars().all()
+        result = await self._session.execute(stmt)
+        models = result.scalars().all()
 
-            return [self._to_domain(model) for model in models]
+        return [self._to_domain(model) for model in models]
 
-        except (KeyboardInterrupt, SystemExit):
-            raise  # Never suppress system signals
-        except Exception as e:
-            raise RepositoryError(
-                message=f"Failed to find connections by namespace and agent: {e}",
-                details={"namespace": namespace, "agent_id": agent_id},
-            ) from e
-
+    @db_transaction(auto_commit=False, error_message="Failed to find connections by status")
     async def find_by_status(self, status: ConnectionStatus) -> list[MCPConnection]:
         """Find all connections with a specific status.
 
@@ -214,26 +183,18 @@ class SQLAlchemyMCPConnectionRepository(MCPConnectionRepositoryInterface):
             >>> active_connections = await repo.find_by_status(ConnectionStatus.ACTIVE)
             >>> assert all(c.status == ConnectionStatus.ACTIVE for c in active_connections)
         """
-        try:
-            stmt = (
-                select(MCPConnectionModel)
-                .where(MCPConnectionModel.status == status.value)
-                .order_by(MCPConnectionModel.created_at.desc())
-            )
+        stmt = (
+            select(MCPConnectionModel)
+            .where(MCPConnectionModel.status == status.value)
+            .order_by(MCPConnectionModel.created_at.desc())
+        )
 
-            result = await self._session.execute(stmt)
-            models = result.scalars().all()
+        result = await self._session.execute(stmt)
+        models = result.scalars().all()
 
-            return [self._to_domain(model) for model in models]
+        return [self._to_domain(model) for model in models]
 
-        except (KeyboardInterrupt, SystemExit):
-            raise  # Never suppress system signals
-        except Exception as e:
-            raise RepositoryError(
-                message=f"Failed to find connections by status: {e}",
-                details={"status": status.value},
-            ) from e
-
+    @db_transaction(auto_commit=False, error_message="Failed to get connection by server name and namespace")
     async def get_by_server_name_and_namespace(
         self, server_name: str, namespace: str
     ) -> MCPConnection | None:
@@ -254,29 +215,21 @@ class SQLAlchemyMCPConnectionRepository(MCPConnectionRepositoryInterface):
             ...     "test_server", agent.namespace
             ... )
         """
-        try:
-            stmt = (
-                select(MCPConnectionModel)
-                .where(MCPConnectionModel.server_name == server_name)
-                .where(MCPConnectionModel.namespace == namespace)  # ✅ Namespace isolation
-            )
+        stmt = (
+            select(MCPConnectionModel)
+            .where(MCPConnectionModel.server_name == server_name)
+            .where(MCPConnectionModel.namespace == namespace)  # ✅ Namespace isolation
+        )
 
-            result = await self._session.execute(stmt)
-            model = result.scalar_one_or_none()
+        result = await self._session.execute(stmt)
+        model = result.scalar_one_or_none()
 
-            if not model:
-                return None
+        if not model:
+            return None
 
-            return self._to_domain(model)
+        return self._to_domain(model)
 
-        except (KeyboardInterrupt, SystemExit):
-            raise  # Never suppress system signals
-        except Exception as e:
-            raise RepositoryError(
-                message=f"Failed to get connection by server name and namespace: {e}",
-                details={"server_name": server_name, "namespace": namespace},
-            ) from e
-
+    @db_transaction(error_message="Failed to delete MCPConnection")
     async def delete(self, connection_id: UUID, namespace: str, agent_id: str) -> None:
         """Delete MCPConnection with namespace and ownership verification.
 
@@ -298,34 +251,21 @@ class SQLAlchemyMCPConnectionRepository(MCPConnectionRepositoryInterface):
             >>> agent = await get_agent_from_db(agent_id)
             >>> await repo.delete(connection_id, agent.namespace, agent.id)
         """
-        try:
-            stmt = select(MCPConnectionModel).where(
-                MCPConnectionModel.id == str(connection_id),
-                MCPConnectionModel.namespace == namespace,  # ✅ Namespace isolation
-                MCPConnectionModel.agent_id == agent_id,  # ✅ Ownership verification
+        stmt = select(MCPConnectionModel).where(
+            MCPConnectionModel.id == str(connection_id),
+            MCPConnectionModel.namespace == namespace,  # ✅ Namespace isolation
+            MCPConnectionModel.agent_id == agent_id,  # ✅ Ownership verification
+        )
+        result = await self._session.execute(stmt)
+        model = result.scalar_one_or_none()
+
+        if not model:
+            raise AggregateNotFoundError(
+                aggregate_type="MCPConnection",
+                identifier=str(connection_id),
             )
-            result = await self._session.execute(stmt)
-            model = result.scalar_one_or_none()
 
-            if not model:
-                raise AggregateNotFoundError(
-                    aggregate_type="MCPConnection",
-                    identifier=str(connection_id),
-                )
-
-            await self._session.delete(model)
-            await self._session.commit()
-
-        except (KeyboardInterrupt, SystemExit):
-            raise  # Never suppress system signals
-        except AggregateNotFoundError:
-            raise
-        except Exception as e:
-            await self._session.rollback()
-            raise RepositoryError(
-                message=f"Failed to delete MCPConnection: {e}",
-                details={"connection_id": str(connection_id)},
-            ) from e
+        await self._session.delete(model)
 
     # Private mapping methods
 
@@ -462,6 +402,7 @@ class SQLAlchemyMCPConnectionRepository(MCPConnectionRepositoryInterface):
 
     # Interface-compliant methods (wrappers around existing methods)
 
+    @db_transaction(auto_commit=False, error_message="Failed to list connections for agent")
     async def list_by_agent(
         self,
         agent_id: UUID,
@@ -474,17 +415,15 @@ class SQLAlchemyMCPConnectionRepository(MCPConnectionRepositoryInterface):
         Returns:
             List of connections
         """
-        try:
-            result = await self._session.execute(
-                select(MCPConnectionModel).where(
-                    MCPConnectionModel.agent_id == str(agent_id)
-                )
+        result = await self._session.execute(
+            select(MCPConnectionModel).where(
+                MCPConnectionModel.agent_id == str(agent_id)
             )
-            models = result.scalars().all()
-            return [self._model_to_aggregate(model) for model in models]
-        except Exception as e:
-            raise RepositoryError(f"Failed to list connections for agent {agent_id}: {e}")
+        )
+        models = result.scalars().all()
+        return [self._to_domain(model) for model in models]
 
+    @db_transaction(auto_commit=False, error_message="Failed to find connection by server name")
     async def find_by_server_name(
         self,
         agent_id: UUID,
@@ -499,17 +438,14 @@ class SQLAlchemyMCPConnectionRepository(MCPConnectionRepositoryInterface):
         Returns:
             MCPConnection if found, None otherwise
         """
-        try:
-            result = await self._session.execute(
-                select(MCPConnectionModel).where(
-                    MCPConnectionModel.agent_id == str(agent_id),
-                    MCPConnectionModel.server_name == server_name,
-                )
+        result = await self._session.execute(
+            select(MCPConnectionModel).where(
+                MCPConnectionModel.agent_id == str(agent_id),
+                MCPConnectionModel.server_name == server_name,
             )
-            model = result.scalar_one_or_none()
-            return self._model_to_aggregate(model) if model else None
-        except Exception as e:
-            raise RepositoryError(f"Failed to find connection '{server_name}' for agent {agent_id}: {e}")
+        )
+        model = result.scalar_one_or_none()
+        return self._to_domain(model) if model else None
 
 
 # Maintain backwards compatibility
