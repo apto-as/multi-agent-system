@@ -235,16 +235,19 @@ class ImmutableRecordError(TMWSException):
 
 # Utility function for logging and re-raising
 def log_and_raise(
-    exception_class: type[TMWSException],
+    exception_class: type[Exception],
     message: str,
     original_exception: Exception | None = None,
     details: dict[str, Any] | None = None,
     log_level: int = logging.ERROR,
 ) -> None:
-    """Helper function to log and raise custom exceptions.
+    """Helper function to log and raise exceptions with automatic logging.
+
+    Supports both TMWSException subclasses (with auto-logging) and standard
+    Python exceptions (ValueError, RuntimeError, etc.) with explicit logging.
 
     Args:
-        exception_class: The exception class to raise
+        exception_class: The exception class to raise (TMWSException or standard)
         message: Error message
         original_exception: Original exception (if any) to chain
         details: Additional context details
@@ -254,18 +257,35 @@ def log_and_raise(
         exception_class: The specified exception type
 
     Example:
-        try:
-            await db.commit()
-        except SQLAlchemyError as e:
-            log_and_raise(
-                DatabaseOperationError,
-                "Failed to commit transaction",
-                original_exception=e,
-                details={"operation": "commit"}
-            )
+        # With TMWSException (auto-logged via __init__)
+        log_and_raise(
+            DatabaseOperationError,
+            "Failed to commit transaction",
+            original_exception=e,
+            details={"operation": "commit"}
+        )
+
+        # With standard exception (explicitly logged)
+        log_and_raise(
+            ValueError,
+            "Invalid parameter value",
+            details={"param": "age", "value": -1}
+        )
 
     """
-    exc = exception_class(message, details=details, log_level=log_level)
+    # Check if it's a TMWSException subclass (has auto-logging in __init__)
+    if issubclass(exception_class, TMWSException):
+        exc = exception_class(message, details=details, log_level=log_level)
+    else:
+        # Standard exception - log explicitly before raising
+        logger.log(
+            log_level,
+            f"{exception_class.__name__}: {message}",
+            extra={"details": details or {}},
+            exc_info=original_exception is not None,
+        )
+        exc = exception_class(message)
+
     if original_exception:
         raise exc from original_exception
     raise exc

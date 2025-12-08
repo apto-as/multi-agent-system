@@ -11,7 +11,7 @@ from sqlalchemy import and_, or_, select, update
 from sqlalchemy.orm import selectinload
 
 from ..core.database import get_db_session
-from ..core.exceptions import AuthenticationException
+from ..core.exceptions import AuthenticationException, log_and_raise
 from ..models.audit_log import SecurityEventSeverity, SecurityEventType
 from ..models.user import APIKey, APIKeyScope, RefreshToken, User, UserRole, UserStatus
 from ..security.jwt_service import jwt_service, token_blacklist
@@ -73,11 +73,17 @@ class AuthService:
         """Create new user account with secure password hashing."""
         # Input validation
         if len(username) < 2 or len(username) > 64:
-            raise ValueError("Username must be 2-64 characters long")
+            log_and_raise(
+                ValueError,
+                "Username must be 2-64 characters long",
+                details={"username_length": len(username)},
+            )
 
         if len(password) < self.password_min_length:
-            raise ValueError(
+            log_and_raise(
+                ValueError,
                 f"Password must be at least {self.password_min_length} characters long",
+                details={"password_length": len(password), "min_length": self.password_min_length},
             )
 
         # Hash password securely with bcrypt
@@ -106,7 +112,11 @@ class AuthService:
                 select(User).where(or_(User.username == username, User.email == email)),
             )
             if existing.scalar_one_or_none():
-                raise ValueError("Username or email already exists")
+                log_and_raise(
+                    ValueError,
+                    "Username or email already exists",
+                    details={"username": username, "email": email},
+                )
 
             session.add(user)
             await session.commit()
@@ -160,16 +170,28 @@ class AuthService:
             # Check if user exists
             if not user:
                 await self._log_failed_login(username, ip_address, "user_not_found")
-                raise InvalidCredentialsError("Invalid credentials")
+                log_and_raise(
+                    InvalidCredentialsError,
+                    "Invalid credentials",
+                    details={"reason": "user_not_found", "username": username},
+                )
 
             # Check account status
             if user.status == UserStatus.LOCKED:
                 await self._log_failed_login(username, ip_address, "account_locked")
-                raise AccountLockedError("Account is locked")
+                log_and_raise(
+                    AccountLockedError,
+                    "Account is locked",
+                    details={"user_id": str(user.id), "username": username},
+                )
 
             if user.status in [UserStatus.SUSPENDED, UserStatus.INACTIVE]:
                 await self._log_failed_login(username, ip_address, "account_disabled")
-                raise AccountDisabledError("Account is disabled")
+                log_and_raise(
+                    AccountDisabledError,
+                    "Account is disabled",
+                    details={"user_id": str(user.id), "username": username, "status": user.status.value},
+                )
 
             # Verify password (bcrypt)
             if not verify_password(password, user.password_hash):
@@ -178,7 +200,11 @@ class AuthService:
                 await session.commit()
 
                 await self._log_failed_login(username, ip_address, "invalid_password")
-                raise InvalidCredentialsError("Invalid credentials")
+                log_and_raise(
+                    InvalidCredentialsError,
+                    "Invalid credentials",
+                    details={"reason": "invalid_password", "username": username},
+                )
 
             # Successful authentication - reset failed attempts
             user.reset_failed_login()
@@ -225,7 +251,11 @@ class AuthService:
         # Verify refresh token format
         token_id = jwt_service.verify_refresh_token(refresh_token)
         if not token_id:
-            raise TokenExpiredError("Invalid refresh token format")
+            log_and_raise(
+                TokenExpiredError,
+                "Invalid refresh token format",
+                details={"reason": "invalid_format"},
+            )
 
         # Extract raw token
         parts = refresh_token.split(".", 1)
@@ -241,16 +271,32 @@ class AuthService:
             refresh_record = result.scalar_one_or_none()
 
             if not refresh_record or not refresh_record.is_valid():
-                raise TokenExpiredError("Refresh token expired or revoked")
+                log_and_raise(
+                    TokenExpiredError,
+                    "Refresh token expired or revoked",
+                    details={
+                        "token_id": token_id,
+                        "exists": refresh_record is not None,
+                        "valid": refresh_record.is_valid() if refresh_record else False,
+                    },
+                )
 
             # Verify token hash
             if not jwt_service.verify_refresh_token_hash(raw_token, refresh_record.token_hash):
-                raise TokenExpiredError("Invalid refresh token")
+                log_and_raise(
+                    TokenExpiredError,
+                    "Invalid refresh token",
+                    details={"reason": "hash_mismatch", "token_id": token_id},
+                )
 
             # Check user status
             user = refresh_record.user
             if not user.is_active():
-                raise AccountDisabledError("User account is disabled")
+                log_and_raise(
+                    AccountDisabledError,
+                    "User account is disabled",
+                    details={"user_id": str(user.id), "status": user.status.value},
+                )
 
             # Revoke old refresh token
             refresh_record.revoke()
@@ -328,8 +374,13 @@ class AuthService:
         # Parse key format: key_id.raw_key
         try:
             key_id, raw_key = api_key.split(".", 1)
-        except ValueError:
-            raise InvalidCredentialsError("Invalid API key format")
+        except ValueError as e:
+            log_and_raise(
+                InvalidCredentialsError,
+                "Invalid API key format",
+                original_exception=e,
+                details={"reason": "parse_error"},
+            )
 
         async with get_db_session() as session:
             # Fetch API key with user in single query
@@ -339,27 +390,67 @@ class AuthService:
             key_record = result.scalar_one_or_none()
 
             if not key_record:
-                raise InvalidCredentialsError("Invalid API key")
+                log_and_raise(
+                    InvalidCredentialsError,
+                    "Invalid API key",
+                    details={"reason": "key_not_found", "key_id": key_id},
+                )
 
             # Verify key hash
             if not jwt_service.pwd_context.verify(raw_key, key_record.key_hash):
-                raise InvalidCredentialsError("Invalid API key")
+                log_and_raise(
+                    InvalidCredentialsError,
+                    "Invalid API key",
+                    details={"reason": "hash_mismatch", "key_id": key_id},
+                )
 
             # Check key validity
             if not key_record.is_valid():
-                raise TokenExpiredError("API key expired or disabled")
+                log_and_raise(
+                    TokenExpiredError,
+                    "API key expired or disabled",
+                    details={
+                        "key_id": key_id,
+                        "is_active": key_record.is_active,
+                        "expires_at": str(key_record.expires_at) if key_record.expires_at else None,
+                    },
+                )
 
             # Check IP restrictions
             if ip_address and not key_record.is_ip_allowed(ip_address):
-                raise InsufficientPermissionsError("IP address not allowed")
+                log_and_raise(
+                    InsufficientPermissionsError,
+                    "IP address not allowed",
+                    details={
+                        "ip_address": ip_address,
+                        "allowed_ips": key_record.allowed_ips,
+                        "key_id": key_id,
+                    },
+                )
 
             # Check required scope
             if required_scope and not key_record.has_scope(required_scope):
-                raise InsufficientPermissionsError("Insufficient API key scope")
+                log_and_raise(
+                    InsufficientPermissionsError,
+                    "Insufficient API key scope",
+                    details={
+                        "required_scope": required_scope.value,
+                        "available_scopes": [s.value for s in key_record.scopes],
+                        "key_id": key_id,
+                    },
+                )
 
             # Check user status
             if not key_record.user.is_active():
-                raise AccountDisabledError("User account disabled")
+                log_and_raise(
+                    AccountDisabledError,
+                    "User account disabled",
+                    details={
+                        "user_id": str(key_record.user.id),
+                        "status": key_record.user.status.value,
+                        "key_id": key_id,
+                    },
+                )
 
             # Record usage
             key_record.record_usage(ip_address or "unknown")
@@ -406,18 +497,28 @@ class AuthService:
     ) -> None:
         """Change user password with validation."""
         if len(new_password) < self.password_min_length:
-            raise ValueError(
+            log_and_raise(
+                ValueError,
                 f"Password must be at least {self.password_min_length} characters long",
+                details={"password_length": len(new_password), "min_length": self.password_min_length},
             )
 
         async with get_db_session() as session:
             user = await session.get(User, user_id)
             if not user:
-                raise ValueError("User not found")
+                log_and_raise(
+                    ValueError,
+                    "User not found",
+                    details={"user_id": str(user_id)},
+                )
 
             # Verify current password (bcrypt)
             if not verify_password(current_password, user.password_hash):
-                raise InvalidCredentialsError("Current password is incorrect")
+                log_and_raise(
+                    InvalidCredentialsError,
+                    "Current password is incorrect",
+                    details={"user_id": str(user_id)},
+                )
 
             # Hash new password (bcrypt)
             password_hash = hash_password(new_password)
@@ -435,8 +536,10 @@ class AuthService:
     async def reset_password(self, user_id: UUID, new_password: str) -> None:
         """Reset user password (admin operation)."""
         if len(new_password) < self.password_min_length:
-            raise ValueError(
+            log_and_raise(
+                ValueError,
                 f"Password must be at least {self.password_min_length} characters long",
+                details={"password_length": len(new_password), "min_length": self.password_min_length},
             )
 
         # Hash new password (bcrypt)
