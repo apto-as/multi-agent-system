@@ -87,6 +87,11 @@ services:
       - TMWS_MAX_WORKERS=${TMWS_MAX_WORKERS:-4}
       - TMWS_REQUEST_TIMEOUT=${TMWS_REQUEST_TIMEOUT:-60}
 
+    # Linux compatibility: host.docker.internal doesn't work natively on Linux
+    # This setting maps it to the host gateway IP
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
     restart: unless-stopped
 
     # Healthcheck disabled for STDIO MCP server (no HTTP endpoint)
