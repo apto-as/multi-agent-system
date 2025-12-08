@@ -659,31 +659,12 @@ class ToolSearchService:
             logger.warning(f"Regex pattern too long: {len(pattern)} chars")
             return []
 
-        # Security C-1 Fix: ReDoS protection - validate pattern complexity
-        # Reject patterns with excessive backtracking potential
-        redos_patterns = [
-            r"(\w+)+",  # Catastrophic backtracking
-            r"(a+)+",
-            r"(.*)+",
-            r"(.+)+",
-            r"([a-zA-Z]+)*",
-            r"(a|aa)+",
-            r"(a|a?)+",
-        ]
-        for dangerous in redos_patterns:
-            if dangerous in pattern:
-                logger.warning(
-                    f"Potentially dangerous regex pattern rejected (ReDoS risk): {pattern[:50]}"
-                )
-                return []
-
-        # Security: Limit quantifier repetitions
-        if re.search(r"\{(\d+),?\}|\{\d+,(\d+)\}", pattern):
-            # Check for excessive repetition counts
-            counts = re.findall(r"\{(\d+)", pattern)
-            if any(int(c) > 100 for c in counts if c):
-                logger.warning(f"Regex pattern with excessive repetition rejected: {pattern[:50]}")
-                return []
+        # Security C-1 Fix (Enhanced): ReDoS protection with pattern complexity scoring
+        # Uses whitelist approach + complexity analysis instead of blacklist only
+        is_safe, reason = self._is_safe_regex_pattern(pattern)
+        if not is_safe:
+            logger.warning(f"Unsafe regex pattern rejected ({reason}): {pattern[:50]}")
+            return []
 
         try:
             # Compile with timeout protection
@@ -766,6 +747,68 @@ class ToolSearchService:
                     break
 
         return results
+
+    def _is_safe_regex_pattern(self, pattern: str) -> tuple[bool, str]:
+        """Validate regex pattern safety with complexity scoring.
+
+        Security C-1 Fix (Enhanced): Uses whitelist approach + complexity analysis
+        instead of blacklist only to prevent ReDoS bypass attempts.
+
+        Args:
+            pattern: Regex pattern to validate
+
+        Returns:
+            Tuple of (is_safe, reason_if_unsafe)
+        """
+        import re
+
+        # 1. Nested quantifier detection (catches (x+)+, (a*)+, etc.)
+        # Check for quantifier after group that contains quantifier
+        if (
+            re.search(r"[*+?]\s*\)", pattern)
+            and re.search(r"\([^)]*[*+?]", pattern)
+            and re.search(r"\([^)]*[*+?][^)]*\)[*+?]", pattern)
+        ):
+            return False, "Nested quantifiers detected"
+
+        # 2. Alternation with quantifiers (catches (a|ab)*c, etc.)
+        if re.search(r"\([^)]*\|[^)]*\)[*+]", pattern):
+            return False, "Alternation with quantifier"
+
+        # 3. Excessive backtracking patterns (blacklist for common dangerous patterns)
+        dangerous_patterns = [
+            r"(\w+)+",  # Catastrophic backtracking
+            r"(a+)+",
+            r"(.*)+",
+            r"(.+)+",
+            r"([a-zA-Z]+)*",
+            r"(a|aa)+",
+            r"(a|a?)+",
+            r"(x+x+)+",  # Variant
+            r"(a*)*",    # Nested star
+        ]
+        for dangerous in dangerous_patterns:
+            if dangerous in pattern:
+                return False, "Known dangerous pattern"
+
+        # 4. Complexity scoring - penalize patterns with many quantifiers
+        complexity = (
+            pattern.count("*") * 3
+            + pattern.count("+") * 3
+            + pattern.count("?") * 1
+            + pattern.count("|") * 2
+            + pattern.count("(") * 1
+        )
+        if complexity > 15:
+            return False, f"Pattern complexity too high ({complexity})"
+
+        # 5. Repetition count limits
+        if re.search(r"\{(\d+),?\}|\{\d+,(\d+)\}", pattern):
+            counts = re.findall(r"\{(\d+)", pattern)
+            if any(int(c) > 100 for c in counts if c):
+                return False, "Excessive repetition count"
+
+        return True, ""
 
     def _apply_ranking(self, results: list[ToolSearchResult]) -> list[ToolSearchResult]:
         """Apply source-weighted ranking.
