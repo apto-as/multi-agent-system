@@ -3,11 +3,12 @@
 
 ---
 
-**Document Version**: 1.0.0
+**Document Version**: 1.1.0
 **TMWS Target Version**: v2.5.0
-**Status**: DRAFT - Strategic Planning Complete
+**Status**: DRAFT - Local-First Architecture Complete
 **Created**: 2025-12-08
-**Authors**: Trinitas Strategic Team (Hera, Athena, Aurora)
+**Updated**: 2025-12-08 (Local-First + Git Worktree + External Bridges)
+**Authors**: Trinitas Strategic Team (Hera, Athena, Aurora, Metis)
 
 ---
 
@@ -25,9 +26,11 @@ Phase 4.1 introduces a metadata-first architecture where MCP servers remain dorm
 
 - **Sparse Registry**: Lightweight metadata catalog (~50 bytes per server) replacing full connection state
 - **Lazy Connection Pool**: On-demand server activation with 15-minute TTL and graceful eviction
-- **GitHub-Memory Integration**: Automatic issue tracking and work session synthesis
+- **Local-First Memory Repository**: Forced local git at `~/.tmws/memory-repo/` with optional external sync
+- **Git Worktree Workflow**: Parallel task isolation using native git worktrees
 - **Memory Decay System**: Time-based relevance scoring preventing stale context pollution
 - **Trust-Weighted RAG**: Code context retrieval with agent trust scoring
+- **External Integration (Optional)**: GitHub/GitLab bridges for enhanced context (not required)
 
 ### Expected Impact
 
@@ -95,12 +98,12 @@ Claude: "I see 237 tools available. Let me think about which one..."
 
 ### 1.2 Missing Memory Integration
 
-#### GitHub Issue Tracking Gap
+#### Automated Learning Gap
 ```python
-# Current: Manual issue tracking
-# User must explicitly document issues/PRs in memory
+# Current: Manual work tracking
+# User must explicitly document progress in memory
 await tmws.store_memory(
-    content="Working on issue #123: Lazy loading implementation",
+    content="Working on lazy loading implementation",
     namespace="project.current_work"
 )
 # Problem: Easy to forget, inconsistent, no automation
@@ -115,9 +118,11 @@ work_summary:
   - "Implemented sparse registry pattern"
   - "Fixed ChromaDB HNSW compatibility"
   - "Resolved 3 security vulnerabilities"
-github_refs:
-  - issues: ["#456", "#457"]
+git_refs:
+  - branch: "feature/lazy-loading"
   - commits: ["3782922", "e2105f7"]
+external_refs: # Optional - only if connected
+  - github_issues: ["#456", "#457"]
 agent_trust_delta:
   artemis: +0.05 (successful optimization)
   hestia: +0.03 (security fixes verified)
@@ -130,10 +135,10 @@ user_query = "Fix the ChromaDB issue"
 
 # System cannot automatically:
 # 1. Search related memories (ChromaDB, HNSW, vector store)
-# 2. Find relevant commits (git log --grep "ChromaDB")
-# 3. Load related issues (GitHub API)
-# 4. Surface agent trust scores (who last worked on this?)
-# 5. Inject context into prompt
+# 2. Find relevant commits (local git log --grep "ChromaDB")
+# 3. Surface agent trust scores (who last worked on this?)
+# 4. Search similar problems solved before
+# 5. [Optional] Load external issues if GitHub/GitLab connected
 
 # Result: Agent starts cold, must rebuild context
 ```
@@ -392,272 +397,1014 @@ connection_pool:
 
 ### 2.3 Memory Integration Architecture
 
-#### GitHub-Memory Bridge
-```python
-# tmws/integrations/github_memory_bridge.py
-from typing import List, Optional
-from dataclasses import dataclass
-from datetime import datetime
+#### Design Philosophy: Local-First with Optional External Sync
 
-@dataclass
-class GitHubContext:
-    """Enriched GitHub context for memory storage."""
-    issue_number: Optional[int]
-    issue_title: Optional[str]
-    commit_shas: List[str]
-    branch_name: str
-    files_changed: List[str]
-    related_prs: List[int]
+TMWS Memory Repositoryは**ローカルGitリポジトリを強制作成**し、外部連携（GitHub/GitLab等）は
+オプションとする設計です。これにより:
 
-class GitHubMemoryBridge:
-    """Automatically sync GitHub state with TMWS memory."""
+- **完全オフライン動作**: インターネット接続なしで全機能が動作
+- **プライバシー保護**: データはデフォルトでローカルのみ
+- **Git履歴の活用**: 強力な検索・追跡・ブランチ機能
+- **柔軟な外部連携**: 必要に応じてGitHub/GitLab/Gitea/任意のgitサーバーと連携
 
-    async def enrich_work_session(self, session_id: str) -> GitHubContext:
-        """Enrich work session with GitHub metadata."""
-
-        # Step 1: Detect current work context
-        branch = await self._get_current_branch()
-        commits = await self._get_recent_commits(limit=10)
-
-        # Step 2: Parse issue numbers from branch/commits
-        issue_refs = self._extract_issue_refs(branch, commits)
-
-        # Step 3: Fetch GitHub metadata
-        if issue_refs:
-            issue_data = await self.github_client.get_issue(issue_refs[0])
-            related_prs = await self.github_client.search_prs(
-                query=f"is:pr {issue_refs[0]} in:title,body"
-            )
-        else:
-            issue_data = None
-            related_prs = []
-
-        # Step 4: Store enriched context in memory
-        context = GitHubContext(
-            issue_number=issue_refs[0] if issue_refs else None,
-            issue_title=issue_data.title if issue_data else None,
-            commit_shas=[c.sha[:7] for c in commits],
-            branch_name=branch,
-            files_changed=self._get_changed_files(commits),
-            related_prs=[pr.number for pr in related_prs]
-        )
-
-        await self.tmws.store_memory(
-            content=self._format_context(context),
-            namespace=f"session.{session_id}.github",
-            importance=0.8,
-            metadata={
-                "source": "github_bridge",
-                "auto_generated": True,
-                "issue": context.issue_number,
-                "commits": context.commit_shas
-            }
-        )
-
-        return context
-
-    def _extract_issue_refs(self, branch: str, commits: List) -> List[int]:
-        """Extract GitHub issue numbers from branch name and commits."""
-        refs = set()
-
-        # Pattern: feature/123-lazy-loading or fix/456-security
-        import re
-        branch_match = re.search(r'(\d+)', branch)
-        if branch_match:
-            refs.add(int(branch_match.group(1)))
-
-        # Pattern: commit messages with "#123" or "Fixes #456"
-        for commit in commits:
-            for match in re.finditer(r'#(\d+)', commit.message):
-                refs.add(int(match.group(1)))
-
-        return sorted(refs)
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    TMWS Memory Repository Architecture              │
+├─────────────────────────────────────────────────────────────────────┤
+│  Layer 0: TMWS Internal Git (強制・自動作成)                        │
+│  ├─ ~/.tmws/memory-repo/  (常に存在するgitリポジトリ)               │
+│  │   ├─ sessions/         セッション記録 (JSON)                    │
+│  │   ├─ patterns/         学習パターン                             │
+│  │   ├─ contexts/         コンテキスト履歴                         │
+│  │   ├─ problems/         問題と解決策のアーカイブ                  │
+│  │   └─ .git/             ローカルgit (履歴追跡)                   │
+│  │                                                                  │
+│  └─ Core機能 (常に動作):                                            │
+│      • git log でセッション履歴検索                                 │
+│      • git diff で変更追跡                                          │
+│      • git blame で「誰が何をしたか」追跡                           │
+│      • git worktree で並列コンテキスト管理                          │
+│      • git branch でタスク/プロジェクト分離                         │
+├─────────────────────────────────────────────────────────────────────┤
+│  Layer 1: External Integration (オプション)                         │
+│  ├─ GitHub  → リモート追加 + Issue/PR API連携                      │
+│  ├─ GitLab  → リモート追加 + Issue/MR API連携                      │
+│  ├─ Gitea   → セルフホスト対応                                     │
+│  ├─ Jira    → Issue連携 (git連携なし)                              │
+│  └─ 純粋git → bare repo へのpush (プライベートサーバー)             │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-#### Work Session Synthesis
+#### TMWS Memory Repository Core
+```python
+# tmws/core/memory_repository.py
+from pathlib import Path
+from datetime import datetime
+from typing import Optional, List, Dict
+import subprocess
+import json
+
+class TMWSMemoryRepository:
+    """
+    TMWS内部Git Repository - 強制作成・常時利用
+
+    設計原則:
+    1. ローカルgitは常に存在 (外部連携なしでも全機能動作)
+    2. セッション/パターン/問題はgitコミットとして記録
+    3. git worktreeで並列タスクを分離
+    4. 外部連携は後から追加可能
+    """
+
+    REPO_PATH = Path("~/.tmws/memory-repo").expanduser()
+
+    def __init__(self):
+        self._ensure_repo_exists()
+        self.external_bridges: Dict[str, "ExternalBridge"] = {}
+
+    def _ensure_repo_exists(self):
+        """強制的にローカルgitリポジトリを作成"""
+        if not (self.REPO_PATH / ".git").exists():
+            self.REPO_PATH.mkdir(parents=True, exist_ok=True)
+
+            # Initialize git repository
+            self._git("init")
+
+            # Create directory structure
+            for subdir in ["sessions", "patterns", "contexts", "problems"]:
+                (self.REPO_PATH / subdir).mkdir(exist_ok=True)
+                (self.REPO_PATH / subdir / ".gitkeep").touch()
+
+            # Initial commit
+            self._git("add", ".")
+            self._git("commit", "-m", "TMWS Memory Repository initialized")
+
+            # Create main branches
+            self._git("branch", "archive")  # 完了したセッションのアーカイブ
+
+    def _git(self, *args) -> str:
+        """Execute git command in memory repository"""
+        result = subprocess.run(
+            ["git", *args],
+            cwd=self.REPO_PATH,
+            capture_output=True,
+            text=True
+        )
+        if result.returncode != 0:
+            raise GitError(f"git {args[0]} failed: {result.stderr}")
+        return result.stdout.strip()
+
+    # === Git Worktree Management (並列タスク管理) ===
+
+    async def create_task_worktree(self, task_id: str, base_branch: str = "main") -> Path:
+        """
+        タスク専用のworktreeを作成
+
+        Usage:
+            worktree = await repo.create_task_worktree("issue-123")
+            # worktree内で作業 → 完了後にmerge
+
+        Benefits:
+            - タスク間のコンテキスト分離
+            - 並列作業が可能
+            - 切り替えなしで複数タスクのコンテキスト保持
+        """
+        worktree_path = self.REPO_PATH.parent / "worktrees" / task_id
+        branch_name = f"task/{task_id}"
+
+        # Create branch from base
+        self._git("branch", branch_name, base_branch)
+
+        # Create worktree
+        self._git("worktree", "add", str(worktree_path), branch_name)
+
+        return worktree_path
+
+    async def merge_task_worktree(self, task_id: str, delete_after: bool = True):
+        """タスク完了時にworktreeをmainにマージ"""
+        branch_name = f"task/{task_id}"
+        worktree_path = self.REPO_PATH.parent / "worktrees" / task_id
+
+        # Merge to main
+        self._git("checkout", "main")
+        self._git("merge", branch_name, "--no-ff", "-m", f"Complete task: {task_id}")
+
+        # Cleanup
+        if delete_after:
+            self._git("worktree", "remove", str(worktree_path))
+            self._git("branch", "-d", branch_name)
+
+    async def list_active_worktrees(self) -> List[Dict]:
+        """アクティブなworktree (進行中タスク) を一覧"""
+        output = self._git("worktree", "list", "--porcelain")
+        worktrees = []
+
+        current = {}
+        for line in output.split("\n"):
+            if line.startswith("worktree "):
+                if current:
+                    worktrees.append(current)
+                current = {"path": line.split(" ", 1)[1]}
+            elif line.startswith("branch "):
+                current["branch"] = line.split(" ", 1)[1]
+
+        if current:
+            worktrees.append(current)
+
+        return [w for w in worktrees if w.get("branch", "").startswith("refs/heads/task/")]
+
+    # === Session Recording (セッション記録) ===
+
+    async def record_session(self, session: "SessionData") -> str:
+        """
+        セッションをgitコミットとして記録
+
+        Returns:
+            commit_sha: 記録されたコミットのSHA
+        """
+        session_file = self.REPO_PATH / "sessions" / f"{session.id}.json"
+        session_file.write_text(session.to_json())
+
+        # Stage and commit
+        self._git("add", str(session_file))
+
+        commit_msg = self._build_session_commit_message(session)
+        self._git("commit", "-m", commit_msg)
+
+        return self._git("rev-parse", "HEAD")
+
+    def _build_session_commit_message(self, session: "SessionData") -> str:
+        """構造化されたコミットメッセージを生成"""
+        lines = [
+            f"Session: {session.summary}",
+            "",
+            f"Duration: {session.duration_minutes}min",
+            f"Agents: {', '.join(session.agents)}",
+        ]
+
+        if session.problems_solved:
+            lines.append(f"Problems solved: {len(session.problems_solved)}")
+
+        if session.patterns_learned:
+            lines.append(f"Patterns learned: {len(session.patterns_learned)}")
+
+        return "\n".join(lines)
+
+    # === History Search (履歴検索) ===
+
+    async def search_history(self, query: str, limit: int = 10) -> List[Dict]:
+        """
+        git log でセッション履歴を検索
+
+        Benefits over DB search:
+            - Full-text search in commit messages
+            - Semantic grouping by commits
+            - Natural time-based ordering
+        """
+        output = self._git(
+            "log",
+            f"--grep={query}",
+            "--format=%H|%s|%ai|%an",
+            f"-n{limit}",
+            "--all"  # Search all branches including worktrees
+        )
+
+        results = []
+        for line in output.split("\n"):
+            if line:
+                sha, subject, date, author = line.split("|", 3)
+                results.append({
+                    "commit_sha": sha[:7],
+                    "subject": subject,
+                    "date": date,
+                    "author": author,
+                    "session_file": self._get_session_file_for_commit(sha)
+                })
+
+        return results
+
+    async def get_similar_sessions(self, context: str, limit: int = 5) -> List["SessionData"]:
+        """
+        類似セッションを検索 (git履歴 + セマンティック検索)
+
+        Hybrid search:
+            1. git log --grep for keyword matches
+            2. ChromaDB for semantic similarity
+            3. Merge and rank results
+        """
+        # Git keyword search
+        git_matches = await self.search_history(context, limit=limit * 2)
+
+        # Semantic search in ChromaDB
+        semantic_matches = await self.vector_service.search(
+            query=context,
+            collection="sessions",
+            limit=limit * 2
+        )
+
+        # Merge and deduplicate
+        return self._merge_search_results(git_matches, semantic_matches, limit)
+
+    # === Problem-Solution Archive (問題解決アーカイブ) ===
+
+    async def record_problem_solution(
+        self,
+        problem: str,
+        solution: str,
+        agents: List[str],
+        success: bool = True
+    ) -> str:
+        """
+        問題と解決策をアーカイブ
+
+        Future queries for similar problems will find this solution.
+        """
+        problem_id = self._generate_id()
+        problem_file = self.REPO_PATH / "problems" / f"{problem_id}.json"
+
+        data = {
+            "id": problem_id,
+            "problem": problem,
+            "solution": solution,
+            "agents": agents,
+            "success": success,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+
+        problem_file.write_text(json.dumps(data, indent=2))
+
+        self._git("add", str(problem_file))
+        self._git("commit", "-m", f"Problem: {problem[:50]}...\n\nSolved by: {', '.join(agents)}")
+
+        return problem_id
+
+    async def find_similar_problems(self, problem: str, limit: int = 5) -> List[Dict]:
+        """類似の過去の問題と解決策を検索"""
+        # Keyword search
+        keyword_matches = await self.search_history(problem, limit=limit)
+
+        # Semantic search
+        semantic_matches = await self.vector_service.search(
+            query=problem,
+            collection="problems",
+            limit=limit
+        )
+
+        results = []
+        for match in self._merge_search_results(keyword_matches, semantic_matches, limit):
+            if match.get("session_file") and "problems" in match["session_file"]:
+                problem_data = json.loads(Path(match["session_file"]).read_text())
+                results.append({
+                    "problem": problem_data["problem"],
+                    "solution": problem_data["solution"],
+                    "agents": problem_data["agents"],
+                    "success": problem_data["success"],
+                    "similarity": match.get("similarity", 0.0),
+                })
+
+        return results
+
+    # === External Integration (外部連携) ===
+
+    async def connect_github(self, repo: str, token: str):
+        """
+        GitHub連携を有効化
+
+        Flow:
+            1. GitHub repoをリモートとして追加
+            2. GitHubBridgeを初期化 (Issue/PR API連携)
+            3. 既存のローカル履歴をpush (オプション)
+        """
+        from .bridges import GitHubBridge
+
+        # Add as git remote
+        remote_url = f"https://github.com/{repo}.git"
+        try:
+            self._git("remote", "add", "github", remote_url)
+        except GitError:
+            self._git("remote", "set-url", "github", remote_url)
+
+        # Initialize bridge
+        self.external_bridges["github"] = GitHubBridge(
+            repo=repo,
+            token=token,
+            memory_repo=self
+        )
+
+        return {"status": "connected", "remote": "github", "repo": repo}
+
+    async def connect_gitlab(self, repo: str, token: str, host: str = "gitlab.com"):
+        """GitLab連携を有効化"""
+        from .bridges import GitLabBridge
+
+        remote_url = f"https://{host}/{repo}.git"
+        try:
+            self._git("remote", "add", "gitlab", remote_url)
+        except GitError:
+            self._git("remote", "set-url", "gitlab", remote_url)
+
+        self.external_bridges["gitlab"] = GitLabBridge(
+            repo=repo,
+            token=token,
+            host=host,
+            memory_repo=self
+        )
+
+        return {"status": "connected", "remote": "gitlab", "repo": repo}
+
+    async def sync_to_remote(self, remote: str = "origin"):
+        """リモートへ同期 (バックアップ/チーム共有)"""
+        self._git("push", remote, "main", "--force-with-lease")
+        self._git("push", remote, "archive", "--force-with-lease")
+```
+
+#### Git Workflow Patterns (ワークフローパターン)
+
+```python
+# tmws/core/git_workflows.py
+
+class TMWSGitWorkflow:
+    """
+    TMWS Memory Repository用のGitワークフローパターン
+
+    Supported workflows:
+    1. Task-based branching (タスクごとにブランチ)
+    2. Session-based commits (セッションごとにコミット)
+    3. Problem-solution tagging (問題解決にタグ付け)
+    4. Archive rotation (古いセッションをアーカイブブランチへ)
+    """
+
+    def __init__(self, repo: TMWSMemoryRepository):
+        self.repo = repo
+
+    # === Task-Based Workflow ===
+
+    async def start_task(self, task_id: str, description: str) -> Dict:
+        """
+        新しいタスクを開始
+
+        Creates:
+            - New branch: task/{task_id}
+            - New worktree (optional): ~/.tmws/worktrees/{task_id}
+            - Task metadata file
+
+        Usage:
+            workflow.start_task("implement-lazy-loading", "Phase 4.1a implementation")
+        """
+        branch_name = f"task/{task_id}"
+
+        # Create branch
+        self.repo._git("checkout", "-b", branch_name)
+
+        # Create task metadata
+        task_meta = {
+            "id": task_id,
+            "description": description,
+            "started_at": datetime.utcnow().isoformat(),
+            "status": "in_progress",
+        }
+
+        task_file = self.repo.REPO_PATH / "contexts" / f"task-{task_id}.json"
+        task_file.write_text(json.dumps(task_meta, indent=2))
+
+        self.repo._git("add", str(task_file))
+        self.repo._git("commit", "-m", f"Start task: {task_id}\n\n{description}")
+
+        return {"branch": branch_name, "task_id": task_id, "status": "started"}
+
+    async def complete_task(self, task_id: str, summary: str) -> Dict:
+        """
+        タスクを完了してmainにマージ
+
+        Actions:
+            1. Update task metadata
+            2. Commit final state
+            3. Merge to main with --no-ff
+            4. Tag the completion point
+            5. Optionally delete branch
+        """
+        branch_name = f"task/{task_id}"
+
+        # Update task metadata
+        task_file = self.repo.REPO_PATH / "contexts" / f"task-{task_id}.json"
+        if task_file.exists():
+            task_meta = json.loads(task_file.read_text())
+            task_meta["status"] = "completed"
+            task_meta["completed_at"] = datetime.utcnow().isoformat()
+            task_meta["summary"] = summary
+            task_file.write_text(json.dumps(task_meta, indent=2))
+
+            self.repo._git("add", str(task_file))
+            self.repo._git("commit", "-m", f"Complete task: {task_id}\n\n{summary}")
+
+        # Merge to main
+        self.repo._git("checkout", "main")
+        self.repo._git("merge", branch_name, "--no-ff", "-m", f"Merge task: {task_id}")
+
+        # Tag completion
+        tag_name = f"task-complete/{task_id}"
+        self.repo._git("tag", "-a", tag_name, "-m", summary)
+
+        # Cleanup
+        self.repo._git("branch", "-d", branch_name)
+
+        return {"task_id": task_id, "status": "completed", "tag": tag_name}
+
+    # === Session Workflow ===
+
+    async def commit_session(self, session: "SessionData") -> str:
+        """
+        セッションをコミット (現在のブランチに)
+
+        Commit message format:
+            Session: {summary}
+
+            Duration: {duration}
+            Agents: {agents}
+            Problems: {count}
+            Patterns: {count}
+        """
+        return await self.repo.record_session(session)
+
+    # === Archive Workflow ===
+
+    async def archive_old_sessions(self, older_than_days: int = 30):
+        """
+        古いセッションをarchiveブランチへ移動
+
+        Benefits:
+            - mainブランチを軽量に保つ
+            - 古い履歴はarchiveブランチで保持
+            - git gc で効率的に圧縮
+        """
+        cutoff = datetime.utcnow() - timedelta(days=older_than_days)
+
+        # Find old sessions
+        sessions_dir = self.repo.REPO_PATH / "sessions"
+        old_sessions = []
+
+        for session_file in sessions_dir.glob("*.json"):
+            data = json.loads(session_file.read_text())
+            session_date = datetime.fromisoformat(data["timestamp"])
+            if session_date < cutoff:
+                old_sessions.append(session_file)
+
+        if not old_sessions:
+            return {"archived": 0}
+
+        # Cherry-pick to archive branch
+        self.repo._git("checkout", "archive")
+
+        for session_file in old_sessions:
+            # Copy to archive
+            archive_file = self.repo.REPO_PATH / "sessions" / "archived" / session_file.name
+            archive_file.parent.mkdir(exist_ok=True)
+            archive_file.write_text(session_file.read_text())
+
+            self.repo._git("add", str(archive_file))
+
+        self.repo._git("commit", "-m", f"Archive {len(old_sessions)} old sessions")
+
+        # Remove from main
+        self.repo._git("checkout", "main")
+        for session_file in old_sessions:
+            session_file.unlink()
+            self.repo._git("rm", str(session_file))
+
+        self.repo._git("commit", "-m", f"Move {len(old_sessions)} sessions to archive")
+
+        return {"archived": len(old_sessions)}
+
+    # === Tag Workflow ===
+
+    async def tag_milestone(self, name: str, description: str):
+        """マイルストーンにタグ付け"""
+        self.repo._git("tag", "-a", f"milestone/{name}", "-m", description)
+
+    async def tag_problem_solved(self, problem_id: str, summary: str):
+        """問題解決にタグ付け (後から検索しやすく)"""
+        self.repo._git("tag", "-a", f"solved/{problem_id}", "-m", summary)
+```
+
+#### External Integration Flow (外部連携フロー)
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                   External Integration Flow                          │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  Phase 1: Initial Setup (初期設定)                                   │
+│  ─────────────────────────────────────────                          │
+│  User: /tmws connect github apto-as/tmws-memory                     │
+│                                                                      │
+│  TMWS:                                                               │
+│    1. git remote add github https://github.com/apto-as/tmws-memory  │
+│    2. Initialize GitHubBridge with PAT token                         │
+│    3. Test connection (GET /repos/{repo})                            │
+│    4. Optional: Push existing local history                          │
+│                                                                      │
+│  Result: GitHub連携が有効化。ローカルgit + GitHub API両方使用可能    │
+│                                                                      │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  Phase 2: Working Session (作業セッション)                           │
+│  ─────────────────────────────────────────                          │
+│                                                                      │
+│  User starts working on Issue #123...                                │
+│                                                                      │
+│  TMWS (自動):                                                        │
+│    1. Detect branch name: feature/123-lazy-loading                  │
+│    2. Create task branch in memory-repo: task/issue-123             │
+│    3. Fetch Issue #123 metadata from GitHub API                      │
+│    4. Store issue context in memory:                                 │
+│       {                                                              │
+│         "issue_number": 123,                                         │
+│         "title": "Implement lazy loading",                           │
+│         "labels": ["enhancement", "phase-4.1"],                      │
+│         "assignee": "user",                                          │
+│         "body": "...(issue description)..."                          │
+│       }                                                              │
+│                                                                      │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  Phase 3: Session Synthesis (セッション合成)                         │
+│  ─────────────────────────────────────────                          │
+│                                                                      │
+│  User completes work...                                              │
+│                                                                      │
+│  TMWS (自動):                                                        │
+│    1. Core Data (常に収集):                                          │
+│       - Tool executions (from TMWS traces)                          │
+│       - Memory operations                                            │
+│       - Pattern detections                                           │
+│       - Agent collaborations                                         │
+│                                                                      │
+│    2. Git Data (ローカルgit):                                        │
+│       - Commits in memory-repo                                       │
+│       - Branch changes                                               │
+│       - File modifications                                           │
+│                                                                      │
+│    3. External Data (GitHub連携時のみ):                              │
+│       - Issue comments added                                         │
+│       - PR status changes                                            │
+│       - Review comments                                              │
+│       - CI/CD status                                                 │
+│                                                                      │
+│    4. Commit session to memory-repo:                                 │
+│       git commit -m "Session: Implemented lazy loading for #123"    │
+│                                                                      │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  Phase 4: Sync to Remote (オプション)                                │
+│  ─────────────────────────────────────                              │
+│                                                                      │
+│  User: /tmws sync github                                             │
+│                                                                      │
+│  TMWS:                                                               │
+│    1. git push github main --force-with-lease                        │
+│    2. Optionally create GitHub Issue for patterns learned            │
+│    3. Update Issue #123 with session summary comment                 │
+│                                                                      │
+│  Benefits:                                                           │
+│    - Backup to GitHub                                                │
+│    - Team visibility                                                 │
+│    - Cross-device sync                                               │
+│                                                                      │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  Phase 5: Context Retrieval (コンテキスト取得)                       │
+│  ─────────────────────────────────────────                          │
+│                                                                      │
+│  User: "Similar issue we had before with ChromaDB..."               │
+│                                                                      │
+│  TMWS (検索順序):                                                    │
+│    1. Local git: git log --grep "ChromaDB"                          │
+│    2. ChromaDB: Semantic search for "ChromaDB issue"                │
+│    3. GitHub API (連携時): Search issues/PRs                         │
+│                                                                      │
+│  Result: Merged results from all sources, ranked by relevance        │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+#### External Bridge Interface (外部連携インターフェース)
+
+```python
+# tmws/core/bridges/base.py
+from abc import ABC, abstractmethod
+from typing import Dict, List, Optional
+
+class ExternalBridge(ABC):
+    """外部サービス連携の基底クラス"""
+
+    @abstractmethod
+    async def fetch_issue(self, issue_id: str) -> Dict:
+        """Issue/Ticketを取得"""
+        pass
+
+    @abstractmethod
+    async def search_issues(self, query: str) -> List[Dict]:
+        """Issueを検索"""
+        pass
+
+    @abstractmethod
+    async def enrich_session(self, session: "SessionData") -> Dict:
+        """セッションに外部メタデータを追加"""
+        pass
+
+    @abstractmethod
+    async def post_session_summary(self, session: "SessionData", issue_id: str):
+        """セッションサマリーをIssueにコメント"""
+        pass
+
+
+# tmws/core/bridges/github_bridge.py
+class GitHubBridge(ExternalBridge):
+    """GitHub連携ブリッジ"""
+
+    def __init__(self, repo: str, token: str, memory_repo: "TMWSMemoryRepository"):
+        self.repo = repo
+        self.token = token
+        self.memory_repo = memory_repo
+        self._client = httpx.AsyncClient(
+            base_url="https://api.github.com",
+            headers={"Authorization": f"Bearer {token}"}
+        )
+
+    async def fetch_issue(self, issue_number: int) -> Dict:
+        resp = await self._client.get(f"/repos/{self.repo}/issues/{issue_number}")
+        return resp.json()
+
+    async def search_issues(self, query: str) -> List[Dict]:
+        resp = await self._client.get(
+            "/search/issues",
+            params={"q": f"{query} repo:{self.repo}"}
+        )
+        return resp.json().get("items", [])
+
+    async def enrich_session(self, session: "SessionData") -> Dict:
+        """セッションにGitHubメタデータを追加"""
+        enrichment = {}
+
+        # Extract issue references from session
+        issue_refs = self._extract_issue_refs(session)
+
+        for issue_num in issue_refs:
+            issue_data = await self.fetch_issue(issue_num)
+            enrichment[f"issue_{issue_num}"] = {
+                "title": issue_data["title"],
+                "state": issue_data["state"],
+                "labels": [l["name"] for l in issue_data["labels"]],
+                "assignee": issue_data.get("assignee", {}).get("login"),
+            }
+
+        return enrichment
+
+    async def post_session_summary(self, session: "SessionData", issue_number: int):
+        """セッションサマリーをIssueコメントとして投稿"""
+        comment_body = f"""## TMWS Session Summary
+
+**Duration**: {session.duration_minutes} minutes
+**Agents**: {', '.join(session.agents)}
+
+### Summary
+{session.summary}
+
+### Problems Solved
+{self._format_problems(session.problems_solved)}
+
+### Patterns Learned
+{self._format_patterns(session.patterns_learned)}
+
+---
+*Auto-generated by TMWS Memory System*
+"""
+
+        await self._client.post(
+            f"/repos/{self.repo}/issues/{issue_number}/comments",
+            json={"body": comment_body}
+        )
+
+
+# tmws/core/bridges/gitlab_bridge.py
+class GitLabBridge(ExternalBridge):
+    """GitLab連携ブリッジ"""
+
+    def __init__(self, repo: str, token: str, host: str, memory_repo: "TMWSMemoryRepository"):
+        self.repo = repo
+        self.token = token
+        self.host = host
+        self.memory_repo = memory_repo
+        self._client = httpx.AsyncClient(
+            base_url=f"https://{host}/api/v4",
+            headers={"PRIVATE-TOKEN": token}
+        )
+
+    async def fetch_issue(self, issue_iid: int) -> Dict:
+        project_id = self.repo.replace("/", "%2F")
+        resp = await self._client.get(f"/projects/{project_id}/issues/{issue_iid}")
+        return resp.json()
+
+    # ... similar implementation to GitHubBridge
+```
+
+#### Work Session Synthesis (GitHub非依存版)
 ```python
 # tmws/core/session_synthesizer.py
 from datetime import datetime, timedelta
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 class SessionSynthesizer:
-    """Automatically summarize work sessions for memory storage."""
+    """
+    セッション合成 - GitHub非依存で全機能動作
 
-    async def synthesize_session(self, start_time: datetime, end_time: datetime) -> dict:
-        """Generate comprehensive session summary."""
+    Data sources (優先順位):
+    1. Core (必須): TMWS内部データ - 常に利用可能
+    2. Git (必須): ローカルメモリリポジトリ - 常に利用可能
+    3. External (オプション): GitHub/GitLab等 - 連携時のみ
+    """
 
-        # Collect activities during session
-        activities = await self._collect_activities(start_time, end_time)
+    def __init__(self, memory_repo: TMWSMemoryRepository):
+        self.memory_repo = memory_repo
 
-        # Analyze patterns
-        summary = {
-            "session_id": self._generate_session_id(start_time),
-            "duration": (end_time - start_time).total_seconds(),
-            "timestamp": end_time.isoformat(),
+    async def synthesize_session(
+        self,
+        start_time: datetime,
+        end_time: datetime,
+        task_id: Optional[str] = None
+    ) -> "SessionData":
+        """
+        セッションを合成してgitコミット
 
-            # Code changes
-            "code_changes": {
-                "commits": activities["commits"],
-                "files_modified": activities["files"],
-                "lines_changed": activities["lines_delta"]
-            },
+        Returns:
+            SessionData with commit_sha
+        """
 
-            # Agent involvement
-            "agents": {
-                agent: {
-                    "actions": activities["agent_actions"][agent],
-                    "trust_delta": activities["trust_changes"].get(agent, 0.0),
-                    "tools_used": activities["tools_by_agent"][agent]
-                }
-                for agent in activities["active_agents"]
-            },
-
-            # GitHub integration
-            "github": {
-                "issues_referenced": activities["github"]["issues"],
-                "prs_created": activities["github"]["prs"],
-                "branch": activities["github"]["branch"]
-            },
-
-            # Natural language summary
-            "summary": self._generate_narrative(activities),
-
-            # Key learnings
-            "learnings": activities["learnings"],
-
-            # Problems encountered
-            "problems": activities["problems"]
+        # === Layer 1: Core Data (常に収集) ===
+        core_activities = {
+            "tool_executions": await self._get_tool_traces(start_time, end_time),
+            "memories_created": await self._get_memories_created(start_time, end_time),
+            "memories_recalled": await self._get_memories_recalled(start_time, end_time),
+            "patterns_detected": await self._get_patterns_detected(start_time, end_time),
+            "agents_involved": await self._get_active_agents(start_time, end_time),
+            "verifications": await self._get_verifications(start_time, end_time),
+            "trust_changes": await self._get_trust_changes(start_time, end_time),
         }
 
-        # Store in memory with high importance
-        await self.tmws.store_memory(
-            content=json.dumps(summary, indent=2),
-            namespace="sessions.history",
-            importance=0.85,
-            metadata={
-                "session_id": summary["session_id"],
-                "duration": summary["duration"],
-                "agents": list(summary["agents"].keys())
+        # === Layer 2: Git Data (ローカルメモリリポジトリ) ===
+        git_activities = {
+            "commits": await self.memory_repo.get_commits_in_range(start_time, end_time),
+            "branch": self.memory_repo._git("branch", "--show-current"),
+            "files_changed": await self.memory_repo.get_changed_files(start_time, end_time),
+        }
+
+        # === Layer 3: External Data (オプション) ===
+        external_data = {}
+
+        for bridge_name, bridge in self.memory_repo.external_bridges.items():
+            try:
+                external_data[bridge_name] = await bridge.enrich_session_data(
+                    core_activities, git_activities
+                )
+            except Exception as e:
+                # External failure should not break session synthesis
+                external_data[bridge_name] = {"error": str(e)}
+
+        # === Build Session ===
+        session = SessionData(
+            id=self._generate_session_id(start_time),
+            start_time=start_time,
+            end_time=end_time,
+            task_id=task_id,
+
+            # Core metrics
+            tool_count=len(core_activities["tool_executions"]),
+            memory_operations=len(core_activities["memories_created"]) + len(core_activities["memories_recalled"]),
+            patterns_learned=len(core_activities["patterns_detected"]),
+            agents=list(core_activities["agents_involved"]),
+
+            # Summary
+            summary=self._generate_narrative(core_activities, git_activities, external_data),
+
+            # Problems and solutions
+            problems_solved=self._extract_problems(core_activities),
+
+            # Raw data for future queries
+            raw_data={
+                "core": core_activities,
+                "git": git_activities,
+                "external": external_data,
             }
         )
 
-        return summary
+        # === Commit to Memory Repository ===
+        commit_sha = await self.memory_repo.record_session(session)
+        session.commit_sha = commit_sha
 
-    def _generate_narrative(self, activities: Dict) -> str:
-        """Generate human-readable session summary."""
+        # === Optional: Sync to external ===
+        for bridge_name, bridge in self.memory_repo.external_bridges.items():
+            if external_data.get(bridge_name, {}).get("issue_number"):
+                await bridge.post_session_summary(
+                    session,
+                    external_data[bridge_name]["issue_number"]
+                )
+
+        return session
+
+    def _generate_narrative(
+        self,
+        core: Dict,
+        git: Dict,
+        external: Dict
+    ) -> str:
+        """人間可読なセッションサマリーを生成"""
         parts = []
 
-        if activities["commits"]:
-            parts.append(f"Made {len(activities['commits'])} commits")
+        # Tool usage
+        if core["tool_executions"]:
+            tool_count = len(core["tool_executions"])
+            parts.append(f"Executed {tool_count} tool operations")
 
-        if activities["agent_actions"]:
-            agent_list = ", ".join(activities["active_agents"])
+        # Agent collaboration
+        if core["agents_involved"]:
+            agent_list = ", ".join(core["agents_involved"])
             parts.append(f"with collaboration from {agent_list}")
 
-        if activities["github"]["issues"]:
-            issue_list = ", ".join(f"#{n}" for n in activities["github"]["issues"])
-            parts.append(f"addressing issues {issue_list}")
+        # Memory activity
+        mem_count = len(core["memories_created"]) + len(core["memories_recalled"])
+        if mem_count > 0:
+            parts.append(f"involving {mem_count} memory operations")
 
-        if activities["problems"]:
-            parts.append(f"resolved {len(activities['problems'])} problems")
+        # Patterns
+        if core["patterns_detected"]:
+            parts.append(f"detected {len(core['patterns_detected'])} patterns")
 
-        return ". ".join(parts).capitalize() + "."
-```
+        # Git activity
+        if git["commits"]:
+            parts.append(f"across {len(git['commits'])} commits")
 
-#### Auto-Context Enrichment
+        # External (if available)
+        for bridge_name, data in external.items():
+            if isinstance(data, dict) and "issue_number" in data:
+                parts.append(f"addressing #{data['issue_number']}")
+
+        return ". ".join(parts).capitalize() + "." if parts else "Session completed."
+
+
+#### Auto-Context Enrichment (自動コンテキスト補完)
 ```python
 # tmws/core/context_enricher.py
 from typing import List, Dict, Optional
 
 class ContextEnricher:
-    """Automatically enrich agent context with relevant memories."""
+    """
+    自動コンテキスト補完 - GitHub非依存で全機能動作
 
-    async def enrich_prompt(self, user_query: str, agent_id: Optional[str] = None) -> str:
-        """Enrich user query with relevant context from memory."""
+    Search priority:
+    1. TMWS Memory (ChromaDB semantic search)
+    2. Local Git History (git log --grep)
+    3. External API (GitHub/GitLab issues) - if connected
+    """
 
-        # Step 1: Semantic search in memory
-        relevant_memories = await self.tmws.search_memories(
+    def __init__(self, memory_repo: TMWSMemoryRepository):
+        self.memory_repo = memory_repo
+
+    async def enrich_prompt(
+        self,
+        user_query: str,
+        agent_id: Optional[str] = None
+    ) -> str:
+        """
+        ユーザークエリに関連コンテキストを自動追加
+
+        Always works (even offline):
+        - Memory search
+        - Git history search
+        - Similar problem suggestions
+
+        Enhanced when connected:
+        - GitHub/GitLab issue search
+        - PR/MR references
+        """
+
+        # === Layer 1: TMWS Memory Search (常に動作) ===
+        memories = await self.memory_repo.vector_service.search(
             query=user_query,
             limit=5,
             min_similarity=0.7
         )
 
-        # Step 2: Search git history
-        git_context = await self._search_git_history(user_query)
+        # === Layer 2: Git History Search (常に動作) ===
+        git_matches = await self.memory_repo.search_history(user_query, limit=5)
 
-        # Step 3: Check GitHub issues
-        github_context = await self._search_github_issues(user_query)
+        # === Layer 3: Similar Problems (常に動作) ===
+        similar_problems = await self.memory_repo.find_similar_problems(user_query, limit=3)
 
-        # Step 4: Agent trust scores
+        # === Layer 4: Agent Trust (常に動作) ===
+        trust_context = None
         if agent_id:
             trust_context = await self._get_agent_trust_context(agent_id)
+
+        # === Layer 5: External Search (オプション) ===
+        external_context = {}
+        for bridge_name, bridge in self.memory_repo.external_bridges.items():
+            try:
+                external_context[bridge_name] = await bridge.search_issues(user_query)
+            except Exception:
+                pass  # External failure is not critical
+
+        # === Build Enriched Prompt ===
+        return self._format_enriched_prompt(
+            user_query=user_query,
+            memories=memories,
+            git_matches=git_matches,
+            similar_problems=similar_problems,
+            trust_context=trust_context,
+            external_context=external_context
+        )
+
+    def _format_enriched_prompt(self, **kwargs) -> str:
+        """構造化されたコンテキストプロンプトを生成"""
+        sections = [f"# User Query\n{kwargs['user_query']}"]
+
+        # Memory context
+        sections.append("\n## Relevant Memories")
+        if kwargs["memories"]:
+            for mem in kwargs["memories"]:
+                sections.append(f"- [{mem['namespace']}] {mem['content'][:150]}...")
         else:
-            trust_context = None
+            sections.append("(No relevant memories found)")
 
-        # Step 5: Build enriched prompt
-        enriched = f"""# User Query
-{user_query}
-
-# Relevant Context
-
-## Memory System
-"""
-        if relevant_memories:
-            for mem in relevant_memories:
-                enriched += f"- [{mem['metadata']['namespace']}] {mem['content'][:200]}...\n"
+        # Git history
+        sections.append("\n## Related Sessions (Git History)")
+        if kwargs["git_matches"]:
+            for match in kwargs["git_matches"]:
+                sections.append(f"- {match['commit_sha']}: {match['subject']}")
         else:
-            enriched += "(No relevant memories found)\n"
+            sections.append("(No related sessions found)")
 
-        enriched += "\n## Git History\n"
-        if git_context:
-            for commit in git_context["commits"]:
-                enriched += f"- {commit['sha']}: {commit['message']}\n"
+        # Similar problems
+        sections.append("\n## Similar Problems Solved Before")
+        if kwargs["similar_problems"]:
+            for prob in kwargs["similar_problems"]:
+                sections.append(f"- **Problem**: {prob['problem'][:100]}...")
+                sections.append(f"  **Solution**: {prob['solution'][:100]}...")
+                sections.append(f"  **Agents**: {', '.join(prob['agents'])}")
         else:
-            enriched += "(No relevant commits found)\n"
+            sections.append("(No similar problems found)")
 
-        enriched += "\n## GitHub Issues\n"
-        if github_context:
-            for issue in github_context["issues"]:
-                enriched += f"- #{issue['number']}: {issue['title']}\n"
-        else:
-            enriched += "(No relevant issues found)\n"
+        # Trust context
+        if kwargs["trust_context"]:
+            sections.append(f"\n## Agent Trust Score")
+            sections.append(f"{kwargs['trust_context']['agent']}: {kwargs['trust_context']['score']:.2f}")
 
-        if trust_context:
-            enriched += f"\n## Agent Trust Score\n"
-            enriched += f"{agent_id}: {trust_context['score']:.2f} "
-            enriched += f"(based on {trust_context['verification_count']} verifications)\n"
+        # External context (if available)
+        for bridge_name, issues in kwargs["external_context"].items():
+            if issues:
+                sections.append(f"\n## {bridge_name.title()} Issues")
+                for issue in issues[:3]:
+                    sections.append(f"- #{issue.get('number', 'N/A')}: {issue.get('title', 'N/A')}")
 
-        return enriched
-
-    async def _search_git_history(self, query: str) -> Optional[Dict]:
-        """Search git commits for relevant context."""
-        import subprocess
-        import json
-
-        # Use git log --grep for semantic search
-        cmd = [
-            "git", "log",
-            "--grep", query,
-            "--format=%H|%s|%an|%ad",
-            "--max-count=5"
-        ]
-
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        if result.returncode != 0:
-            return None
-
-        commits = []
-        for line in result.stdout.strip().split("\n"):
-            if line:
-                sha, message, author, date = line.split("|", 3)
-                commits.append({
-                    "sha": sha[:7],
-                    "message": message,
-                    "author": author,
-                    "date": date
-                })
-
-        return {"commits": commits} if commits else None
+        return "\n".join(sections)
 ```
 
 ### 2.4 Memory Decay System
@@ -1205,14 +1952,14 @@ Week 3-4: Phase 4.1b - Connection Pool
    ├─ Load testing
    └─ Graceful degradation
 
-Week 5-6: Phase 4.1c - GitHub Integration
-├─ Week 5: GitHub bridge
-│  ├─ GitHubMemoryBridge class
-│  ├─ Issue detection
-│  └─ API rate limiting
-└─ Week 6: Session synthesis
-   ├─ SessionSynthesizer class
-   ├─ Activity tracking
+Week 5-6: Phase 4.1c - Local-First Memory Repository
+├─ Week 5: Local git repository
+│  ├─ TMWSMemoryRepository class
+│  ├─ Git worktree management
+│  └─ Task-based workflow
+└─ Week 6: Session synthesis + External bridges
+   ├─ SessionSynthesizer class (GitHub-independent)
+   ├─ GitHubBridge/GitLabBridge (optional)
    └─ E2E tests
 
 Week 7-8: Phase 4.1d - Memory Decay
@@ -1244,7 +1991,7 @@ Week 10: Beta Release
 |-----------|------|--------------|---------------|
 | **M1: Registry Beta** | Week 2 | Sparse registry working | Startup < 2s, 100% coverage |
 | **M2: Pool MVP** | Week 4 | Connection pooling live | LRU eviction working, TTL verified |
-| **M3: GitHub Sync** | Week 6 | Auto-session tracking | 90% session capture rate |
+| **M3: Memory Repo** | Week 6 | Local git repo + session sync | 90% session capture rate (local) |
 | **M4: Decay Live** | Week 8 | Memory decay operational | <1s for 10k memories |
 | **M5: Beta Release** | Week 10 | Public beta | All KPIs met, security audit passed |
 
@@ -1322,6 +2069,10 @@ Week 10: Beta Release
 | **Memory Decay** | Time-based importance score reduction |
 | **Trust Score** | Agent reliability metric (0.0-1.0) |
 | **RAG (Retrieval-Augmented Generation)** | Context retrieval for LLM prompts |
+| **Local-First** | Core functionality works offline, external services optional |
+| **Git Worktree** | Git feature for multiple working directories from one repo |
+| **External Bridge** | Abstract interface for GitHub/GitLab/Gitea integration |
+| **Session Synthesis** | Automatic summarization of work sessions in git commits |
 
 ### 9.2 References
 
@@ -1344,11 +2095,12 @@ Week 10: Beta Release
 
 | Field | Value |
 |-------|-------|
-| **Version** | 1.0.0 |
+| **Version** | 1.1.0 |
 | **Status** | DRAFT |
 | **Approvers** | Hera (Strategy), Athena (Architecture), Hestia (Security) |
 | **Next Review** | 2025-12-15 (Post-Phase 4.1a completion) |
-| **Change History** | Initial specification based on Phase 1 research |
+| **Change History** | v1.0.0: Initial specification based on Phase 1 research |
+| | v1.1.0: Added Local-First Memory Repository, Git Worktree patterns, External Integration bridges (GitHub/GitLab) |
 
 ---
 
