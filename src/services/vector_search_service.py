@@ -58,7 +58,9 @@ class VectorSearchService:
     HOT_CACHE_SIZE = 10000  # Maximum memories in hot cache
 
     def __init__(self, persist_directory: str | Path | None = None):
-        """Initialize vector search service.
+        """Initialize vector search service (lazy mode).
+
+        ChromaDB client and collection are NOT created until first use.
 
         Args:
             persist_directory: Directory for ChromaDB persistence
@@ -73,55 +75,140 @@ class VectorSearchService:
         else:
             persist_directory = Path(persist_directory)
 
-        persist_directory.mkdir(parents=True, exist_ok=True)
         self.persist_directory = persist_directory
 
-        # Initialize Chroma client (embedded mode)
-        self._client = chromadb.PersistentClient(
-            path=str(persist_directory),
-            settings=Settings(
-                anonymized_telemetry=False,
-                allow_reset=True,
-            ),
+        # Lazy initialization state
+        self._client: chromadb.PersistentClient | None = None
+        self._collection: chromadb.Collection | None = None
+        self._init_lock = asyncio.Lock()
+        self._initialized = False
+
+        logger.info(
+            f"🚀 VectorSearchService initialized (lazy mode, persist: {persist_directory})"
         )
 
-        self._collection = None
-        logger.info(f"🚀 VectorSearchService initialized (persist: {persist_directory})")
+    INIT_TIMEOUT_SECONDS = 30.0  # Maximum time for lazy initialization
 
-    async def initialize(self) -> None:
-        """Initialize or get collection for vector search (async).
+    async def _ensure_initialized(self, timeout: float | None = None) -> None:
+        """Ensure ChromaDB client and collection are initialized (lazy).
+
+        Thread-safe lazy initialization using double-check locking pattern.
+        Only creates resources on first actual use.
+
+        Security hardening (Hestia P0):
+        - Timeout protection prevents indefinite hangs
+        - Partial state cleanup on failure prevents resource leaks
+
+        Args:
+            timeout: Maximum seconds to wait for initialization.
+                    Defaults to INIT_TIMEOUT_SECONDS (30s).
+
+        Raises:
+            ChromaInitializationError: If initialization fails or times out.
 
         Note: HNSW index parameters are managed automatically by ChromaDB.
         ChromaDB operations run in thread pool to avoid blocking event loop.
         """
-        try:
-            # Run sync ChromaDB operation in thread pool
-            self._collection = await asyncio.to_thread(
-                self._client.get_or_create_collection,
-                name=self.COLLECTION_NAME,
-                metadata={
-                    "description": "TMWS v2.2.6 semantic memory search (1024-dim)",
-                    # Note: HNSW parameters are managed by ChromaDB automatically
-                    # to avoid compatibility issues across versions
-                },
-            )
-            count = await asyncio.to_thread(self._collection.count)
-            logger.info(f"✅ Collection '{self.COLLECTION_NAME}' ready ({count} memories)")
+        if self._initialized:
+            return
 
-        except (KeyboardInterrupt, SystemExit):
-            # Never suppress user interrupts
-            raise
-        except Exception as e:
-            # ChromaDB initialization errors
+        timeout = timeout or self.INIT_TIMEOUT_SECONDS
+
+        try:
+            async with asyncio.timeout(timeout):
+                async with self._init_lock:
+                    # Double-check pattern: another task may have initialized while we waited
+                    if self._initialized:
+                        return
+
+                    # Use temp variables to prevent partial state (Hestia C-1 fix)
+                    temp_client = None
+                    temp_collection = None
+
+                    try:
+                        # Create persist directory if needed
+                        self.persist_directory.mkdir(parents=True, exist_ok=True)
+
+                        # Initialize ChromaDB client (embedded mode)
+                        temp_client = await asyncio.to_thread(
+                            chromadb.PersistentClient,
+                            path=str(self.persist_directory),
+                            settings=Settings(
+                                anonymized_telemetry=False,
+                                allow_reset=True,
+                            ),
+                        )
+
+                        logger.info(
+                            f"📦 ChromaDB client initialized (persist: {self.persist_directory})"
+                        )
+
+                        # Get or create collection
+                        temp_collection = await asyncio.to_thread(
+                            temp_client.get_or_create_collection,
+                            name=self.COLLECTION_NAME,
+                            metadata={
+                                "description": "TMWS v2.2.6 semantic memory search (1024-dim)",
+                                # Note: HNSW parameters are managed by ChromaDB automatically
+                                # to avoid compatibility issues across versions
+                            },
+                        )
+                        count = await asyncio.to_thread(temp_collection.count)
+                        logger.info(
+                            f"✅ Collection '{self.COLLECTION_NAME}' ready ({count} memories)"
+                        )
+
+                        # Only assign after both succeed (atomic state transition)
+                        self._client = temp_client
+                        self._collection = temp_collection
+                        self._initialized = True
+
+                    except (KeyboardInterrupt, SystemExit):
+                        # Never suppress user interrupts
+                        raise
+                    except Exception as e:
+                        # Clean up partial state on failure (Hestia C-1 fix)
+                        if temp_client is not None:
+                            try:
+                                del temp_client
+                                logger.debug("Cleaned up partial ChromaDB client after init failure")
+                            except Exception:
+                                pass  # Best effort cleanup
+
+                        # ChromaDB initialization errors
+                        log_and_raise(
+                            ChromaInitializationError,
+                            f"Failed to initialize ChromaDB collection '{self.COLLECTION_NAME}'",
+                            original_exception=e,
+                            details={
+                                "collection_name": self.COLLECTION_NAME,
+                                "persist_directory": str(self.persist_directory),
+                            },
+                        )
+
+        except TimeoutError:
+            # Hestia C-3 fix: Timeout protection
             log_and_raise(
                 ChromaInitializationError,
-                f"Failed to initialize ChromaDB collection '{self.COLLECTION_NAME}'",
-                original_exception=e,
+                f"ChromaDB initialization timed out after {timeout}s",
                 details={
+                    "timeout_seconds": timeout,
                     "collection_name": self.COLLECTION_NAME,
                     "persist_directory": str(self.persist_directory),
                 },
             )
+
+    async def initialize(self) -> None:
+        """Initialize collection for vector search (DEPRECATED - use lazy init).
+
+        This method is kept for backward compatibility. The service now uses
+        lazy initialization automatically on first use.
+
+        Note: Calling this method explicitly will force initialization, which
+        is useful for eager loading in tests or specific scenarios.
+        """
+        logger.info("⚠️ Explicit initialize() called - lazy init is now automatic")
+        await self._ensure_initialized()
 
     async def add_memory(
         self,
@@ -153,8 +240,7 @@ class VectorSearchService:
         Note: ChromaDB operation runs in thread pool to avoid blocking event loop.
 
         """
-        if self._collection is None:
-            raise RuntimeError("Collection not initialized. Call initialize() first.")
+        await self._ensure_initialized()
 
         # Convert UUID to string
         memory_id_str = str(memory_id)
@@ -213,8 +299,7 @@ class VectorSearchService:
         Note: ChromaDB operation runs in thread pool to avoid blocking event loop.
 
         """
-        if self._collection is None:
-            raise RuntimeError("Collection not initialized. Call initialize() first.")
+        await self._ensure_initialized()
 
         # Convert UUIDs to strings
         ids = [str(mid) for mid in memory_ids]
@@ -276,8 +361,7 @@ class VectorSearchService:
         Note: ChromaDB operation runs in thread pool to avoid blocking event loop.
 
         """
-        if self._collection is None:
-            raise RuntimeError("Collection not initialized. Call initialize() first.")
+        await self._ensure_initialized()
 
         # Build where clause for filters
         where = self._build_where_clause(filters) if filters else None
@@ -342,8 +426,7 @@ class VectorSearchService:
         Note: ChromaDB operation runs in thread pool to avoid blocking event loop.
 
         """
-        if self._collection is None:
-            raise RuntimeError("Collection not initialized. Call initialize() first.")
+        await self._ensure_initialized()
 
         memory_id_str = str(memory_id)
 
@@ -373,8 +456,7 @@ class VectorSearchService:
         Note: ChromaDB operation runs in thread pool to avoid blocking event loop.
 
         """
-        if self._collection is None:
-            raise RuntimeError("Collection not initialized. Call initialize() first.")
+        await self._ensure_initialized()
 
         ids = [str(mid) for mid in memory_ids]
 
@@ -395,8 +477,12 @@ class VectorSearchService:
                 details={"memory_count": len(ids), "operation": "delete_batch"},
             )
 
-    async def get_collection_stats(self) -> dict[str, Any]:
+    async def get_collection_stats(self, force_init: bool = False) -> dict[str, Any]:
         """Get collection statistics (async).
+
+        Args:
+            force_init: If True, force initialization before getting stats.
+                       If False, returns metadata only without initializing ChromaDB.
 
         Returns:
             Dictionary with stats (count, capacity_usage, etc.)
@@ -404,34 +490,49 @@ class VectorSearchService:
         Note: ChromaDB operation runs in thread pool to avoid blocking event loop.
 
         """
-        if self._collection is None:
-            raise RuntimeError("Collection not initialized. Call initialize() first.")
+        if force_init or self._initialized:
+            await self._ensure_initialized()
 
-        # Run sync ChromaDB operation in thread pool
-        count = await asyncio.to_thread(self._collection.count)
-        capacity_usage = count / self.HOT_CACHE_SIZE
+            # Run sync ChromaDB operation in thread pool
+            count = await asyncio.to_thread(self._collection.count)
+            capacity_usage = count / self.HOT_CACHE_SIZE
 
-        return {
-            "collection_name": self.COLLECTION_NAME,
-            "memory_count": count,
-            "hot_cache_capacity": self.HOT_CACHE_SIZE,
-            "capacity_usage": capacity_usage,
-            "capacity_usage_percent": f"{capacity_usage * 100:.1f}%",
-            "persist_directory": str(self.persist_directory),
-        }
+            return {
+                "collection_name": self.COLLECTION_NAME,
+                "memory_count": count,
+                "hot_cache_capacity": self.HOT_CACHE_SIZE,
+                "capacity_usage": capacity_usage,
+                "capacity_usage_percent": f"{capacity_usage * 100:.1f}%",
+                "persist_directory": str(self.persist_directory),
+                "initialized": True,
+            }
+        else:
+            # Return metadata only without forcing initialization
+            return {
+                "collection_name": self.COLLECTION_NAME,
+                "memory_count": 0,
+                "hot_cache_capacity": self.HOT_CACHE_SIZE,
+                "capacity_usage": 0.0,
+                "capacity_usage_percent": "0.0%",
+                "persist_directory": str(self.persist_directory),
+                "initialized": False,
+            }
 
     async def clear_collection(self) -> None:
         """Clear all memories from collection (async, dangerous!).
 
         Note: ChromaDB operations run in thread pool to avoid blocking event loop.
         """
-        if self._collection is None:
-            raise RuntimeError("Collection not initialized. Call initialize() first.")
+        await self._ensure_initialized()
 
         logger.warning(f"⚠️ Clearing all memories from collection '{self.COLLECTION_NAME}'")
         # Run sync ChromaDB operation in thread pool
         await asyncio.to_thread(self._client.delete_collection, name=self.COLLECTION_NAME)
-        await self.initialize()  # Recreate empty collection
+
+        # Reset state and reinitialize
+        self._initialized = False
+        self._collection = None
+        await self._ensure_initialized()  # Recreate empty collection
 
     def _sanitize_metadata(self, metadata: dict[str, Any]) -> dict[str, Any]:
         """Sanitize metadata for ChromaDB (string/int/float only).

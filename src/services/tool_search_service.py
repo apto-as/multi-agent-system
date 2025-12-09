@@ -80,7 +80,9 @@ class ToolSearchService:
         embedding_service: Any = None,
         learning_service: Any = None,
     ):
-        """Initialize Tool Search Service.
+        """Initialize Tool Search Service (lazy mode).
+
+        ChromaDB client and collection are NOT created until first use.
 
         Args:
             config: Service configuration
@@ -92,16 +94,12 @@ class ToolSearchService:
         self.persist_directory = persist_directory
         self.embedding_service = embedding_service
 
-        # Initialize ChromaDB client
-        self._client = chromadb.PersistentClient(
-            path=persist_directory,
-            settings=Settings(
-                anonymized_telemetry=False,
-                allow_reset=True,
-            ),
-        )
+        # Lazy initialization state
+        self._client: chromadb.PersistentClient | None = None
+        self._collection: chromadb.Collection | None = None
+        self._init_lock = asyncio.Lock()
+        self._initialized = False
 
-        self._collection = None
         self._internal_tools: dict[str, ToolMetadata] = {}
         self._mcp_servers: dict[str, MCPServerMetadata] = {}
 
@@ -123,29 +121,109 @@ class ToolSearchService:
             )
 
         logger.info(
-            f"ToolSearchService initialized (collection: {self.config.collection_name}, "
+            f"ToolSearchService initialized (lazy mode, collection: {self.config.collection_name}, "
             f"adaptive_ranking: {self.config.enable_adaptive_ranking})"
         )
 
-    async def initialize(self) -> None:
-        """Initialize ChromaDB collection for tools.
+    INIT_TIMEOUT_SECONDS = 30.0  # Maximum time for lazy initialization
 
-        Creates or gets the tmws_tools collection.
+    async def _ensure_initialized(self, timeout: float | None = None) -> None:
+        """Ensure ChromaDB client and collection are initialized (lazy).
+
+        Thread-safe lazy initialization using double-check locking pattern.
+        Only creates resources on first actual use.
+
+        Security hardening (Hestia P0):
+        - Timeout protection prevents indefinite hangs
+        - Partial state cleanup on failure prevents resource leaks
+
+        Args:
+            timeout: Maximum seconds to wait for initialization.
+                    Defaults to INIT_TIMEOUT_SECONDS (30s).
+
+        Raises:
+            Exception: If initialization fails or times out.
+
         Note: HNSW parameters are managed by ChromaDB automatically.
         """
+        if self._initialized:
+            return
+
+        timeout = timeout or self.INIT_TIMEOUT_SECONDS
+
         try:
-            self._collection = await asyncio.to_thread(
-                self._client.get_or_create_collection,
-                name=self.config.collection_name,
-                metadata={
-                    "description": "TMWS Tool Discovery Engine",
-                },
-            )
-            count = self._collection.count()
-            logger.info(f"Collection '{self.config.collection_name}' ready ({count} tools)")
-        except Exception as e:
-            logger.error(f"Failed to initialize collection: {e}")
-            raise
+            async with asyncio.timeout(timeout):
+                async with self._init_lock:
+                    # Double-check pattern: another task may have initialized while we waited
+                    if self._initialized:
+                        return
+
+                    # Use temp variables to prevent partial state (Hestia C-1 fix)
+                    temp_client = None
+                    temp_collection = None
+
+                    try:
+                        # Initialize ChromaDB client
+                        temp_client = await asyncio.to_thread(
+                            chromadb.PersistentClient,
+                            path=self.persist_directory,
+                            settings=Settings(
+                                anonymized_telemetry=False,
+                                allow_reset=True,
+                            ),
+                        )
+
+                        logger.info(
+                            f"📦 ChromaDB client initialized (persist: {self.persist_directory})"
+                        )
+
+                        # Get or create collection
+                        temp_collection = await asyncio.to_thread(
+                            temp_client.get_or_create_collection,
+                            name=self.config.collection_name,
+                            metadata={
+                                "description": "TMWS Tool Discovery Engine",
+                            },
+                        )
+                        count = await asyncio.to_thread(temp_collection.count)
+                        logger.info(
+                            f"✅ Collection '{self.config.collection_name}' ready ({count} tools)"
+                        )
+
+                        # Only assign after both succeed (atomic state transition)
+                        self._client = temp_client
+                        self._collection = temp_collection
+                        self._initialized = True
+
+                    except Exception as e:
+                        # Clean up partial state on failure (Hestia C-1 fix)
+                        if temp_client is not None:
+                            try:
+                                del temp_client
+                                logger.debug("Cleaned up partial ChromaDB client after init failure")
+                            except Exception:
+                                pass  # Best effort cleanup
+
+                        logger.error(f"Failed to initialize ChromaDB collection: {e}")
+                        raise
+
+        except TimeoutError:
+            # Hestia C-3 fix: Timeout protection
+            error_msg = f"ChromaDB initialization timed out after {timeout}s"
+            logger.error(error_msg)
+            raise TimeoutError(error_msg)
+
+    async def initialize(self) -> None:
+        """Initialize ChromaDB collection for tools (DEPRECATED - use lazy init).
+
+        This method is kept for backward compatibility. The service now uses
+        lazy initialization automatically on first use.
+
+        Note: Calling this method explicitly will force initialization, which
+        is useful for eager loading in tests or specific scenarios.
+        """
+        logger.info("⚠️ Explicit initialize() called - lazy init is now automatic")
+        await self._ensure_initialized()
 
     async def register_internal_tools(self, tools: list[ToolMetadata]) -> int:
         """Register internal TMWS tools.
@@ -470,14 +548,19 @@ class ToolSearchService:
             f"(agent: {agent_id or 'unknown'})"
         )
 
-    async def get_stats(self) -> dict[str, Any]:
+    async def get_stats(self, force_init: bool = False) -> dict[str, Any]:
         """Get tool search statistics.
+
+        Args:
+            force_init: If True, force initialization before getting stats.
+                       If False, returns metadata only without initializing ChromaDB.
 
         Returns:
             Dictionary with service statistics
         """
         collection_count = 0
-        if self._collection:
+        if force_init or self._initialized:
+            await self._ensure_initialized()
             collection_count = await asyncio.to_thread(self._collection.count)
 
         return {
@@ -487,6 +570,7 @@ class ToolSearchService:
             "mcp_servers": len(self._mcp_servers),
             "mcp_server_tools": sum(s.tool_count for s in self._mcp_servers.values()),
             "cache_entries": len(self._cache),
+            "initialized": self._initialized,
         }
 
     # Private methods
@@ -520,8 +604,10 @@ class ToolSearchService:
             source_type: Source type for ranking
             server_id: Server identifier
         """
-        if not self._collection or not tools:
+        if not tools:
             return
+
+        await self._ensure_initialized()
 
         ids = []
         documents = []
@@ -566,8 +652,7 @@ class ToolSearchService:
         Returns:
             List of search results
         """
-        if not self._collection:
-            return []
+        await self._ensure_initialized()
 
         # Build where clause for filtering
         where_clause = None
@@ -673,9 +758,7 @@ class ToolSearchService:
             logger.warning(f"Invalid regex pattern: {e}")
             return []
 
-        # Query all tools from collection metadata
-        if not self._collection:
-            return []
+        await self._ensure_initialized()
 
         try:
             # Get all items and filter by regex - entire operation with timeout
