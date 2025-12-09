@@ -25,16 +25,32 @@ from typing import Any, Final
 MAX_REGISTRY_SIZE_MB: Final[int] = 10
 
 # Security: Allowlisted commands for server spawning
-ALLOWED_COMMANDS: Final[frozenset[str]] = frozenset({
-    "python", "python3", "node", "npx", "uvx", "uv",
-    "deno", "bun", "cargo", "go",
-})
+ALLOWED_COMMANDS: Final[frozenset[str]] = frozenset(
+    {
+        "python",
+        "python3",
+        "node",
+        "npx",
+        "uvx",
+        "uv",
+        "deno",
+        "bun",
+        "cargo",
+        "go",
+    }
+)
 
 # Security: Forbidden environment variables that could enable code injection
-FORBIDDEN_ENV_VARS: Final[frozenset[str]] = frozenset({
-    "LD_PRELOAD", "DYLD_INSERT_LIBRARIES", "LD_LIBRARY_PATH",
-    "PYTHONPATH", "NODE_PATH", "PYTHONSTARTUP",
-})
+FORBIDDEN_ENV_VARS: Final[frozenset[str]] = frozenset(
+    {
+        "LD_PRELOAD",
+        "DYLD_INSERT_LIBRARIES",
+        "LD_LIBRARY_PATH",
+        "PYTHONPATH",
+        "NODE_PATH",
+        "PYTHONSTARTUP",
+    }
+)
 
 # Security: Patterns for valid IDs
 SERVER_ID_PATTERN: Final[re.Pattern[str]] = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$")
@@ -43,6 +59,7 @@ TOOL_ID_PATTERN: Final[re.Pattern[str]] = re.compile(r"^[a-zA-Z0-9_-]+::[a-zA-Z0
 
 class RegistrySecurityError(Exception):
     """Raised when registry security validation fails."""
+
     pass
 
 
@@ -105,25 +122,20 @@ def validate_server_command(command: str, args: list[str], env: dict[str, str] |
     cmd_name = command.split("/")[-1]  # Handle full paths like /usr/bin/python
     if cmd_name not in ALLOWED_COMMANDS:
         raise RegistrySecurityError(
-            f"Command not allowed: '{command}'. "
-            f"Allowed: {sorted(ALLOWED_COMMANDS)}"
+            f"Command not allowed: '{command}'. Allowed: {sorted(ALLOWED_COMMANDS)}"
         )
 
     # Validate args don't contain shell metacharacters
     dangerous_chars = {";", "|", "&", "`", "$", "(", ")", "\n", "\r", "\x00"}
     for arg in args:
         if any(c in arg for c in dangerous_chars):
-            raise RegistrySecurityError(
-                f"Dangerous characters in args: '{arg}'"
-            )
+            raise RegistrySecurityError(f"Dangerous characters in args: '{arg}'")
 
     # Validate environment variables
     if env:
         for key in env:
             if key.upper() in FORBIDDEN_ENV_VARS:
-                raise RegistrySecurityError(
-                    f"Forbidden environment variable: '{key}'"
-                )
+                raise RegistrySecurityError(f"Forbidden environment variable: '{key}'")
 
 
 class ToolCategory(str, Enum):
@@ -209,13 +221,14 @@ class ToolRegistryEntry:
 class ServerRegistryEntry:
     """Minimal metadata for an MCP server.
 
-    Size target: ~100 bytes
+    Size target: ~120 bytes (extended for versioning)
     - server_id: ~10 bytes
     - name: ~20 bytes
     - command: ~30 bytes
     - args: ~20 bytes (serialized)
     - env: ~20 bytes (serialized, optional)
     - Counters/scores: ~20 bytes
+    - Version info: ~20 bytes (Phase 4.2)
     """
 
     server_id: str
@@ -229,6 +242,11 @@ class ServerRegistryEntry:
     last_connected: datetime | None = None
     estimated_memory_mb: int = 50  # Estimated memory usage when loaded
     cold_start_ms: int = 100  # Estimated cold start time
+    # Phase 4.2: Version Management
+    version: str = "1.0.0"  # Semantic version (MAJOR.MINOR.PATCH)
+    min_compatible_version: str = "1.0.0"  # Minimum compatible client version
+    deprecated: bool = False  # Whether server is deprecated
+    deprecation_message: str | None = None  # Message if deprecated
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict."""
@@ -241,11 +259,14 @@ class ServerRegistryEntry:
             "tool_count": self.tool_count,
             "category": self.category.value,
             "popularity_score": self.popularity_score,
-            "last_connected": (
-                self.last_connected.isoformat() if self.last_connected else None
-            ),
+            "last_connected": (self.last_connected.isoformat() if self.last_connected else None),
             "estimated_memory_mb": self.estimated_memory_mb,
             "cold_start_ms": self.cold_start_ms,
+            # Phase 4.2: Version Management
+            "version": self.version,
+            "min_compatible_version": self.min_compatible_version,
+            "deprecated": self.deprecated,
+            "deprecation_message": self.deprecation_message,
         }
 
     @classmethod
@@ -271,11 +292,7 @@ class ServerRegistryEntry:
         validate_server_command(command, args, env)
 
         last_connected_str = data.get("last_connected")
-        last_connected = (
-            datetime.fromisoformat(last_connected_str)
-            if last_connected_str
-            else None
-        )
+        last_connected = datetime.fromisoformat(last_connected_str) if last_connected_str else None
 
         return cls(
             server_id=server_id,
@@ -289,6 +306,11 @@ class ServerRegistryEntry:
             last_connected=last_connected,
             estimated_memory_mb=data.get("estimated_memory_mb", 50),
             cold_start_ms=data.get("cold_start_ms", 100),
+            # Phase 4.2: Version Management
+            version=data.get("version", "1.0.0"),
+            min_compatible_version=data.get("min_compatible_version", "1.0.0"),
+            deprecated=data.get("deprecated", False),
+            deprecation_message=data.get("deprecation_message"),
         )
 
 
@@ -343,9 +365,7 @@ class SparseRegistry:
         """Convert to JSON-serializable dict."""
         return {
             "metadata": self.metadata.to_dict(),
-            "servers": {
-                sid: entry.to_dict() for sid, entry in self.servers.items()
-            },
+            "servers": {sid: entry.to_dict() for sid, entry in self.servers.items()},
             "tools": {tid: entry.to_dict() for tid, entry in self.tools.items()},
             "tool_by_server": self.tool_by_server,
         }
@@ -356,13 +376,9 @@ class SparseRegistry:
         return cls(
             metadata=RegistryMetadata.from_dict(data["metadata"]),
             servers={
-                sid: ServerRegistryEntry.from_dict(entry)
-                for sid, entry in data["servers"].items()
+                sid: ServerRegistryEntry.from_dict(entry) for sid, entry in data["servers"].items()
             },
-            tools={
-                tid: ToolRegistryEntry.from_dict(entry)
-                for tid, entry in data["tools"].items()
-            },
+            tools={tid: ToolRegistryEntry.from_dict(entry) for tid, entry in data["tools"].items()},
             tool_by_server=data["tool_by_server"],
         )
 
