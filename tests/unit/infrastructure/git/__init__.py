@@ -1,1 +1,1 @@
-"""Unit tests for git-based infrastructure."""
+"""Unit tests for git infrastructure modules."""
