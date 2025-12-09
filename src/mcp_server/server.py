@@ -75,6 +75,10 @@ class HybridMCPServer:
         # External MCP server manager (for preset connections)
         self.external_mcp_manager: MCPManager | None = None
 
+        # Git memory repository (Phase 4.1 - Issue #32)
+        # Provides worktree management for parallel task isolation
+        self.memory_repo = None
+
         # MCP server setup
         self.mcp = FastMCP(name="tmws", version=__version__)
 

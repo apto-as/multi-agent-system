@@ -331,6 +331,220 @@ def register_core_tools(mcp, server):
                 "error": str(e),
             }
 
+    # ========================================================================
+    # Git Worktree Management Tools (Phase 4.1 - Issue #32)
+    # Enables parallel task isolation via git worktrees
+    # ========================================================================
+
+    @mcp.tool(
+        name="git_worktree_create",
+        description="Create isolated git worktree for parallel task development",
+    )
+    async def git_worktree_create(
+        task_id: str,
+        branch_name: str = None,
+    ) -> dict:
+        """Create task-specific worktree for isolated development.
+
+        Git worktrees allow multiple working directories from a single
+        repository, enabling true parallel development without branch
+        switching conflicts.
+
+        Security:
+        - task_id is validated (alphanumeric + hyphens/underscores only)
+        - branch_name is validated for git-safe characters
+        - Path traversal is prevented
+
+        Args:
+            task_id: Task identifier (e.g., "feature-123", "bugfix_456")
+            branch_name: Custom branch name (defaults to "task/{task_id}")
+
+        Returns:
+            dict with worktree_path, branch_name, task_id on success
+            dict with error message on failure
+        """
+        if not server.memory_repo:
+            # Initialize memory repository on first use (lazy loading)
+            try:
+                from src.infrastructure.git import get_memory_repository
+
+                server.memory_repo = get_memory_repository()
+                await server.memory_repo.initialize()
+                logger.info("Git memory repository initialized (lazy)")
+            except Exception as e:
+                logger.error(f"Failed to initialize memory repository: {e}")
+                return {
+                    "status": "error",
+                    "error": f"Memory repository initialization failed: {e}",
+                }
+
+        try:
+            from src.infrastructure.git.memory_repository import SecurityError
+
+            worktree_path = await server.memory_repo.create_task_worktree(
+                task_id, branch_name
+            )
+
+            return {
+                "status": "success",
+                "worktree_path": str(worktree_path),
+                "task_id": task_id,
+                "branch_name": branch_name or f"task/{task_id}",
+            }
+
+        except SecurityError as e:
+            logger.warning(f"Security validation failed for worktree: {e}")
+            return {
+                "status": "error",
+                "error": f"Security validation failed: {e}",
+                "task_id": task_id,
+            }
+        except RuntimeError as e:
+            logger.error(f"Worktree creation failed: {e}")
+            return {
+                "status": "error",
+                "error": str(e),
+                "task_id": task_id,
+            }
+        except Exception as e:
+            logger.error(f"Unexpected worktree creation error: {e}")
+            return {
+                "status": "error",
+                "error": f"Unexpected error: {e}",
+                "task_id": task_id,
+            }
+
+    @mcp.tool(
+        name="git_worktree_merge",
+        description="Merge completed task worktree back to main branch",
+    )
+    async def git_worktree_merge(
+        task_id: str,
+        commit_message: str = None,
+    ) -> dict:
+        """Merge task worktree to main and clean up.
+
+        After task completion, this merges the task branch back to main
+        using --no-ff for clear history, then removes the worktree.
+
+        Security:
+        - task_id is validated to prevent path traversal
+        - commit_message is validated for injection characters
+
+        Args:
+            task_id: Task identifier of the worktree to merge
+            commit_message: Custom merge commit message (optional)
+
+        Returns:
+            dict with commit_hash on success
+            dict with error message on failure
+        """
+        if not server.memory_repo:
+            return {
+                "status": "error",
+                "error": "Memory repository not initialized. Create a worktree first.",
+            }
+
+        try:
+            from src.infrastructure.git.memory_repository import SecurityError
+
+            commit_hash = await server.memory_repo.merge_task_worktree(
+                task_id, commit_message
+            )
+
+            return {
+                "status": "success",
+                "commit_hash": commit_hash,
+                "task_id": task_id,
+                "merged": True,
+                "worktree_removed": True,
+            }
+
+        except SecurityError as e:
+            logger.warning(f"Security validation failed for merge: {e}")
+            return {
+                "status": "error",
+                "error": f"Security validation failed: {e}",
+                "task_id": task_id,
+            }
+        except RuntimeError as e:
+            logger.error(f"Worktree merge failed: {e}")
+            return {
+                "status": "error",
+                "error": str(e),
+                "task_id": task_id,
+            }
+        except Exception as e:
+            logger.error(f"Unexpected worktree merge error: {e}")
+            return {
+                "status": "error",
+                "error": f"Unexpected error: {e}",
+                "task_id": task_id,
+            }
+
+    @mcp.tool(
+        name="git_worktree_list",
+        description="List active worktrees and their status",
+    )
+    async def git_worktree_list() -> dict:
+        """List all active task worktrees.
+
+        Returns information about all worktrees created for task isolation,
+        including their paths and existence status.
+
+        Returns:
+            dict with list of worktrees and count
+        """
+        if not server.memory_repo:
+            # Initialize memory repository on first use (lazy loading)
+            try:
+                from src.infrastructure.git import get_memory_repository
+
+                server.memory_repo = get_memory_repository()
+                await server.memory_repo.initialize()
+                logger.info("Git memory repository initialized (lazy)")
+            except Exception as e:
+                logger.error(f"Failed to initialize memory repository: {e}")
+                return {
+                    "status": "error",
+                    "error": f"Memory repository initialization failed: {e}",
+                }
+
+        try:
+            worktrees_dir = server.memory_repo.worktrees_dir
+
+            if not worktrees_dir.exists():
+                return {
+                    "status": "success",
+                    "count": 0,
+                    "worktrees": [],
+                    "worktrees_dir": str(worktrees_dir),
+                }
+
+            worktrees = []
+            for wt in worktrees_dir.iterdir():
+                if wt.is_dir():
+                    worktrees.append({
+                        "task_id": wt.name,
+                        "path": str(wt),
+                        "exists": wt.exists(),
+                        "branch": f"task/{wt.name}",
+                    })
+
+            return {
+                "status": "success",
+                "count": len(worktrees),
+                "worktrees": worktrees,
+                "worktrees_dir": str(worktrees_dir),
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to list worktrees: {e}")
+            return {
+                "status": "error",
+                "error": str(e),
+            }
+
     # Note: Expiration tools will be registered during initialize()
     # after scheduler is created, since it needs scheduler instance
-    logger.info("Core MCP tools registered (10 tools)")
+    logger.info("Core MCP tools registered (13 tools)")
