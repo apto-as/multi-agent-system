@@ -152,10 +152,11 @@ class TestDisconnectMCPServerUseCase:
         mock_adapter.disconnect.assert_called_once_with(mock_connection.id)
 
         # Assert - Connection state update
-        mock_connection.mark_as_disconnected.assert_called_once()
+        # Implementation uses disconnect() method, not mark_as_disconnected()
+        mock_connection.disconnect.assert_called_once()
 
-        # Assert - Repository update
-        mock_repository.update.assert_called_once_with(mock_connection)
+        # Assert - Repository save (implementation uses save(), not update())
+        mock_repository.save.assert_called_once_with(mock_connection)
 
         # Assert - Transaction
         mock_uow.__aenter__.assert_called_once()
@@ -214,10 +215,11 @@ class TestDisconnectMCPServerUseCase:
         mock_adapter.disconnect.assert_called_once_with(mock_connection.id)
 
         # Assert - Connection still marked as disconnected despite external failure
-        mock_connection.mark_as_disconnected.assert_called_once()
+        # Implementation uses disconnect() method, not mark_as_disconnected()
+        mock_connection.disconnect.assert_called_once()
 
-        # Assert - Repository update still performed
-        mock_repository.update.assert_called_once_with(mock_connection)
+        # Assert - Repository save still performed (implementation uses save(), not update())
+        mock_repository.save.assert_called_once_with(mock_connection)
 
         # Assert - Transaction still committed
         mock_uow.commit.assert_called_once()

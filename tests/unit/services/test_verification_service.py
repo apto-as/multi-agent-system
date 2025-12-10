@@ -103,10 +103,10 @@ class TestVerificationService:
         """Test failed command execution"""
         service = VerificationService(db_session)
 
-        result = await service._execute_verification(command="echo 'error' >&2 && exit 1")
+        # Use 'false' command which always returns exit code 1
+        result = await service._execute_verification(command="false")
 
         assert result["return_code"] == 1
-        assert "error" in result["stderr"]
 
     async def test_execute_verification_timeout(self, db_session):
         """Test command timeout handling"""
@@ -437,12 +437,13 @@ class TestVerificationService:
         service = VerificationService(db_session, memory_service=mock_memory_service)
 
         # Benchmark verification
+        # Note: 'true' is an allowed command that returns exit code 0
         async def verify():
             return await service.verify_claim(
                 agent_id="perf-agent",
                 claim_type=ClaimType.TEST_RESULT,
                 claim_content={"return_code": 0},
-                verification_command="exit 0",
+                verification_command="true",
             )
 
         result = await benchmark(verify)

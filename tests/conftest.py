@@ -21,6 +21,10 @@ os.environ["TMWS_SECRET_KEY"] = "test_secret_key_for_testing_only_32_chars"
 # Database URL configuration - SQLite + ChromaDB architecture (v2.2.6+)
 os.environ["TMWS_DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 
+# Ollama URL - Use localhost for local testing (not host.docker.internal)
+# This ensures tests work outside Docker environment
+os.environ["TMWS_OLLAMA_BASE_URL"] = "http://localhost:11434"
+
 # Import after environment setup - environment variables must be set first
 # Import for dependency override (test authentication bypass)
 from src.api.dependencies import get_current_user  # noqa: E402
@@ -120,10 +124,15 @@ def mock_user():
     Returns:
         User object with test agent credentials
     """
+    from src.utils.security import hash_password
+
     return User(
-        agent_id="test-agent-id",
-        namespace="test-namespace",
-        roles=["user", "admin"],
+        username="testuser",
+        email="test@example.com",
+        password_hash=hash_password("TestPassword123!"),
+        agent_namespace="test-namespace",
+        preferred_agent_id="test-agent-id",
+        roles=[UserRole.USER, UserRole.ADMIN],
     )
 
 

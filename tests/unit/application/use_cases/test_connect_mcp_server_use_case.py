@@ -166,12 +166,12 @@ class TestConnectMCPServerUseCase:
         mock_adapter.discover_tools.return_value = mock_tools
 
         # Mock MCPConnection.create (would normally be done via dependency injection)
-        # For now, we'll mock the repository.add to capture the connection
-        async def capture_add(connection):
-            # Simulate adding connection to repository
+        # For now, we'll mock the repository.save to capture the connection
+        async def capture_save(connection):
+            # Simulate saving connection to repository
             pass
 
-        mock_repository.add = AsyncMock(side_effect=capture_add)
+        mock_repository.save = AsyncMock(side_effect=capture_save)
 
         # Act
         result = await use_case.execute(valid_request)
@@ -185,8 +185,8 @@ class TestConnectMCPServerUseCase:
         )
 
         # Assert - Repository operations
-        mock_repository.add.assert_called_once()
-        mock_repository.update.assert_called_once()
+        # Implementation uses save() instead of add()/update()
+        assert mock_repository.save.call_count == 2  # Initial save + after mark_as_active
 
         # Assert - Adapter operations
         mock_adapter.connect.assert_called_once()
