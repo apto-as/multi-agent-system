@@ -1,24 +1,30 @@
 # ========================================
+# WORKFLOW DISABLED - Issue #55 Phase 2
+# ========================================
 # Docker Pre-Build Security Scan
 # ========================================
 # V-5 Phase 1: Supply Chain Hardening (CVSS 7.1 HIGH mitigation)
 # Purpose: Fail-fast if base images have CRITICAL/HIGH vulnerabilities
-# Trigger: PR changes to Dockerfile or workflow changes
+#
+# DISABLED: Automatic triggers commented out for GitHub-independent workflow
+# Security scans are now part of local pre-push validation
+# See: scripts/git-hooks/pre-push-validator.py
 # ========================================
 
 name: Docker Pre-Build Security Scan
 
 on:
-  pull_request:
-    paths:
-      - 'Dockerfile'
-      - '.github/workflows/docker-prebuild-scan.yml'
-  push:
-    branches:
-      - main
-      - master
-      - feature/**
-  workflow_dispatch:
+  # DISABLED: Automatic triggers commented out
+  # pull_request:
+  #   paths:
+  #     - 'Dockerfile'
+  #     - '.github/workflows/docker-prebuild-scan.yml'
+  # push:
+  #   branches:
+  #     - main
+  #     - master
+  #     - feature/**
+  workflow_dispatch:  # Manual trigger only
 
 jobs:
   prebuild-scan:

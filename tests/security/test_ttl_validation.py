@@ -12,7 +12,7 @@ targeting the TTL (Time-To-Live) parameter of create_memory().
 
 import pytest
 
-from src.services.memory_service import _validate_ttl_days
+from src.services.memory_service import validate_ttl_days as _validate_ttl_days
 
 
 class TestTTLValidationAllowedValues:

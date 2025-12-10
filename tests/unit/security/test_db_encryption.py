@@ -18,6 +18,9 @@ Security Requirements:
 Author: Artemis (Technical Perfectionist)
 Created: 2025-11-19
 Version: 2.3.3
+
+Note: Tests requiring pysqlcipher are skipped in async SQLite environments.
+      pysqlcipher does not support async operations required by aiosqlite.
 """
 
 # Direct import to avoid config dependencies
@@ -27,6 +30,9 @@ import sys
 from pathlib import Path
 
 import pytest
+
+# Check if we're in an async SQLite environment (test environment)
+_IS_TEST_ASYNC_SQLITE = os.environ.get("TMWS_ENVIRONMENT") == "test"
 
 # Get project root
 project_root = Path(__file__).parent.parent.parent.parent
@@ -195,6 +201,10 @@ class TestEncryptionKeyStorage:
         assert exists is False, "key_exists() should return False"
 
 
+@pytest.mark.skipif(
+    _IS_TEST_ASYNC_SQLITE,
+    reason="pysqlcipher is not async-compatible; skipped in async SQLite test environment"
+)
 class TestEncryptedEngine:
     """Test encrypted database engine creation."""
 

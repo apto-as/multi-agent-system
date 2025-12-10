@@ -19,10 +19,14 @@ Security Focus Areas:
 
 Author: Hestia (Security Guardian)
 Date: 2025-11-11
+
+Note: These tests require Ollama server for HybridMemoryService embedding operations.
+      Tests are skipped when Ollama is unavailable (Issue #52 graceful degradation).
 """
 
 from uuid import uuid4
 
+import httpx
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,6 +36,28 @@ from src.core.exceptions import (
 from src.models.agent import AccessLevel, Agent
 from src.models.learning_pattern import LearningPattern
 from src.services.verification_service import ClaimType, VerificationService
+
+
+def _is_ollama_available() -> bool:
+    """Check if Ollama server is available."""
+    try:
+        for url in ["http://localhost:11434/api/tags", "http://host.docker.internal:11434/api/tags"]:
+            try:
+                response = httpx.get(url, timeout=2.0)
+                if response.status_code == 200:
+                    return True
+            except Exception:
+                continue
+        return False
+    except Exception:
+        return False
+
+
+# Skip all tests in this module if Ollama is not available
+pytestmark = pytest.mark.skipif(
+    not _is_ollama_available(),
+    reason="Ollama server not available - tests require embedding service"
+)
 
 # =============================================================================
 # Test Fixtures

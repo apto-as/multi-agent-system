@@ -50,10 +50,13 @@ def mock_vector_service():
 
 
 @pytest.fixture
-def memory_service(mock_session):
-    """Create HybridMemoryService with mocked session."""
-    # Note: We'll mock the dependencies at the test level
-    return HybridMemoryService(mock_session)
+def memory_service(mock_session, mock_embedding_service, mock_vector_service):
+    """Create HybridMemoryService with mocked session and services."""
+    return HybridMemoryService(
+        session=mock_session,
+        embedding_service=mock_embedding_service,
+        vector_service=mock_vector_service,
+    )
 
 
 def create_test_memory(memory_id: str | None = None) -> Memory:
@@ -152,9 +155,10 @@ async def test_multiple_accesses_increment_correctly(memory_service, mock_sessio
     ]
 
     # Act - Access memory 3 times with mocked datetime
+    # Note: memory_service is now in memory_service/crud_operations.py
     for _i, access_time in enumerate(access_times):
         with (
-            patch("src.services.memory_service.datetime") as mock_svc_dt,
+            patch("src.services.memory_service.crud_operations.datetime") as mock_svc_dt,
             patch("src.models.memory.datetime") as mock_model_dt,
         ):
             # Mock rate limit check in service
@@ -275,11 +279,12 @@ async def test_concurrent_access_tracking(memory_service, mock_session):
     base_time = datetime.now(timezone.utc)
 
     # Act - Simulate 5 accesses at different times
+    # Note: memory_service is now in memory_service/crud_operations.py
     for i in range(5):
         access_time = base_time + timedelta(seconds=i * 6)  # 0s, 6s, 12s, 18s, 24s
 
         with (
-            patch("src.services.memory_service.datetime") as mock_svc_dt,
+            patch("src.services.memory_service.crud_operations.datetime") as mock_svc_dt,
             patch("src.models.memory.datetime") as mock_model_dt,
         ):
             # Mock rate limit check in service

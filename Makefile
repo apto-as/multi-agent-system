@@ -25,6 +25,13 @@ help:
 	@echo "  make dead-code-p1      - Remove P1 priority dead code"
 	@echo "  make dead-code-all     - Remove all dead code (staged)"
 	@echo ""
+	@echo "Docker (Issue #55 Phase 2):"
+	@echo "  make docker-build      - Build Docker image locally"
+	@echo "  make docker-push       - Build and push to registry"
+	@echo "  make docker-release    - Build, push, and create GitHub release"
+	@echo "  make docker-clean      - Remove local Docker images"
+	@echo "  make docker-info       - Show Docker configuration"
+	@echo ""
 	@echo "Database:"
 	@echo "  make migrate           - Apply database migrations"
 	@echo "  make migrate-create    - Create new migration"
@@ -109,3 +116,100 @@ clean-all: clean
 	rm -rf dist
 	rm -rf build
 	rm -rf *.egg-info
+
+# ========================================
+# Docker Build & Publish (GitHub-independent)
+# Issue #55 Phase 2: Local Docker workflow
+# ========================================
+
+# Configuration (DockerHub - GitHub-independent)
+DOCKER_REGISTRY ?= docker.io
+DOCKER_REPO ?= aptoas/tmws
+DOCKER_IMAGE = $(DOCKER_REGISTRY)/$(DOCKER_REPO)
+VERSION := $(shell grep '^version = ' pyproject.toml | cut -d'"' -f2)
+COMMIT_HASH := $(shell git rev-parse --short HEAD)
+
+# Docker build target
+docker-build:
+	@echo "🐳 Building Docker image..."
+	@echo "  Version: $(VERSION)"
+	@echo "  Commit:  $(COMMIT_HASH)"
+	@echo ""
+	docker build \
+		--platform linux/amd64,linux/arm64 \
+		--tag $(DOCKER_IMAGE):$(VERSION) \
+		--tag $(DOCKER_IMAGE):$(COMMIT_HASH) \
+		--tag $(DOCKER_IMAGE):latest \
+		--label "org.opencontainers.image.version=$(VERSION)" \
+		--label "org.opencontainers.image.revision=$(COMMIT_HASH)" \
+		--label "org.opencontainers.image.created=$(shell date -u +%Y-%m-%dT%H:%M:%SZ)" \
+		--build-arg BUILD_DATE=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) \
+		--build-arg VERSION=$(VERSION) \
+		--build-arg VCS_REF=$(COMMIT_HASH) \
+		.
+	@echo ""
+	@echo "✅ Docker build complete"
+	@echo "  Tags: $(VERSION), $(COMMIT_HASH), latest"
+
+# Docker push target (requires authentication)
+docker-push: docker-build
+	@echo "📤 Pushing Docker image to $(DOCKER_REGISTRY)..."
+	@echo ""
+	@echo "Checking authentication..."
+	@docker login $(DOCKER_REGISTRY) || (echo "❌ Login failed - run: docker login" && exit 1)
+	@echo ""
+	@echo "Pushing tags..."
+	docker push $(DOCKER_IMAGE):$(VERSION)
+	docker push $(DOCKER_IMAGE):$(COMMIT_HASH)
+	docker push $(DOCKER_IMAGE):latest
+	@echo ""
+	@echo "✅ Docker push complete"
+	@echo "  Pull: docker pull $(DOCKER_IMAGE):$(VERSION)"
+
+# Docker release target (build + push + tag)
+docker-release: docker-push
+	@echo "🚀 Creating GitHub release..."
+	@echo ""
+	@if ! command -v gh &> /dev/null; then \
+		echo "⚠️  GitHub CLI (gh) not installed - skipping release creation"; \
+		echo "  Install: https://cli.github.com/"; \
+	else \
+		echo "Creating tag v$(VERSION)..."; \
+		git tag -a "v$(VERSION)" -m "Release v$(VERSION)" || echo "⚠️  Tag v$(VERSION) already exists"; \
+		git push origin "v$(VERSION)" || true; \
+		echo ""; \
+		echo "Creating GitHub release..."; \
+		gh release create "v$(VERSION)" \
+			--title "TMWS v$(VERSION)" \
+			--notes "Docker image: $(DOCKER_IMAGE):$(VERSION)" \
+			--verify-tag || echo "⚠️  Release may already exist"; \
+	fi
+	@echo ""
+	@echo "✅ Docker release complete"
+	@echo "  Version: $(VERSION)"
+	@echo "  Image:   $(DOCKER_IMAGE):$(VERSION)"
+
+# Docker clean target
+docker-clean:
+	@echo "🧹 Cleaning Docker images..."
+	docker rmi $(DOCKER_IMAGE):$(VERSION) || true
+	docker rmi $(DOCKER_IMAGE):$(COMMIT_HASH) || true
+	docker rmi $(DOCKER_IMAGE):latest || true
+	@echo "✅ Docker clean complete"
+
+# Docker info target
+docker-info:
+	@echo "Docker Configuration"
+	@echo "===================="
+	@echo "Registry:     $(DOCKER_REGISTRY)"
+	@echo "Repository:   $(DOCKER_REPO)"
+	@echo "Image:        $(DOCKER_IMAGE)"
+	@echo "Version:      $(VERSION)"
+	@echo "Commit:       $(COMMIT_HASH)"
+	@echo ""
+	@echo "Available tags:"
+	@echo "  - $(DOCKER_IMAGE):$(VERSION)"
+	@echo "  - $(DOCKER_IMAGE):$(COMMIT_HASH)"
+	@echo "  - $(DOCKER_IMAGE):latest"
+
+.PHONY: docker-build docker-push docker-release docker-clean docker-info

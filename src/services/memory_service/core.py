@@ -76,10 +76,9 @@ class HybridMemoryService:
         self._initialized = False
         self._init_lock = asyncio.Lock()
 
-        # Get model info for metadata tracking
-        model_info = self.embedding_service.get_model_info()
-        self.embedding_model_name = model_info.get("model_name", settings.embedding_model)
-        self.embedding_dimension = model_info.get("dimension", settings.vector_dimension)
+        # Model info (lazy initialization - Issue #52 fix)
+        # Do NOT access self.embedding_service here - it triggers Ollama connection
+        self._model_info: dict[str, Any] | None = None
 
         # Audit logger (lazy init)
         self.audit_logger: AuditLogger | None = None
@@ -101,6 +100,34 @@ class HybridMemoryService:
             self._embedding_service = get_ollama_embedding_service()
         return self._embedding_service
 
+    def _get_model_info(self) -> dict[str, Any]:
+        """Get model info with lazy initialization (Issue #52 fix).
+
+        This method caches model info to avoid repeated Ollama calls.
+        Only accesses embedding_service when actually needed.
+        """
+        if self._model_info is None:
+            try:
+                self._model_info = self.embedding_service.get_model_info()
+            except Exception as e:
+                # Graceful degradation: use defaults if Ollama unavailable
+                logger.warning(f"Failed to get model info from Ollama: {e}. Using defaults.")
+                self._model_info = {
+                    "model_name": settings.embedding_model,
+                    "dimension": settings.vector_dimension,
+                }
+        return self._model_info
+
+    @property
+    def embedding_model_name(self) -> str:
+        """Get embedding model name (lazy initialization)."""
+        return self._get_model_info().get("model_name", settings.embedding_model)
+
+    @property
+    def embedding_dimension(self) -> int:
+        """Get embedding dimension (lazy initialization)."""
+        return self._get_model_info().get("dimension", settings.vector_dimension)
+
     @property
     def vector_service(self) -> "VectorSearchService | None":
         """Get vector service (may be None until initialized)."""
@@ -119,6 +146,11 @@ class HybridMemoryService:
 
             self._agent_service = AgentService(self.session)
         return self._agent_service
+
+    @agent_service.setter
+    def agent_service(self, value: "AgentService | None") -> None:
+        """Set agent service (for testing)."""
+        self._agent_service = value
 
     async def _ensure_initialized(self) -> None:
         """Ensure ChromaDB is initialized (lazy initialization).
@@ -191,7 +223,7 @@ class HybridMemoryService:
             memory_id=str(memory.id),
             embedding=embedding,
             metadata=metadata,
-            document=memory.content,
+            content=memory.content,
         )
 
     def _get_agent_service(self) -> "AgentService":

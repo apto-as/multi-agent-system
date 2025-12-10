@@ -1,12 +1,23 @@
+# ========================================
+# WORKFLOW DISABLED - Issue #55 Phase 2
+# ========================================
+# This workflow is disabled in favor of local Docker build workflow
+# to support GitHub-independent development.
+#
+# See: make docker-build, make docker-push
+# Enable with: workflow_dispatch (manual trigger only)
+# ========================================
+
 name: Docker Image CI/CD
 
 on:
-  push:
-    branches:
-      - master  # Trigger on push to master
-    tags:
-      - 'v*.*.*'  # Trigger on version tags (v2.3.1, v2.4.0, etc.)
-  workflow_dispatch:  # Allow manual trigger from GitHub UI
+  # DISABLED: Automatic triggers commented out
+  # push:
+  #   branches:
+  #     - master  # Trigger on push to master
+  #   tags:
+  #     - 'v*.*.*'  # Trigger on version tags (v2.3.1, v2.4.0, etc.)
+  workflow_dispatch:  # Manual trigger only
 
 env:
   REGISTRY: ghcr.io
