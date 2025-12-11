@@ -144,6 +144,55 @@ This document is automatically referenced by:
 
 ---
 
+## Rule 7: Memory Tool Enforcement (MANDATORY)
+
+### MCPプレフィックス必須
+メモリツール使用時は必ず完全なMCPプレフィックスを使用すること。
+
+### TMWS Memory Tools (Trinitas実装記録用)
+```python
+# ✅ CORRECT - Always use full MCP prefix
+mcp__tmws__store_memory(
+    content="Issue #33: External bridges implementation complete",
+    namespace="implementations",
+    importance=0.9
+)
+
+mcp__tmws__search_memories(
+    query="external bridge implementation",
+    limit=10
+)
+```
+
+### Serena Memory Tools (プロジェクトメモ用)
+```python
+# ✅ CORRECT - For project-specific code structure notes only
+mcp__serena-mcp-server__write_memory(
+    memory_file_name="project_architecture",
+    content="# Project Structure..."
+)
+```
+
+### Prohibited Patterns (禁止パターン)
+```python
+# ❌ WRONG - Short names are AMBIGUOUS
+store_memory(content="...")  # Which server?
+write_memory(content="...")  # Which server?
+
+# ❌ WRONG - Serena for Trinitas records
+mcp__serena-mcp-server__write_memory(
+    memory_file_name="issue_33_implementation",  # Should be TMWS!
+    content="Implementation details..."
+)
+```
+
+### Enforcement
+- SubAgent起動時、メモリ操作はTMWSツールのみ許可
+- Serenaメモリはコード構造メモにのみ使用
+- 違反は Protocol Violation として記録
+
+---
+
 ## Compliance Verification
 
 After each Trinitas Full Mode session, verify:
