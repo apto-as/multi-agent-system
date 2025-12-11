@@ -262,6 +262,7 @@ class RoutingTools(BaseTool):
             persona_id: str,
             task_description: str,
             include_system_prompt: bool = True,
+            include_db_status: bool = False,
         ) -> dict[str, Any]:
             """Invoke a Trinitas persona for task execution.
 
@@ -273,6 +274,7 @@ class RoutingTools(BaseTool):
                 persona_id: The persona identifier (e.g., "athena-conductor", "artemis-optimizer")
                 task_description: Description of the task to execute
                 include_system_prompt: Whether to include full system prompt content
+                include_db_status: Whether to include real-time database status from Agent model
 
             Returns:
                 Dict containing:
@@ -284,6 +286,7 @@ class RoutingTools(BaseTool):
                 - collaboration: Recommended collaborators for this persona
                 - task_context: Context-specific guidance for the task
                 - invocation_instructions: How to embody this persona
+                - db_status: Real-time agent status (if include_db_status=True and found in DB)
 
             Example:
                 invoke_persona("athena-conductor", "Coordinate system architecture review")
@@ -547,18 +550,67 @@ To embody {persona_id}:
 Begin your response by acknowledging your role and approach.
 """
 
+            # Fetch real-time DB status if requested
+            db_status = None
+            if include_db_status:
+
+                async def _get_agent_status(session, _services):
+                    from ..services.agent_service import AgentService
+
+                    agent_service = AgentService(session)
+
+                    # Try to find agent by persona_id
+                    agent = await agent_service.get_agent_by_id(persona_id)
+
+                    # If not found by full ID, try without suffix
+                    if not agent:
+                        short_name = persona_id.split("-")[0]
+                        agent = await agent_service.get_agent_by_id(short_name)
+
+                    if agent:
+                        # M-1 FIX: Reduce exposed fields to non-sensitive data only
+                        # Removed: verification_accuracy, total_verifications,
+                        # accurate_verifications (internal metrics)
+                        return {
+                            "found": True,
+                            "trust_score": agent.trust_score,
+                            "status": agent.status.value,
+                            "last_active": (
+                                str(agent.last_active_at) if agent.last_active_at else None
+                            ),
+                            "health_score": agent.health_score,
+                            "total_tasks": agent.total_tasks,
+                            "successful_tasks": agent.successful_tasks,
+                        }
+                    return {"found": False}
+
+                db_result = await self.execute_with_session(_get_agent_status)
+                if db_result.get("success", True) and db_result.get("data", {}).get("found"):
+                    db_status = db_result.get("data")
+                    logger.debug(f"Loaded DB status for persona {persona_id}: {db_status}")
+                else:
+                    logger.debug(f"Persona {persona_id} not found in Agent database")
+                    db_status = {"found": False}
+
+            # Build result dict
+            result_data = {
+                "persona_id": persona_id,
+                "display_name": persona_info["display_name"],
+                "system_prompt": system_prompt,
+                "capabilities": persona_info["capabilities"],
+                "tier": persona_info["tier"],
+                "collaboration": persona_info["collaboration"],
+                "task_context": task_context,
+                "invocation_instructions": invocation_instructions,
+                "invocation_style": persona_info["invocation_style"],
+            }
+
+            # Add db_status only if requested
+            if include_db_status:
+                result_data["db_status"] = db_status
+
             return self.format_success(
-                {
-                    "persona_id": persona_id,
-                    "display_name": persona_info["display_name"],
-                    "system_prompt": system_prompt,
-                    "capabilities": persona_info["capabilities"],
-                    "tier": persona_info["tier"],
-                    "collaboration": persona_info["collaboration"],
-                    "task_context": task_context,
-                    "invocation_instructions": invocation_instructions,
-                    "invocation_style": persona_info["invocation_style"],
-                },
+                result_data,
                 f"Persona {persona_id} invoked successfully",
             )
 
