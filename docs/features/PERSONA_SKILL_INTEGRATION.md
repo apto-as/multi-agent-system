@@ -753,4 +753,80 @@ Potential improvements for future versions:
 
 ---
 
+## TMWS Database Integration for Full Mode (Issue #61)
+
+### Overview
+
+Issue #61 integrates TMWS database references into Trinitas Full Mode persona invocations, enabling real-time agent status retrieval, trust score filtering, and enhanced agent recommendation capabilities.
+
+### API Changes Summary
+
+| Component | Method | New Parameters | Breaking Change |
+|-----------|--------|----------------|-----------------|
+| `AgentService` | `get_recommended_agents()` | `min_trust_score: float = 0.0` | ❌ No |
+| `AgentService` | `search_agents()` | `capabilities: list[str]`, `min_trust_score: float` | ❌ No |
+| `RoutingTools` | `invoke_persona()` | `include_db_status: bool = False` | ❌ No |
+| MCP Tool | `get_recommended_agents` | `min_trust_score: float \| None` | ❌ No |
+
+### Key Features
+
+#### 1. Trust Score Integration
+
+`get_recommended_agents()` now includes trust score in its scoring algorithm:
+- Performance: 25%
+- Capability matching: 35%
+- Success rate: 20%
+- Health score: 10%
+- **Trust score: 10%** (NEW)
+
+```python
+# Example: Get high-trust agents for security tasks
+agents = await agent_service.get_recommended_agents(
+    task_type="security_audit",
+    capabilities=["vulnerability_scanning"],
+    min_trust_score=0.85  # Filter by trust
+)
+```
+
+#### 2. Real-time DB Status in invoke_persona
+
+```python
+result = await invoke_persona(
+    persona_id="artemis-optimizer",
+    task_description="Optimize queries",
+    include_db_status=True  # NEW parameter
+)
+# Response includes db_status with trust_score, status, health_score, etc.
+```
+
+#### 3. Enhanced Agent Search (H-1 Fix)
+
+`search_agents()` now supports capability and trust score filtering:
+
+```python
+agents = await agent_service.search_agents(
+    query="optimization",
+    capabilities=["performance", "profiling"],  # NEW
+    min_trust_score=0.7,  # NEW
+    limit=5
+)
+```
+
+### Security Hardening (M-1 Fix)
+
+Reduced exposed fields in `invoke_persona` db_status response:
+- ❌ Removed: `verification_accuracy`, `total_verifications`, `accurate_verifications`
+- ✅ Retained: `trust_score`, `status`, `health_score`, `total_tasks`, `successful_tasks`
+
+### Trust Score Guidelines
+
+| Score Range | Reliability | Use Case |
+|-------------|-------------|----------|
+| 0.9-1.0 | Highly reliable | Security-critical operations |
+| 0.7-0.89 | Reliable | Production workloads |
+| 0.5-0.69 | Developing | Non-critical tasks |
+| < 0.5 | Unproven | Development/testing only |
+
+---
+
 **End of Documentation**

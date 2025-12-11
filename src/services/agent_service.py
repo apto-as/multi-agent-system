@@ -864,9 +864,23 @@ class AgentService(BaseService):
         query: str,
         namespace: str = None,
         agent_type: str = None,
+        capabilities: list[str] = None,
+        min_trust_score: float = None,
         limit: int = 20,
     ) -> list[Agent]:
-        """Search agents by name, capabilities, or other attributes."""
+        """Search agents by name, capabilities, or other attributes.
+
+        Args:
+            query: Search query string (matches display_name, agent_id, agent_type)
+            namespace: Filter by namespace
+            agent_type: Filter by agent type
+            capabilities: Filter by required capabilities (all must match)
+            min_trust_score: Minimum trust score threshold (0.0-1.0)
+            limit: Maximum number of results
+
+        Returns:
+            List of matching Agent instances
+        """
         try:
             # V-3 MITIGATION: Escape wildcards to prevent DoS
             from src.security.query_builder import SecureQueryBuilder
@@ -885,10 +899,26 @@ class AgentService(BaseService):
             if agent_type:
                 search_query = search_query.where(Agent.agent_type == agent_type)
 
+            # H-1 FIX: Add trust score filtering in SQL query (Issue #61)
+            if min_trust_score is not None and min_trust_score > 0.0:
+                search_query = search_query.where(Agent.trust_score >= min_trust_score)
+
             search_query = search_query.where(Agent.is_active).limit(limit)
 
             result = await self.session.execute(search_query)
-            return list(result.scalars().all())
+            agents = list(result.scalars().all())
+
+            # H-1 FIX: Filter by capabilities in Python (JSONB filtering)
+            if capabilities:
+                filtered_agents = []
+                for agent in agents:
+                    agent_caps = agent.capabilities or {}
+                    agent_skills = agent_caps.get("skills", [])
+                    if all(cap in agent_skills for cap in capabilities):
+                        filtered_agents.append(agent)
+                agents = filtered_agents
+
+            return agents
 
         except (KeyboardInterrupt, SystemExit):
             raise
@@ -906,8 +936,27 @@ class AgentService(BaseService):
         capabilities: list[str] = None,
         namespace: str = None,
         limit: int = 10,
+        min_trust_score: float = 0.0,
     ) -> list[Agent]:
-        """Get recommended agents based on task requirements."""
+        """Get recommended agents based on task requirements.
+
+        Scoring algorithm (total = 100%):
+        - Performance: 25%
+        - Capability matching: 35%
+        - Success rate: 20%
+        - Health score: 10%
+        - Trust score: 10% (NEW in Phase 2.1)
+
+        Args:
+            _task_type: Task type (reserved for future use)
+            capabilities: Required agent capabilities
+            namespace: Filter by namespace
+            limit: Maximum number of recommendations
+            min_trust_score: Minimum trust score threshold (0.0-1.0, default 0.0)
+
+        Returns:
+            List of recommended agents sorted by composite score
+        """
         try:
             query = select(Agent).where(Agent.is_active)
 
@@ -920,15 +969,25 @@ class AgentService(BaseService):
             result = await self.session.execute(query)
             candidates = list(result.scalars().all())
 
+            # Apply trust score filtering (Phase 2.1)
+            if min_trust_score > 0.0:
+                filtered_count = len(candidates)
+                candidates = [a for a in candidates if a.trust_score >= min_trust_score]
+                logger.debug(
+                    f"Trust score filter: {len(candidates)}/{filtered_count} agents "
+                    f"passed threshold {min_trust_score}",
+                    extra={"min_trust_score": min_trust_score, "filtered_count": filtered_count},
+                )
+
             # Sophisticated matching based on capabilities
             scored_agents = []
             for agent in candidates:
                 score = 0.0
 
-                # Base score from performance
-                score += agent.performance_score * 0.3
+                # Performance score (25% - reduced from 30%)
+                score += agent.performance_score * 0.25
 
-                # Capability matching score
+                # Capability matching score (35% - reduced from 40%)
                 if capabilities and agent.capabilities:
                     agent_caps = set(agent.capabilities.get("skills", []))
                     required_caps = set(capabilities)
@@ -936,15 +995,18 @@ class AgentService(BaseService):
                         overlap = len(agent_caps & required_caps)
                         total = len(required_caps)
                         capability_score = (overlap / total) if total > 0 else 0
-                        score += capability_score * 0.4
+                        score += capability_score * 0.35
 
-                # Success rate factor
+                # Success rate factor (20% - unchanged)
                 if agent.successful_tasks > 0 and agent.total_tasks > 0:
                     success_rate = agent.successful_tasks / agent.total_tasks
                     score += success_rate * 0.2
 
-                # Health score factor
+                # Health score factor (10% - unchanged)
                 score += agent.health_score * 0.1
+
+                # Trust score factor (10% - NEW in Phase 2.1)
+                score += agent.trust_score * 0.1
 
                 scored_agents.append((score, agent))
 

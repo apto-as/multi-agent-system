@@ -865,12 +865,13 @@ class AgentTools:
         @require_mcp_rate_limit("agent_recommend")
         async def get_recommended_agents(
             agent_id: str,
-            task_type: str,
+            task_type: str | None = None,
             api_key: str | None = None,
             jwt_token: str | None = None,
-            required_capabilities: list[str] | None = None,
-            min_trust_score: float = 0.5,
-            limit: int = 5,
+            capabilities: list[str] | None = None,
+            namespace: str | None = None,
+            limit: int = 10,
+            min_trust_score: float = 0.0,
         ) -> dict[str, Any]:
             """Get recommended agents for a specific task type.
 
@@ -881,12 +882,13 @@ class AgentTools:
 
             Args:
                 agent_id: Requesting agent identifier
-                task_type: Type of task to find agents for
+                task_type: Type of task (reserved for future use)
                 api_key: Optional API key for authentication
                 jwt_token: Optional JWT token for authentication
-                required_capabilities: Required agent capabilities
-                min_trust_score: Minimum trust score (default 0.5)
-                limit: Maximum recommendations (1-10, default 5)
+                capabilities: Required agent capabilities
+                namespace: Target namespace (defaults to agent's namespace)
+                limit: Maximum recommendations (1-10, default 10)
+                min_trust_score: Minimum trust score (0.0-1.0, default 0.0)
 
             Returns:
                 Dict with recommended agents:
@@ -905,9 +907,10 @@ class AgentTools:
                     )
 
                     # Step 2: Authorization (REQ-2)
+                    effective_namespace = namespace or context.namespace
                     await authorize_mcp_request(
                         context=context,
-                        target_namespace=context.namespace,
+                        target_namespace=effective_namespace,
                         operation=MCPOperation.AGENT_READ,
                     )
 
@@ -918,9 +921,9 @@ class AgentTools:
                     # Step 4: Execute service method
                     agent_service = AgentService(session)
                     recommendations = await agent_service.get_recommended_agents(
-                        task_type=task_type,
-                        namespace=context.namespace,
-                        required_capabilities=required_capabilities or [],
+                        _task_type=task_type,
+                        capabilities=capabilities,
+                        namespace=effective_namespace,
                         min_trust_score=min_trust_score,
                         limit=limit,
                     )
