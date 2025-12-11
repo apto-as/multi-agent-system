@@ -420,12 +420,14 @@ services:
       - .env
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
+    # Healthcheck disabled - MCP uses STDIO mode via 'docker exec', not HTTP
+    # Container health is verified by checking if it's running
+    # healthcheck:
+    #   test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 3
+    #   start_period: 10s
 EOF
 
     log_success "Docker Compose configuration created"
@@ -562,40 +564,52 @@ start_tmws() {
         docker compose up -d
     fi
 
-    # Wait for health check
-    log_info "Waiting for TMWS to start..."
-    local max_attempts=30
+    # Wait for container to be running (MCP mode uses STDIO, not HTTP)
+    log_info "Waiting for TMWS container to start..."
+    local max_attempts=15
     local attempt=0
 
     while [ $attempt -lt $max_attempts ]; do
-        if curl -sf http://localhost:8000/health > /dev/null 2>&1; then
-            log_success "TMWS is running and healthy"
-            return 0
+        if docker ps --filter "name=tmws-app" --filter "status=running" --format "{{.Names}}" | grep -q "tmws-app"; then
+            # Verify MCP server is accessible via docker exec
+            if docker exec tmws-app python -c "print('OK')" > /dev/null 2>&1; then
+                log_success "TMWS container is running (MCP ready via docker exec)"
+                return 0
+            fi
         fi
         attempt=$((attempt + 1))
         sleep 2
     done
 
-    log_warn "TMWS health check timed out (may still be starting)"
+    log_warn "TMWS container startup timed out (may still be initializing)"
 }
 
-# Verify license
+# Verify license (via docker exec for STDIO mode)
 verify_license() {
     log_step "Verifying license..."
 
+    # In STDIO mode, we verify license by checking if the MCP server responds correctly
     local response
-    response=$(curl -sf http://localhost:8000/api/v1/license/status 2>/dev/null || echo '{"error": "connection failed"}')
+    response=$(docker exec tmws-app python -c "
+from src.services.license_service import LicenseService
+import asyncio
+async def check():
+    service = LicenseService()
+    return service.get_license_status()
+result = asyncio.run(check())
+print(result.get('tier', 'unknown'), result.get('expires_at', 'never'))
+" 2>/dev/null || echo "error connection_failed")
 
-    if echo "$response" | grep -q '"tier"'; then
-        local tier=$(echo "$response" | grep -o '"tier":"[^"]*"' | cut -d'"' -f4)
-        local expires=$(echo "$response" | grep -o '"expires_at":"[^"]*"' | cut -d'"' -f4)
+    if echo "$response" | grep -qv "error"; then
+        local tier=$(echo "$response" | awk '{print $1}')
+        local expires=$(echo "$response" | awk '{print $2}')
 
         log_success "License verified: ${tier}"
-        if [ -n "$expires" ]; then
+        if [ -n "$expires" ] && [ "$expires" != "never" ]; then
             log_info "Expires: ${expires}"
         fi
     else
-        log_warn "Could not verify license (TMWS may still be starting)"
+        log_warn "Could not verify license (TMWS may still be initializing)"
     fi
 }
 
@@ -661,9 +675,8 @@ show_completion() {
     fi
     echo ""
     echo -e "${CYAN}Services:${NC}"
-    echo "  - MCP Server:      localhost:8892"
-    echo "  - REST API:        localhost:8000"
-    echo "  - Health check:    http://localhost:8000/health"
+    echo "  - MCP Server:      STDIO via 'docker exec -i tmws-app python -m src.mcp_server'"
+    echo "  - Container:       tmws-app (check with: docker ps)"
     echo ""
     echo -e "${CYAN}Quick start:${NC}"
     echo "  1. Ensure Ollama is running: ollama serve"
