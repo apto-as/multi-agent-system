@@ -210,7 +210,10 @@ class TestCriticalSecurity:
         assert "not allowed for operation" in str(error), (
             "Error message should mention role restriction"
         )
-        assert error.details.get("role") == "agent", "Error should include actual role"
+        # Fix: Check role is in details (not specifically "agent" string, but MCPRole.AGENT.value)
+        assert error.details.get("role") in ["agent", MCPRole.AGENT.value], (
+            "Error should include actual role"
+        )
         assert error.details.get("operation") == "scheduler:configure", (
             "Error should include operation"
         )
@@ -226,7 +229,7 @@ class TestCriticalSecurity:
 
         error = exc_info.value
         assert "not allowed for operation" in str(error)
-        assert error.details.get("role") == "agent"
+        assert error.details.get("role") in ["agent", MCPRole.AGENT.value]
 
         logger.info("✅ RBAC test 2/2 PASSED - Regular agent blocked from global cleanup")
 
@@ -365,7 +368,9 @@ class TestCriticalSecurity:
             )
 
         error = exc_info.value
-        assert error.details.get("role") == "system_admin", "Should show actual role"
+        assert error.details.get("role") in ["system_admin", MCPRole.SYSTEM_ADMIN.value], (
+            "Should show actual role"
+        )
         assert "super_admin" in str(error.details.get("required_roles", [])).lower(), (
             "Should show super_admin is required"
         )

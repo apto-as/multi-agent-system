@@ -49,17 +49,21 @@ class TestMCPAuthenticationMocks:
     @pytest.mark.asyncio
     async def test_authenticate_with_valid_api_key_mock(self, mock_session, mock_agent):
         """Test successful authentication with valid API key."""
-        # Add api_key_hash to mock agent
-        mock_agent.api_key_hash = "salt:hash"
+        # Add bcrypt api_key_hash to mock agent (bcrypt format)
+        mock_agent.api_key_hash = "$2b$12$abcdefghijklmnopqrstuuvwxyz0123456789ABCDEFGHIJ"
 
         with (
             patch("src.security.mcp_auth.select"),
-            patch("src.utils.security.verify_password_with_salt") as mock_verify,
+            patch("src.utils.security.detect_hash_format") as mock_detect,
+            patch("src.utils.security.verify_password") as mock_verify,
         ):
             # Mock database query result
             mock_result = AsyncMock()
             mock_result.scalar_one_or_none = Mock(return_value=mock_agent)
             mock_session.execute = AsyncMock(return_value=mock_result)
+
+            # Mock hash detection (bcrypt format)
+            mock_detect.return_value = "bcrypt"
 
             # Mock API key validation (returns True for valid key)
             mock_verify.return_value = True
@@ -77,22 +81,26 @@ class TestMCPAuthenticationMocks:
             assert context.agent_id == "test-agent"
             assert context.namespace == "test-namespace"
             assert context.auth_method == "api_key"
-            mock_verify.assert_called_once_with("valid-key", "hash", "salt")
+            mock_verify.assert_called_once_with("valid-key", mock_agent.api_key_hash)
 
     @pytest.mark.asyncio
     async def test_authenticate_with_invalid_api_key_mock(self, mock_session, mock_agent):
         """Test authentication failure with invalid API key."""
-        # Add api_key_hash to mock agent
-        mock_agent.api_key_hash = "salt:hash"
+        # Add bcrypt api_key_hash to mock agent
+        mock_agent.api_key_hash = "$2b$12$abcdefghijklmnopqrstuuvwxyz0123456789ABCDEFGHIJ"
 
         with (
             patch("src.security.mcp_auth.select"),
-            patch("src.utils.security.verify_password_with_salt") as mock_verify,
+            patch("src.utils.security.detect_hash_format") as mock_detect,
+            patch("src.utils.security.verify_password") as mock_verify,
         ):
             # Mock database query result
             mock_result = AsyncMock()
             mock_result.scalar_one_or_none = Mock(return_value=mock_agent)
             mock_session.execute = AsyncMock(return_value=mock_result)
+
+            # Mock hash detection (bcrypt format)
+            mock_detect.return_value = "bcrypt"
 
             # Mock API key validation - returns False for invalid key
             mock_verify.return_value = False

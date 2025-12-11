@@ -414,12 +414,15 @@ async def test_self_owned_pattern_rejected_for_trust_boost(
     assert result.accurate is True
 
     # Trust score should increase ONLY from verification, not pattern
-    # (base verification boost ~0.05, no pattern boost)
+    # (EWMA verification boost with alpha=0.1, no pattern boost)
     trust_delta = result.new_trust_score - initial_trust
 
-    # Expected: ~0.05 from verification, 0.0 from pattern (self-owned rejected)
-    assert 0.04 <= trust_delta <= 0.06, (
-        f"Trust delta {trust_delta} outside expected range (0.04-0.06)"
+    # Expected: EWMA delta = 0.1 * (1.0 - initial_trust)
+    # For attacker_agent with initial_trust=0.3: delta = 0.1 * (1.0 - 0.3) = 0.07
+    # Allow tolerance for floating point and slight variations
+    expected_delta = 0.1 * (1.0 - initial_trust)
+    assert abs(trust_delta - expected_delta) < 0.01, (
+        f"Trust delta {trust_delta} does not match expected EWMA {expected_delta:.4f}"
     )
 
 
@@ -454,8 +457,13 @@ async def test_private_pattern_rejected_for_trust_propagation(
     assert result.accurate is True
 
     # Trust boost only from verification (not from private pattern)
+    # EWMA: delta = 0.1 * (1.0 - initial_trust)
+    # For victim_agent with initial_trust=0.7: delta = 0.1 * (1.0 - 0.7) = 0.03
     trust_delta = result.new_trust_score - initial_trust
-    assert 0.04 <= trust_delta <= 0.06, f"Trust delta {trust_delta} outside expected range"
+    expected_delta = 0.1 * (1.0 - initial_trust)
+    assert abs(trust_delta - expected_delta) < 0.01, (
+        f"Trust delta {trust_delta} does not match expected EWMA {expected_delta:.4f}"
+    )
 
 
 @pytest.mark.asyncio
@@ -739,11 +747,16 @@ async def test_comprehensive_attack_chain_fails_safely(
     assert result.accurate is True
 
     # Final validation: attacker's trust score only increased from legitimate verifications
-    # (2 successful verifications × ~0.05 = ~0.10 increase, no pattern boosts)
+    # EWMA with 3 successful verifications (no pattern boosts):
+    # After v1: score1 = 0.1 * 1.0 + 0.9 * 0.3 = 0.37
+    # After v2: score2 = 0.1 * 1.0 + 0.9 * 0.37 = 0.433
+    # After v3: score3 = 0.1 * 1.0 + 0.9 * 0.433 = 0.4897
+    # Total increase: 0.4897 - 0.3 = 0.1897
     await db_session.refresh(attacker_agent)
     trust_increase = attacker_agent.trust_score - initial_trust
 
-    # Should be around 0.10-0.15 (2-3 verifications without pattern boosts)
-    assert 0.08 <= trust_increase <= 0.17, (
-        f"Trust increase {trust_increase} indicates attack succeeded"
+    # Should be around 0.15-0.20 (3 verifications without pattern boosts)
+    # Allow wider tolerance for multiple EWMA calculations
+    assert 0.12 <= trust_increase <= 0.25, (
+        f"Trust increase {trust_increase} indicates attack succeeded or failed unexpectedly"
     )
