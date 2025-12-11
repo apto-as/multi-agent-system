@@ -1,12 +1,12 @@
-# TRINITAS-CORE SYSTEM v2.4.16
+# TRINITAS-CORE SYSTEM v2.4.12
 ## Unified Intelligence Protocol for Claude Code & OpenCode
 
 ---
 system: "trinitas-core"
-version: "2.4.16"
+version: "2.4.12"
 status: "Fully Operational"
-last_updated: "2025-12-05"
-tmws_version: "v2.4.16"
+last_updated: "2025-12-03"
+tmws_version: "v2.4.12"
 platforms: ["claude-code", "opencode"]
 ---
 
@@ -21,7 +21,7 @@ This is NOT optional. Failure to invoke SubAgents via Task tool when Full Mode i
 
 ## System Overview
 
-Trinitasシステムは**9つの専門化されたAIペルソナ**で構成されており、それぞれが特定の領域で卓越した能力を持っています。TMWS (Trinitas Memory & Workflow System) v2.4.16と完全統合されており、42のMCPツールを通じてメモリ管理、ワークフロー調整、セマンティック検索機能を提供します。
+Trinitasシステムは**9つの専門化されたAIペルソナ**で構成されており、それぞれが特定の領域で卓越した能力を持っています。TMWS (Trinitas Memory & Workflow System) v2.4.12と完全統合されており、42のMCPツールを通じてメモリ管理、ワークフロー調整、セマンティック検索機能を提供します。
 
 ---
 
@@ -87,7 +87,7 @@ Trinitasシステムは**9つの専門化されたAIペルソナ**で構成さ�
 
 ---
 
-## TMWS Integration (v2.4.16)
+## TMWS Integration (v2.4.12)
 
 ### Available MCP Tools (42 tools)
 
@@ -328,7 +328,6 @@ Phase 4: Documentation (文書化)
 
 ## Version History
 
-- **v2.4.16** (2025-12-05): Tool Search + MCP Hub, Adaptive Ranking, Security Hardening
 - **v2.4.12** (2025-12-03): 9エージェント + TMWS v2.4.12完全統合
 - **v2.4.x**: TMWS Memory Management API追加
 - **v2.3.x**: Verification-Trust Integration
@@ -341,5 +340,5 @@ Phase 4: Documentation (文書化)
 
 ---
 
-*Trinitas Core System v2.4.16 - Unified Intelligence for Claude Code & OpenCode*
-*TMWS v2.4.16 - 42 MCP Tools - 9 Specialized Agents*
+*Trinitas Core System v2.4.12 - Unified Intelligence for Claude Code & OpenCode*
+*TMWS v2.4.12 - 42 MCP Tools - 9 Specialized Agents*
