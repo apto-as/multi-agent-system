@@ -621,8 +621,8 @@ class MCPAuthService:
                     "required_roles": [r.value for r in required_roles],
                 },
             )
-            log_and_raise(
-                MCPAuthorizationError,
+            # Fix: Raise directly to preserve details (MCPAuthorizationError is not TMWSException)
+            raise MCPAuthorizationError(
                 f"Role {context.role.value} not allowed for operation {operation.value}",
                 details={
                     "agent_id": context.agent_id,

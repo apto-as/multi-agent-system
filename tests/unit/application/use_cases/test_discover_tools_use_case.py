@@ -178,11 +178,11 @@ class TestDiscoverToolsUseCase:
         # Assert - Tool discovery
         mock_adapter.discover_tools.assert_called_once_with(mock_active_connection.id)
 
-        # Assert - Connection update
-        mock_active_connection.update_tools.assert_called_once_with(mock_new_tools)
+        # Assert - Connection update (uses add_tools, not update_tools)
+        mock_active_connection.add_tools.assert_called_once_with(mock_new_tools)
 
-        # Assert - Repository operations
-        mock_repository.update.assert_called_once_with(mock_active_connection)
+        # Assert - Repository operations (uses save, not update)
+        mock_repository.save.assert_called_once_with(mock_active_connection)
 
         # Assert - Transaction
         mock_uow.__aenter__.assert_called_once()
@@ -227,7 +227,7 @@ class TestDiscoverToolsUseCase:
         assert "not found" in str(exc_info.value).lower()
 
         # Verify no repository updates
-        mock_repository.update.assert_not_called()
+        mock_repository.save.assert_not_called()
 
     async def test_discover_tools_fails_connection_not_active(
         self,
@@ -270,4 +270,4 @@ class TestDiscoverToolsUseCase:
         mock_adapter.discover_tools.assert_not_called()
 
         # Verify no repository updates
-        mock_repository.update.assert_not_called()
+        mock_repository.save.assert_not_called()
