@@ -77,6 +77,7 @@ class SkillTools:
             detail_level: int = 1,
             include_shared: bool = True,
             tags: list[str] | None = None,
+            persona: str | None = None,
             limit: int = 50,
             offset: int = 0,
         ) -> dict[str, Any]:
@@ -95,6 +96,7 @@ class SkillTools:
                 detail_level: Progressive disclosure level (1=metadata, 2=core, 3=full)
                 include_shared: Include skills shared with this agent
                 tags: Filter by tags
+                persona: Filter by persona (e.g., "hestia-auditor", "artemis-optimizer")
                 limit: Maximum results (1-100, default 50)
                 offset: Pagination offset
 
@@ -139,6 +141,7 @@ class SkillTools:
                         detail_level=detail_level,
                         include_shared=include_shared,
                         tags=tags,
+                        persona=persona,
                         limit=limit,
                         offset=offset,
                     )
@@ -250,6 +253,127 @@ class SkillTools:
                     raise
                 except Exception as e:
                     logger.error(f"get_skill failed: {e}", exc_info=True)
+                    return {"success": False, "error": str(e), "error_type": "internal"}
+
+        @mcp.tool()
+        @require_mcp_rate_limit("skill_list")
+        async def list_skills_by_persona(
+            agent_id: str,
+            persona: str,
+            api_key: str | None = None,
+            jwt_token: str | None = None,
+            detail_level: int = 1,
+            namespace: str | None = None,
+            include_shared: bool = True,
+            limit: int = 50,
+            offset: int = 0,
+        ) -> dict[str, Any]:
+            """List all skills associated with a specific persona.
+
+            This is a specialized version of list_skills optimized for persona-based queries.
+            Returns only skills explicitly tagged with the specified persona.
+
+            Security:
+            - Requires authentication (REQ-1)
+            - Returns only accessible skills (REQ-2)
+            - Rate limited: 60 calls/min (REQ-4)
+
+            Args:
+                agent_id: Agent identifier
+                persona: Persona identifier (e.g., "hestia-auditor", "artemis-optimizer")
+                api_key: Optional API key for authentication
+                jwt_token: Optional JWT token for authentication
+                detail_level: Progressive disclosure level (1=metadata, 2=core, 3=full)
+                namespace: Filter by namespace (defaults to agent's namespace)
+                include_shared: Include skills shared with this agent
+                limit: Maximum results (1-100, default 50)
+                offset: Pagination offset
+
+            Returns:
+                Dict with persona skills:
+                - success: True if operation completed
+                - persona: Persona identifier used for filtering
+                - skills: List of skill DTOs for this persona
+                - total: Total matching skills
+                - limit: Applied limit
+                - offset: Applied offset
+
+            Example:
+                >>> result = await list_skills_by_persona(
+                ...     agent_id="hestia-001",
+                ...     persona="hestia-auditor",
+                ...     detail_level=2
+                ... )
+                >>> print(f"Found {result['total']} skills for {result['persona']}")
+            """
+            async with session_factory() as session:
+                try:
+                    # Step 1: Authentication (REQ-1)
+                    context = await authenticate_mcp_request(
+                        session=session,
+                        agent_id=agent_id,
+                        api_key=api_key,
+                        jwt_token=jwt_token,
+                        tool_name="list_skills_by_persona",
+                    )
+
+                    # Step 2: Authorization (REQ-2)
+                    target_namespace = namespace or context.namespace
+                    await authorize_mcp_request(
+                        context=context,
+                        target_namespace=target_namespace,
+                        operation=MCPOperation.SKILL_READ,
+                    )
+
+                    # Step 3: Validate parameters
+                    if not persona or not persona.strip():
+                        return {
+                            "success": False,
+                            "error": "persona parameter is required",
+                            "error_type": "validation",
+                        }
+
+                    if detail_level not in (1, 2, 3):
+                        detail_level = 1
+                    limit = max(1, min(100, limit))
+                    offset = max(0, offset)
+
+                    # Step 4: Execute service method with persona filter
+                    skill_service = SkillService(session)
+                    result = await skill_service.list_skills(
+                        agent_id=context.agent_id,
+                        namespace=target_namespace,
+                        detail_level=detail_level,
+                        include_shared=include_shared,
+                        persona=persona.strip(),
+                        limit=limit,
+                        offset=offset,
+                    )
+
+                    logger.info(
+                        f"list_skills_by_persona: agent={context.agent_id}, "
+                        f"persona={persona}, count={len(result.get('skills', []))}"
+                    )
+
+                    return {
+                        "success": True,
+                        "persona": persona.strip(),
+                        "skills": result.get("skills", []),
+                        "total": result.get("total", 0),
+                        "limit": limit,
+                        "offset": offset,
+                    }
+
+                except MCPAuthenticationError as e:
+                    logger.warning(f"list_skills_by_persona auth failed: {e}")
+                    return {"success": False, "error": str(e), "error_type": "authentication"}
+                except MCPAuthorizationError as e:
+                    logger.warning(f"list_skills_by_persona authz failed: {e}")
+                    return {"success": False, "error": str(e), "error_type": "authorization"}
+                except (KeyboardInterrupt, SystemExit):
+                    raise
+                except Exception as e:
+                    logger.error(f"list_skills_by_persona failed: {e}", exc_info=True)
                     return {"success": False, "error": str(e), "error_type": "internal"}
 
         # ============================================================
@@ -863,4 +987,4 @@ class SkillTools:
                     logger.error(f"deactivate_skill failed: {e}", exc_info=True)
                     return {"success": False, "error": str(e), "error_type": "internal"}
 
-        logger.info("Skill MCP tools registered (8 tools)")
+        logger.info("Skill MCP tools registered (9 tools)")

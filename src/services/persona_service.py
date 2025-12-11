@@ -55,7 +55,7 @@ class PersonaService(BaseService):
     async def get_persona(self, persona_id: UUID) -> Persona | None:
         """Get a persona by ID."""
         result = await self.session.execute(
-            select(Persona).where(Persona.id == persona_id).options(selectinload(Persona.memories)),
+            select(Persona).where(Persona.id == persona_id),
         )
         return result.scalar_one_or_none()
 

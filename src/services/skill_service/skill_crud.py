@@ -648,6 +648,7 @@ class SkillCRUDOperations:
         namespace: str,
         tags: list[str] | None = None,
         access_level: AccessLevel | None = None,
+        persona: str | None = None,
         detail_level: int = 2,
         limit: int = 50,
         offset: int = 0,
@@ -668,6 +669,7 @@ class SkillCRUDOperations:
             namespace: Verified namespace from database (P0-1 pattern)
             tags: Filter by tags (AND logic, optional)
             access_level: Filter by access level (optional)
+            persona: Filter by persona identifier (optional, e.g., "hestia-auditor")
             detail_level: Progressive Disclosure level (1/2/3, default 2)
             limit: Max results (1-100, default 50)
             offset: Pagination offset (default 0)
@@ -687,6 +689,7 @@ class SkillCRUDOperations:
                     "namespace": namespace,
                     "tags": tags,
                     "access_level": access_level.value if access_level else None,
+                    "persona": persona,
                     "detail_level": detail_level,
                     "limit": limit,
                     "offset": offset,
@@ -790,6 +793,10 @@ class SkillCRUDOperations:
             # Filter by access_level (exact match)
             if access_level is not None:
                 stmt = stmt.where(Skill.access_level == access_level)
+
+            # Filter by persona (exact match)
+            if persona is not None:
+                stmt = stmt.where(Skill.persona == persona)
 
             # 5. Apply pagination and ordering
             stmt = stmt.order_by(Skill.updated_at.desc())

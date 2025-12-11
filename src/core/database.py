@@ -342,6 +342,30 @@ async def create_tables():
     Note: Vector indexes are managed by ChromaDB separately.
     SQLite indexes are defined in model definitions via SQLAlchemy.
     """
+    # Import all models to register them with Base.metadata
+    from ..models import (  # noqa: F401
+        Agent,
+        APIAuditLog,
+        DetectedPattern,
+        DiscoveredTool,
+        ExecutionTrace,
+        LearningPattern,
+        LicenseKey,
+        Memory,
+        Persona,
+        SecurityAuditLog,
+        SkillSuggestion,
+        Task,
+        TokenConsumption,
+        ToolDependency,
+        ToolInstance,
+        TrustScoreHistory,
+        User,
+        VerificationRecord,
+        Workflow,
+        WorkflowExecution,
+    )
+
     engine = get_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
