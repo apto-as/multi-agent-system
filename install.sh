@@ -500,7 +500,7 @@ install_claude_config() {
     if [ -d "${config_src}/agents" ] && [ "$(ls -A ${config_src}/agents 2>/dev/null)" ]; then
         rm -rf "${CLAUDE_CONFIG_DIR}/agents"
         cp -r "${config_src}/agents" "${CLAUDE_CONFIG_DIR}/"
-        log_success "Copied agents/ (9 agent definitions)"
+        log_success "Copied agents/ (11 agent definitions: 9 Trinitas + 2 Moirai)"
     fi
 
     # Copy commands directory
