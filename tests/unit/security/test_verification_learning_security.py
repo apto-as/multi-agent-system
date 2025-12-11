@@ -695,54 +695,60 @@ async def test_comprehensive_attack_chain_fails_safely(
 
     Expected: All attacks fail gracefully, system remains secure
     """
-    initial_trust = attacker_agent.trust_score
+    # SEC-001 Fix: Capture all values upfront to avoid lazy loading issues
+    # SQLAlchemy async sessions expire objects after commit, causing greenlet errors
+    attacker_agent_id = attacker_agent.agent_id
+    verifier_agent_id = verifier_agent.agent_id
+    initial_trust = float(attacker_agent.trust_score)
+    victim_pattern_id = str(victim_private_pattern.id)
+    attacker_pattern_id = str(attacker_owned_pattern.id)
 
     # Attack 1: Self-verification (should raise ValidationError)
     with pytest.raises(ValidationError):
         await verification_service.verify_claim(
-            agent_id=attacker_agent.agent_id,
+            agent_id=attacker_agent_id,
             claim_type=ClaimType.TEST_RESULT,
             claim_content={"return_code": 0},
             verification_command="true",
-            verified_by_agent_id=attacker_agent.agent_id,  # Self-verification
+            verified_by_agent_id=attacker_agent_id,  # Self-verification
         )
 
     # Attack 2: Cross-namespace private pattern (graceful degradation)
     result = await verification_service.verify_claim(
-        agent_id=attacker_agent.agent_id,
+        agent_id=attacker_agent_id,
         claim_type=ClaimType.TEST_RESULT,
         claim_content={
             "return_code": 0,
-            "pattern_id": str(victim_private_pattern.id),  # Cross-namespace
+            "pattern_id": victim_pattern_id,  # Cross-namespace
         },
         verification_command="true",
-        verified_by_agent_id=verifier_agent.agent_id,
+        verified_by_agent_id=verifier_agent_id,
     )
     assert result.accurate is True
 
     # Attack 3: Self-owned pattern boost (graceful degradation)
     result = await verification_service.verify_claim(
-        agent_id=attacker_agent.agent_id,
+        agent_id=attacker_agent_id,
         claim_type=ClaimType.TEST_RESULT,
         claim_content={
             "return_code": 0,
-            "pattern_id": str(attacker_owned_pattern.id),  # Self-owned
+            "pattern_id": attacker_pattern_id,  # Self-owned
         },
         verification_command="true",
-        verified_by_agent_id=verifier_agent.agent_id,
+        verified_by_agent_id=verifier_agent_id,
     )
     assert result.accurate is True
 
     # Attack 4: Command injection (graceful degradation)
     result = await verification_service.verify_claim(
-        agent_id=attacker_agent.agent_id,
+        agent_id=attacker_agent_id,
         claim_type=ClaimType.TEST_RESULT,
         claim_content={
             "return_code": 0,
             "pattern_id": "malicious; rm -rf /",  # Command injection
         },
         verification_command="true",
-        verified_by_agent_id=verifier_agent.agent_id,
+        verified_by_agent_id=verifier_agent_id,
     )
     assert result.accurate is True
 
@@ -752,8 +758,13 @@ async def test_comprehensive_attack_chain_fails_safely(
     # After v2: score2 = 0.1 * 1.0 + 0.9 * 0.37 = 0.433
     # After v3: score3 = 0.1 * 1.0 + 0.9 * 0.433 = 0.4897
     # Total increase: 0.4897 - 0.3 = 0.1897
-    await db_session.refresh(attacker_agent)
-    trust_increase = attacker_agent.trust_score - initial_trust
+    # SEC-001 Fix: Use select query instead of refresh to avoid greenlet issues
+    from sqlalchemy import select
+
+    stmt = select(Agent).where(Agent.agent_id == attacker_agent_id)
+    query_result = await db_session.execute(stmt)
+    refreshed_attacker = query_result.scalar_one()
+    trust_increase = refreshed_attacker.trust_score - initial_trust
 
     # Should be around 0.15-0.20 (3 verifications without pattern boosts)
     # Allow wider tolerance for multiple EWMA calculations
