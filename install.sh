@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# Trinitas Multi-Agent System Installer v2.4.16
+# Trinitas Multi-Agent System Installer v2.4.18
 # For Claude Code on Linux/macOS/WSL
 # =============================================================================
 #
@@ -26,8 +26,8 @@
 set -euo pipefail
 
 # Version
-INSTALLER_VERSION="2.4.16"
-TMWS_VERSION="2.4.16"
+INSTALLER_VERSION="2.4.18"
+TMWS_VERSION="2.4.18"
 INSTALLER_TYPE="claude-code"
 
 # Colors
@@ -40,7 +40,7 @@ MAGENTA='\033[0;35m'
 NC='\033[0m' # No Color
 
 # Configuration
-TMWS_IMAGE="ghcr.io/apto-as/tmws:latest"
+TMWS_IMAGE="docker.io/aptoas/tmws:latest"
 TRINITAS_CONFIG_DIR="${HOME}/.trinitas"
 CLAUDE_CONFIG_DIR="${HOME}/.claude"
 BACKUP_DIR="${HOME}/.trinitas-backup"
@@ -69,7 +69,7 @@ show_banner() {
 ║      ██║   ██║  ██║██║██║ ╚████║██║   ██║   ██║  ██║███████║         ║
 ║      ╚═╝   ╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝╚═╝   ╚═╝   ╚═╝  ╚═╝╚══════╝         ║
 ║                                                                       ║
-║            Multi-Agent System Installer v2.4.16                       ║
+║            Multi-Agent System Installer v2.4.18                       ║
 ║            For Claude Code                                            ║
 ║                                                                       ║
 ╚═══════════════════════════════════════════════════════════════════════╝
