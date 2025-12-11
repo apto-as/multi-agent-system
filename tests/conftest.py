@@ -177,7 +177,7 @@ async def authenticated_client(client, test_session):
     from datetime import datetime, timezone
 
     from src.models.user import User, UserRole, UserStatus
-    from src.services.jwt_service import JWTService
+    from src.security.jwt_service import JWTService
     from src.utils.security import hash_password
 
     # Create test user directly in test session

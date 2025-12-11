@@ -315,7 +315,7 @@ class HybridDecisionRouter:
         start_time = time.perf_counter()
 
         # Fast path: Check cache for recent routing decisions
-        cache_key = hashlib.md5(f"{query}:{execution_mode}".encode()).hexdigest()
+        cache_key = hashlib.md5(f"{query}:{execution_mode}".encode(), usedforsecurity=False).hexdigest()
         cached_decision = await self.cache_manager.get(cache_key, "routing")
 
         if cached_decision:
@@ -652,7 +652,7 @@ class PatternExecutionEngine:
 
         # Cache check
         if use_cache:
-            cache_key = hashlib.md5(f"{query}:{execution_mode}:{context}".encode()).hexdigest()
+            cache_key = hashlib.md5(f"{query}:{execution_mode}:{context}".encode(), usedforsecurity=False).hexdigest()
             cached_result = await self.cache_manager.get(cache_key, "execution")
 
             if cached_result:
