@@ -266,6 +266,7 @@ class SkillService:
         namespace: str,
         tags: list[str] | None = None,
         access_level: AccessLevel | None = None,
+        persona: str | None = None,
         detail_level: int = 2,
         limit: int = 50,
         offset: int = 0,
@@ -297,6 +298,7 @@ class SkillService:
         Filtering:
         - tags: AND logic (skill must have ALL specified tags)
         - access_level: Exact match filter
+        - persona: Filter by persona identifier (optional)
         - is_deleted=False (always filtered out)
 
         Pagination:
@@ -309,6 +311,7 @@ class SkillService:
             namespace: Verified namespace from database (P0-1 pattern)
             tags: Filter by tags (AND logic, optional)
             access_level: Filter by access level (optional)
+            persona: Filter by persona identifier (optional, e.g., "hestia-auditor")
             detail_level: Progressive Disclosure level (1/2/3, default 2)
             limit: Max results (1-100, default 50)
             offset: Pagination offset (default 0)
@@ -336,6 +339,7 @@ class SkillService:
             namespace=namespace,
             tags=tags,
             access_level=access_level,
+            persona=persona,
             detail_level=detail_level,
             limit=limit,
             offset=offset,

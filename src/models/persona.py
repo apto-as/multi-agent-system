@@ -14,21 +14,50 @@ from .base import MetadataMixin, TMWSBase
 class PersonaType(str, Enum):
     """Types of Trinitas personas."""
 
-    ATHENA = "athena"
-    ARTEMIS = "artemis"
-    HESTIA = "hestia"
-    BELLONA = "bellona"
-    SESHAT = "seshat"
+    # Orchestrators (Tier 0)
+    CLOTHO = "clotho"  # Thread Weaver - Workflow orchestration
+    LACHESIS = "lachesis"  # Measure Keeper - Resource allocation
+
+    # Strategic (Tier 1)
+    ATHENA = "athena"  # Harmonious Conductor - System harmony & coordination
+    HERA = "hera"  # Strategic Commander - Strategic planning & architecture
+
+    # Specialist (Tier 2)
+    ARTEMIS = "artemis"  # Technical Perfectionist - Performance & optimization
+    HESTIA = "hestia"  # Security Guardian - Security & vulnerability assessment
+    ERIS = "eris"  # Tactical Coordinator - Team coordination & conflict resolution
+    MUSES = "muses"  # Knowledge Architect - Documentation & knowledge management
+
+    # Support (Tier 3)
+    APHRODITE = "aphrodite"  # UI/UX Designer - Design & user experience
+    METIS = "metis"  # Development Assistant - Implementation & testing
+    AURORA = "aurora"  # Research Assistant - Semantic search & context retrieval
+
+    # Legacy (backward compatibility)
+    BELLONA = "bellona"  # Deprecated: use ERIS
+    SESHAT = "seshat"  # Deprecated: use MUSES
 
 
 class PersonaRole(str, Enum):
     """Roles of Trinitas personas."""
 
-    STRATEGIST = "strategist"
-    OPTIMIZER = "optimizer"
-    AUDITOR = "auditor"
-    COORDINATOR = "coordinator"
-    DOCUMENTER = "documenter"
+    # Orchestrator roles (Tier 0)
+    ORCHESTRATOR = "orchestrator"  # Clotho, Lachesis - System-level orchestration
+
+    # Strategic roles (Tier 1)
+    CONDUCTOR = "conductor"  # Athena - Harmonious coordination & resource management
+    STRATEGIST = "strategist"  # Hera - Strategic planning & architecture design
+
+    # Specialist roles (Tier 2)
+    OPTIMIZER = "optimizer"  # Artemis - Performance optimization & code quality
+    AUDITOR = "auditor"  # Hestia - Security analysis & vulnerability assessment
+    COORDINATOR = "coordinator"  # Eris - Tactical coordination & conflict resolution
+    DOCUMENTER = "documenter"  # Muses - Documentation & knowledge archival
+
+    # Support roles (Tier 3)
+    DESIGNER = "designer"  # Aphrodite - UI/UX design & visual consistency
+    DEVELOPER = "developer"  # Metis - Implementation, testing & debugging
+    RESEARCHER = "researcher"  # Aurora - Semantic search & context retrieval
 
 
 class Persona(TMWSBase, MetadataMixin):
@@ -53,6 +82,13 @@ class Persona(TMWSBase, MetadataMixin):
     display_name: Mapped[str] = mapped_column(Text, nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     specialties: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+
+    # New fields for enhanced persona management
+    tier: Mapped[str | None] = mapped_column(Text, nullable=True)  # ORCHESTRATOR, STRATEGIC, SPECIALIST, SUPPORT
+    emoji: Mapped[str | None] = mapped_column(Text, nullable=True)  # Visual identifier (🏛️, 🏹, etc.)
+    markdown_source: Mapped[str | None] = mapped_column(Text, nullable=True)  # Full Markdown content from .claude/agents/
+    version: Mapped[str | None] = mapped_column(Text, nullable=True)  # Semantic version (e.g., "2.4.16")
+    trigger_words: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)  # Keywords that activate persona
 
     # Persona behavior configuration
     config: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
@@ -116,6 +152,10 @@ class Persona(TMWSBase, MetadataMixin):
             "display_name": self.display_name,
             "description": self.description,
             "specialties": self.specialties,
+            "tier": self.tier,
+            "emoji": self.emoji,
+            "version": self.version,
+            "trigger_words": self.trigger_words,
             "config": self.config,
             "preferences": self.preferences,
             "is_active": self.is_active,
@@ -133,27 +173,109 @@ class Persona(TMWSBase, MetadataMixin):
     def get_default_personas(cls) -> list[dict]:
         """Get default Trinitas persona configurations."""
         return [
+            # Orchestrators (Tier 0)
+            {
+                "name": "clotho",
+                "type": PersonaType.CLOTHO,
+                "role": PersonaRole.ORCHESTRATOR,
+                "display_name": "Clotho - Thread Weaver",
+                "description": "Workflow orchestration and task sequencing specialist",
+                "specialties": [
+                    "workflow_orchestration",
+                    "task_sequencing",
+                    "dependency_management",
+                    "execution_planning",
+                    "process_optimization",
+                ],
+                "capabilities": [
+                    "workflow_design",
+                    "task_scheduling",
+                    "dependency_resolution",
+                    "parallel_execution",
+                    "process_automation",
+                ],
+                "tier": "ORCHESTRATOR",
+                "emoji": "🧵",
+                "version": "2.4.16",
+                "trigger_words": ["workflow", "orchestrate", "sequence", "coordinate", "automate"],
+            },
+            {
+                "name": "lachesis",
+                "type": PersonaType.LACHESIS,
+                "role": PersonaRole.ORCHESTRATOR,
+                "display_name": "Lachesis - Measure Keeper",
+                "description": "Resource allocation and capacity planning specialist",
+                "specialties": [
+                    "resource_allocation",
+                    "capacity_planning",
+                    "load_balancing",
+                    "performance_monitoring",
+                    "bottleneck_detection",
+                ],
+                "capabilities": [
+                    "resource_management",
+                    "capacity_analysis",
+                    "load_distribution",
+                    "performance_tracking",
+                    "optimization_recommendations",
+                ],
+                "tier": "ORCHESTRATOR",
+                "emoji": "📏",
+                "version": "2.4.16",
+                "trigger_words": ["resource", "allocation", "capacity", "balance", "distribute"],
+            },
+            # Strategic (Tier 1)
             {
                 "name": "athena",
                 "type": PersonaType.ATHENA,
+                "role": PersonaRole.CONDUCTOR,
+                "display_name": "Athena - Harmonious Conductor",
+                "description": "System harmony and resource coordination specialist",
+                "specialties": [
+                    "system_harmony",
+                    "resource_coordination",
+                    "workflow_automation",
+                    "parallel_execution",
+                    "task_delegation",
+                ],
+                "capabilities": [
+                    "system_orchestration",
+                    "resource_optimization",
+                    "workflow_management",
+                    "team_coordination",
+                    "conflict_mediation",
+                ],
+                "tier": "STRATEGIC",
+                "emoji": "🏛️",
+                "version": "2.4.16",
+                "trigger_words": ["orchestration", "workflow", "automation", "parallel", "coordination"],
+            },
+            {
+                "name": "hera",
+                "type": PersonaType.HERA,
                 "role": PersonaRole.STRATEGIST,
-                "display_name": "Athena - Strategic Architect",
-                "description": "Strategic planning and architecture design specialist",
+                "display_name": "Hera - Strategic Commander",
+                "description": "Strategic planning and architecture design with military precision",
                 "specialties": [
                     "strategic_planning",
                     "architecture_design",
-                    "team_coordination",
-                    "stakeholder_management",
                     "long_term_vision",
+                    "roadmap_planning",
+                    "stakeholder_management",
                 ],
                 "capabilities": [
                     "system_architecture",
-                    "project_planning",
+                    "strategic_analysis",
                     "risk_assessment",
-                    "resource_optimization",
-                    "stakeholder_communication",
+                    "project_planning",
+                    "vision_development",
                 ],
+                "tier": "STRATEGIC",
+                "emoji": "🎭",
+                "version": "2.4.16",
+                "trigger_words": ["strategy", "planning", "architecture", "vision", "roadmap"],
             },
+            # Specialist (Tier 2)
             {
                 "name": "artemis",
                 "type": PersonaType.ARTEMIS,
@@ -174,6 +296,10 @@ class Persona(TMWSBase, MetadataMixin):
                     "refactoring",
                     "best_practices",
                 ],
+                "tier": "SPECIALIST",
+                "emoji": "🏹",
+                "version": "2.4.16",
+                "trigger_words": ["optimization", "performance", "quality", "technical", "efficiency"],
             },
             {
                 "name": "hestia",
@@ -195,33 +321,41 @@ class Persona(TMWSBase, MetadataMixin):
                     "compliance_checking",
                     "threat_assessment",
                 ],
+                "tier": "SPECIALIST",
+                "emoji": "🔥",
+                "version": "2.4.16",
+                "trigger_words": ["security", "audit", "risk", "vulnerability", "threat"],
             },
             {
-                "name": "bellona",
-                "type": PersonaType.BELLONA,
+                "name": "eris",
+                "type": PersonaType.ERIS,
                 "role": PersonaRole.COORDINATOR,
-                "display_name": "Bellona - Tactical Coordinator",
-                "description": "Parallel task management and resource optimization specialist",
+                "display_name": "Eris - Tactical Coordinator",
+                "description": "Tactical planning and team coordination specialist",
                 "specialties": [
-                    "task_coordination",
-                    "resource_optimization",
-                    "parallel_execution",
-                    "workflow_orchestration",
-                    "real_time_coordination",
+                    "tactical_planning",
+                    "team_coordination",
+                    "conflict_resolution",
+                    "workflow_coordination",
+                    "balance_adjustment",
                 ],
                 "capabilities": [
-                    "task_management",
-                    "resource_allocation",
-                    "parallel_processing",
-                    "workflow_automation",
-                    "coordination",
+                    "task_coordination",
+                    "conflict_mediation",
+                    "resource_balancing",
+                    "workflow_optimization",
+                    "team_collaboration",
                 ],
+                "tier": "SPECIALIST",
+                "emoji": "⚔️",
+                "version": "2.4.16",
+                "trigger_words": ["coordinate", "tactical", "team", "collaboration", "conflict"],
             },
             {
-                "name": "seshat",
-                "type": PersonaType.SESHAT,
+                "name": "muses",
+                "type": PersonaType.MUSES,
                 "role": PersonaRole.DOCUMENTER,
-                "display_name": "Seshat - Knowledge Architect",
+                "display_name": "Muses - Knowledge Architect",
                 "description": "Documentation creation and knowledge management specialist",
                 "specialties": [
                     "documentation_creation",
@@ -237,5 +371,136 @@ class Persona(TMWSBase, MetadataMixin):
                     "information_structuring",
                     "API_documentation",
                 ],
+                "tier": "SPECIALIST",
+                "emoji": "📚",
+                "version": "2.4.16",
+                "trigger_words": ["documentation", "knowledge", "record", "guide", "archive"],
+            },
+            # Support (Tier 3)
+            {
+                "name": "aphrodite",
+                "type": PersonaType.APHRODITE,
+                "role": PersonaRole.DESIGNER,
+                "display_name": "Aphrodite - UI/UX Designer",
+                "description": "Beautiful and intuitive design creation specialist",
+                "specialties": [
+                    "ui_design",
+                    "ux_design",
+                    "user_centered_design",
+                    "accessibility",
+                    "design_systems",
+                ],
+                "capabilities": [
+                    "interface_design",
+                    "user_experience",
+                    "visual_design",
+                    "accessibility_compliance",
+                    "design_consistency",
+                ],
+                "tier": "SUPPORT",
+                "emoji": "🌸",
+                "version": "2.4.16",
+                "trigger_words": ["design", "ui", "ux", "interface", "visual", "layout", "usability"],
+            },
+            {
+                "name": "metis",
+                "type": PersonaType.METIS,
+                "role": PersonaRole.DEVELOPER,
+                "display_name": "Metis - Development Assistant",
+                "description": "Code implementation and testing specialist",
+                "specialties": [
+                    "code_implementation",
+                    "test_creation",
+                    "debugging",
+                    "refactoring",
+                    "tdd",
+                ],
+                "capabilities": [
+                    "implementation",
+                    "testing",
+                    "debugging",
+                    "code_review",
+                    "ci_cd_integration",
+                ],
+                "tier": "SUPPORT",
+                "emoji": "🔧",
+                "version": "2.4.16",
+                "trigger_words": ["implement", "code", "develop", "build", "test", "debug", "fix"],
+            },
+            {
+                "name": "aurora",
+                "type": PersonaType.AURORA,
+                "role": PersonaRole.RESEARCHER,
+                "display_name": "Aurora - Research Assistant",
+                "description": "Semantic search and context retrieval specialist",
+                "specialties": [
+                    "semantic_search",
+                    "context_retrieval",
+                    "knowledge_synthesis",
+                    "pattern_discovery",
+                    "proactive_information",
+                ],
+                "capabilities": [
+                    "search",
+                    "context_gathering",
+                    "knowledge_synthesis",
+                    "pattern_recognition",
+                    "information_delivery",
+                ],
+                "tier": "SUPPORT",
+                "emoji": "🌅",
+                "version": "2.4.16",
+                "trigger_words": ["search", "find", "lookup", "research", "context", "retrieve", "history"],
+            },
+            # Legacy personas (backward compatibility)
+            {
+                "name": "bellona",
+                "type": PersonaType.BELLONA,
+                "role": PersonaRole.COORDINATOR,
+                "display_name": "Bellona - Tactical Coordinator (Legacy)",
+                "description": "Legacy: Use Eris instead. Parallel task management and resource optimization specialist",
+                "specialties": [
+                    "task_coordination",
+                    "resource_optimization",
+                    "parallel_execution",
+                    "workflow_orchestration",
+                    "real_time_coordination",
+                ],
+                "capabilities": [
+                    "task_management",
+                    "resource_allocation",
+                    "parallel_processing",
+                    "workflow_automation",
+                    "coordination",
+                ],
+                "tier": "SPECIALIST",
+                "emoji": "⚔️",
+                "version": "2.4.16",
+                "trigger_words": ["coordinate", "tactical", "parallel"],
+            },
+            {
+                "name": "seshat",
+                "type": PersonaType.SESHAT,
+                "role": PersonaRole.DOCUMENTER,
+                "display_name": "Seshat - Knowledge Architect (Legacy)",
+                "description": "Legacy: Use Muses instead. Documentation creation and knowledge management specialist",
+                "specialties": [
+                    "documentation_creation",
+                    "knowledge_management",
+                    "information_architecture",
+                    "content_organization",
+                    "system_documentation",
+                ],
+                "capabilities": [
+                    "documentation_generation",
+                    "knowledge_archival",
+                    "content_creation",
+                    "information_structuring",
+                    "API_documentation",
+                ],
+                "tier": "SPECIALIST",
+                "emoji": "📚",
+                "version": "2.4.16",
+                "trigger_words": ["documentation", "knowledge"],
             },
         ]
