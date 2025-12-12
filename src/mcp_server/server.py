@@ -82,6 +82,16 @@ class HybridMCPServer:
         # MCP server setup
         self.mcp = FastMCP(name="tmws", version=__version__)
 
+        # Initialize Dynamic Tool Registry for skill activation
+        from src.services.skill_service.skill_activation import (
+            DynamicToolRegistry,
+            SkillActivationOperations,
+        )
+
+        self.dynamic_tool_registry = DynamicToolRegistry(mcp_server=self.mcp)
+        SkillActivationOperations.set_tool_registry(self.dynamic_tool_registry)
+        logger.info(f"DynamicToolRegistry initialized for skill activation")
+
         # Register MCP tools
         from .tool_registry import register_core_tools
 

@@ -205,6 +205,11 @@ class TaskRoutingService:
             self._agent_service = AgentService(self.session)
         return self._agent_service
 
+    @agent_service.setter
+    def agent_service(self, value: AgentService | None) -> None:
+        """Set agent service (primarily for testing)."""
+        self._agent_service = value
+
     def detect_personas(self, task_content: str) -> dict[str, float]:
         """Detect triggered personas using compiled regex patterns.
 
@@ -360,6 +365,7 @@ class TaskRoutingService:
         self,
         task_content: str,
         namespace: str | None = None,
+        include_trust_scoring: bool = True,
     ) -> RoutingResult:
         """Route task with database-backed agent recommendations.
 
@@ -369,9 +375,10 @@ class TaskRoutingService:
         Args:
             task_content: The task description or user prompt.
             namespace: Optional namespace filter for agent selection.
+            include_trust_scoring: Whether to include trust scores in routing (default: True)
 
         Returns:
-            RoutingResult with database-enhanced recommendations.
+            RoutingResult with database-enhanced recommendations including trust scores.
         """
         # Get basic routing result
         result = self.route_task(task_content)
@@ -393,6 +400,63 @@ class TaskRoutingService:
                 )
 
                 if recommended:
+                    # Fetch trust scores for detected agents (if enabled)
+                    trust_scores = {}
+                    if include_trust_scoring and self.agent_service:
+                        for agent_id in result.detected_patterns:
+                            try:
+                                # Fetch trust score from Agent model
+                                agent = await self.agent_service.get_agent_by_id(agent_id)
+                                if agent and hasattr(agent, "trust_score"):
+                                    trust_scores[agent_id] = agent.trust_score
+                                else:
+                                    # Default trust score for new/unknown agents
+                                    trust_scores[agent_id] = 0.5
+                            except Exception:
+                                # Fallback to default if fetch fails
+                                trust_scores[agent_id] = 0.5
+
+                    # Calculate weighted routing scores: 60% pattern + 40% trust
+                    if include_trust_scoring and trust_scores:
+                        # Re-calculate primary agent using weighted scores
+                        agent_scores = {}
+                        for agent_id in result.detected_patterns:
+                            pattern_score = self._calculate_pattern_score(
+                                agent_id, task_content, result
+                            )
+                            trust_score = trust_scores.get(agent_id, 0.5)
+
+                            # Hybrid formula: 60% pattern match + 40% trust score
+                            weighted_score = (pattern_score * 0.60) + (trust_score * 0.40)
+                            agent_scores[agent_id] = weighted_score
+
+                            logger.debug(
+                                f"Routing score for {agent_id}: pattern={pattern_score:.2f}, "
+                                f"trust={trust_score:.2f}, weighted={weighted_score:.2f}"
+                            )
+
+                        if agent_scores:
+                            # Re-rank agents by weighted score
+                            sorted_agents = sorted(
+                                agent_scores.items(), key=lambda x: x[1], reverse=True
+                            )
+                            best_agent = sorted_agents[0][0]
+                            best_score = sorted_agents[0][1]
+
+                            # Update result with trust-weighted routing
+                            if best_agent != result.primary_agent:
+                                logger.info(
+                                    f"Trust scoring changed primary agent from "
+                                    f"{result.primary_agent} to {best_agent}"
+                                )
+                                result.support_agents = [result.primary_agent] + [
+                                    a for a in result.support_agents if a != best_agent
+                                ][:2]
+                                result.primary_agent = best_agent
+
+                            result.confidence = min(best_score, 1.0)
+                            result.reasoning += f" (trust-weighted: {best_score:.2f})"
+
                     # Merge database recommendations with pattern matching
                     db_agent_ids = [agent.agent_id for agent in recommended]
                     # Boost confidence if database confirms pattern matching
@@ -410,6 +474,23 @@ class TaskRoutingService:
                 logger.warning(f"Database agent lookup failed, using pattern-only routing: {e}")
 
         return result
+
+    def _calculate_pattern_score(
+        self, agent_id: str, task_content: str, result: RoutingResult
+    ) -> float:
+        """Calculate the pattern match score for an agent.
+
+        Args:
+            agent_id: Agent identifier
+            task_content: Task description
+            result: Current routing result with detected patterns
+
+        Returns:
+            Pattern match score (0.0-1.0)
+        """
+        # If this agent was detected, get its score from the pattern matching
+        persona_matches = self.detect_personas(task_content)
+        return persona_matches.get(agent_id, 0.0)
 
     def get_trinitas_full_mode_routing(
         self,

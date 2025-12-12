@@ -50,16 +50,54 @@ async def initialize_server(server):
         logger.info("Chroma vector service initialized")
 
         # Register expiration tools (v2.3.0 security-integrated tools)
-        # Note: Scheduler is NOT started automatically.
-        # Use start_scheduler MCP tool to start it.
-        # This avoids session lifecycle issues during initialization.
+        # P2 FIX: Auto-start scheduler from environment variable (v2.4.18+)
+        expiration_scheduler = None
+        auto_start_scheduler = os.getenv("TMWS_AUTOSTART_EXPIRATION_SCHEDULER", "true").lower() == "true"
+
+        if auto_start_scheduler:
+            try:
+                # Create scheduler with configurable interval
+                cleanup_interval_hours = float(os.getenv("MEMORY_CLEANUP_INTERVAL_HOURS", "1.0"))
+
+                async with get_session() as session:
+                    from src.services.memory_service import HybridMemoryService
+
+                    memory_service = HybridMemoryService(
+                        db_session=session,
+                        vector_service=server.vector_service,
+                        embedding_service=server.embedding_service,
+                    )
+
+                    from src.services.expiration_scheduler import ExpirationScheduler
+
+                    expiration_scheduler = ExpirationScheduler(
+                        memory_service=memory_service,
+                        interval_hours=cleanup_interval_hours,
+                    )
+
+                    # Start scheduler in background
+                    await expiration_scheduler.start()
+                    logger.info(
+                        f"✅ Expiration scheduler auto-started "
+                        f"(interval: {cleanup_interval_hours}h, "
+                        f"disable with TMWS_AUTOSTART_EXPIRATION_SCHEDULER=false)"
+                    )
+
+                    # Store scheduler in server for cleanup
+                    server.expiration_scheduler = expiration_scheduler
+
+            except Exception as e:
+                logger.warning(f"Failed to auto-start expiration scheduler: {e}")
+                logger.info("Scheduler can be started manually via start_scheduler MCP tool")
+
         expiration_tools = ExpirationTools(
             memory_service=None,  # Tools create their own session
-            scheduler=None,  # Scheduler will be created by start_scheduler tool
+            scheduler=expiration_scheduler,  # Pass scheduler instance
         )
         await expiration_tools.register_tools(server.mcp, get_session)
         logger.info(
-            "Expiration tools registered (10 secure MCP tools, scheduler not auto-started)"
+            f"Expiration tools registered (10 secure MCP tools, "
+            f"scheduler {'auto-started' if expiration_scheduler else 'not auto-started'})"
         )
 
         # Register verification tools (v2.3.0+ agent trust system)
@@ -536,4 +574,12 @@ async def cleanup_server(server):
     Args:
         server: HybridMCPServer instance
     """
+    # P2 FIX: Stop expiration scheduler if running
+    if hasattr(server, "expiration_scheduler") and server.expiration_scheduler:
+        try:
+            await server.expiration_scheduler.stop()
+            logger.info("Expiration scheduler stopped")
+        except Exception as e:
+            logger.warning(f"Failed to stop expiration scheduler: {e}")
+
     await server.cleanup()

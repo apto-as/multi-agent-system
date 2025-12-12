@@ -19,6 +19,59 @@ logger = logging.getLogger(__name__)
 class RoutingTools(BaseTool):
     """Task routing tools for intelligent agent selection."""
 
+    def _generate_prompt_from_db(
+        self,
+        persona_id: str,
+        persona_info: dict,
+        db_persona_data: dict,
+        task_description: str,
+    ) -> str:
+        """Generate system prompt from DB metadata (P0.1 helper)."""
+        agent_data = db_persona_data.get("agent_data")
+        persona_data = db_persona_data.get("persona_data")
+
+        display_name = (
+            persona_data.get("display_name") if persona_data
+            else agent_data.get("display_name") if agent_data
+            else persona_info["display_name"]
+        )
+
+        capabilities = (
+            persona_data.get("capabilities") if persona_data
+            else agent_data.get("capabilities", {}) if agent_data
+            else persona_info["capabilities"]
+        )
+
+        tier = (
+            persona_data.get("tier") if persona_data
+            else persona_info["tier"]
+        )
+
+        # Generate prompt from DB data
+        return f"""# {display_name}
+
+## Core Identity
+You are {persona_id.split("-")[0].capitalize()}, embodying the (
+    {persona_info["invocation_style"]}
+) approach.
+
+## Real-Time Status (from DB)
+- Trust Score: {agent_data.get("trust_score", "N/A") if agent_data else "N/A"}
+- Total Tasks: {agent_data.get("total_tasks", 0) if agent_data else 0}
+- Success Rate: {agent_data.get("successful_tasks", 0) / max(agent_data.get("total_tasks", 1), 1) * 100:.1f}% if agent_data else "N/A"
+- Status: {agent_data.get("status", "unknown") if agent_data else "unknown"}
+
+## Capabilities
+{", ".join(capabilities) if isinstance(capabilities, list) else str(capabilities)}
+
+## Collaboration Style
+- Primary Partners: {", ".join(persona_info["collaboration"].get("primary_partners", []))}
+- Tier: {tier}
+
+## Task Context
+{task_description}
+"""
+
     async def register_tools(self, mcp: FastMCP) -> None:
         """Register routing tools with FastMCP instance."""
 
@@ -27,17 +80,19 @@ class RoutingTools(BaseTool):
             task_content: str,
             namespace: str | None = None,
             use_database: bool = True,
+            include_trust_scoring: bool = True,
         ) -> dict[str, Any]:
             """Route a task to the optimal Trinitas agent(s).
 
             Analyzes task content using pattern matching and capability scoring
             to determine the best agent assignment. Supports both pattern-only
-            and database-enhanced routing.
+            and database-enhanced routing with trust score weighting.
 
             Args:
                 task_content: Description of the task to route
                 namespace: Optional namespace filter for agent selection
                 use_database: Whether to use database for enhanced routing
+                include_trust_scoring: Whether to include trust scores in routing (default: True)
 
             Returns:
                 Dict containing routing result with:
@@ -61,11 +116,12 @@ class RoutingTools(BaseTool):
                     result = await routing_service.route_task_with_db(
                         task_content,
                         namespace=namespace,
+                        include_trust_scoring=include_trust_scoring,
                     )
                 else:
                     result = routing_service.route_task(task_content)
 
-                return {
+                response = {
                     "primary_agent": result.primary_agent,
                     "support_agents": result.support_agents,
                     "confidence": result.confidence,
@@ -73,6 +129,14 @@ class RoutingTools(BaseTool):
                     "detected_patterns": result.detected_patterns,
                     "suggested_phase": result.suggested_phase,
                 }
+
+                # Add trust scoring indicator
+                if include_trust_scoring and use_database:
+                    response["trust_scoring_enabled"] = True
+                else:
+                    response["trust_scoring_enabled"] = False
+
+                return response
 
             result = await self.execute_with_session(_route_task)
             if result.get("success", True):
@@ -478,27 +542,45 @@ class RoutingTools(BaseTool):
 
             persona_info = valid_personas[persona_id]
 
-            # Try to load system prompt from file
+            # P0.1 FIX: DB-MD Dual Source with DB Priority
+            # Try to load persona from database first, then fallback to MD files
             system_prompt = None
+            db_persona_data = None
+
+            if include_system_prompt or include_db_status:
+                async def _get_persona_merged(session, _services):
+                    from ..services.persona_sync_service import PersonaSyncService
+
+                    sync_service = PersonaSyncService(session)
+                    return await sync_service.get_persona_merged(
+                        persona_id,
+                        include_md_fallback=include_system_prompt,
+                    )
+
+                persona_result = await self.execute_with_session(_get_persona_merged)
+                if persona_result.get("success", True):
+                    db_persona_data = persona_result.get("data")
+
+            # Generate system prompt from merged persona data
             if include_system_prompt:
-                # Check multiple possible locations
-                possible_paths = [
-                    Path.home() / ".claude" / "agents" / f"{persona_id}.md",
-                    Path.home() / ".config" / "opencode" / "agent" / f"{persona_id}.md",
-                    Path(__file__).parent.parent / "trinitas" / "agents" / f"{persona_id}.md",
-                ]
-
-                for path in possible_paths:
-                    if path.exists():
-                        try:
-                            system_prompt = path.read_text(encoding="utf-8")
-                            logger.debug(f"Loaded system prompt from {path}")
-                            break
-                        except Exception as e:
-                            logger.warning(f"Failed to read {path}: {e}")
-
-                if not system_prompt:
-                    # Generate minimal system prompt
+                if db_persona_data and db_persona_data.get("source") != "md":
+                    # DB-sourced persona (priority)
+                    persona_data = db_persona_data.get("persona_data")
+                    if persona_data and persona_data.get("markdown_source"):
+                        system_prompt = persona_data["markdown_source"]
+                        logger.debug(f"Loaded system prompt from DB (Persona model)")
+                    else:
+                        # Generate from DB metadata
+                        system_prompt = self._generate_prompt_from_db(
+                            persona_id, persona_info, db_persona_data, task_description
+                        )
+                        logger.debug(f"Generated system prompt from DB metadata")
+                elif db_persona_data and db_persona_data.get("md_data"):
+                    # MD-sourced fallback
+                    system_prompt = db_persona_data["md_data"].get("content")
+                    logger.debug(f"Loaded system prompt from MD file (fallback)")
+                else:
+                    # Generate minimal system prompt (no DB or MD)
                     system_prompt = f"""# {persona_info["display_name"]}
 
 ## Core Identity
@@ -516,6 +598,7 @@ You are {persona_id.split("-")[0].capitalize()}, embodying the (
 ## Task Context
 {task_description}
 """
+                    logger.debug(f"Generated minimal system prompt (no DB or MD)")
 
             # Generate task-specific context
             task_context = f"""
@@ -550,44 +633,21 @@ To embody {persona_id}:
 Begin your response by acknowledging your role and approach.
 """
 
-            # Fetch real-time DB status if requested
+            # P0.1 FIX: Use merged persona data for DB status
             db_status = None
             if include_db_status:
-
-                async def _get_agent_status(session, _services):
-                    from ..services.agent_service import AgentService
-
-                    agent_service = AgentService(session)
-
-                    # Try to find agent by persona_id
-                    agent = await agent_service.get_agent_by_id(persona_id)
-
-                    # If not found by full ID, try without suffix
-                    if not agent:
-                        short_name = persona_id.split("-")[0]
-                        agent = await agent_service.get_agent_by_id(short_name)
-
-                    if agent:
-                        # M-1 FIX: Reduce exposed fields to non-sensitive data only
-                        # Removed: verification_accuracy, total_verifications,
-                        # accurate_verifications (internal metrics)
-                        return {
-                            "found": True,
-                            "trust_score": agent.trust_score,
-                            "status": agent.status.value,
-                            "last_active": (
-                                str(agent.last_active_at) if agent.last_active_at else None
-                            ),
-                            "health_score": agent.health_score,
-                            "total_tasks": agent.total_tasks,
-                            "successful_tasks": agent.successful_tasks,
-                        }
-                    return {"found": False}
-
-                db_result = await self.execute_with_session(_get_agent_status)
-                if db_result.get("success", True) and db_result.get("data", {}).get("found"):
-                    db_status = db_result.get("data")
-                    logger.debug(f"Loaded DB status for persona {persona_id}: {db_status}")
+                if db_persona_data and db_persona_data.get("agent_data"):
+                    agent_data = db_persona_data["agent_data"]
+                    db_status = {
+                        "found": True,
+                        "trust_score": agent_data.get("trust_score"),
+                        "status": agent_data.get("status"),
+                        "last_active": agent_data.get("last_active_at"),
+                        "health_score": agent_data.get("health_score"),
+                        "total_tasks": agent_data.get("total_tasks"),
+                        "successful_tasks": agent_data.get("successful_tasks"),
+                    }
+                    logger.debug(f"Loaded DB status for persona {persona_id} from merged data")
                 else:
                     logger.debug(f"Persona {persona_id} not found in Agent database")
                     db_status = {"found": False}
