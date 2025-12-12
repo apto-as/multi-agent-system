@@ -28,7 +28,7 @@ from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import get_current_user, get_db_session
@@ -77,8 +77,8 @@ class VerifyAndRecordRequest(BaseModel):
         description="Optional agent performing verification (defaults to current user's agent)",
     )
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "agent_id": "artemis-optimizer",
                 "claim_type": "test_result",
@@ -90,6 +90,7 @@ class VerifyAndRecordRequest(BaseModel):
                 "verified_by_agent_id": "hestia-auditor",
             },
         }
+    )
 
 
 class VerifyAndRecordResponse(BaseModel):
@@ -134,8 +135,8 @@ class VerifyAndRecordResponse(BaseModel):
         description="Trust score change from pattern propagation (if linked)",
     )
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "verification_id": "123e4567-e89b-12d3-a456-426614174000",
                 "accurate": True,
@@ -153,6 +154,7 @@ class VerifyAndRecordResponse(BaseModel):
                 "trust_delta": None,
             },
         }
+    )
 
 
 # ============================================================================
