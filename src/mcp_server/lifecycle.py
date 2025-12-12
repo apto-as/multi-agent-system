@@ -222,7 +222,12 @@ async def initialize_server(server):
 
                 async with get_session() as session:
                     skill_service = SkillService(session)
-                    skills = await skill_service.list_skills(is_active=True, limit=100)
+                    # Use default namespace for skill listing (Issue #59 API change)
+                    skills = await skill_service.list_skills(
+                        agent_id="system",
+                        namespace="default",
+                        limit=100
+                    )
 
                     if skills:
                         skill_metadata = []
