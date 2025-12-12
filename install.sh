@@ -540,9 +540,12 @@ configure_mcp_settings() {
       "command": "docker",
       "args": [
         "exec", "-i", "tmws-app",
-        "python", "-m", "src.mcp_server"
+        "sh", "-c", "exec tmws-mcp-server 2>/dev/null"
       ],
-      "env": {}
+      "env": {
+        "PYTHONUNBUFFERED": "1",
+        "PYTHONIOENCODING": "utf-8"
+      }
     }
   }
 }
