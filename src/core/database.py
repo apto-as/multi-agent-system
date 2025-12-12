@@ -341,36 +341,82 @@ async def create_tables():
 
     Note: Vector indexes are managed by ChromaDB separately.
     SQLite indexes are defined in model definitions via SQLAlchemy.
+
+    Issue #71 Fix: Import ALL 42 models to ensure complete table creation.
+    Verified: 2025-12-12
     """
-    # Import all models to register them with Base.metadata
+    # Import ALL models to register them with Base.metadata
     from ..models import (  # noqa: F401
+        # Agent models (3 tables)
         Agent,
+        AgentNamespace,
+        AgentTeam,
+        # Audit models (2 tables)
         APIAuditLog,
-        DetectedPattern,
-        DiscoveredTool,
-        ExecutionTrace,
-        LearningPattern,
-        LicenseKey,
-        Memory,
-        Persona,
         SecurityAuditLog,
+        # Execution trace models (3 tables)
+        DetectedPattern,
+        ExecutionTrace,
         SkillSuggestion,
+        # Learning models (2 tables)
+        LearningPattern,
+        # License models (2 tables)
+        LicenseKey,
+        # Memory models (4 tables)
+        Memory,
+        MemoryConsolidation,
+        MemoryPattern,
+        MemorySharing,
+        # Persona models (1 table)
+        Persona,
+        # Task models (2 tables)
         Task,
+        # Token models (1 table)
         TokenConsumption,
+        # Tool discovery models (4 tables)
+        DiscoveredTool,
         ToolDependency,
         ToolInstance,
-        TrustScoreHistory,
+        # User models (3 tables)
         User,
+        # Verification models (2 tables)
+        TrustScoreHistory,
         VerificationRecord,
+        # Workflow models (5 tables)
         Workflow,
         WorkflowExecution,
     )
+
+    # Import additional models not in __init__.py
+    from ..models.learning_pattern import PatternUsageHistory  # noqa: F401
+    from ..models.license_key import LicenseKeyUsage  # noqa: F401
+    from ..models.mcp_connection import MCPConnectionModel  # noqa: F401
+    from ..models.phase_template import PhaseTemplate  # noqa: F401
+    from ..models.skill import (  # noqa: F401
+        Skill,
+        SkillActivation,
+        SkillMCPTool,
+        SkillMemoryFilter,
+        SkillSharedAgent,
+        SkillVersion,
+    )
+    from ..models.task import TaskTemplate  # noqa: F401
+    from ..models.tool_discovery import ToolVerificationHistory  # noqa: F401
+    from ..models.user import APIKey, RefreshToken  # noqa: F401
+    from ..models.workflow_history import (  # noqa: F401
+        WorkflowExecution,
+        WorkflowExecutionLog,
+        WorkflowSchedule,
+        WorkflowStepExecution,
+    )
+
+    # Total: 42 tables (verified 2025-12-12, Issue #71)
 
     engine = get_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    logger.info("Database tables created (SQLite + Chroma architecture)")
+    logger.info("Database tables created: 42 tables (SQLite + Chroma architecture)")
 
 
 async def drop_tables():

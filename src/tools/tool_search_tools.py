@@ -56,7 +56,8 @@ async def register_tools(mcp: FastMCP, **kwargs: Any) -> None:
             "Skills are prioritized (2.0x weight), followed by "
             "internal tools (1.5x), then external MCP tools (1.0x). "
             "Provides personalized ranking when agent_id is provided. "
-            "Use defer_loading=True to reduce context tokens by 85%."
+            "Use detail_level=1 for metadata only (64 tokens, 85% reduction). "
+            "Backward compatible: defer_loading=True maps to detail_level=1."
         ),
     )
     async def search_tools(
@@ -65,13 +66,20 @@ async def register_tools(mcp: FastMCP, **kwargs: Any) -> None:
         limit: int = 5,
         agent_id: str | None = None,
         defer_loading: bool = False,
+        detail_level: int | None = None,
     ) -> dict[str, Any]:
-        """Search for tools using semantic search.
+        """Search for tools using semantic search with Progressive Disclosure.
 
         Integrates with TMWS 4 core features:
         - Skills: Prioritized in search results (2.0x weight)
         - Memory: Tool usage history considered
         - Learning: Adaptive ranking based on usage patterns (Phase 4.1)
+
+        Progressive Disclosure (Issue #66):
+        - detail_level=1: Metadata only (~64 tokens) - name, description, tags, scores
+        - detail_level=2: Core info (~128 tokens) - Level 1 + input_schema summary
+        - detail_level=3: Full schema (unlimited) - Complete tool definition
+        - Default: detail_level=3 (backward compatible)
 
         Args:
             query: Natural language search query (e.g., "search code", "file operations")
@@ -84,20 +92,23 @@ async def register_tools(mcp: FastMCP, **kwargs: Any) -> None:
             limit: Maximum number of results (default: 5, max: 50)
             agent_id: Optional agent identifier for personalized ranking.
                      When provided, results are ranked based on agent's usage history.
-            defer_loading: If True, return lightweight ToolReference without input_schema.
-                          Reduces context tokens by ~85%. Use get_tool_details() to fetch
-                          full schema when needed. Default: False (backward compatible).
+            defer_loading: (DEPRECATED) If True, maps to detail_level=1.
+                          Use detail_level parameter instead.
+            detail_level: Progressive Disclosure level (1, 2, or 3).
+                         Default: 3 for backward compatibility.
+                         Use 1 for 85% token reduction.
 
         Returns:
             Dictionary with:
             - results: List of matching tools with scores and personalization_boost
-                      (includes input_schema if defer_loading=False)
+                      (content varies by detail_level)
             - query: Original query
             - total_found: Total matches found
             - search_latency_ms: Search time in milliseconds
             - sources_searched: Which sources were queried
             - personalized: Whether personalization was applied
-            - deferred: True if defer_loading was used
+            - detail_level: Applied detail level
+            - deferred: (DEPRECATED) Same as detail_level=1
 
         Examples:
             >>> search_tools("search code repository")
@@ -106,7 +117,10 @@ async def register_tools(mcp: FastMCP, **kwargs: Any) -> None:
             >>> search_tools("database operations", source="skills", agent_id="artemis")
             {"results": [{"tool_name": "sql_query_skill", "personalization_boost": 0.15, ...}], ...}
 
-            >>> search_tools("file operations", defer_loading=True)
+            >>> search_tools("file operations", detail_level=1)
+            {"results": [{"tool_name": "read_file", "detail_level": 1, ...}], "detail_level": 1}
+
+            >>> search_tools("file operations", defer_loading=True)  # Deprecated
             {"results": [{"tool_name": "read_file", "deferred": True, ...}], "deferred": True}
         """
         # M-4 Security Fix: Validate all inputs
@@ -151,13 +165,32 @@ async def register_tools(mcp: FastMCP, **kwargs: Any) -> None:
                     "total_found": 0,
                 }
 
+        # Progressive Disclosure: Determine detail_level
+        # Priority: detail_level > defer_loading > default(3)
+        if detail_level is not None:
+            # Validate detail_level
+            if detail_level not in [1, 2, 3]:
+                return {
+                    "error": "Invalid detail_level: must be 1, 2, or 3",
+                    "results": [],
+                    "query": query,
+                    "total_found": 0,
+                }
+            effective_detail_level = detail_level
+        elif defer_loading:
+            # Backward compatibility: defer_loading=True maps to detail_level=1
+            effective_detail_level = 1
+        else:
+            # Default: Level 3 (full schema, backward compatible)
+            effective_detail_level = 3
+
         try:
             results = await service.search_tools(
                 query=query,
                 source=source,
                 limit=limit,
                 agent_id=agent_id,
-                defer_loading=defer_loading,
+                detail_level=effective_detail_level,
             )
 
             stats = await service.get_stats()
@@ -169,7 +202,8 @@ async def register_tools(mcp: FastMCP, **kwargs: Any) -> None:
                 "search_latency_ms": 0,  # Will be added from response
                 "sources_searched": _get_sources(source),
                 "personalized": agent_id is not None,
-                "deferred": defer_loading,
+                "detail_level": effective_detail_level,
+                "deferred": defer_loading,  # Backward compat
                 "stats": {
                     "total_indexed": stats["total_indexed"],
                     "skills_count": 0,  # Will be populated when skills are registered

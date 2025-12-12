@@ -15,6 +15,7 @@ Security:
 """
 
 import logging
+import re
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Callable
@@ -34,6 +35,28 @@ from src.core.exceptions import (
 from src.models.skill import Skill, SkillActivation, SkillVersion
 
 logger = logging.getLogger(__name__)
+
+# Security: Dangerous patterns that could lead to injection attacks
+# These patterns are checked during skill content validation to prevent
+# malicious markdown/script execution in MCP tool context
+DANGEROUS_PATTERNS = [
+    (r"!\[.*\]\(javascript:", "XSS via markdown image with javascript: protocol"),
+    (r"<script", "Script tag injection"),
+    (r"on\w+\s*=", "Event handler injection (onclick, onerror, etc.)"),
+    (r"\$\{.*\}", "Variable/template injection"),
+    (r"eval\s*\(", "JavaScript eval() code execution"),
+    (r"exec\s*\(", "Python exec() code execution"),
+    (r"__import__", "Python import injection"),
+    (r"subprocess\.", "Python subprocess command execution"),
+    (r"os\.system", "Python os.system command execution"),
+    (r"open\s*\(", "File access attempt"),
+]
+
+# Compile patterns for performance (case-insensitive for better detection)
+COMPILED_DANGEROUS_PATTERNS = [
+    (re.compile(pattern, re.IGNORECASE), description)
+    for pattern, description in DANGEROUS_PATTERNS
+]
 
 
 class DynamicToolRegistry:
@@ -106,12 +129,21 @@ class DynamicToolRegistry:
     def _validate_skill_content(self, skill_name: str, skill_content: str) -> None:
         """Validate skill content before registration.
 
+        Security validation against injection attacks:
+        - XSS via markdown image with javascript: protocol
+        - Script tag injection
+        - Event handler injection (onclick, onerror, etc.)
+        - Variable/template injection
+        - Code execution (eval, exec, __import__)
+        - Command execution (subprocess, os.system)
+        - File access attempts
+
         Args:
             skill_name: Name of the skill
             skill_content: Skill content to validate
 
         Raises:
-            ValidationError: If content is invalid
+            ValidationError: If content is invalid or contains dangerous patterns
         """
         if not skill_content or not skill_content.strip():
             log_and_raise(
@@ -130,6 +162,32 @@ class DynamicToolRegistry:
                     "max_length": 50000,
                 },
             )
+
+        # Security: Check for dangerous patterns (Issue #70)
+        for pattern, description in COMPILED_DANGEROUS_PATTERNS:
+            match = pattern.search(skill_content)
+            if match:
+                # Log security event
+                logger.warning(
+                    f"Skill activation blocked: dangerous pattern detected",
+                    extra={
+                        "skill_name": skill_name,
+                        "pattern_matched": description,
+                        "matched_text": match.group(0)[:50],  # First 50 chars only
+                        "security_event": "SKILL_INJECTION_ATTEMPT",
+                    },
+                )
+
+                # Raise validation error without exposing matched content
+                log_and_raise(
+                    ValidationError,
+                    f"Skill content validation failed: {description}",
+                    details={
+                        "skill_name": skill_name,
+                        "error_code": "DANGEROUS_CONTENT_DETECTED",
+                        "security_issue": description,
+                    },
+                )
 
     def register_tool(self, skill_id: str, skill_name: str, skill_content: str) -> str:
         """Register a skill as an MCP tool.
@@ -469,22 +527,33 @@ class SkillActivationOperations:
                         skill_name=skill.name,
                         skill_content=active_version.core_instructions,
                     )
+                    # Issue #72: Enhanced security logging for successful skill activation
                     logger.info(
                         f"Skill registered as MCP tool: {tool_name}",
                         extra={
                             "skill_id": str(skill_id),
                             "skill_name": skill.name,
                             "tool_name": tool_name,
+                            "security_event": "SKILL_ACTIVATION_SUCCESS",
+                            "agent_id": agent_id,
+                            "namespace": namespace,
+                            "version": skill.active_version,
+                            "activation_id": new_activation.id,
                         },
                     )
                 except Exception as e:
                     # Log error but don't fail activation
                     # Tool registration is additive functionality
+                    # Issue #72: Enhanced security logging for failed skill activation
                     logger.warning(
                         f"Failed to register skill as MCP tool (activation still successful): {e}",
                         extra={
                             "skill_id": str(skill_id),
                             "skill_name": skill.name,
+                            "security_event": "SKILL_ACTIVATION_REGISTRATION_FAILED",
+                            "agent_id": agent_id,
+                            "namespace": namespace,
+                            "error_type": type(e).__name__,
                         },
                     )
             else:
@@ -689,21 +758,32 @@ class SkillActivationOperations:
                         skill_id=str(skill_id),
                         tool_name=tool_name,
                     )
+                    # Issue #72: Enhanced security logging for successful skill deactivation
                     logger.info(
                         f"Skill unregistered from MCP tool registry: {tool_name}",
                         extra={
                             "skill_id": str(skill_id),
                             "skill_name": skill.name,
                             "tool_name": tool_name,
+                            "security_event": "SKILL_DEACTIVATION_SUCCESS",
+                            "agent_id": agent_id,
+                            "namespace": namespace,
+                            "activation_id": latest_activation.id,
+                            "duration_ms": latest_activation.duration_ms,
                         },
                     )
                 except Exception as e:
                     # Log error but don't fail deactivation
+                    # Issue #72: Enhanced security logging for failed skill deactivation
                     logger.warning(
                         f"Failed to unregister skill from MCP tool registry (deactivation still successful): {e}",
                         extra={
                             "skill_id": str(skill_id),
                             "skill_name": skill.name,
+                            "security_event": "SKILL_DEACTIVATION_UNREGISTRATION_FAILED",
+                            "agent_id": agent_id,
+                            "namespace": namespace,
+                            "error_type": type(e).__name__,
                         },
                     )
 

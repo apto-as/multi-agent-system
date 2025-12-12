@@ -358,19 +358,25 @@ class ToolSearchService:
         limit: int = 5,
         agent_id: str | None = None,
         defer_loading: bool = False,
+        detail_level: int = 3,
     ) -> list[dict[str, Any]]:
-        """Simplified search interface for MCP tool.
+        """Simplified search interface for MCP tool with Progressive Disclosure.
+
+        Progressive Disclosure (Issue #66):
+        - detail_level=1: Metadata only (~64 tokens) - name, description, tags, scores
+        - detail_level=2: Core info (~128 tokens) - Level 1 + input_schema summary
+        - detail_level=3: Full schema (unlimited) - Complete tool definition
 
         Args:
             query: Search query string
             source: Source filter ("all", "skills", "internal", "external")
             limit: Maximum results to return
             agent_id: Optional agent ID for personalized ranking (Phase 4.1)
-            defer_loading: If True, return ToolReference without input_schema (85% token reduction)
+            defer_loading: (DEPRECATED) If True, maps to detail_level=1
+            detail_level: Progressive Disclosure level (1, 2, or 3). Default: 3
 
         Returns:
-            List of tool dictionaries (ToolReference if defer_loading=True,
-            full ToolSearchResult otherwise)
+            List of tool dictionaries with content based on detail_level
         """
         import re
 
@@ -381,43 +387,115 @@ class ToolSearchService:
             logger.warning(f"Invalid agent_id rejected at service layer: {agent_id[:20]}")
             agent_id = None  # Fallback to non-personalized search
 
+        # Backward compatibility: defer_loading overrides detail_level
+        if defer_loading:
+            detail_level = 1
+
         search_query = ToolSearchQuery(
             query=query, source=source, limit=limit, defer_loading=defer_loading
         )
         response = await self.search(search_query, agent_id=agent_id)
 
-        if defer_loading:
-            # Return lightweight references without input_schema
-            return [
-                {
-                    "tool_name": r.tool_name,
-                    "server_id": r.server_id,
-                    "description": r.description,
-                    "relevance_score": r.relevance_score,
-                    "weighted_score": r.weighted_score,
-                    "source_type": r.source_type.value,
-                    "tags": r.tags,
-                    "deferred": True,
-                    "personalization_boost": r._personalization_boost,  # Phase 4.1
+        # Apply Progressive Disclosure
+        return [
+            self._apply_detail_level(r, detail_level)
+            for r in response.results
+        ]
+
+    def _apply_detail_level(
+        self,
+        result: ToolSearchResult,
+        detail_level: int,
+    ) -> dict[str, Any]:
+        """Apply Progressive Disclosure filtering to a search result.
+
+        Level 1 (Metadata): ~64 tokens
+        - tool_name, server_id, description (truncated to 200 chars), tags, scores
+
+        Level 2 (Core): ~128 tokens
+        - Level 1 + input_schema summary (param names and types only)
+
+        Level 3 (Full): Unlimited
+        - Level 2 + complete input_schema with descriptions
+
+        Args:
+            result: ToolSearchResult to filter
+            detail_level: Disclosure level (1, 2, or 3)
+
+        Returns:
+            Filtered dictionary with appropriate content
+        """
+        # Level 1: Metadata only (~64 tokens)
+        base = {
+            "tool_name": result.tool_name,
+            "server_id": result.server_id,
+            "description": (
+                result.description[:200] + "..."
+                if len(result.description) > 200
+                else result.description
+            ),
+            "relevance_score": result.relevance_score,
+            "weighted_score": result.weighted_score,
+            "source_type": result.source_type.value,
+            "tags": result.tags,
+            "personalization_boost": result._personalization_boost,
+            "detail_level": detail_level,
+        }
+
+        if detail_level == 1:
+            return base
+
+        # Level 2: Core info (~128 tokens) - Add input_schema summary
+        if detail_level >= 2:
+            schema_summary = self._extract_schema_summary(result.input_schema)
+            base["input_schema_summary"] = schema_summary
+            base["description"] = result.description  # Full description at level 2+
+
+        # Level 3: Full schema (unlimited)
+        if detail_level >= 3:
+            base["input_schema"] = result.input_schema
+            # Remove summary at level 3 (redundant with full schema)
+            base.pop("input_schema_summary", None)
+
+        return base
+
+    def _extract_schema_summary(self, input_schema: dict[str, Any]) -> dict[str, Any]:
+        """Extract compact summary from JSON schema.
+
+        Extracts only parameter names and types, omitting descriptions
+        and nested definitions to reduce token count.
+
+        Args:
+            input_schema: Full JSON schema
+
+        Returns:
+            Compact schema summary with names and types only
+        """
+        if not input_schema or not isinstance(input_schema, dict):
+            # Return minimal structure for empty schemas
+            return {
+                "type": "object",
+                "required": [],
+            }
+
+        summary = {
+            "type": input_schema.get("type", "object"),
+            "required": input_schema.get("required", []),
+        }
+
+        # Extract parameter types (not descriptions)
+        properties = input_schema.get("properties", {})
+        if properties:
+            summary["properties"] = {
+                name: {
+                    "type": prop.get("type", "any"),
+                    # Include enum values as they're compact
+                    **({"enum": prop["enum"]} if "enum" in prop else {}),
                 }
-                for r in response.results
-            ]
-        else:
-            # Return full results with input_schema (backward compatible)
-            return [
-                {
-                    "tool_name": r.tool_name,
-                    "server_id": r.server_id,
-                    "description": r.description,
-                    "relevance_score": r.relevance_score,
-                    "weighted_score": r.weighted_score,
-                    "source_type": r.source_type.value,
-                    "tags": r.tags,
-                    "input_schema": r.input_schema,
-                    "personalization_boost": r._personalization_boost,  # Phase 4.1
-                }
-                for r in response.results
-            ]
+                for name, prop in properties.items()
+            }
+
+        return summary
 
     async def get_tool_details(
         self,
