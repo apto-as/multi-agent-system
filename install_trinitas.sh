@@ -889,13 +889,16 @@ generate_mcp_config() {
         docker)
             cat > "$output_file" <<'MCPEOF'
 {
-  "$comment": "TMWS MCP Configuration - Docker Mode (Generated v2.4.12)",
+  "$comment": "TMWS MCP Configuration - Docker Mode (Generated v2.4.18)",
   "mcpServers": {
     "tmws": {
       "type": "stdio",
       "command": "docker",
-      "args": ["exec", "-i", "tmws-app", "tmws-mcp-server"],
-      "env": {}
+      "args": ["exec", "-i", "tmws-app", "sh", "-c", "exec tmws-mcp-server 2>/dev/null"],
+      "env": {
+        "PYTHONUNBUFFERED": "1",
+        "PYTHONIOENCODING": "utf-8"
+      }
     },
     "context7": {
       "type": "stdio",
@@ -910,7 +913,7 @@ MCPEOF
         uv)
             cat > "$output_file" <<MCPEOF
 {
-  "\$comment": "TMWS MCP Configuration - UV Mode (Generated v2.4.12)",
+  "\$comment": "TMWS MCP Configuration - UV Mode (Generated v2.4.18)",
   "mcpServers": {
     "tmws": {
       "type": "stdio",
@@ -933,7 +936,7 @@ MCPEOF
         local)
             cat > "$output_file" <<MCPEOF
 {
-  "\$comment": "TMWS MCP Configuration - Local Mode (Generated v2.4.12)",
+  "\$comment": "TMWS MCP Configuration - Local Mode (Generated v2.4.18)",
   "mcpServers": {
     "tmws": {
       "type": "stdio",
