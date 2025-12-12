@@ -13,6 +13,7 @@ from .persona_service import PersonaService
 from .proactive_context_service import ProactiveContextService
 from .task_routing_service import TaskRoutingService
 from .task_service import TaskService
+from .template_service import TemplateService, PhaseTemplate
 from .workflow_service import WorkflowService
 
 # Export HybridMemoryService as default MemoryService
@@ -32,8 +33,10 @@ __all__ = [
     "OrchestrationEngine",
     "PatternDetectionService",
     "PersonaService",
+    "PhaseTemplate",
     "ProactiveContextService",
     "TaskService",
     "TaskRoutingService",
+    "TemplateService",
     "WorkflowService",
 ]
