@@ -24,10 +24,7 @@ from typing import Any
 
 from fastmcp import FastMCP
 
-from ..services.tool_search_service import (
-    get_tool_search_service,
-    initialize_tool_search_service,
-)
+from ..services.tool_search_service import initialize_tool_search_service
 
 logger = logging.getLogger(__name__)
 
@@ -37,20 +34,20 @@ async def register_tools(mcp: FastMCP, **kwargs: Any) -> None:
 
     Args:
         mcp: FastMCP instance to register tools on
-        **kwargs: Additional configuration options
+        **kwargs: Additional configuration options including:
+            - embedding_service: Service for generating embeddings (required for Ollama)
+            - persist_directory: ChromaDB persistence directory
     """
-    # Get or initialize service
+    # Always initialize with embedding_service to use Ollama instead of
+    # ChromaDB's default all-MiniLM-L6-v2 model
     embedding_service = kwargs.get("embedding_service")
+    persist_directory = kwargs.get("persist_directory", "./data/chromadb")
 
-    try:
-        service = get_tool_search_service()
-        if not service._collection:
-            await service.initialize()
-    except Exception:
-        service = await initialize_tool_search_service(
-            embedding_service=embedding_service,
-            persist_directory=kwargs.get("persist_directory", "./data/chromadb"),
-        )
+    # Force re-initialization to ensure embedding_service is properly set
+    service = await initialize_tool_search_service(
+        embedding_service=embedding_service,
+        persist_directory=persist_directory,
+    )
 
     @mcp.tool(
         name="search_tools",
