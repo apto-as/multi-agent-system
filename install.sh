@@ -459,8 +459,8 @@ install_claude_config() {
         curl -fsSL "${github_base}/claudecode/AGENTS.md" -o "${config_src}/AGENTS.md" 2>/dev/null || true
         curl -fsSL "${github_base}/claudecode/SUBAGENT_EXECUTION_RULES.md" -o "${config_src}/SUBAGENT_EXECUTION_RULES.md" 2>/dev/null || true
 
-        # Download agents
-        for agent in athena-conductor artemis-optimizer hestia-auditor eris-coordinator hera-strategist muses-documenter aphrodite-designer metis-developer aurora-researcher; do
+        # Download agents (11 total: 2 Orchestrators + 9 Specialists)
+        for agent in clotho-orchestrator lachesis-support athena-conductor artemis-optimizer hestia-auditor eris-coordinator hera-strategist muses-documenter aphrodite-designer metis-developer aurora-researcher; do
             curl -fsSL "${github_base}/claudecode/agents/${agent}.md" -o "${config_src}/agents/${agent}.md" 2>/dev/null || true
         done
 
