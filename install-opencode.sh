@@ -434,8 +434,8 @@ install_opencode_config() {
         curl -fsSL "${github_base}/opencode/opencode.json" -o "${config_src}/opencode.json" 2>/dev/null || true
         curl -fsSL "${github_base}/opencode/AGENTS.md" -o "${config_src}/AGENTS.md" 2>/dev/null || true
 
-        # Download agents (OpenCode uses different naming without -conductor etc suffixes)
-        for agent in athena artemis hestia eris hera muses aphrodite metis aurora; do
+        # Download agents (11 total: 2 Orchestrators + 9 Specialists)
+        for agent in clotho lachesis athena artemis hestia eris hera muses aphrodite metis aurora; do
             curl -fsSL "${github_base}/opencode/agent/${agent}.md" -o "${config_src}/agent/${agent}.md" 2>/dev/null || true
         done
 
