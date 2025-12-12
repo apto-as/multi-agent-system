@@ -97,6 +97,59 @@ def _validate_query(query: str) -> tuple[bool, str, str]:
     return True, normalized, ""
 
 
+async def _record_tool_outcome(
+    tool_name: str,
+    server_id: str,
+    outcome: str,
+    latency_ms: float,
+    agent_id: str | None = None,
+    error_type: str | None = None,
+) -> None:
+    """Record tool execution outcome for learning system.
+
+    Issue #72: Tool usage tracking integration with ToolSearchService.
+
+    Args:
+        tool_name: Name of the tool executed
+        server_id: Server ID (format: "mcp__{server}")
+        outcome: Execution outcome ("success", "error", "timeout", "abandoned")
+        latency_ms: Execution latency in milliseconds
+        agent_id: Optional agent ID for personalized learning
+        error_type: Optional error type for failures
+    """
+    try:
+        from datetime import datetime, timezone
+        from ..models.tool_search import ToolUsageRecord
+
+        tool_search = get_tool_search_service()
+
+        record = ToolUsageRecord(
+            tool_name=tool_name,
+            server_id=server_id,
+            query="",  # Query context not available in call_mcp_tool
+            outcome=outcome,
+            latency_ms=latency_ms,
+            timestamp=datetime.now(timezone.utc),
+        )
+
+        await tool_search.record_usage(record, agent_id=agent_id)
+
+        logger.debug(
+            f"Tool outcome recorded: {tool_name} - {outcome}",
+            extra={
+                "tool_name": tool_name,
+                "server_id": server_id,
+                "outcome": outcome,
+                "latency_ms": round(latency_ms, 2),
+                "agent_id": agent_id,
+                "error_type": error_type,
+            }
+        )
+    except Exception as e:
+        # Non-critical: Don't fail tool execution if outcome recording fails
+        logger.warning(f"Failed to record tool outcome: {e}")
+
+
 async def register_tools(mcp: FastMCP, **kwargs: Any) -> None:
     """Register MCP Hub management tools.
 
@@ -483,6 +536,7 @@ async def register_tools(mcp: FastMCP, **kwargs: Any) -> None:
         server_id: str,
         tool_name: str,
         arguments: dict[str, Any] | None = None,
+        agent_id: str | None = None,
     ) -> dict[str, Any]:
         """Execute a tool on an MCP server.
 
@@ -495,6 +549,7 @@ async def register_tools(mcp: FastMCP, **kwargs: Any) -> None:
             server_id: Server identifier (e.g., "context7")
             tool_name: Tool name to execute (e.g., "resolve-library-id")
             arguments: Tool arguments as a dictionary (optional)
+            agent_id: Optional agent ID for usage tracking (Issue #72)
 
         Returns:
             The tool's execution result, or error information.
@@ -510,12 +565,28 @@ async def register_tools(mcp: FastMCP, **kwargs: Any) -> None:
         if arguments is None:
             arguments = {}
 
+        # Issue #72: Track tool execution for learning and monitoring
+        start_time = time.time()
+        outcome = "success"
+        error_type = None
+
         try:
             result = await hub_manager.call_tool(
                 server_id=server_id,
                 tool_name=tool_name,
                 arguments=arguments,
             )
+
+            # Issue #72: Record successful tool outcome
+            latency_ms = (time.time() - start_time) * 1000
+            await _record_tool_outcome(
+                tool_name=tool_name,
+                server_id=f"mcp__{server_id}",
+                outcome="success",
+                latency_ms=latency_ms,
+                agent_id=agent_id,
+            )
+
             return {
                 "success": True,
                 "server_id": server_id,
@@ -523,7 +594,34 @@ async def register_tools(mcp: FastMCP, **kwargs: Any) -> None:
                 "result": result,
             }
         except Exception as e:
-            logger.error(f"Failed to call MCP tool {server_id}:{tool_name}: {e}")
+            # Issue #72: Record failed tool outcome
+            latency_ms = (time.time() - start_time) * 1000
+            error_type = type(e).__name__
+
+            # Determine outcome type based on error
+            if "timeout" in str(e).lower():
+                outcome = "timeout"
+            else:
+                outcome = "error"
+
+            await _record_tool_outcome(
+                tool_name=tool_name,
+                server_id=f"mcp__{server_id}",
+                outcome=outcome,
+                latency_ms=latency_ms,
+                agent_id=agent_id,
+                error_type=error_type,
+            )
+
+            logger.error(
+                f"Failed to call MCP tool {server_id}:{tool_name}: {e}",
+                extra={
+                    "server_id": server_id,
+                    "tool_name": tool_name,
+                    "error_type": error_type,
+                    "latency_ms": round(latency_ms, 2),
+                }
+            )
             return {
                 "success": False,
                 "server_id": server_id,

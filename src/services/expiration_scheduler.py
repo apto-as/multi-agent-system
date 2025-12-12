@@ -70,9 +70,15 @@ class ExpirationScheduler:
         self._next_run_time = datetime.now(timezone.utc) + timedelta(seconds=interval_seconds)
 
         self._task = asyncio.create_task(self._run_scheduler())
+
+        # Issue #72: Enhanced monitoring logging for scheduler start
         logger.info(
             "Expiration scheduler started",
-            extra={"interval_hours": self.interval_hours},
+            extra={
+                "interval_hours": self.interval_hours,
+                "next_run_time": self._next_run_time.isoformat(),
+                "monitoring_event": "SCHEDULER_START",
+            },
         )
 
     async def stop(self) -> None:
@@ -87,11 +93,14 @@ class ExpirationScheduler:
             with suppress(asyncio.CancelledError):
                 await self._task  # Expected when stopping
 
+        # Issue #72: Enhanced monitoring logging for scheduler stop
         logger.info(
             "Expiration scheduler stopped",
             extra={
                 "total_cleanups": self._total_cleanups,
                 "total_deleted": self._total_deleted,
+                "last_run_time": self._last_run_time.isoformat() if self._last_run_time else None,
+                "monitoring_event": "SCHEDULER_STOP",
             },
         )
 
@@ -170,12 +179,15 @@ class ExpirationScheduler:
             self._total_cleanups += 1
             self._total_deleted += deleted_count
 
+            # Issue #72: Enhanced monitoring logging for cleanup execution
             logger.info(
                 "Scheduled expiration cleanup completed",
                 extra={
                     "deleted_count": deleted_count,
                     "total_cleanups": self._total_cleanups,
                     "total_deleted": self._total_deleted,
+                    "last_run_time": self._last_run_time.isoformat(),
+                    "monitoring_event": "SCHEDULER_CLEANUP_SUCCESS",
                 },
             )
 
@@ -185,10 +197,14 @@ class ExpirationScheduler:
             # Never suppress user interrupts
             raise
         except Exception as e:
-            # Log error and re-raise
+            # Issue #72: Enhanced error logging for cleanup failures
             logger.error(
                 f"Expiration cleanup failed: {e}",
-                extra={"error_type": type(e).__name__},
+                extra={
+                    "error_type": type(e).__name__,
+                    "total_cleanups_attempted": self._total_cleanups + 1,
+                    "monitoring_event": "SCHEDULER_CLEANUP_FAILED",
+                },
                 exc_info=True,
             )
             raise
