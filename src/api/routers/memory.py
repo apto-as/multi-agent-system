@@ -31,7 +31,7 @@ from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import (
@@ -88,8 +88,8 @@ class CleanupNamespaceRequest(BaseModel):
         examples=[100_000],
     )
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "namespace": "default",
                 "days": 90,
@@ -98,6 +98,7 @@ class CleanupNamespaceRequest(BaseModel):
                 "limit": 100_000,
             }
         }
+    )
 
 
 class CleanupNamespaceResponse(BaseModel):
@@ -124,8 +125,8 @@ class CleanupNamespaceResponse(BaseModel):
         examples=[{"days": 90, "min_importance": 0.3, "limit": 100_000}],
     )
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "deleted_count": 42,
                 "dry_run": False,
@@ -137,6 +138,7 @@ class CleanupNamespaceResponse(BaseModel):
                 },
             }
         }
+    )
 
 
 class PruneExpiredRequest(BaseModel):
@@ -160,14 +162,15 @@ class PruneExpiredRequest(BaseModel):
         examples=[False],
     )
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "namespace": "default",
                 "limit": 1000,
                 "dry_run": False,
             }
         }
+    )
 
 
 class PruneExpiredResponse(BaseModel):
@@ -199,8 +202,8 @@ class PruneExpiredResponse(BaseModel):
         examples=[["123e4567-e89b-12d3-a456-426614174000"]],
     )
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "deleted_count": 15,
                 "expired_count": 15,
@@ -209,6 +212,7 @@ class PruneExpiredResponse(BaseModel):
                 "deleted_ids": ["123e4567-e89b-12d3-a456-426614174000"],
             }
         }
+    )
 
 
 class SetMemoryTTLRequest(BaseModel):
@@ -227,13 +231,14 @@ class SetMemoryTTLRequest(BaseModel):
         examples=[30],
     )
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "memory_id": "123e4567-e89b-12d3-a456-426614174000",
                 "ttl_days": 30,
             }
         }
+    )
 
 
 class SetMemoryTTLResponse(BaseModel):
@@ -265,8 +270,8 @@ class SetMemoryTTLResponse(BaseModel):
         examples=[90],
     )
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "success": True,
                 "memory_id": "123e4567-e89b-12d3-a456-426614174000",
@@ -275,6 +280,7 @@ class SetMemoryTTLResponse(BaseModel):
                 "previous_ttl_days": 90,
             }
         }
+    )
 
 
 # ============================================================================

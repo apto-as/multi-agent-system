@@ -35,7 +35,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -124,8 +124,8 @@ class CreateSkillRequest(BaseModel):
                 raise ValueError(f"Invalid tag: {tag} (must be 1-50 chars)")
         return v
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "name": "python-testing",
                 "content": "# Python Testing Best Practices\n\n## Core Instructions\n...",
@@ -134,6 +134,7 @@ class CreateSkillRequest(BaseModel):
                 "access_level": "private",
             }
         }
+    )
 
 
 class UpdateSkillRequest(BaseModel):
@@ -161,8 +162,8 @@ class UpdateSkillRequest(BaseModel):
         description="New access level",
     )
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "name": "python-testing-advanced",
                 "content": "# Advanced Python Testing\n\n## Core Instructions\n...",
@@ -170,6 +171,7 @@ class UpdateSkillRequest(BaseModel):
                 "access_level": "team",
             }
         }
+    )
 
 
 class ShareSkillRequest(BaseModel):
@@ -196,13 +198,14 @@ class ShareSkillRequest(BaseModel):
             raise ValueError("Agent IDs list cannot be empty")
         return v
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "agent_ids_to_add": ["agent-123", "agent-456"],
                 "agent_ids_to_remove": ["agent-789"],
             }
         }
+    )
 
 
 # ============================================================================
@@ -220,9 +223,9 @@ class SkillListResponse(BaseModel):
     limit: int
     offset: int
 
-    class Config:
-        from_attributes = True
-        json_schema_extra = {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "example": {
                 "skills": [
                     {
@@ -250,6 +253,7 @@ class SkillListResponse(BaseModel):
                 "offset": 0,
             }
         }
+    )
 
 
 class SkillResponse(BaseModel):
@@ -257,9 +261,9 @@ class SkillResponse(BaseModel):
 
     skill: SkillDTO
 
-    class Config:
-        from_attributes = True
-        json_schema_extra = {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "example": {
                 "skill": {
                     "id": "123e4567-e89b-12d3-a456-426614174000",
@@ -282,6 +286,7 @@ class SkillResponse(BaseModel):
                 }
             }
         }
+    )
 
 
 class SkillDeleteResponse(BaseModel):
@@ -291,14 +296,15 @@ class SkillDeleteResponse(BaseModel):
     skill_id: str
     message: str = "Skill deleted successfully"
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "success": True,
                 "skill_id": "123e4567-e89b-12d3-a456-426614174000",
                 "message": "Skill deleted successfully",
             }
         }
+    )
 
 
 class SkillShareResponse(BaseModel):
@@ -309,8 +315,8 @@ class SkillShareResponse(BaseModel):
     shared_with: list[str]
     message: str = "Skill sharing updated successfully"
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "success": True,
                 "skill_id": "123e4567-e89b-12d3-a456-426614174000",
@@ -318,6 +324,7 @@ class SkillShareResponse(BaseModel):
                 "message": "Skill sharing updated successfully",
             }
         }
+    )
 
 
 class SkillActivateResponse(BaseModel):
@@ -328,8 +335,8 @@ class SkillActivateResponse(BaseModel):
     is_active: bool
     message: str
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "success": True,
                 "skill_id": "123e4567-e89b-12d3-a456-426614174000",
@@ -337,6 +344,7 @@ class SkillActivateResponse(BaseModel):
                 "message": "Skill activated successfully",
             }
         }
+    )
 
 
 # ============================================================================
