@@ -1,5 +1,5 @@
 # =============================================================================
-# Trinitas Multi-Agent System Installer v2.4.16
+# Trinitas Multi-Agent System Installer v2.4.19
 # For Windows (WSL2 Required)
 # =============================================================================
 #
@@ -32,11 +32,11 @@ param(
 )
 
 # Version
-$INSTALLER_VERSION = "2.4.16"
-$TMWS_VERSION = "2.4.16"
+$INSTALLER_VERSION = "2.4.19"
+$TMWS_VERSION = "2.4.19"
 
 # Configuration
-$TMWS_IMAGE = "ghcr.io/apto-as/tmws:latest"
+$TMWS_IMAGE = "docker.io/aptoas/tmws:latest"
 $DEFAULT_LICENSE_KEY = "TMWS-ENTERPRISE-020d8e77-de36-48a1-b585-7f66aef78c06-20260303-Tp9UYRt6ucUB21hPF9lqZoH.FjSslvfr~if1ThD75L.ro~Kx5glyVyGPm0n4xuziJ~Qmc87PZipJWCefj2HEAA"
 
 # Colors
@@ -323,7 +323,7 @@ function Show-Completion {
     Write-Host "=======================================================================" -ForegroundColor Green
     Write-Host ""
     Write-Host "What was installed:" -ForegroundColor Cyan
-    Write-Host "  - TMWS Docker container (ghcr.io/apto-as/tmws:$TMWS_VERSION)"
+    Write-Host "  - TMWS Docker container (docker.io/aptoas/tmws:$TMWS_VERSION)"
     Write-Host "  - Trinitas 9-agent configuration for $TargetIDE"
     Write-Host "  - Pre-activated ENTERPRISE license"
     Write-Host ""

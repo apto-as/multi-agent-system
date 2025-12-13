@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# Trinitas Multi-Agent System Installer v2.4.16
+# Trinitas Multi-Agent System Installer v2.4.19
 # For OpenCode on Linux/macOS/WSL
 # =============================================================================
 #
@@ -26,8 +26,8 @@
 set -euo pipefail
 
 # Version
-INSTALLER_VERSION="2.4.16"
-TMWS_VERSION="2.4.16"
+INSTALLER_VERSION="2.4.19"
+TMWS_VERSION="2.4.19"
 INSTALLER_TYPE="opencode"
 
 # Colors
@@ -40,7 +40,7 @@ MAGENTA='\033[0;35m'
 NC='\033[0m' # No Color
 
 # Configuration
-TMWS_IMAGE="ghcr.io/apto-as/tmws:latest"
+TMWS_IMAGE="docker.io/aptoas/tmws:latest"
 TRINITAS_CONFIG_DIR="${HOME}/.trinitas"
 OPENCODE_CONFIG_DIR="${HOME}/.config/opencode"
 BACKUP_DIR="${HOME}/.trinitas-backup"
@@ -69,7 +69,7 @@ show_banner() {
 ║      ██║   ██║  ██║██║██║ ╚████║██║   ██║   ██║  ██║███████║         ║
 ║      ╚═╝   ╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝╚═╝   ╚═╝   ╚═╝  ╚═╝╚══════╝         ║
 ║                                                                       ║
-║            Multi-Agent System Installer v2.4.16                       ║
+║            Multi-Agent System Installer v2.4.19                       ║
 ║            For OpenCode                                               ║
 ║                                                                       ║
 ╚═══════════════════════════════════════════════════════════════════════╝
@@ -602,7 +602,7 @@ show_completion() {
     echo -e "${GREEN}╚═══════════════════════════════════════════════════════════════════════╝${NC}"
     echo ""
     echo -e "${CYAN}What was installed:${NC}"
-    echo "  - TMWS Docker container (ghcr.io/apto-as/tmws:${TMWS_VERSION})"
+    echo "  - TMWS Docker container (docker.io/aptoas/tmws:${TMWS_VERSION})"
     echo "  - Trinitas 9-agent configuration for OpenCode"
     echo "  - Pre-activated ENTERPRISE license"
     echo ""
