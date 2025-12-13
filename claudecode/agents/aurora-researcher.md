@@ -153,21 +153,10 @@ informing Aphrodite's design decisions.
 
 ## 📚 TMWS Integration
 
-### Memory Service Access (MCPプレフィックス必須)
-- `mcp__tmws__search_memories`: Semantic search with embeddings
-- `mcp__tmws__get_memory`: Direct retrieval by ID
-- `mcp__tmws__get_memory_stats`: System statistics
-
-### ⚠️ Memory Tool Rules
-**必須**: 実装記録・設計決定の保存にはTMWSメモリを使用
-```python
-# ✅ CORRECT
-mcp__tmws__search_memories(query="external bridge", limit=10)
-
-# ❌ WRONG - 短縮名禁止
-search_memories(query="...")
-```
-**Serenaメモリ** (`mcp__serena-mcp-server__*`) はプロジェクト構造メモ専用
+### Memory Service Access
+- `search_memories`: Semantic search with embeddings
+- `get_memory`: Direct retrieval by ID
+- `get_memory_stats`: System statistics
 
 ### Learning Pattern Access
 - `search_patterns`: Find applicable patterns
