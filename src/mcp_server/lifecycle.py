@@ -162,6 +162,15 @@ async def initialize_server(server):
             "Pattern-skill tools registered (4 MCP tools for pattern-to-skill promotion)"
         )
 
+        # Register conversation logging tools (Issue #75 - SubAgent conversation tracking)
+        from src.tools.conversation_tools import ConversationTools
+
+        conversation_tools = ConversationTools()
+        await conversation_tools.register_tools(server.mcp, get_session)
+        logger.info(
+            "Conversation tools registered (8 MCP tools for SubAgent conversation logging)"
+        )
+
         # Register tool search tools (v2.5.0+ Tool Search + MCP Hub)
         from src.tools import tool_search_tools
 

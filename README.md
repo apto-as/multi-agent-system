@@ -1,13 +1,22 @@
 # TMWS - Trinitas Memory & Workflow Service
 
-[![Version](https://img.shields.io/badge/version-2.4.8-blue)](https://github.com/apto-as/tmws)
+[![Version](https://img.shields.io/badge/version-2.4.19-blue)](https://github.com/apto-as/tmws)
 [![Python](https://img.shields.io/badge/python-3.11%2B-green)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-purple)](LICENSE)
 [![MCP Compatible](https://img.shields.io/badge/MCP-compatible-orange)](https://modelcontextprotocol.io)
 
 **Ultra-fast, multi-agent memory and workflow service with SQLite + ChromaDB architecture.**
 
-## What's New in v2.4.6
+## What's New in v2.4.19
+
+- **Issue #73: ChromaDB Skills Extension**: Unified search across Skills, Tools, and MCP servers with 85% token reduction
+- **Issue #74: Persona Linguistic Calibration**: GFL2 character-based language profiles for 11 Trinitas personas
+- **Issue #75: SubAgent Conversation Logging**: Full conversation capture with pattern learning export
+
+### Previous Releases
+
+**v2.4.18**: Gap Integration Complete - 85% Feature Utilization Achieved
+**v2.4.6
 
 - **P3 Security Enhancements**: Enhanced credential protection and command validation
 - **R-1 Env Masking**: Automatic detection and masking of API keys, secrets, tokens (13 patterns)
@@ -312,4 +321,4 @@ Licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
 ---
 
-**TMWS v2.4.8** - Ultra-fast memory and workflow service for AI agents (MCP-first architecture)
+**TMWS v2.4.19** - Ultra-fast memory and workflow service for AI agents (MCP-first architecture)

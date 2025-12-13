@@ -10,6 +10,7 @@ from .audit_log import SecurityAuditLog, SecurityEventSeverity, SecurityEventTyp
 from .base import MetadataMixin, TimestampMixin, TMWSBase, UUIDMixin
 
 # Autonomous Learning System (v2.5.0)
+from .conversation_log import ConversationLog, ConversationSession
 from .execution_trace import DetectedPattern, ExecutionTrace, SkillSuggestion
 from .learning_pattern import LearningPattern
 from .license_key import LicenseKey, LicenseKeyUsage
@@ -77,6 +78,8 @@ __all__ = [
     "ToolInstance",
     "ToolVerificationHistory",
     # Autonomous Learning System (v2.5.0)
+    "ConversationLog",
+    "ConversationSession",
     "ExecutionTrace",
     "DetectedPattern",
     "SkillSuggestion",
