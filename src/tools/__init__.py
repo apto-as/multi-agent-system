@@ -8,8 +8,10 @@ This package contains modularized MCP tools for:
 - Workflow execution and monitoring
 - System management and optimization
 - Learning and pattern recognition
+- Conversation logging and pattern extraction
 """
 
+from .conversation_tools import ConversationTools
 from .learning_tools import LearningTools
 from .memory_tools import MemoryTools
 from .persona_tools import PersonaTools
@@ -24,6 +26,7 @@ __all__ = [
     "WorkflowTools",
     "SystemTools",
     "LearningTools",
+    "ConversationTools",
 ]
 
 __version__ = "1.0.0"

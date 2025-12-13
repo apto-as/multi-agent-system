@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.database import get_db_session
 from ..services import get_embedding_service
+from ..services.conversation_log_service import ConversationLogService
 from ..services.memory_service import HybridMemoryService
 from ..services.persona_service import PersonaService
 from ..services.task_service import TaskService
@@ -43,6 +44,7 @@ class BaseTool(ABC):
             "persona_service": PersonaService(session),
             "task_service": TaskService(session),
             "workflow_service": WorkflowService(session),
+            "conversation_log_service": ConversationLogService(session),
             "embedding_service": get_embedding_service(),
         }
 
