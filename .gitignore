@@ -69,6 +69,7 @@ htmlcov/
 # ============================================
 # SECURITY: Sensitive environment files
 # Added: 2025-10-24 - CRITICAL security fix
+# Updated: 2025-12-13 - Extended to cover archive directories
 # ============================================
 .env
 .env.*
@@ -81,6 +82,11 @@ config/*.env
 !config/*.env.template
 config/production.env.secure
 config/development.env
+
+# Archive directories - prevent legacy credentials from being committed
+docs/archive/**/*.env
+docs/archive/**/*.env.*
+docs/archive/**/config_backups/
 *.swp
 *.swo
 *~
