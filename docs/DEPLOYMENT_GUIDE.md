@@ -177,7 +177,7 @@ sudo -u postgres createdb tmws_production
 
 # Create user
 sudo -u postgres psql <<EOF
-CREATE USER tmws_user WITH PASSWORD 'CHANGE_THIS_SECURE_PASSWORD';
+CREATE USER tmws_user WITH PASSWORD '${DB_PASSWORD}';
 GRANT ALL PRIVILEGES ON DATABASE tmws_production TO tmws_user;
 ALTER DATABASE tmws_production OWNER TO tmws_user;
 EOF
@@ -254,7 +254,7 @@ hostssl replication     replicator      10.0.0.0/8              scram-sha-256
 
 ```bash
 # Set environment variables
-export TMWS_DATABASE_URL="postgresql://tmws_user:PASSWORD@localhost:5432/tmws_production"
+export TMWS_DATABASE_URL="postgresql://tmws_user:${DB_PASSWORD}@localhost:5432/tmws_production"
 
 # Run migrations
 cd /path/to/tmws
@@ -271,7 +271,7 @@ python -m alembic current
 ```bash
 # Create replication user
 sudo -u postgres psql <<EOF
-CREATE USER replicator WITH REPLICATION ENCRYPTED PASSWORD 'REPLICATION_PASSWORD';
+CREATE USER replicator WITH REPLICATION ENCRYPTED PASSWORD '${REPLICATION_PASSWORD}';
 EOF
 
 # Configure postgresql.conf
@@ -323,7 +323,7 @@ brew services start redis
 bind 0.0.0.0
 port 6379
 protected-mode yes
-requirepass YOUR_SECURE_REDIS_PASSWORD
+requirepass ${REDIS_PASSWORD}
 
 # TLS (Production)
 tls-port 6380
@@ -366,7 +366,7 @@ sentinel monitor tmws-redis 10.0.0.1 6379 2
 sentinel down-after-milliseconds tmws-redis 5000
 sentinel parallel-syncs tmws-redis 1
 sentinel failover-timeout tmws-redis 10000
-sentinel auth-pass tmws-redis YOUR_REDIS_PASSWORD
+sentinel auth-pass tmws-redis ${REDIS_PASSWORD}
 ```
 
 **Start Sentinel**:
@@ -445,10 +445,10 @@ TMWS_ENVIRONMENT=production
 TMWS_LOG_LEVEL=INFO
 
 # === Database Configuration ===
-TMWS_DATABASE_URL=postgresql://tmws_user:PASSWORD@db-primary.example.com:5432/tmws_production?sslmode=require
+TMWS_DATABASE_URL=postgresql://tmws_user:${DB_PASSWORD}@db-primary.example.com:5432/tmws_production?sslmode=require
 
 # === Redis Configuration ===
-TMWS_REDIS_URL=rediss://default:PASSWORD@redis.example.com:6380/0
+TMWS_REDIS_URL=rediss://default:${REDIS_PASSWORD}@redis.example.com:6380/0
 
 # === Security Keys ===
 TMWS_SECRET_KEY=YOUR_SECURE_SECRET_KEY_MINIMUM_32_CHARACTERS_LONG
@@ -541,7 +541,7 @@ services:
     image: pgvector/pgvector:pg17
     environment:
       POSTGRES_USER: tmws_user
-      POSTGRES_PASSWORD: CHANGE_THIS
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: tmws_production
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -551,7 +551,7 @@ services:
 
   redis:
     image: redis:7.2-alpine
-    command: redis-server --requirepass CHANGE_THIS
+    command: redis-server --requirepass ${REDIS_PASSWORD}
     volumes:
       - redis_data:/data
     ports:
@@ -866,7 +866,7 @@ save 60 10000
 
 ```bash
 # Trigger manual save
-redis-cli -a PASSWORD BGSAVE
+redis-cli -a $REDIS_PASSWORD BGSAVE
 
 # Copy RDB file
 cp /var/lib/redis/dump.rdb /var/backups/tmws/redis/dump_$(date +%Y%m%d).rdb
@@ -876,7 +876,7 @@ cp /var/lib/redis/dump.rdb /var/backups/tmws/redis/dump_$(date +%Y%m%d).rdb
 
 ```bash
 # Enable AOF
-redis-cli -a PASSWORD CONFIG SET appendonly yes
+redis-cli -a $REDIS_PASSWORD CONFIG SET appendonly yes
 
 # Copy AOF file
 cp /var/lib/redis/appendonly.aof /var/backups/tmws/redis/aof_$(date +%Y%m%d).aof
@@ -942,8 +942,8 @@ sudo systemctl stop tmws
 pg_restore -U tmws_user -d tmws_production /var/backups/tmws/postgresql/latest.dump.gz
 
 # 3. Restore Redis (optional, can rebuild from PostgreSQL)
-redis-cli -a PASSWORD FLUSHALL
-redis-cli -a PASSWORD --rdb /var/backups/tmws/redis/latest.rdb
+redis-cli -a $REDIS_PASSWORD FLUSHALL
+redis-cli -a $REDIS_PASSWORD --rdb /var/backups/tmws/redis/latest.rdb
 
 # 4. Restore Chroma (optional, can rebuild from PostgreSQL)
 tar -xzf /var/backups/tmws/chroma/latest.tar.gz -C /var/lib/tmws
@@ -1052,10 +1052,10 @@ REINDEX INDEX memories_embedding_v2_idx;
 
 ```bash
 # Monitor slow queries
-redis-cli -a PASSWORD SLOWLOG GET 10
+redis-cli -a $REDIS_PASSWORD SLOWLOG GET 10
 
 # Optimize memory usage
-redis-cli -a PASSWORD MEMORY DOCTOR
+redis-cli -a $REDIS_PASSWORD MEMORY DOCTOR
 ```
 
 **Chroma**:
@@ -1112,7 +1112,7 @@ redis.exceptions.ConnectionError: Error connecting to Redis
 sudo systemctl status redis
 
 # Test connection
-redis-cli -a PASSWORD ping
+redis-cli -a $REDIS_PASSWORD ping
 
 # Check logs
 sudo journalctl -u redis -f
@@ -1120,9 +1120,9 @@ sudo journalctl -u redis -f
 
 **Solutions**:
 1. Verify Redis is running: `sudo systemctl start redis`
-2. Check password: `redis-cli -a YOUR_PASSWORD ping`
+2. Check password: `redis-cli -a $REDIS_PASSWORD ping`
 3. Verify firewall allows port 6379
-4. Check memory usage: `redis-cli -a PASSWORD INFO memory`
+4. Check memory usage: `redis-cli -a $REDIS_PASSWORD INFO memory`
 
 ---
 
@@ -1170,7 +1170,7 @@ free -h
 ps aux | grep postgres
 
 # Check Redis memory
-redis-cli -a PASSWORD INFO memory
+redis-cli -a $REDIS_PASSWORD INFO memory
 
 # Check Chroma memory
 ps aux | grep chroma
