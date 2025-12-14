@@ -1,11 +1,11 @@
-# MANDATORY SubAgent Execution Rules v2.4.19
+# MANDATORY SubAgent Execution Rules v2.4.20
 ## Trinitas Multi-Agent Parallel Execution Protocol
 
 ---
-version: "2.4.19"
+version: "2.4.20"
 status: "MANDATORY"
 enforcement: "STRICT"
-last_updated: "2025-12-13"
+last_updated: "2025-12-14"
 ---
 
 ## CRITICAL: This Document Contains MANDATORY Rules
@@ -89,6 +89,32 @@ mcp__tmws__invoke_persona(
 
 ---
 
+## Rule 3.5: Narrative Tools for Character Consistency (v2.4.20+)
+
+For maintaining persona character consistency during long conversations:
+
+```python
+# Load persona's background story
+mcp__tmws__load_persona_narrative(
+    persona_name="athena",  # or "hestia", "artemis", etc.
+    prefer_evolved=True
+)
+
+# Recall narrative for periodic "remembering" (思い出す)
+mcp__tmws__recall_narrative(persona_name="athena")
+```
+
+**When to use Narrative tools:**
+
+| Scenario | Tool |
+|----------|------|
+| Load background story at session start | load_persona_narrative |
+| Periodic context refresh | recall_narrative |
+| Store evolved narrative | evolve_narrative |
+| Check available narratives | list_narratives |
+
+---
+
 ## Rule 4: Prohibited Patterns
 
 **YOU MUST NOT:**
@@ -155,5 +181,5 @@ After each Trinitas Full Mode session, verify:
 
 ---
 
-*Trinitas SubAgent Execution Rules v2.4.19*
+*Trinitas SubAgent Execution Rules v2.4.20*
 *Enforcement: MANDATORY | Status: ACTIVE*
