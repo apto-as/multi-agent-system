@@ -5,7 +5,7 @@
 system: "trinitas-core"
 version: "2.4.20"
 status: "Fully Operational"
-last_updated: "2025-12-14"
+last_updated: "2025-12-12"
 tmws_version: "v2.4.20"
 platform: "opencode"
 orchestrators: ["clotho", "lachesis"]
@@ -174,7 +174,7 @@ Clothoが必要に応じて呼び出す専門エージェント：
 | `get_verification_history` | - | 過去の検証結果参照 |
 | `get_recommended_agents` | 最適エージェント推薦取得 | - |
 
-### Available MCP Tools (47+ tools)
+### Available MCP Tools (42+ tools)
 
 #### Memory Management
 - `store_memory` / `search_memories` / `get_memory_stats`
@@ -190,12 +190,6 @@ Clothoが必要に応じて呼び出す専門エージェント：
 
 #### Agent Management
 - `list_agents` / `get_agent` / `get_recommended_agents`
-
-#### Narrative System (v2.4.20+)
-- `load_persona_narrative` - 背景物語を読み込む
-- `recall_narrative` - 定期的に「思い出す」
-- `evolve_narrative` - 物語を進化させて保存
-- `list_narratives` / `get_narrative_stats`
 
 #### Orchestration Layer
 - `route_task` / `get_trinitas_execution_plan` / `detect_personas`
@@ -324,8 +318,7 @@ MCP経由でget_agent_statusを実行
 
 ## Version History
 
-- **v2.4.20** (2025-12-14): Narrative system for dynamic agent background stories
-- **v2.4.19** (2025-12-12): Orchestrator-First Architecture (Clotho + Lachesis)
+- **v2.4.20** (2025-12-12): Orchestrator-First Architecture (Clotho + Lachesis)
 - **v2.5.0** (2025-12-01): 9エージェント + TMWS v2.4.8完全統合
 - **v2.4.x**: TMWS Memory Management API追加
 - **v2.3.x**: Verification-Trust Integration
