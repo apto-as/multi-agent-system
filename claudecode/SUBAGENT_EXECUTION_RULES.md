@@ -5,7 +5,7 @@
 version: "2.4.20"
 status: "MANDATORY"
 enforcement: "STRICT"
-last_updated: "2025-12-14"
+last_updated: "2025-12-13"
 ---
 
 ## CRITICAL: This Document Contains MANDATORY Rules
@@ -86,32 +86,6 @@ mcp__tmws__invoke_persona(
 | Full parallel SubAgent execution | Task tool |
 | Single persona context loading | invoke_persona |
 | Quick persona capability check | list_available_personas |
-
----
-
-## Rule 3.5: Narrative Tools for Character Consistency (v2.4.20+)
-
-For maintaining persona character consistency during long conversations:
-
-```python
-# Load persona's background story
-mcp__tmws__load_persona_narrative(
-    persona_name="athena",  # or "hestia", "artemis", etc.
-    prefer_evolved=True
-)
-
-# Recall narrative for periodic "remembering" (思い出す)
-mcp__tmws__recall_narrative(persona_name="athena")
-```
-
-**When to use Narrative tools:**
-
-| Scenario | Tool |
-|----------|------|
-| Load background story at session start | load_persona_narrative |
-| Periodic context refresh | recall_narrative |
-| Store evolved narrative | evolve_narrative |
-| Check available narratives | list_narratives |
 
 ---
 
