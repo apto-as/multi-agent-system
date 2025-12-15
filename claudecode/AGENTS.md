@@ -1,10 +1,10 @@
-# TRINITAS Agent Coordination Protocol v2.4.20
+# TRINITAS Agent Coordination Protocol v2.4.21
 ## Orchestrator-First Architecture with Clotho & Lachesis
 
 ---
-protocol_version: "2.4.20"
+protocol_version: "2.4.21"
 compatible_with: ["claude-code", "opencode"]
-tmws_version: "v2.4.20"
+tmws_version: "v2.4.21"
 orchestrator_count: 2
 specialist_count: 9
 last_updated: "2025-12-12"
@@ -66,23 +66,23 @@ Declaring Full Mode without Task tool invocation is a **PROTOCOL VIOLATION**.
 ### Tier 1: Strategic (戦略層)
 | Agent | Role | Primary Responsibility |
 |-------|------|------------------------|
-| **Athena** 🏛️ | Conductor | システム調和・リソース調整 |
-| **Hera** 🎭 | Strategist | 戦略計画・アーキテクチャ設計 |
+| **Athena** 🏛️ | Harmonious Conductor | システム調和・リソース調整 |
+| **Hera** 🎭 | Strategic Commander | 戦略計画・アーキテクチャ設計 |
 
 ### Tier 2: Specialist (専門層)
 | Agent | Role | Primary Responsibility |
 |-------|------|------------------------|
-| **Artemis** 🏹 | Optimizer | パフォーマンス・コード品質 |
-| **Hestia** 🔥 | Auditor | セキュリティ・リスク評価 |
-| **Eris** ⚔️ | Coordinator | 戦術調整・競合解決 |
-| **Muses** 📚 | Documenter | ドキュメント・知識管理 |
+| **Artemis** 🏹 | Technical Perfectionist | パフォーマンス・コード品質 |
+| **Hestia** 🔥 | Security Guardian | セキュリティ・リスク評価 |
+| **Eris** ⚔️ | Tactical Coordinator | 戦術調整・競合解決 |
+| **Muses** 📚 | Knowledge Architect | ドキュメント・知識管理 |
 
 ### Tier 3: Support (支援層)
 | Agent | Role | Primary Responsibility |
 |-------|------|------------------------|
-| **Aphrodite** 🌸 | Designer | UI/UX・デザインシステム |
-| **Metis** 🔧 | Developer | 実装・テスト・デバッグ |
-| **Aurora** 🌅 | Researcher | 検索・コンテキスト取得 |
+| **Aphrodite** 🌸 | UI/UX Designer | UI/UX・デザインシステム |
+| **Metis** 🔧 | Development Assistant | 実装・テスト・デバッグ |
+| **Aurora** 🌅 | Research Assistant | 検索・コンテキスト取得 |
 
 ---
 
@@ -411,7 +411,7 @@ Lachesis: 「影響範囲を確認中」
 
 ## Version History
 
-- **v2.4.20** (2025-12-12): Orchestrator-First Architecture (Clotho + Lachesis)
+- **v2.4.21** (2025-12-12): Orchestrator-First Architecture (Clotho + Lachesis)
 - **v2.4.17** (2025-12-10): Issue #54 fixes, multi-agent-system sync
 - **v2.4.12** (2025-12-03): 9エージェント対応、TMWS v2.4.12統合
 - **v2.2.0**: Phase-Based Protocol確立
@@ -419,6 +419,6 @@ Lachesis: 「影響範囲を確認中」
 
 ---
 
-*Trinitas Agent Coordination Protocol v2.4.20*
+*Trinitas Agent Coordination Protocol v2.4.21*
 *Orchestrator-First: Clotho 🧵 + Lachesis 📏*
-*9 Specialist Agents - Phase-Based Execution - TMWS v2.4.20*
+*9 Specialist Agents - Phase-Based Execution - TMWS v2.4.21*
