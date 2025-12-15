@@ -665,7 +665,7 @@ show_completion() {
     echo -e "${GREEN}╚═══════════════════════════════════════════════════════════════════════╝${NC}"
     echo ""
     echo -e "${CYAN}What was installed:${NC}"
-    echo "  - TMWS Docker container (ghcr.io/apto-as/tmws:${TMWS_VERSION})"
+    echo "  - TMWS Docker container (docker.io/aptoas/tmws:${TMWS_VERSION})"
     echo "  - Trinitas 9-agent configuration for Claude Code"
     echo "  - Pre-activated ENTERPRISE license"
     echo ""
