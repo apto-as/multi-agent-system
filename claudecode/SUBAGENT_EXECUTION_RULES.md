@@ -1,8 +1,8 @@
-# MANDATORY SubAgent Execution Rules v2.4.22
+# MANDATORY SubAgent Execution Rules v2.4.23
 ## Trinitas Multi-Agent Parallel Execution Protocol
 
 ---
-version: "2.4.22"
+version: "2.4.23"
 status: "MANDATORY"
 enforcement: "STRICT"
 last_updated: "2025-12-15"
@@ -320,5 +320,5 @@ After each Trinitas Full Mode session, verify:
 
 ---
 
-*Trinitas SubAgent Execution Rules v2.4.22*
+*Trinitas SubAgent Execution Rules v2.4.23*
 *Enforcement: MANDATORY | Status: ACTIVE*
