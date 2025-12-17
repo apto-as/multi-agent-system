@@ -1,13 +1,13 @@
-# TRINITAS Agent Coordination Protocol v2.4.23
+# TRINITAS Agent Coordination Protocol v2.4.20
 ## Orchestrator-First Architecture with Clotho & Lachesis
 
 ---
-protocol_version: "2.4.23"
+protocol_version: "2.4.20"
 compatible_with: ["claude-code", "opencode"]
-tmws_version: "v2.4.23"
+tmws_version: "v2.4.20"
 orchestrator_count: 2
 specialist_count: 9
-last_updated: "2025-12-12"
+last_updated: "2025-12-14"
 ---
 
 ## Architecture Overview
@@ -82,34 +82,7 @@ Declaring Full Mode without Task tool invocation is a **PROTOCOL VIOLATION**.
 |-------|------|------------------------|
 | **Aphrodite** 🌸 | UI/UX Designer | UI/UX・デザインシステム |
 | **Metis** 🔧 | Development Assistant | 実装・テスト・デバッグ |
-| **Aurora** 🌅 | Research Assistant | 検索・コンテキスト取得・記憶永続化 |
-
----
-
-## ⚠️ Agent Capability Boundaries (Issue #91)
-
-明確な能力境界を定義し、タスク割り当てミスを防止：
-
-### 検証・監査タスク
-| タスク種別 | 担当エージェント | ❌ 不適切なエージェント |
-|-----------|-----------------|----------------------|
-| 実装検証 | **Artemis** | Aurora, Muses |
-| セキュリティ監査 | **Hestia** | Aurora, Muses, Metis |
-| コード品質確認 | **Artemis** | Aurora |
-
-### 検索・調査タスク
-| タスク種別 | 担当エージェント | 備考 |
-|-----------|-----------------|------|
-| 情報検索 | **Aurora** | 結論導出は不可、事実収集のみ |
-| コンテキスト取得 | **Aurora** | 検証判断は Artemis/Hestia へ |
-| 記憶永続化 | **Aurora**, **Muses** | store_memory 使用可能 |
-
-### 知識管理タスク
-| タスク種別 | 担当エージェント | 備考 |
-|-----------|-----------------|------|
-| ドキュメント作成 | **Muses** | ファイル操作 |
-| TMWS記憶管理 | **Muses**, **Aurora** | store_memory, search_memories |
-| パターン保存 | **Muses** | 学習結果の永続化 |
+| **Aurora** 🌅 | Research Assistant | 検索・コンテキスト取得 |
 
 ---
 
@@ -438,7 +411,8 @@ Lachesis: 「影響範囲を確認中」
 
 ## Version History
 
-- **v2.4.23** (2025-12-12): Orchestrator-First Architecture (Clotho + Lachesis)
+- **v2.4.20** (2025-12-14): Narrative system for dynamic agent background stories
+- **v2.4.19** (2025-12-12): Orchestrator-First Architecture (Clotho + Lachesis)
 - **v2.4.17** (2025-12-10): Issue #54 fixes, multi-agent-system sync
 - **v2.4.12** (2025-12-03): 9エージェント対応、TMWS v2.4.12統合
 - **v2.2.0**: Phase-Based Protocol確立
@@ -446,6 +420,6 @@ Lachesis: 「影響範囲を確認中」
 
 ---
 
-*Trinitas Agent Coordination Protocol v2.4.23*
+*Trinitas Agent Coordination Protocol v2.4.20*
 *Orchestrator-First: Clotho 🧵 + Lachesis 📏*
-*9 Specialist Agents - Phase-Based Execution - TMWS v2.4.23*
+*9 Specialist Agents - Phase-Based Execution - TMWS v2.4.20*
