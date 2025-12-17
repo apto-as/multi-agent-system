@@ -1,16 +1,18 @@
 # Trinitas Multi-Agent System
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-2.4.19-blue.svg" alt="Version">
+  <img src="https://img.shields.io/badge/Version-2.4.22-blue.svg" alt="Version">
   <img src="https://img.shields.io/badge/License-ENTERPRISE-green.svg" alt="License">
   <img src="https://img.shields.io/badge/Platform-Ubuntu%20%7C%20macOS%20%7C%20WSL2-lightgrey.svg" alt="Platform">
 </p>
 
-**Trinitas** is a sophisticated multi-agent AI system that enhances Claude Code and OpenCode with 9 specialized AI personas, persistent memory, and advanced workflow orchestration.
+**Trinitas** is a sophisticated multi-agent AI system that enhances Claude Code and OpenCode with 11 specialized AI personas (including Clotho & Lachesis orchestrators), persistent memory, and advanced workflow orchestration.
+
+> **詳細な導入手順**: [INSTALLATION_GUIDE.md](docs/INSTALLATION_GUIDE.md) - Linux/macOS 環境向けのステップバイステップガイド
 
 ## Features
 
-- **9 Specialized AI Personas**: Athena (Conductor), Artemis (Optimizer), Hestia (Auditor), Hera (Strategist), Eris (Coordinator), Muses (Documenter), Aphrodite (Designer), Metis (Developer), Aurora (Researcher)
+- **11 AI Personas**: 2 Orchestrators (Clotho, Lachesis) + 9 Specialists (Athena, Artemis, Hestia, Hera, Eris, Muses, Aphrodite, Metis, Aurora)
 - **Persistent Memory**: TMWS (Trinitas Memory & Workflow System) provides semantic search and cross-session knowledge retention
 - **Phase-Based Execution**: Strategic planning with approval gates ensures quality
 - **42 MCP Tools**: Memory management, verification, skills, agent coordination
@@ -215,18 +217,30 @@ Phase 4: Documentation (Muses)
 
 ## AI Personas
 
-### Core 6 Agents
+### Tier 0: Orchestrators
+
+| Agent | Role | Specialty |
+|-------|------|-----------|
+| **Clotho** 🧵 | Main Orchestrator | User interaction, task optimization, team direction |
+| **Lachesis** 📏 | Support Orchestrator | Over-optimization check, intent verification, history review |
+
+### Tier 1: Strategic Agents
 
 | Agent | Role | Specialty |
 |-------|------|-----------|
 | **Athena** 🏛️ | Conductor | System orchestration & harmony |
+| **Hera** 🎭 | Strategist | Architecture & planning |
+
+### Tier 2: Specialist Agents
+
+| Agent | Role | Specialty |
+|-------|------|-----------|
 | **Artemis** 🏹 | Optimizer | Performance & code quality |
 | **Hestia** 🔥 | Auditor | Security & risk assessment |
-| **Hera** 🎭 | Strategist | Architecture & planning |
 | **Eris** ⚔️ | Coordinator | Tactical coordination |
 | **Muses** 📚 | Documenter | Knowledge architecture |
 
-### Support 3 Agents
+### Tier 3: Support Agents
 
 | Agent | Role | Specialty |
 |-------|------|-----------|
@@ -362,6 +376,8 @@ This is a proprietary system. For bug reports and feature requests, please conta
 
 ## Version History
 
+- **v2.4.22** (2025-12-17): MCP startup optimization, Issue #96 fix, Agent source hierarchy fix (#97)
+- **v2.4.20** (2025-12-14): Narrative system for dynamic agent background stories
 - **v2.4.19** (2025-12-13): Orchestrator-First Architecture (Clotho + Lachesis), ChromaDB Extension, Persona Linguistic Calibration
 - **v2.4.16** (2025-12-05): Tool Search + MCP Hub, Adaptive Ranking, Security Hardening
 - **v2.4.12** (2025-12-03): Option B distribution, OpenCode support, WSL installer, upgrade support
@@ -373,6 +389,6 @@ This is a proprietary system. For bug reports and feature requests, please conta
 
 <p align="center">
   <strong>Trinitas Multi-Agent System</strong><br>
-  9 Agents • 42 MCP Tools • Semantic Memory<br>
-  <em>Powered by TMWS v2.4.19</em>
+  11 Agents • 42 MCP Tools • Semantic Memory<br>
+  <em>Powered by TMWS v2.4.22</em>
 </p>
