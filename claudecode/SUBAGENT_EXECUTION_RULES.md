@@ -66,97 +66,43 @@ Task(subagent_type="hestia-auditor", prompt="Security audit: [deliverables]")
 
 ---
 
-## Rule 2.5: CRITICAL - Persona Loading Bug Workaround (Issue #92)
+## Rule 2.5: Persona Loading (Issue #92) - ✅ RESOLVED
 
-**Known Bug**: Task Tool の `subagent_type` パラメータが一部のエージェントで正しく機能しない。
+**Status**: 2025-12-19 に解決済み
 
-### 影響を受けるエージェント (ペルソナがロードされない)
+### 全エージェントが正常動作
 
-| subagent_type | 状態 | 回避策必須 |
-|---------------|------|-----------|
-| `hera-strategist` | ❌ Clothoとして応答 | **YES** |
-| `athena-conductor` | ❌ Clothoとして応答 | **YES** |
-| `artemis-optimizer` | ❌ 汎用Claude Codeとして応答 | **YES** |
-| `muses-documenter` | ❌ Clotho/Lachesisとして応答 | **YES** |
-| `hestia-auditor` | ✅ 正常 | No |
-| `eris-coordinator` | ✅ 正常 | No |
-| `aphrodite-designer` | ✅ 正常 | No |
-| `metis-developer` | ✅ 正常 | No |
-| `aurora-researcher` | ✅ 正常 | No |
+| subagent_type | 状態 | 備考 |
+|---------------|------|------|
+| `hera-strategist` | ✅ 正常 | Hera 🎭 として応答 |
+| `athena-conductor` | ✅ 正常 | Athena 🏛️ として応答 |
+| `artemis-optimizer` | ✅ 正常 | Artemis 🏹 として応答 |
+| `muses-documenter` | ✅ 正常 | Muses 📚 として応答 |
+| `hestia-auditor` | ✅ 正常 | Hestia 🔥 として応答 |
+| `eris-coordinator` | ✅ 正常 | Eris ⚔️ として応答 |
+| `aphrodite-designer` | ✅ 正常 | Aphrodite 🌸 として応答 |
+| `metis-developer` | ✅ 正常 | Metis 🔧 として応答 |
+| `aurora-researcher` | ✅ 正常 | Aurora 🌅 として応答 |
 
-### 回避策: Persona Context Injection
+### 解決の経緯
 
-影響を受けるエージェントを呼び出す際は、**プロンプトにペルソナ情報を注入**する:
+2025-12-19 14:52 にエージェント定義ファイル（`~/.claude/agents/*.md`）が更新され、
+全エージェントのペルソナが正しくロードされるようになった。
 
-```python
-# Step 1: invoke_persona で system_prompt を取得
-persona_info = mcp__tmws__invoke_persona(
-    persona_id="hera-strategist",
-    task_description="[task description]",
-    include_system_prompt=True
-)
+**回避策（Persona Context Injection）は不要**となった。
 
-# Step 2: Task tool のプロンプトにペルソナ情報を注入
-Task(
-    subagent_type="hera-strategist",
-    prompt=f"""【重要】あなたは {persona_info.display_name} として応答して下さい。
-
-{persona_info.system_prompt}
-
-## Task
-[actual task description]
-"""
-)
-```
-
-### 簡易パターン (推奨)
-
-事前に取得せず、直接注入する場合:
+### 標準的な呼び出し方法
 
 ```python
+# 通常通りTask toolを使用すれば、ペルソナが正しくロードされる
 Task(
     subagent_type="hera-strategist",
-    prompt="""【重要】あなたは Hera - Strategic Commander 🎭 として応答して下さい。
-
-## Core Identity
-You are Hera, embodying the strategic, visionary, authoritative, decisive approach.
-
-## Capabilities
-- strategic_planning
-- architecture_design
-- long_term_vision
-- stakeholder_management
-
-## Task
-[actual task description]
-"""
-)
-```
-
-### Phase 1 修正例
-
-```python
-# BOTH need persona injection
-Task(
-    subagent_type="hera-strategist",
-    prompt="""【重要】あなたは Hera - Strategic Commander 🎭 として応答して下さい。
-Core: strategic, visionary, authoritative, decisive
-Capabilities: strategic_planning, architecture_design, long_term_vision
-
-## Task
-Strategic analysis: [task description]
-"""
+    prompt="Strategic analysis: [task description]"
 )
 
 Task(
     subagent_type="athena-conductor",
-    prompt="""【重要】あなたは Athena - Harmonious Conductor 🏛️ として応答して下さい。
-Core: warm, inclusive, empathetic, consensus-seeking
-Capabilities: orchestration, workflow_automation, resource_optimization
-
-## Task
-Resource coordination: [task description]
-"""
+    prompt="Resource coordination: [task description]"
 )
 ```
 
