@@ -248,19 +248,49 @@ Phase 4: Documentation (Muses)
 | **Metis** 🔧 | Developer | Implementation & testing |
 | **Aurora** 🌅 | Researcher | Search & context retrieval |
 
+## TMWS-Go Migration
+
+Starting with v2.5.0, Trinitas is transitioning to **TMWS-Go** - a high-performance Go implementation of the Trinitas Memory & Workflow System.
+
+### Key Benefits
+
+| Aspect | Python (Current) | Go (New) |
+|--------|------------------|----------|
+| Startup Time | ~3s | <500ms |
+| Memory Usage | ~200MB | ~50MB |
+| Binary Distribution | Docker required | Single binary option |
+| Concurrency | GIL-limited | Native goroutines |
+
+### Migration Timeline
+
+- **Current**: Python-based TMWS (v2.4.x) - fully supported
+- **Q1 2025**: TMWS-Go beta available for testing
+- **Q2 2025**: TMWS-Go stable release (v2.5.0)
+
+Existing installations will continue to work. Migration tools will be provided for seamless transition.
+
 ## License Information
 
-This distribution includes a **pre-activated ENTERPRISE license**.
+This distribution includes a **pre-activated 90-day ENTERPRISE license**.
+
+| License Detail | Value |
+|----------------|-------|
+| License Type | ENTERPRISE (90-day) |
+| Valid Until | **2026-03-21** |
+| Activation | Pre-activated |
+
+### Included Features
 
 | Feature | Included |
 |---------|----------|
-| All 9 AI Personas | ✅ |
+| All 11 AI Personas | ✅ |
 | 42 MCP Tools | ✅ |
 | Semantic Memory | ✅ |
 | Verification System | ✅ |
 | Phase-Based Orchestration | ✅ |
+| TMWS-Go Early Access | ✅ |
 
-Contact [apto-as](https://github.com/apto-as) for support.
+Contact [apto-as](https://github.com/apto-as) for license renewal or support.
 
 ## Troubleshooting
 

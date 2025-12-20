@@ -1,0 +1,212 @@
+# TMWS-Go Docker Compose Configuration for Multi-Agent-System
+# 3-Container Architecture: tmws-go + qdrant + ollama
+# Version: 1.0.0
+# Compatible with: TMWS-Go v0.1.0+
+
+services:
+  # ==========================================================================
+  # TMWS-Go Main Service
+  # ==========================================================================
+  tmws-go:
+    image: ghcr.io/apto-as/tmws-go:latest
+    container_name: tmws-go-server
+    restart: unless-stopped
+
+    environment:
+      # Core Settings
+      - TMWS_ENV=production
+      - TMWS_LOG_LEVEL=${TMWS_LOG_LEVEL:-info}
+
+      # Server Configuration
+      - TMWS_SERVER_HOST=0.0.0.0
+      - TMWS_SERVER_PORT=8080
+      - TMWS_SERVER_READ_TIMEOUT=30s
+      - TMWS_SERVER_WRITE_TIMEOUT=30s
+      - TMWS_SERVER_SHUTDOWN_TIMEOUT=10s
+
+      # Qdrant Configuration
+      - TMWS_QDRANT_HOST=qdrant
+      - TMWS_QDRANT_GRPC_PORT=6334
+      - TMWS_QDRANT_HTTP_PORT=6333
+      - TMWS_QDRANT_COLLECTION_NAME=tmws_memories
+      - TMWS_QDRANT_VECTOR_SIZE=1024
+      - TMWS_QDRANT_DISTANCE=Cosine
+
+      # Ollama Embedding (1024 dim for multilingual-e5-large)
+      - TMWS_OLLAMA_URL=http://ollama:11434
+      - TMWS_EMBEDDING_MODEL=zylonai/multilingual-e5-large
+
+      # SQLite (hybrid storage)
+      - TMWS_DATABASE_DRIVER=sqlite3
+      - TMWS_DATABASE_PATH=/data/tmws.db
+      - TMWS_DATABASE_MAX_OPEN_CONNS=25
+      - TMWS_DATABASE_MAX_IDLE_CONNS=5
+      - TMWS_DATABASE_CONN_MAX_LIFETIME=5m
+
+      # Memory Management
+      - TMWS_MEMORY_DEFAULT_TTL=720h
+      - TMWS_MEMORY_MAX_MEMORIES_PER_NAMESPACE=10000
+      - TMWS_MEMORY_CLEANUP_INTERVAL=1h
+
+      # Security Configuration
+      - TMWS_SECURITY_JWT_SECRET=${TMWS_JWT_SECRET:-CHANGE_ME_IN_PRODUCTION_64_CHAR_HEX}
+      - TMWS_SECURITY_TOKEN_EXPIRY=24h
+      - TMWS_SECURITY_RATE_LIMIT_ENABLED=true
+      - TMWS_SECURITY_RATE_LIMIT_REQUESTS_PER_MINUTE=100
+
+      # License Configuration
+      - TMWS_LICENSE_KEY=${TMWS_LICENSE_KEY}
+
+      # Resource Limits
+      - GOMAXPROCS=4
+
+    volumes:
+      # Data persistence
+      - tmws-go-data:/data
+
+    ports:
+      # Expose MCP server port
+      - "${TMWS_PORT:-8080}:8080"
+
+    networks:
+      - tmws-go-internal
+
+    depends_on:
+      qdrant:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+
+    # Security hardening
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+    # Resource constraints
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ==========================================================================
+  # Qdrant Vector Database
+  # ==========================================================================
+  qdrant:
+    image: qdrant/qdrant:v1.11.1
+    container_name: tmws-go-qdrant
+    restart: unless-stopped
+
+    environment:
+      - QDRANT__SERVICE__GRPC_PORT=6334
+      - QDRANT__SERVICE__HTTP_PORT=6333
+      - QDRANT__LOG_LEVEL=INFO
+
+    volumes:
+      - tmws-go-qdrant-data:/qdrant/storage
+
+    networks:
+      - tmws-go-internal
+
+    # Qdrant accessible within internal network only
+    expose:
+      - "6333"
+      - "6334"
+
+    # Optional: Expose for debugging (comment out in production)
+    # ports:
+    #   - "6333:6333"
+    #   - "6334:6334"
+
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:6333/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ==========================================================================
+  # Ollama Embedding Service
+  # Model: zylonai/multilingual-e5-large (1024 dimensions)
+  # ==========================================================================
+  ollama:
+    image: ollama/ollama:latest
+    container_name: tmws-go-ollama
+    restart: unless-stopped
+
+    volumes:
+      - tmws-go-ollama-data:/root/.ollama
+
+    networks:
+      - tmws-go-internal
+
+    # Ollama accessible within internal network only
+    expose:
+      - "11434"
+
+    # Optional: Expose for debugging (comment out in production)
+    # ports:
+    #   - "11434:11434"
+
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 8G
+        reservations:
+          cpus: '1.0'
+          memory: 2G
+
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+# ==========================================================================
+# Networks
+# ==========================================================================
+networks:
+  tmws-go-internal:
+    driver: bridge
+    internal: false  # Allow external access for port mapping
+    ipam:
+      config:
+        - subnet: 172.29.0.0/16
+
+# ==========================================================================
+# Volumes
+# ==========================================================================
+volumes:
+  tmws-go-data:
+    driver: local
+  tmws-go-qdrant-data:
+    driver: local
+  tmws-go-ollama-data:
+    driver: local
