@@ -40,7 +40,7 @@ MAGENTA='\033[0;35m'
 NC='\033[0m' # No Color
 
 # Configuration
-TMWS_IMAGE="ghcr.io/apto-as/tmws-go:latest"
+TMWS_IMAGE="aptoas/tmws-go:latest"
 TRINITAS_CONFIG_DIR="${HOME}/.trinitas"
 CLAUDE_CONFIG_DIR="${HOME}/.claude"
 BACKUP_DIR="${HOME}/.trinitas-backup"
@@ -653,7 +653,7 @@ show_completion() {
     echo -e "${GREEN}╚═══════════════════════════════════════════════════════════════════════╝${NC}"
     echo ""
     echo -e "${CYAN}What was installed:${NC}"
-    echo "  - TMWS-Go Docker container (ghcr.io/apto-as/tmws-go:latest)"
+    echo "  - TMWS-Go Docker container (aptoas/tmws-go:latest)"
     echo "  - Trinitas 9-agent configuration for Claude Code"
     echo "  - Pre-activated ENTERPRISE license"
     echo ""
