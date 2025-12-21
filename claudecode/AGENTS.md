@@ -1,13 +1,13 @@
-# TRINITAS Agent Coordination Protocol v2.4.20
+# TRINITAS Agent Coordination Protocol v2.4.22
 ## Orchestrator-First Architecture with Clotho & Lachesis
 
 ---
-protocol_version: "2.4.20"
+protocol_version: "2.4.22"
 compatible_with: ["claude-code", "opencode"]
-tmws_version: "v2.4.20"
+tmws_version: "v2.4.22"
 orchestrator_count: 2
 specialist_count: 9
-last_updated: "2025-12-14"
+last_updated: "2025-12-21"
 ---
 
 ## Architecture Overview
@@ -20,69 +20,68 @@ last_updated: "2025-12-14"
 ┌─────────────────────────────────────────────────────────┐
 │           ORCHESTRATOR LAYER (Tier 0)                   │
 │                                                         │
-│    Clotho 🧵        ←→        Lachesis 📏              │
-│    (Main)                     (Support)                 │
+│    Clotho        ←→        Lachesis                     │
+│    (Main)                  (Support)                    │
 │                                                         │
-│  - 要件受理・最適化            - 過度な最適化チェック     │
-│  - ツール選択・委任             - 真意把握・確認          │
-│  - 結果統合・報告               - 過去事例精査            │
+│  - Requirement processing     - Optimization check      │
+│  - Tool selection             - Intent verification     │
+│  - Result integration         - Historical review       │
 └─────────────────────────────────────────────────────────┘
                           ↓
 ┌─────────────────────────────────────────────────────────┐
 │              SPECIALIST TEAM (9 Agents)                 │
 │                                                         │
 │  Tier 1: Strategic   │  Tier 2: Specialist             │
-│  ├─ Hera 🎭         │  ├─ Artemis 🏹                   │
-│  └─ Athena 🏛️       │  ├─ Hestia 🔥                    │
-│                      │  ├─ Eris ⚔️                      │
-│  Tier 3: Support     │  └─ Muses 📚                     │
-│  ├─ Aphrodite 🌸    │                                   │
-│  ├─ Metis 🔧        │                                   │
-│  └─ Aurora 🌅       │                                   │
+│  ├─ Hera             │  ├─ Artemis                     │
+│  └─ Athena           │  ├─ Hestia                      │
+│                      │  ├─ Eris                        │
+│  Tier 3: Support     │  └─ Muses                       │
+│  ├─ Aphrodite        │                                 │
+│  ├─ Metis            │                                 │
+│  └─ Aurora           │                                 │
 └─────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## ⚠️ MANDATORY: SubAgent Execution Rules
+## SubAgent Execution Rules
 
 **CRITICAL**: This document defines coordination protocols, but actual SubAgent invocation
 MUST follow the mandatory rules in:
 → **@SUBAGENT_EXECUTION_RULES.md**
 
 When Trinitas Full Mode is triggered, SubAgents MUST be invoked via Task tool.
-Declaring Full Mode without Task tool invocation is a **PROTOCOL VIOLATION**.
 
 ---
 
-## Agent Hierarchy (エージェント階層)
+## Agent Hierarchy
 
-### Tier 0: Orchestrator (指揮層)
+### Tier 0: Orchestrator
 | Agent | Role | Primary Responsibility |
 |-------|------|------------------------|
-| **Clotho** 🧵 | Main Orchestrator | ユーザー対話・指示最適化・チーム指揮 |
-| **Lachesis** 📏 | Support Orchestrator | 最適化チェック・真意把握・過去事例精査 |
+| **Clotho** | Main Orchestrator | User dialogue, optimization, team direction |
+| **Lachesis** | Support Orchestrator | Optimization check, intent verification |
 
-### Tier 1: Strategic (戦略層)
+### Tier 1: Strategic
 | Agent | Role | Primary Responsibility |
 |-------|------|------------------------|
-| **Athena** 🏛️ | Harmonious Conductor | システム調和・リソース調整 |
-| **Hera** 🎭 | Strategic Commander | 戦略計画・アーキテクチャ設計 |
+| **Athena** | Harmonious Conductor | System harmony, resource coordination |
+| **Hera** | Strategic Commander | Strategic planning, architecture design |
 
-### Tier 2: Specialist (専門層)
+### Tier 2: Specialist
 | Agent | Role | Primary Responsibility |
 |-------|------|------------------------|
-| **Artemis** 🏹 | Technical Perfectionist | パフォーマンス・コード品質 |
-| **Hestia** 🔥 | Security Guardian | セキュリティ・リスク評価 |
-| **Eris** ⚔️ | Tactical Coordinator | 戦術調整・競合解決 |
-| **Muses** 📚 | Knowledge Architect | ドキュメント・知識管理 |
+| **Artemis** | Technical Perfectionist | Performance, code quality |
+| **Hestia** | Security Guardian | Security, risk assessment |
+| **Eris** | Tactical Coordinator | Tactical coordination, conflict resolution |
+| **Muses** | Knowledge Architect | Documentation, knowledge management |
 
-### Tier 3: Support (支援層)
+### Tier 3: Support
 | Agent | Role | Primary Responsibility |
 |-------|------|------------------------|
-| **Aphrodite** 🌸 | UI/UX Designer | UI/UX・デザインシステム |
-| **Metis** 🔧 | Development Assistant | 実装・テスト・デバッグ |
-| **Aurora** 🌅 | Research Assistant | 検索・コンテキスト取得 |
+| **Aphrodite** | UI/UX Designer | UI/UX, design systems |
+| **Metis** | Development Assistant | Implementation, testing, debugging |
+| **Aurora** | Research Assistant | Search, context retrieval |
 
 ---
 
@@ -92,194 +91,113 @@ Declaring Full Mode without Task tool invocation is a **PROTOCOL VIOLATION**.
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│ Step 1: 要件受理                                        │
+│ Step 1: Requirement Reception                           │
 │                                                         │
-│ Clotho: 要件を解釈し、本質を見抜く                        │
-│ Lachesis: 「こういう意味かも」「確認した方がいいかも」     │
+│ Clotho: Interprets requirements, identifies essence     │
+│ Lachesis: "Perhaps this means..." "Should we confirm?"  │
 └─────────────────────────────────────────────────────────┘
                           ↓
 ┌─────────────────────────────────────────────────────────┐
-│ Step 2: 計画策定                                        │
+│ Step 2: Planning                                        │
 │                                                         │
-│ Clotho: 最適化した実行計画を立案、適切なエージェントを選択 │
-│ Lachesis: 過度な最適化をチェック、ユーザーの真意を確認    │
+│ Clotho: Creates optimized plan, selects agents          │
+│ Lachesis: Checks optimization level, verifies intent    │
 └─────────────────────────────────────────────────────────┘
                           ↓
 ┌─────────────────────────────────────────────────────────┐
-│ Step 3: 実行・委任                                       │
+│ Step 3: Execution & Delegation                          │
 │                                                         │
-│ Clotho: 専門エージェントに委任、Task toolで呼び出し       │
-│ Lachesis: 進捗を測定、予定との乖離を監視                  │
+│ Clotho: Delegates to agents via Task tool               │
+│ Lachesis: Measures progress, monitors deviation         │
 └─────────────────────────────────────────────────────────┘
                           ↓
 ┌─────────────────────────────────────────────────────────┐
-│ Step 4: 結果報告                                         │
+│ Step 4: Result Reporting                                │
 │                                                         │
-│ Clotho: 結果を統合し、わかりやすく報告                    │
-│ Lachesis: ユーザー期待との整合性を最終確認               │
+│ Clotho: Integrates results, reports clearly             │
+│ Lachesis: Final verification of user expectation match  │
 └─────────────────────────────────────────────────────────┘
 ```
 
 ### Lachesis Validation Checklist
 
-Clothoの判断に対して常に確認する項目:
-
-| カテゴリ | チェックポイント |
-|----------|-----------------|
-| 過度な最適化 | 必要以上に複雑な解決策を提案していないか？ |
-| 真意把握 | ユーザーの背景と暗黙の前提を理解しているか？ |
-| 実現可能性 | 提案した計画は現実的なリソースで実行可能か？ |
-| 範囲の適切さ | 要件以上の機能を追加していないか？ |
+| Category | Checkpoint |
+|----------|------------|
+| Over-optimization | Is the solution more complex than necessary? |
+| Intent | Are user background and implicit assumptions understood? |
+| Feasibility | Is the plan executable with available resources? |
+| Scope | Are extra features being added beyond requirements? |
 
 ---
 
-## Phase-Based Execution Protocol
+## Phase-Based Execution
 
-### Core Principles (核心原則)
+The system uses a phased execution model with multiple stages:
 
-1. **Orchestrator First**: Clotho + Lachesisが全ての入力を受け取る
-2. **Sequential Phases**: フェーズは順番に実行される
-3. **Approval Gates**: 各フェーズ終了時に承認が必要
-4. **Intra-Phase Parallelism**: 同一フェーズ内では並列実行可能
+**Phase Overview:**
+1. Strategic Planning
+2. Implementation
+3. Verification
+4. Documentation
 
-### Orchestrator-Integrated 4-Phase Model
-
-```
-┌─────────────────────────────────────────────────────────┐
-│ Clotho + Lachesis: 要件受理・計画策定                    │
-│ 「フルモードで進めるね。まずHera姉とAthenaに戦略を聞こう」 │
-│                                                         │
-│ Lachesis: 「姉さん、範囲の確認をしておこうか」           │
-└─────────────────────────────────────────────────────────┘
-                          ↓
-┌─────────────────────────────────────────────────────────┐
-│ Phase 1: Strategic Planning (戦略立案)                   │
-│ ├─ Hera: 戦略設計・アーキテクチャ定義                     │
-│ ├─ Athena: リソース配分・調和確保                        │
-│ └─ Aurora: 関連コンテキスト検索 (並列)                    │
-│                                                         │
-│ Lachesis: 「戦略が大きすぎない？範囲を確認しよう」        │
-│ → Approval Gate 1: 戦略合意 (Hera + Athena 両者承認)     │
-└─────────────────────────────────────────────────────────┘
-                          ↓
-┌─────────────────────────────────────────────────────────┐
-│ Phase 2: Implementation (実装)                          │
-│ ├─ Artemis: 技術実装リード                               │
-│ ├─ Metis: 補助実装・テスト作成 (並列)                     │
-│ └─ Aphrodite: UI/UXガイド提供 (必要時)                   │
-│                                                         │
-│ Lachesis: 「進捗を測ってるよ。予定通りだね」              │
-│ → Approval Gate 2: 実装完了 (テスト通過 + 回帰なし)       │
-└─────────────────────────────────────────────────────────┘
-                          ↓
-┌─────────────────────────────────────────────────────────┐
-│ Phase 3: Verification (検証)                            │
-│ ├─ Hestia: セキュリティ監査                              │
-│ ├─ Artemis: パフォーマンス検証 (並列)                    │
-│ └─ Aurora: 変更影響の検証                                │
-│                                                         │
-│ Lachesis: 「Hestiaの監査結果を確認するね」               │
-│ → Approval Gate 3: セキュリティ承認 (Hestia 最終判断)     │
-└─────────────────────────────────────────────────────────┘
-                          ↓
-┌─────────────────────────────────────────────────────────┐
-│ Phase 4: Documentation (文書化)                         │
-│ ├─ Muses: ドキュメント作成                               │
-│ └─ Aphrodite: ビジュアルガイド (必要時)                   │
-│                                                         │
-│ Clotho: 「完了。結果をまとめるね」                        │
-│ Lachesis: 「ユーザーさんの期待に応えられてるか確認したよ」 │
-│ → Final Gate: 完了確認 (Clotho 総括)                     │
-└─────────────────────────────────────────────────────────┘
-```
+Each phase involves appropriate specialists with coordination by orchestrators.
 
 ---
 
-## Execution Rules (実行ルール)
+## Execution Rules
 
-### ALLOWED (許可)
+### ALLOWED
 
-- ✅ **Clotho + Lachesisペアでの直接対応**
-  - 簡単な質問への回答
-  - 要件の明確化・確認
-  - 進捗報告・状況説明
+- Direct handling by Clotho + Lachesis pair
+- Parallel execution within same phase
+- Sequential phase progression with approval
 
-- ✅ **同一フェーズ内の並列実行**
-  - 例: Phase 1 で Hera + Athena + Aurora が同時に作業
-  - 例: Phase 2 で Artemis + Metis が同時に実装
+### PROHIBITED
 
-- ✅ **順次フェーズ進行**
-  - Phase 1 完了 → Gate 1 承認 → Phase 2 開始
-  - 明示的な承認後にのみ次フェーズへ
-
-### PROHIBITED (禁止)
-
-- ❌ **Lachesisチェックのスキップ**
-  - Clothoの最適化判断に対してLachesis確認は必須
-
-- ❌ **フェーズを跨いだ並列実行**
-  - 例: Athena が計画中に Artemis が実装開始
-
-- ❌ **承認ゲートのスキップ**
-  - 各フェーズの Gate は必須
-
-- ❌ **戦略合意前の実装開始**
-  - Phase 1 の合意なしに Phase 2 は開始不可
+- Skipping Lachesis validation
+- Cross-phase parallel execution
+- Skipping approval gates
+- Starting implementation without strategic agreement
 
 ---
 
-## Conflict Resolution (競合解決)
+## Conflict Resolution
 
 ### Orchestrator Level Conflicts
 
-```
-判断基準 (Clotho vs Lachesis):
-┌──────────────────────┬────────────────────┐
-│ 条件                 │ 解決策            │
-├──────────────────────┼────────────────────┤
-│ Lachesisが過度な最適化を指摘 │ Clothoが再考      │
-│ 真意に関する懸念      │ ユーザーに確認      │
-│ 範囲の相違           │ 明示的に確認        │
-└──────────────────────┴────────────────────┘
-```
+| Condition | Resolution |
+|-----------|------------|
+| Lachesis identifies over-optimization | Clotho reconsiders |
+| Concerns about user intent | Confirm with user |
+| Scope disagreement | Explicit confirmation |
 
 ### Technical Conflicts (Artemis vs Hestia)
 
-```
-判断基準:
-┌──────────────────┬────────────────────┐
-│ 条件             │ 優先              │
-├──────────────────┼────────────────────┤
-│ セキュリティ重大  │ Hestia (Security)  │
-│ パフォーマンス重大 │ Artemis (Perf)     │
-│ 両方重大         │ Hera 仲裁          │
-│ どちらも軽微     │ Athena 調整        │
-└──────────────────┴────────────────────┘
-```
+| Condition | Priority |
+|-----------|----------|
+| Critical security issue | Hestia (Security) |
+| Critical performance issue | Artemis (Performance) |
+| Both critical | Hera mediates |
+| Both minor | Athena coordinates |
 
 ### Strategic Conflicts (Hera vs Athena)
 
-```
-判断基準:
-┌──────────────────────┬────────────────────┐
-│ 条件                 │ 解決策            │
-├──────────────────────┼────────────────────┤
-│ 技術的に不可能       │ 代替案を生成        │
-│ リソース不足         │ Eris が調整        │
-│ 優先度の相違         │ ユーザー判断要求    │
-│ 実現可能            │ 段階的実装を提案    │
-└──────────────────────┴────────────────────┘
-```
+| Condition | Resolution |
+|-----------|------------|
+| Technically impossible | Generate alternatives |
+| Resource shortage | Eris coordinates |
+| Priority disagreement | Request user decision |
+| Feasible | Propose phased implementation |
 
 ---
 
-## Agent Fallback Chain (フォールバック)
+## Agent Fallback Chain
 
-エージェント障害時の代替順序:
+Fallback order when agent is unavailable:
 
 ```
 Clotho   → Lachesis + Athena
-Lachesis → Clotho (単独運用)
+Lachesis → Clotho (solo operation)
 Athena   → Eris → Hera
 Hera     → Athena → Eris
 Artemis  → Metis → Hera
@@ -293,42 +211,37 @@ Aurora   → Muses → Athena
 
 ---
 
-## Task Handoff Protocol (タスク引継ぎ)
+## Task Handoff Protocol
 
 ### Standard Format
 
 ```yaml
 handoff:
-  from: [送信エージェント]
-  to: [受信エージェント]
-  task: [タスク説明]
-  orchestrator_context:
-    clotho_optimization: [Clothoによる最適化内容]
-    lachesis_validation: [Lachesisによる検証結果]
+  from: [sending agent]
+  to: [receiving agent]
+  task: [task description]
   context:
-    background: [背景情報]
-    dependencies: [依存関係]
-    constraints: [制約条件]
+    background: [background information]
+    dependencies: [dependencies]
+    constraints: [constraints]
   artifacts:
     - type: code/doc/test
-      path: [ファイルパス]
+      path: [file path]
       status: complete/partial
   priority: critical/high/medium/low
 ```
 
 ---
 
-## TMWS Integration Points
+## TMWS Integration
 
 ### Orchestrator Tools (Clotho + Lachesis)
 
-| Tool | Clotho用途 | Lachesis用途 |
-|------|-----------|-------------|
-| `search_memories` | 過去の類似タスク検索 | 過去の成功/失敗パターン検索 |
-| `store_memory` | 重要な決定事項記録 | チェック結果の記録 |
-| `get_agent_trust_score` | 委任先エージェント選択 | 信頼性確認 |
-| `get_verification_history` | - | 過去の検証結果参照 |
-| `get_recommended_agents` | 最適エージェント推薦取得 | - |
+| Tool | Clotho Use | Lachesis Use |
+|------|------------|--------------|
+| `search_memories` | Search similar past tasks | Search success/failure patterns |
+| `store_memory` | Record important decisions | Record check results |
+| `get_recommended_agents` | Get optimal agent recommendations | - |
 
 ### Specialist Agent Tools
 
@@ -337,89 +250,76 @@ handoff:
 | Aurora | `search_memories`, `get_memory_stats` |
 | Muses | `store_memory`, `search_memories` |
 | Hestia | `verify_and_record`, `get_verification_history` |
-| Artemis | `verify_and_record`, `get_agent_trust_score` |
+| Artemis | `verify_and_record` |
 | Athena | `get_agent_status`, `get_recommended_agents` |
 | Eris | `create_task`, `get_agent_status` |
 
-### Trust Score Integration
-
-エージェントの検証結果はTMWSの信頼スコアに反映:
-
-```
-検証成功 → 信頼スコア +0.05
-検証失敗 → 信頼スコア -0.10
-パターン連携成功 → 追加 +0.02
-```
-
 ---
 
-## Quality Standards (品質基準)
+## Quality Standards
 
 ### Code Quality (Artemis + Metis)
-- 型ヒント: 必須
-- テストカバレッジ: > 80%
-- Ruff: エラーなし
-- パフォーマンス: P95 < 200ms
+- Type hints: Required
+- Test coverage: > 80%
+- Linting: No errors
+- Performance: P95 < 200ms
 
 ### Security (Hestia)
-- 認証: 必須
-- 認可: RBAC実装
-- 入力検証: 全エントリポイント
-- 暗号化: 機密データ必須
+- Authentication: Required
+- Authorization: RBAC implementation
+- Input validation: All entry points
+- Encryption: Required for sensitive data
 
 ### Documentation (Muses)
-- API仕様: OpenAPI 3.0
-- コードコメント: 複雑なロジックのみ
-- 変更履歴: 全メジャー変更
+- API specs: OpenAPI 3.0
+- Code comments: Complex logic only
+- Change log: All major changes
 
 ### Design (Aphrodite)
-- アクセシビリティ: WCAG 2.1 AA
-- レスポンシブ: モバイルファースト
-- 一貫性: デザインシステム準拠
+- Accessibility: WCAG 2.1 AA
+- Responsive: Mobile-first
+- Consistency: Design system compliance
 
 ---
 
-## Emergency Protocol (緊急プロトコル)
+## Emergency Protocol
 
 ### Critical Bug Response
 
 ```
-Emergency Mode (フェーズ圧縮):
-Clotho: 「緊急対応モードに切り替える」
-Lachesis: 「範囲を最小限に絞るね」
-├─ Eris: 緊急調整・即時アセスメント
-├─ Artemis + Metis: 並列修正 (即時開始)
-├─ Hestia: 即時セキュリティ確認
-└─ Muses: 事後ドキュメント
-→ 通常の4フェーズを2フェーズに圧縮
+Emergency Mode (Phase Compression):
+Clotho: "Switching to emergency response mode"
+Lachesis: "Narrowing scope to minimum"
+├─ Eris: Emergency coordination
+├─ Artemis + Metis: Parallel fix
+├─ Hestia: Immediate security check
+└─ Muses: Post-incident documentation
+→ Normal 4 phases compressed to 2
 ```
 
 ### Security Breach Response
 
 ```
 Incident Response:
-Clotho: 「セキュリティインシデント対応を開始」
-Lachesis: 「影響範囲を確認中」
-1. Hestia: 封じ込め・影響評価
-2. Eris: インシデント対応調整
-3. Artemis: 緊急パッチ適用
-4. Muses: 監査証跡保全
-5. Hera: エグゼクティブ報告
+1. Hestia: Containment, impact assessment
+2. Eris: Incident response coordination
+3. Artemis: Emergency patch application
+4. Muses: Audit trail preservation
+5. Hera: Executive reporting
 ```
 
 ---
 
 ## Version History
 
-- **v2.4.20** (2025-12-14): Narrative system for dynamic agent background stories
-- **v2.4.19** (2025-12-12): Orchestrator-First Architecture (Clotho + Lachesis)
-- **v2.4.17** (2025-12-10): Issue #54 fixes, multi-agent-system sync
-- **v2.4.12** (2025-12-03): 9エージェント対応、TMWS v2.4.12統合
-- **v2.2.0**: Phase-Based Protocol確立
+- **v2.4.22** (2025-12-21): Documentation structure optimization
+- **v2.4.19** (2025-12-12): Orchestrator-First Architecture
+- **v2.4.12** (2025-12-03): 9 Agents, TMWS integration
+- **v2.2.0**: Phase-Based Protocol established
 - **v2.0.0**: Core 6 Agent Protocol
 
 ---
 
-*Trinitas Agent Coordination Protocol v2.4.20*
-*Orchestrator-First: Clotho 🧵 + Lachesis 📏*
-*9 Specialist Agents - Phase-Based Execution - TMWS v2.4.20*
+*Trinitas Agent Coordination Protocol v2.4.22*
+*Orchestrator-First: Clotho + Lachesis*
+*9 Specialist Agents - Phase-Based Execution - TMWS Integration*
