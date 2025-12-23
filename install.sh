@@ -334,7 +334,6 @@ create_directories() {
     mkdir -p "${CLAUDE_CONFIG_DIR}/hooks/core"
     mkdir -p "${HOME}/.tmws/db"
     mkdir -p "${HOME}/.tmws/logs"
-    mkdir -p "${HOME}/.tmws/vector_store"
     mkdir -p "${HOME}/.tmws/qdrant_data"
 
     # Make TMWS data directories writable by Docker container (UID 1000)
@@ -403,9 +402,6 @@ TMWS_LICENSE_PUBLIC_KEY="${DEFAULT_LICENSE_PUBLIC_KEY}"
 # Database (SQLite - stored in /data/db/ inside container)
 TMWS_DATABASE_PATH=/data/db/tmws.db
 
-# Vector Store
-TMWS_VECTOR_STORE_PATH=/data/vector_store
-
 # Qdrant Vector Database
 TMWS_QDRANT_HOST=tmws-qdrant
 TMWS_QDRANT_GRPC_PORT=6334
@@ -467,7 +463,6 @@ services:
     volumes:
       - ${HOME}/.tmws/db:/data/db
       - ${HOME}/.tmws/logs:/data/logs
-      - ${HOME}/.tmws/vector_store:/data/vector_store
     env_file:
       - .env
     extra_hosts:
