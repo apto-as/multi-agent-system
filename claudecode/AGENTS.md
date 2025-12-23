@@ -1,13 +1,13 @@
-# TRINITAS Agent Coordination Protocol v2.4.22
+# TRINITAS Agent Coordination Protocol v2.4.27
 ## Orchestrator-First Architecture with Clotho & Lachesis
 
 ---
-protocol_version: "2.4.22"
+protocol_version: "2.4.27"
 compatible_with: ["claude-code", "opencode"]
-tmws_version: "v2.4.22"
+tmws_version: "v2.4.27"
 orchestrator_count: 2
 specialist_count: 9
-last_updated: "2025-12-21"
+last_updated: "2025-12-23"
 ---
 
 ## Architecture Overview
@@ -163,51 +163,21 @@ Each phase involves appropriate specialists with coordination by orchestrators.
 
 ## Conflict Resolution
 
-### Orchestrator Level Conflicts
+Conflict resolution protocols are stored in TMWS Skills for security.
 
-| Condition | Resolution |
-|-----------|------------|
-| Lachesis identifies over-optimization | Clotho reconsiders |
-| Concerns about user intent | Confirm with user |
-| Scope disagreement | Explicit confirmation |
+**Access:** `mcp__tmws__get_skill(namespace="trinitas-system", name="trinitas-conflict-resolution")`
 
-### Technical Conflicts (Artemis vs Hestia)
-
-| Condition | Priority |
-|-----------|----------|
-| Critical security issue | Hestia (Security) |
-| Critical performance issue | Artemis (Performance) |
-| Both critical | Hera mediates |
-| Both minor | Athena coordinates |
-
-### Strategic Conflicts (Hera vs Athena)
-
-| Condition | Resolution |
-|-----------|------------|
-| Technically impossible | Generate alternatives |
-| Resource shortage | Eris coordinates |
-| Priority disagreement | Request user decision |
-| Feasible | Propose phased implementation |
+Covers: Orchestrator conflicts, Technical conflicts (Artemis vs Hestia), Strategic conflicts (Hera vs Athena)
 
 ---
 
 ## Agent Fallback Chain
 
-Fallback order when agent is unavailable:
+Fallback chain protocols are stored in TMWS Skills for security.
 
-```
-Clotho   → Lachesis + Athena
-Lachesis → Clotho (solo operation)
-Athena   → Eris → Hera
-Hera     → Athena → Eris
-Artemis  → Metis → Hera
-Hestia   → Artemis → Athena
-Eris     → Athena → Hera
-Muses    → Aurora → Athena
-Aphrodite → Athena → Muses
-Metis    → Artemis → Aurora
-Aurora   → Muses → Athena
-```
+**Access:** `mcp__tmws__get_skill(namespace="trinitas-system", name="trinitas-coordination-fallbacks")`
+
+Defines fallback order for all 11 agents when primary agent is unavailable.
 
 ---
 
@@ -284,34 +254,18 @@ handoff:
 
 ## Emergency Protocol
 
-### Critical Bug Response
+Emergency response procedures are stored in TMWS Skills for security.
 
-```
-Emergency Mode (Phase Compression):
-Clotho: "Switching to emergency response mode"
-Lachesis: "Narrowing scope to minimum"
-├─ Eris: Emergency coordination
-├─ Artemis + Metis: Parallel fix
-├─ Hestia: Immediate security check
-└─ Muses: Post-incident documentation
-→ Normal 4 phases compressed to 2
-```
+**Access:** `mcp__tmws__get_skill(namespace="trinitas-system", name="trinitas-emergency-protocol")`
 
-### Security Breach Response
-
-```
-Incident Response:
-1. Hestia: Containment, impact assessment
-2. Eris: Incident response coordination
-3. Artemis: Emergency patch application
-4. Muses: Audit trail preservation
-5. Hera: Executive reporting
-```
+Covers: Critical bug response (phase compression), Security breach response, Recovery protocols
 
 ---
 
 ## Version History
 
+- **v2.4.27** (2025-12-23): Trinitas Full Mode audit - SEC-001 discovered (#89), Orchestrator agents added to hooks
+- **v2.4.26** (2025-12-23): Information concealment - Fallbacks, Conflicts, Emergency moved to TMWS Skills
 - **v2.4.22** (2025-12-21): Documentation structure optimization
 - **v2.4.19** (2025-12-12): Orchestrator-First Architecture
 - **v2.4.12** (2025-12-03): 9 Agents, TMWS integration
@@ -320,6 +274,6 @@ Incident Response:
 
 ---
 
-*Trinitas Agent Coordination Protocol v2.4.22*
+*Trinitas Agent Coordination Protocol v2.4.27*
 *Orchestrator-First: Clotho + Lachesis*
 *9 Specialist Agents - Phase-Based Execution - TMWS Integration*

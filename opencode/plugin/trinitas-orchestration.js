@@ -165,12 +165,18 @@ const NARRATIVE_CONFIG = {
  * Only these subagent_types are allowed to be processed
  */
 const VALID_SUBAGENT_TYPES = new Set([
+  // Tier 0: Orchestrator
+  "clotho-orchestrator",
+  "lachesis-support",
+  // Tier 1: Strategic
   "hera-strategist",
   "athena-conductor",
+  // Tier 2: Specialist
   "artemis-optimizer",
   "hestia-auditor",
   "eris-coordinator",
   "muses-documenter",
+  // Tier 3: Support
   "aphrodite-designer",
   "metis-developer",
   "aurora-researcher",

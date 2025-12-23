@@ -1,12 +1,12 @@
-# TRINITAS-CORE SYSTEM v2.4.23
+# TRINITAS-CORE SYSTEM v2.4.28
 ## Orchestrator-First Architecture with Clotho & Lachesis
 
 ---
 system: "trinitas-core"
-version: "2.4.23"
+version: "2.4.28"
 status: "Fully Operational"
-last_updated: "2025-12-21"
-tmws_version: "v2.4.23"
+last_updated: "2025-12-23"
+tmws_version: "v2.4.28"
 platforms: ["claude-code", "opencode"]
 orchestrators: ["clotho", "lachesis"]
 specialist_count: 9
@@ -220,6 +220,50 @@ Lachesis: "Past records show caching was effective in similar cases."
 
 ---
 
+## Production File Protection
+
+### Protected File Categories
+
+The following files are protected by the Production Protection Workflow and MUST NOT be modified directly:
+
+| Category | Files | Protection Level |
+|----------|-------|------------------|
+| Core Config | `CLAUDE.md`, `AGENTS.md`, `SUBAGENT_EXECUTION_RULES.md` | CRITICAL |
+| Agent Defs | `agents/*.md` | HIGH |
+| Hooks | `hooks/core/*.py` | HIGH |
+| Commands | `commands/*.sh` | MEDIUM |
+
+### Deployment Workflow
+
+**MANDATORY**: All production file changes MUST go through the deploy workflow:
+
+1. Make changes in `configs/staging/` directory
+2. Test in staging environment
+3. Run `/trinitas deploy --env production` command
+4. Verify deployment with `production_guard.py` hook
+
+### Deploy Command
+
+```bash
+# Deploy to staging (for testing)
+/trinitas deploy --env staging
+
+# Deploy to production (requires approval gate)
+/trinitas deploy --env production
+```
+
+### Protection Hook
+
+The `production_guard.py` hook automatically:
+- Blocks direct writes to protected files
+- Creates timestamped backups before any changes
+- Logs all modification attempts
+- Enforces the staging-first workflow
+
+**Reference**: See `PRODUCTION_WORKFLOW.md` for complete documentation.
+
+---
+
 ## Platform Configuration
 
 ### Claude Code (~/.claude/)
@@ -230,7 +274,13 @@ Lachesis: "Past records show caching was effective in similar cases."
 ├── SUBAGENT_EXECUTION_RULES.md  # SubAgent rules
 ├── agents/                      # Agent definitions
 ├── hooks/                       # Extension hooks
-└── commands/                    # Custom commands
+│   └── production_guard.py      # Production protection hook
+├── commands/                    # Custom commands
+│   └── deploy-claude-code.sh    # Deployment script
+└── configs/                     # Environment configs
+    ├── production/              # Production configs (protected)
+    ├── staging/                 # Staging configs (editable)
+    └── development/             # Development configs (editable)
 ```
 
 ---
@@ -242,6 +292,8 @@ Lachesis: "Past records show caching was effective in similar cases."
 
 ## Version History
 
+- **v2.4.28** (2025-12-23): Production Protection Workflow - Deploy workflow, production_guard.py hook
+- **v2.4.26** (2025-12-23): Information concealment enhancement - 6 new TMWS Skills for coordination protocols
 - **v2.4.23** (2025-12-21): System Skills protection - proprietary content stored in TMWS
 - **v2.4.22** (2025-12-21): Documentation structure optimization
 - **v2.4.19** (2025-12-12): Orchestrator-First Architecture (Clotho + Lachesis)
@@ -251,5 +303,5 @@ Lachesis: "Past records show caching was effective in similar cases."
 
 ---
 
-*Trinitas Core System v2.4.23 - Orchestrator-First Architecture*
+*Trinitas Core System v2.4.28 - Orchestrator-First Architecture*
 *Clotho + Lachesis - 9 Specialist Agents - TMWS Integration*
