@@ -428,7 +428,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
-      test: ["/app/tmws-mcp", "--version"]
+      test: ["CMD", "/app/tmws-mcp", "--version"]
       interval: 30s
       timeout: 10s
       retries: 3
