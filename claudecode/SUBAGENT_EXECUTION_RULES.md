@@ -1,11 +1,11 @@
-# MANDATORY SubAgent Execution Rules v2.4.25
+# MANDATORY SubAgent Execution Rules v2.4.27
 ## Trinitas Multi-Agent Parallel Execution Protocol
 
 ---
-version: "2.4.25"
+version: "2.4.27"
 status: "MANDATORY"
 enforcement: "STRICT"
-last_updated: "2025-12-22"
+last_updated: "2025-12-23"
 ---
 
 ## CRITICAL: This Document Contains MANDATORY Rules
@@ -16,14 +16,11 @@ last_updated: "2025-12-22"
 
 ## Rule 1: Trinitas Full Mode Detection
 
-When ANY of the following patterns are detected in user input:
-- "Trinitasフルモード" (Japanese)
-- "Trinitas Full Mode" (English)
-- "フルモードで作業" (Japanese)
-- "full mode execution" (English)
-- "/trinitas analyze" with "--personas"
+Detection patterns are stored in TMWS Skills for security.
 
-**YOU MUST** immediately invoke SubAgents using the Task tool.
+**Access:** `mcp__tmws__get_skill(namespace="trinitas-system", name="trinitas-fullmode-detection")`
+
+**Action:** When Full Mode pattern detected, **YOU MUST** immediately invoke SubAgents using the Task tool.
 
 ---
 
@@ -238,19 +235,11 @@ AI: [Invokes Task tool with hera-strategist AND athena-conductor in parallel]
 
 ## Rule 5: Available SubAgent Types
 
-The following `subagent_type` values are valid for the Task tool:
+SubAgent type mappings and tier classifications are stored in TMWS Skills.
 
-| subagent_type | Persona | Tier |
-|---------------|---------|------|
-| `hera-strategist` | Hera | STRATEGIC |
-| `athena-conductor` | Athena | STRATEGIC |
-| `artemis-optimizer` | Artemis | SPECIALIST |
-| `hestia-auditor` | Hestia | SPECIALIST |
-| `eris-coordinator` | Eris | SPECIALIST |
-| `muses-documenter` | Muses | SPECIALIST |
-| `aphrodite-designer` | Aphrodite | SUPPORT |
-| `metis-developer` | Metis | SUPPORT |
-| `aurora-researcher` | Aurora | SUPPORT |
+**Access:** `mcp__tmws__get_skill(namespace="trinitas-system", name="trinitas-subagent-mapping")`
+
+Includes: All 9 agent types, tier hierarchy, and phase assignments.
 
 ---
 
@@ -258,42 +247,11 @@ The following `subagent_type` values are valid for the Task tool:
 
 **CRITICAL**: タスク割り当て時は能力境界を厳守すること。
 
-### 検証・監査タスクの割り当て
+Task assignment rules and capability boundaries are stored in TMWS Skills.
 
-| タスク | 正しい割り当て | ❌ 誤った割り当て |
-|--------|--------------|-----------------|
-| 実装の正しさ確認 | `artemis-optimizer` | `aurora-researcher` |
-| セキュリティ監査 | `hestia-auditor` | `aurora-researcher`, `muses-documenter` |
-| コード品質検証 | `artemis-optimizer` | `aurora-researcher` |
+**Access:** `mcp__tmws__get_skill(namespace="trinitas-system", name="trinitas-task-assignment")`
 
-### Aurora (aurora-researcher) の制限
-
-Aurora は **Research Assistant** であり、検証者ではない：
-- ✅ 情報検索・コンテキスト取得
-- ✅ 調査結果の記憶永続化 (`store_memory`)
-- ❌ 実装の検証・結論の導出
-- ❌ 監査・品質判定
-
-**例 - 不正なタスク割り当て:**
-```python
-# WRONG: Aurora に検証を依頼
-Task(subagent_type="aurora-researcher", prompt="Issue #74 が完全に実装されているか検証して")
-```
-
-**例 - 正しいタスク割り当て:**
-```python
-# CORRECT: Aurora で情報収集、Artemis で検証
-Task(subagent_type="aurora-researcher", prompt="Issue #74 に関連するファイルを検索して")
-Task(subagent_type="artemis-optimizer", prompt="Issue #74 の実装状態を検証して")
-```
-
-### Muses (muses-documenter) の能力拡張
-
-Muses は **Knowledge Architect** として TMWS 記憶管理も担当：
-- ✅ ドキュメント作成・アーカイブ
-- ✅ TMWS記憶管理 (`store_memory`, `search_memories`)
-- ✅ パターン保存・知識構造化
-- ❌ 実装検証・セキュリティ監査
+Includes: Capability matrix, agent boundaries (Aurora, Muses, Artemis, Hestia), correct/incorrect assignment examples.
 
 ---
 
@@ -322,6 +280,8 @@ After each Trinitas Full Mode session, verify:
 
 ## Version History
 
+- **v2.4.27** (2025-12-23): Trinitas Full Mode audit - Orchestrator agents (clotho, lachesis) added to client hooks
+- **v2.4.26** (2025-12-23): Information concealment - Detection, Mapping, Assignment moved to TMWS Skills
 - **v2.4.25** (2025-12-22): NarrativeAutoLoader integration, security fixes (SSRF, input validation)
 - **v2.4.22** (2025-12-15): Documentation structure optimization
 - **v2.4.20** (2025-12-12): Narrative tools for character consistency
@@ -330,5 +290,5 @@ After each Trinitas Full Mode session, verify:
 
 ---
 
-*Trinitas SubAgent Execution Rules v2.4.25*
+*Trinitas SubAgent Execution Rules v2.4.27*
 *Enforcement: MANDATORY | Status: ACTIVE*

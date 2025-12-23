@@ -237,12 +237,18 @@ class TMWSNarrativeClient:
 
     # SubAgent type to persona ID mapping (mirrors TMWS NarrativeAutoLoader)
     SUBAGENT_TO_PERSONA = {
+        # Tier 0: Orchestrator
+        "clotho-orchestrator": "clotho",
+        "lachesis-support": "lachesis",
+        # Tier 1: Strategic
         "hera-strategist": "hera",
         "athena-conductor": "athena",
+        # Tier 2: Specialist
         "artemis-optimizer": "artemis",
         "hestia-auditor": "hestia",
         "eris-coordinator": "eris",
         "muses-documenter": "muses",
+        # Tier 3: Support
         "aphrodite-designer": "aphrodite",
         "metis-developer": "metis",
         "aurora-researcher": "aurora",
