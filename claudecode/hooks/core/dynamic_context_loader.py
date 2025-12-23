@@ -15,16 +15,25 @@ to minimize latency impact.
     - Injects MANDATORY Task tool invocation instructions in addedContext
     - References SUBAGENT_EXECUTION_RULES.md for enforcement
 
+**NEW in v2.4.24**: NarrativeAutoLoader Integration (Issue #1)
+    - Intercepts Task tool invocations for SubAgent narrative enrichment
+    - Calls TMWS `enrich_subagent_prompt` MCP tool for automatic context injection
+    - Client-side caching with 5-minute TTL for performance
+    - Feature flag: TMWS_NARRATIVE_ENRICHMENT env var (default: true)
+    - Graceful degradation when TMWS unavailable
+
 Performance Characteristics:
     - Persona detection: ~0.5ms (compiled regex patterns)
     - Context detection: ~0.2ms (keyword matching)
     - Context building: ~0.1ms (minimal payload)
     - Full Mode detection: ~0.1ms (simple pattern matching)
-    - Total latency: <1ms typical
+    - Narrative enrichment: <50ms (with caching)
+    - Total latency: <1ms typical (without TMWS call)
 
 Security Compliance:
     - CWE-22 (Path Traversal): Mitigated via SecureFileLoader
     - CWE-73 (External Control): Validated allowed roots and extensions
+    - CWE-918 (SSRF): TMWS URL validated to localhost only
     - Whitelisted directories: ~/.claude, trinitas-agents repo
     - Allowed file types: .md only
 
@@ -33,9 +42,10 @@ Integration:
     - Input: JSON via stdin (prompt text and metadata)
     - Output: JSON via stdout (addedContext with @references)
     - Error handling: Fail gracefully, never block user interaction
+    - TMWS Integration: Calls enrich_subagent_prompt MCP tool
 
-Version: 2.4.11
-Updated: 2025-12-03 - Added Trinitas Full Mode SubAgent enforcement
+Version: 2.4.25
+Updated: 2025-12-22 - Security fixes per Hestia audit: SSRF protection, input validation
 
 Example:
     >>> # Hook receives stdin: {"prompt": {"text": "optimize this code"}}
@@ -50,8 +60,16 @@ import json
 import os
 import re
 import sys
+import time
 from functools import lru_cache
 from pathlib import Path
+from typing import Any, Dict, Optional, Tuple
+from collections import OrderedDict
+from dataclasses import dataclass
+import logging
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 # Import unified utilities
 try:
@@ -60,6 +78,378 @@ except ImportError:
     # Fallback for standalone execution
     sys.path.insert(0, str(Path(__file__).parent.parent.parent))
     from shared.utils import JSONLoader, SecureFileLoader
+
+# Import httpx for TMWS communication (with fallback)
+try:
+    import httpx
+    HTTPX_AVAILABLE = True
+except ImportError:
+    HTTPX_AVAILABLE = False
+    logger.warning("httpx not available, TMWS narrative enrichment disabled")
+
+# Import urllib for URL validation
+import urllib.parse
+
+
+# ==================== Security Constants ====================
+# Maximum prompt length to prevent memory exhaustion (10KB)
+MAX_PROMPT_LENGTH = 10 * 1024
+
+# Allowed hosts for TMWS URL (SSRF protection - CWE-918)
+ALLOWED_TMWS_HOSTS = frozenset(['localhost', '127.0.0.1', '::1'])
+
+
+def _validate_tmws_url(url: str) -> bool:
+    """Validate TMWS URL is localhost only (CWE-918 SSRF mitigation).
+
+    Args:
+        url: URL to validate
+
+    Returns:
+        True if URL points to localhost, False otherwise
+    """
+    try:
+        parsed = urllib.parse.urlparse(url)
+        return parsed.hostname in ALLOWED_TMWS_HOSTS
+    except Exception:
+        return False
+
+
+# ==================== Feature Flags ====================
+# TMWS Narrative Enrichment feature flag (Issue #1)
+# Set to "false" to disable narrative enrichment via TMWS
+ENABLE_NARRATIVE_ENRICHMENT = os.environ.get("TMWS_NARRATIVE_ENRICHMENT", "true").lower() == "true"
+
+# TMWS configuration with validation
+_tmws_url_raw = os.environ.get("TMWS_URL", "http://localhost:8000")
+if not _validate_tmws_url(_tmws_url_raw):
+    logger.warning(f"TMWS URL '{_tmws_url_raw}' is not localhost, defaulting to localhost:8000")
+    TMWS_URL = "http://localhost:8000"
+else:
+    TMWS_URL = _tmws_url_raw
+TMWS_TIMEOUT_SECONDS = float(os.environ.get("TMWS_TIMEOUT", "5.0"))  # 5 second max timeout
+
+
+# ==================== Narrative Cache ====================
+@dataclass
+class CachedNarrative:
+    """Cached narrative entry with TTL management."""
+    content: str
+    enriched_prompt_template: str
+    persona_id: str
+    source: str
+    loaded_at: float  # Unix timestamp
+
+    def is_expired(self, ttl_seconds: float = 300.0) -> bool:
+        """Check if cache entry is expired (default 5 min TTL)."""
+        return time.time() - self.loaded_at > ttl_seconds
+
+
+class NarrativeCache:
+    """Client-side LRU cache for narrative enrichment results.
+
+    Performance optimization: Caches enriched narratives to avoid
+    redundant TMWS calls during high-frequency SubAgent invocations.
+
+    Attributes:
+        _cache: OrderedDict for LRU eviction
+        _max_size: Maximum cache entries (default: 20)
+        _ttl_seconds: Cache entry TTL (default: 300s / 5 min)
+    """
+
+    def __init__(self, max_size: int = 20, ttl_seconds: float = 300.0):
+        """Initialize narrative cache.
+
+        Args:
+            max_size: Maximum number of cached entries
+            ttl_seconds: Time-to-live for cache entries
+        """
+        self._cache: OrderedDict[str, CachedNarrative] = OrderedDict()
+        self._max_size = max_size
+        self._ttl_seconds = ttl_seconds
+
+    def get(self, subagent_type: str) -> Optional[CachedNarrative]:
+        """Get cached narrative if present and not expired.
+
+        Args:
+            subagent_type: SubAgent type key (e.g., "hera-strategist")
+
+        Returns:
+            CachedNarrative if found and valid, None otherwise
+        """
+        if subagent_type not in self._cache:
+            return None
+
+        entry = self._cache[subagent_type]
+        if entry.is_expired(self._ttl_seconds):
+            # Remove expired entry
+            del self._cache[subagent_type]
+            return None
+
+        # Move to end (LRU)
+        self._cache.move_to_end(subagent_type)
+        return entry
+
+    def set(self, subagent_type: str, entry: CachedNarrative) -> None:
+        """Cache a narrative entry.
+
+        Args:
+            subagent_type: SubAgent type key
+            entry: Narrative entry to cache
+        """
+        # Remove if exists (to update order)
+        if subagent_type in self._cache:
+            del self._cache[subagent_type]
+
+        # Add to end (most recent)
+        self._cache[subagent_type] = entry
+
+        # Evict oldest if over limit
+        while len(self._cache) > self._max_size:
+            self._cache.popitem(last=False)
+
+    def clear(self) -> None:
+        """Clear all cached entries."""
+        self._cache.clear()
+
+
+# Global narrative cache instance
+_narrative_cache = NarrativeCache()
+
+
+# ==================== TMWS MCP Client ====================
+class TMWSNarrativeClient:
+    """Client for TMWS NarrativeAutoLoader MCP integration.
+
+    Provides synchronous HTTP communication with TMWS server to call
+    the `enrich_subagent_prompt` MCP tool. Implements graceful degradation
+    when TMWS is unavailable.
+
+    Security:
+        - CWE-918 (SSRF): Only localhost URLs allowed
+        - Timeout protection: 5 second maximum
+        - Connection pooling disabled for hook execution
+
+    Performance:
+        - Target latency: <50ms including network
+        - Cache integration reduces TMWS calls by >95%
+    """
+
+    # SubAgent type to persona ID mapping (mirrors TMWS NarrativeAutoLoader)
+    SUBAGENT_TO_PERSONA = {
+        "hera-strategist": "hera",
+        "athena-conductor": "athena",
+        "artemis-optimizer": "artemis",
+        "hestia-auditor": "hestia",
+        "eris-coordinator": "eris",
+        "muses-documenter": "muses",
+        "aphrodite-designer": "aphrodite",
+        "metis-developer": "metis",
+        "aurora-researcher": "aurora",
+    }
+
+    def __init__(self, tmws_url: str = TMWS_URL, timeout: float = TMWS_TIMEOUT_SECONDS):
+        """Initialize TMWS client.
+
+        Args:
+            tmws_url: TMWS server URL (default: localhost:8000)
+            timeout: Request timeout in seconds (default: 5.0)
+        """
+        self.tmws_url = tmws_url
+        self.timeout = timeout
+        self._available: Optional[bool] = None
+
+    def is_subagent_type(self, text: str) -> bool:
+        """Check if text is a known subagent_type.
+
+        Args:
+            text: Text to check
+
+        Returns:
+            True if text matches a known subagent_type
+        """
+        return text.lower() in self.SUBAGENT_TO_PERSONA
+
+    def extract_subagent_type_from_prompt(self, prompt: str) -> Optional[str]:
+        """Extract subagent_type from Task tool invocation patterns.
+
+        Detects patterns like:
+        - Task(subagent_type="hera-strategist", ...)
+        - subagent_type: "artemis-optimizer"
+        - SubAgent: hestia-auditor
+
+        Args:
+            prompt: User prompt text
+
+        Returns:
+            Extracted subagent_type or None if not found
+
+        Security:
+            - Input length validated (max 10KB) to prevent ReDoS
+            - Only whitelisted subagent_types are returned
+        """
+        # Security: Validate input length to prevent ReDoS attacks
+        if not prompt or len(prompt) > MAX_PROMPT_LENGTH:
+            return None
+
+        # Pattern 1: Task(subagent_type="xxx", ...)
+        match = re.search(
+            r'Task\s*\(\s*subagent_type\s*=\s*["\']([^"\']+)["\']',
+            prompt,
+            re.IGNORECASE
+        )
+        if match:
+            subagent_type = match.group(1).lower()
+            if subagent_type in self.SUBAGENT_TO_PERSONA:
+                return subagent_type
+
+        # Pattern 2: subagent_type: "xxx" (YAML-like)
+        match = re.search(
+            r'subagent_type\s*:\s*["\']?([a-z-]+)["\']?',
+            prompt,
+            re.IGNORECASE
+        )
+        if match:
+            subagent_type = match.group(1).lower()
+            if subagent_type in self.SUBAGENT_TO_PERSONA:
+                return subagent_type
+
+        # Pattern 3: Explicit SubAgent reference
+        match = re.search(
+            r'(?:SubAgent|subagent)\s*:\s*([a-z-]+)',
+            prompt,
+            re.IGNORECASE
+        )
+        if match:
+            subagent_type = match.group(1).lower()
+            if subagent_type in self.SUBAGENT_TO_PERSONA:
+                return subagent_type
+
+        return None
+
+    def check_available(self) -> bool:
+        """Check if TMWS server is available.
+
+        Returns:
+            True if TMWS is reachable, False otherwise
+        """
+        if not HTTPX_AVAILABLE:
+            return False
+
+        # Use cached availability for performance
+        if self._available is not None:
+            return self._available
+
+        try:
+            with httpx.Client(timeout=1.0) as client:
+                response = client.get(f"{self.tmws_url}/health")
+                self._available = response.status_code == 200
+        except Exception:
+            self._available = False
+
+        return self._available
+
+    def enrich_subagent_prompt(
+        self,
+        subagent_type: str,
+        original_prompt: str
+    ) -> Tuple[str, bool, str]:
+        """Call TMWS enrich_subagent_prompt MCP tool.
+
+        Args:
+            subagent_type: SubAgent type (e.g., "hera-strategist")
+            original_prompt: Original prompt to enrich
+
+        Returns:
+            Tuple of (enriched_prompt, narrative_loaded, source)
+            On error, returns (original_prompt, False, "error")
+
+        Performance:
+            Target: <50ms including network round-trip
+        """
+        # Check cache first
+        cached = _narrative_cache.get(subagent_type)
+        if cached:
+            # Apply cached template to new prompt
+            enriched = cached.enriched_prompt_template.replace(
+                "{{ORIGINAL_PROMPT}}", original_prompt
+            )
+            return enriched, True, "cache"
+
+        # Check TMWS availability
+        if not self.check_available():
+            return original_prompt, False, "tmws_unavailable"
+
+        try:
+            # Call TMWS MCP tool via HTTP
+            # Note: TMWS exposes MCP tools via /api/v1/mcp/call endpoint
+            with httpx.Client(timeout=self.timeout) as client:
+                response = client.post(
+                    f"{self.tmws_url}/api/v1/mcp/call",
+                    json={
+                        "tool": "enrich_subagent_prompt",
+                        "arguments": {
+                            "subagent_type": subagent_type,
+                            "original_prompt": original_prompt
+                        }
+                    },
+                    headers={"Content-Type": "application/json"}
+                )
+
+                if response.status_code != 200:
+                    logger.warning(
+                        f"TMWS enrich_subagent_prompt failed: {response.status_code}"
+                    )
+                    return original_prompt, False, "tmws_error"
+
+                result = response.json()
+
+                # Extract enriched prompt from result
+                enriched_prompt = result.get("enriched_prompt", original_prompt)
+                narrative_loaded = result.get("narrative_loaded", False)
+                source = result.get("source", "unknown")
+
+                # Cache the result (store template for reuse)
+                if narrative_loaded:
+                    # Create template by replacing original prompt with placeholder
+                    template = enriched_prompt.replace(
+                        original_prompt, "{{ORIGINAL_PROMPT}}"
+                    )
+                    _narrative_cache.set(
+                        subagent_type,
+                        CachedNarrative(
+                            content=enriched_prompt,
+                            enriched_prompt_template=template,
+                            persona_id=result.get("persona_id", ""),
+                            source=source,
+                            loaded_at=time.time()
+                        )
+                    )
+
+                return enriched_prompt, narrative_loaded, source
+
+        except httpx.TimeoutException:
+            logger.warning("TMWS enrich_subagent_prompt timeout")
+            return original_prompt, False, "timeout"
+        except Exception as e:
+            logger.warning(f"TMWS enrich_subagent_prompt error: {e}")
+            return original_prompt, False, "error"
+
+
+# Global TMWS client instance (lazy initialization)
+_tmws_client: Optional[TMWSNarrativeClient] = None
+
+
+def get_tmws_client() -> TMWSNarrativeClient:
+    """Get or create global TMWS client instance.
+
+    Returns:
+        TMWSNarrativeClient singleton
+    """
+    global _tmws_client
+    if _tmws_client is None:
+        _tmws_client = TMWSNarrativeClient()
+    return _tmws_client
 
 
 def _detect_project_root() -> Path:
@@ -395,8 +785,136 @@ Task(subagent_type="athena-conductor", prompt="Resource coordination for: {safe_
 Full protocol details: @SUBAGENT_EXECUTION_RULES.md
 
 ---
-**This enforcement notice was injected by dynamic_context_loader.py v2.4.11**
+**This enforcement notice was injected by dynamic_context_loader.py v2.4.24**
 '''
+
+    def enrich_subagent_prompt(self, prompt: str) -> Tuple[str, bool, str]:
+        """Enrich SubAgent prompt with persona narrative via TMWS.
+
+        NEW in v2.4.24: NarrativeAutoLoader Integration (Issue #1)
+
+        Detects Task tool invocations in the prompt and enriches them with
+        persona narrative context via the TMWS `enrich_subagent_prompt` MCP tool.
+
+        Args:
+            prompt: User's prompt text that may contain Task tool invocations.
+
+        Returns:
+            Tuple of (enriched_prompt, was_enriched, source) where:
+                - enriched_prompt: The prompt with narrative context injected
+                - was_enriched: True if enrichment was successful
+                - source: "cache", "base", "evolved", "error", or "disabled"
+
+        Performance:
+            - Cache hit: <1ms
+            - TMWS call: <50ms target
+
+        Error Handling:
+            On any error, returns original prompt unchanged (graceful degradation).
+
+        Example:
+            >>> loader = DynamicContextLoader()
+            >>> prompt = 'Task(subagent_type="hera-strategist", prompt="Analyze...")'
+            >>> enriched, success, source = loader.enrich_subagent_prompt(prompt)
+            >>> print(success)  # True if TMWS available
+            True
+        """
+        # Check feature flag first
+        if not ENABLE_NARRATIVE_ENRICHMENT:
+            return prompt, False, "disabled"
+
+        # Check if httpx is available
+        if not HTTPX_AVAILABLE:
+            return prompt, False, "httpx_unavailable"
+
+        try:
+            # Get TMWS client
+            client = get_tmws_client()
+
+            # Extract subagent_type from prompt
+            subagent_type = client.extract_subagent_type_from_prompt(prompt)
+
+            if not subagent_type:
+                # No SubAgent invocation detected, return original
+                return prompt, False, "no_subagent"
+
+            # Call TMWS to enrich the prompt
+            enriched, loaded, source = client.enrich_subagent_prompt(
+                subagent_type, prompt
+            )
+
+            return enriched, loaded, source
+
+        except Exception as e:
+            # Graceful degradation - return original prompt
+            print(f"[narrative_enrichment] Error: {e}", file=sys.stderr)
+            return prompt, False, "error"
+
+    def build_narrative_enrichment_context(
+        self,
+        subagent_type: str,
+        original_prompt: str
+    ) -> Optional[str]:
+        """Build narrative context injection for SubAgent invocation.
+
+        Creates a context block that includes the enriched narrative for
+        the specified SubAgent type. This is injected as addedContext
+        to guide the AI's behavior.
+
+        Args:
+            subagent_type: The SubAgent type (e.g., "hera-strategist")
+            original_prompt: The original task prompt
+
+        Returns:
+            Markdown-formatted context string, or None if enrichment failed.
+
+        Example:
+            >>> loader = DynamicContextLoader()
+            >>> context = loader.build_narrative_enrichment_context(
+            ...     "artemis-optimizer",
+            ...     "Optimize this code for performance"
+            ... )
+            >>> print("Persona Context" in context)
+            True
+        """
+        if not ENABLE_NARRATIVE_ENRICHMENT or not HTTPX_AVAILABLE:
+            return None
+
+        try:
+            client = get_tmws_client()
+
+            # Get enriched prompt from TMWS
+            enriched, loaded, source = client.enrich_subagent_prompt(
+                subagent_type, original_prompt
+            )
+
+            if not loaded:
+                return None
+
+            # Build context injection block
+            persona_id = TMWSNarrativeClient.SUBAGENT_TO_PERSONA.get(
+                subagent_type.lower(), subagent_type
+            )
+
+            return f'''
+## 🎭 Persona Narrative Loaded (NarrativeAutoLoader v2.4.24)
+
+**SubAgent**: {subagent_type}
+**Persona**: {persona_id.capitalize()}
+**Source**: {source}
+
+The following narrative context has been automatically loaded for this SubAgent invocation:
+
+---
+{enriched}
+---
+
+*Auto-enriched by TMWS NarrativeAutoLoader*
+'''
+
+        except Exception as e:
+            print(f"[narrative_enrichment] Context build error: {e}", file=sys.stderr)
+            return None
 
     def detect_context_needs(self, prompt: str) -> list[str]:
         """Detect which context files are needed based on prompt content (~0.2ms).
@@ -668,6 +1186,29 @@ Full protocol details: @SUBAGENT_EXECUTION_RULES.md
                 )
                 # Still continue with regular detection for additional context
                 # but the enforcement notice takes priority
+
+            # NEW v2.4.24: NarrativeAutoLoader Integration (Issue #1)
+            # Detect and enrich SubAgent invocations with persona narratives
+            if ENABLE_NARRATIVE_ENRICHMENT and HTTPX_AVAILABLE:
+                try:
+                    client = get_tmws_client()
+                    subagent_type = client.extract_subagent_type_from_prompt(prompt_text)
+
+                    if subagent_type:
+                        # Build narrative enrichment context
+                        narrative_context = self.build_narrative_enrichment_context(
+                            subagent_type, prompt_text
+                        )
+                        if narrative_context:
+                            output["addedContext"].append(
+                                {"type": "text", "text": narrative_context}
+                            )
+                except Exception as e:
+                    # Graceful degradation - continue without enrichment
+                    print(
+                        f"[narrative_enrichment] Enrichment failed, continuing: {e}",
+                        file=sys.stderr
+                    )
 
             # Fast detection (<1ms typical)
             personas = self.detect_personas(prompt_text)

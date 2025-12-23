@@ -9,7 +9,17 @@
  *   - Injects MANDATORY Task tool invocation instructions
  *   - Validates SubAgent invocation for protocol compliance
  *
- * @version 2.4.11
+ * NEW in v2.4.23: NarrativeAutoLoader Integration (Issue #1)
+ *   - Automatic persona narrative loading for SubAgent invocation
+ *   - Session-scoped caching for enriched prompts
+ *   - Graceful degradation when TMWS unavailable
+ *
+ * NEW in v2.4.25: Security Fixes (Hestia Audit)
+ *   - Input validation: subagent_type whitelist check
+ *   - Input validation: prompt length limit (10KB)
+ *   - Graceful degradation for invalid inputs
+ *
+ * @version 2.4.25
  * @author TMWS Team
  * @see https://opencode.ai/docs/plugins/
  */
@@ -128,6 +138,55 @@ let _fullModeActive = false;
 let _subAgentsInvoked = false;
 
 /**
+ * Session-scoped narrative cache (Issue #1)
+ * Stores enriched prompts by subagent_type to avoid redundant MCP calls
+ * @type {Map<string, {enrichedPrompt: string, narrativeLoaded: boolean, timestamp: number}>}
+ */
+let _narrativeCache = new Map();
+
+/**
+ * Configuration for NarrativeAutoLoader
+ */
+const NARRATIVE_CONFIG = {
+  /** Timeout for MCP calls in milliseconds */
+  timeoutMs: 5000,
+  /** Cache TTL in milliseconds (5 minutes) */
+  cacheTtlMs: 5 * 60 * 1000,
+  /** Whether narrative autoloading is enabled */
+  enabled: true,
+  /** TMWS MCP server ID */
+  tmwsServerId: "tmws",
+  /** Maximum prompt length (10KB) - Security: prevent memory exhaustion */
+  maxPromptLength: 10 * 1024,
+};
+
+/**
+ * Valid subagent_types whitelist (Security: input validation)
+ * Only these subagent_types are allowed to be processed
+ */
+const VALID_SUBAGENT_TYPES = new Set([
+  "hera-strategist",
+  "athena-conductor",
+  "artemis-optimizer",
+  "hestia-auditor",
+  "eris-coordinator",
+  "muses-documenter",
+  "aphrodite-designer",
+  "metis-developer",
+  "aurora-researcher",
+]);
+
+/**
+ * Validate subagent_type against whitelist
+ * @param {string} subagentType - The subagent_type to validate
+ * @returns {boolean} True if valid, false otherwise
+ */
+const isValidSubagentType = (subagentType) => {
+  if (!subagentType || typeof subagentType !== "string") return false;
+  return VALID_SUBAGENT_TYPES.has(subagentType.toLowerCase().trim());
+};
+
+/**
  * Full Mode detection patterns (v2.4.11)
  */
 const FULL_MODE_PATTERNS = [
@@ -156,7 +215,7 @@ const detectFullMode = (text) => {
 const buildFullModeEnforcement = (taskDescription) => {
   const safeTask = (taskDescription || "").replace(/"/g, "'").substring(0, 500);
   return `
-## ⚠️ MANDATORY: Trinitas Full Mode Activated
+## MANDATORY: Trinitas Full Mode Activated
 
 **CRITICAL ENFORCEMENT NOTICE**
 
@@ -172,13 +231,13 @@ Task(subagent_type="hera-strategist", prompt="Strategic analysis for: ${safeTask
 Task(subagent_type="athena-conductor", prompt="Resource coordination for: ${safeTask}")
 \`\`\`
 
-### ❌ PROHIBITED Actions
+### PROHIBITED Actions
 
 1. DO NOT proceed with analysis yourself without invoking SubAgents
 2. DO NOT say "Hera + Athena による戦略分析" without actually using Task tool
 3. DO NOT skip Phase 1 and proceed directly to implementation
 
-### ✅ REQUIRED Actions
+### REQUIRED Actions
 
 1. Invoke \`hera-strategist\` SubAgent via Task tool
 2. Invoke \`athena-conductor\` SubAgent via Task tool
@@ -190,7 +249,7 @@ Task(subagent_type="athena-conductor", prompt="Resource coordination for: ${safe
 Full protocol details: @SUBAGENT_EXECUTION_RULES.md
 
 ---
-**This enforcement notice was injected by trinitas-orchestration.js v2.4.11**
+**This enforcement notice was injected by trinitas-orchestration.js v2.4.23**
 `;
 };
 
@@ -203,6 +262,145 @@ const normalizePersonaId = (personaId) => {
   if (!personaId || typeof personaId !== "string") return null;
   const normalized = personaId.toLowerCase().trim();
   return SHORT_NAME_MAP[normalized] || normalized;
+};
+
+/**
+ * Clear expired entries from the narrative cache
+ */
+const cleanupNarrativeCache = () => {
+  const now = Date.now();
+  for (const [key, value] of _narrativeCache.entries()) {
+    if (now - value.timestamp > NARRATIVE_CONFIG.cacheTtlMs) {
+      _narrativeCache.delete(key);
+    }
+  }
+};
+
+/**
+ * Reset the narrative cache (called on session start)
+ */
+const resetNarrativeCache = () => {
+  _narrativeCache = new Map();
+};
+
+/**
+ * Call the TMWS enrich_subagent_prompt tool with timeout handling
+ * @param {object} client - OpenCode MCP client
+ * @param {string} subagentType - The subagent_type (e.g., 'hera-strategist')
+ * @param {string} originalPrompt - The original prompt to enrich
+ * @returns {Promise<{enriched_prompt: string, narrative_loaded: boolean, persona_id: string, source: string, cache_hit: boolean}>}
+ *
+ * Security:
+ *   - Input validation: subagent_type must be in whitelist
+ *   - Input validation: prompt length limited to 10KB
+ *   - Timeout protection: 5 second maximum
+ */
+const callEnrichSubagentPrompt = async (client, subagentType, originalPrompt) => {
+  // Security: Validate subagent_type against whitelist
+  if (!isValidSubagentType(subagentType)) {
+    console.warn(`[Trinitas] Invalid subagent_type: ${subagentType}`);
+    return {
+      enriched_prompt: originalPrompt,
+      narrative_loaded: false,
+      persona_id: subagentType,
+      source: "invalid_type",
+      cache_hit: false,
+    };
+  }
+
+  // Security: Validate prompt length to prevent memory exhaustion
+  if (originalPrompt && originalPrompt.length > NARRATIVE_CONFIG.maxPromptLength) {
+    console.warn(`[Trinitas] Prompt too long (${originalPrompt.length} chars), skipping enrichment`);
+    return {
+      enriched_prompt: originalPrompt,
+      narrative_loaded: false,
+      persona_id: subagentType,
+      source: "prompt_too_long",
+      cache_hit: false,
+    };
+  }
+
+  // Check cache first
+  const cacheKey = subagentType;
+  const cached = _narrativeCache.get(cacheKey);
+
+  if (cached && Date.now() - cached.timestamp < NARRATIVE_CONFIG.cacheTtlMs) {
+    // Cache hit - prepend cached narrative context to the prompt
+    console.log(`[Trinitas] Narrative cache hit for ${subagentType}`);
+    return {
+      enriched_prompt: cached.narrativeContext
+        ? `${cached.narrativeContext}\n\n---\n\n${originalPrompt}`
+        : originalPrompt,
+      narrative_loaded: cached.narrativeLoaded,
+      persona_id: subagentType,
+      source: "cache",
+      cache_hit: true,
+    };
+  }
+
+  // Make MCP call with timeout
+  try {
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("TMWS call timeout")), NARRATIVE_CONFIG.timeoutMs);
+    });
+
+    const mcpCallPromise = client.callTool(NARRATIVE_CONFIG.tmwsServerId, "enrich_subagent_prompt", {
+      subagent_type: subagentType,
+      original_prompt: originalPrompt,
+    });
+
+    const result = await Promise.race([mcpCallPromise, timeoutPromise]);
+
+    // Parse the result if it's a string
+    let parsedResult = result;
+    if (typeof result === "string") {
+      try {
+        parsedResult = JSON.parse(result);
+      } catch {
+        // If parsing fails, treat the string as the enriched prompt
+        parsedResult = {
+          enriched_prompt: result,
+          narrative_loaded: true,
+          persona_id: subagentType,
+          source: "tmws",
+          cache_hit: false,
+        };
+      }
+    }
+
+    // Extract narrative context for caching (the part before the original prompt)
+    let narrativeContext = null;
+    if (parsedResult.narrative_loaded && parsedResult.enriched_prompt !== originalPrompt) {
+      // The narrative context is everything before the original prompt
+      const separator = "\n\n---\n\n";
+      const sepIndex = parsedResult.enriched_prompt.indexOf(separator);
+      if (sepIndex > 0) {
+        narrativeContext = parsedResult.enriched_prompt.substring(0, sepIndex);
+      }
+    }
+
+    // Cache the narrative context (not the full enriched prompt)
+    _narrativeCache.set(cacheKey, {
+      narrativeContext,
+      narrativeLoaded: parsedResult.narrative_loaded,
+      timestamp: Date.now(),
+    });
+
+    console.log(`[Trinitas] Narrative enriched for ${subagentType} (loaded: ${parsedResult.narrative_loaded}, source: ${parsedResult.source})`);
+
+    return parsedResult;
+  } catch (error) {
+    console.warn(`[Trinitas] TMWS unavailable for narrative enrichment: ${error.message}`);
+
+    // Graceful degradation - return original prompt
+    return {
+      enriched_prompt: originalPrompt,
+      narrative_loaded: false,
+      persona_id: subagentType,
+      source: "error",
+      cache_hit: false,
+    };
+  }
 };
 
 /**
@@ -229,8 +427,8 @@ export const TrinitasOrchestration = async ({ project, client, $, directory, wor
     project: project?.name || "unknown",
     directory,
     worktree,
-    version: "2.4.11",
-    features: ["invoke_persona", "phase_orchestration", "collaboration_matrix"],
+    version: "2.4.25",
+    features: ["invoke_persona", "phase_orchestration", "collaboration_matrix", "narrative_autoloader", "security_validation"],
   });
 
   return {
@@ -255,6 +453,8 @@ export const TrinitasOrchestration = async ({ project, client, $, directory, wor
         // Reset Full Mode state on new session
         _fullModeActive = false;
         _subAgentsInvoked = false;
+        // Reset narrative cache on new session (Issue #1)
+        resetNarrativeCache();
       }
 
       if (event.type === "session.idle") {
@@ -264,7 +464,10 @@ export const TrinitasOrchestration = async ({ project, client, $, directory, wor
           activePersona: _activePersona,
           fullModeActive: _fullModeActive,
           subAgentsInvoked: _subAgentsInvoked,
+          narrativeCacheSize: _narrativeCache.size,
         });
+        // Cleanup expired cache entries
+        cleanupNarrativeCache();
       }
     },
 
@@ -328,8 +531,10 @@ export const TrinitasOrchestration = async ({ project, client, $, directory, wor
       }
 
       // v2.4.11: Track Task tool invocation for Full Mode compliance
+      // v2.4.23: Enrich Task tool prompts with persona narrative (Issue #1)
       if (typeof toolName === "string" && toolName === "Task") {
         const subagentType = input.args?.subagent_type || input.subagent_type || "";
+        const originalPrompt = input.args?.prompt || input.prompt || "";
         const isStrategicAgent =
           subagentType === "hera-strategist" || subagentType === "athena-conductor";
 
@@ -341,9 +546,37 @@ export const TrinitasOrchestration = async ({ project, client, $, directory, wor
           });
         }
 
+        // NarrativeAutoLoader Integration (Issue #1)
+        // Enrich the SubAgent prompt with persona narrative
+        if (NARRATIVE_CONFIG.enabled && subagentType && client) {
+          try {
+            const enrichResult = await callEnrichSubagentPrompt(client, subagentType, originalPrompt);
+
+            if (enrichResult.narrative_loaded && enrichResult.enriched_prompt !== originalPrompt) {
+              // Update the input args with enriched prompt
+              if (input.args) {
+                input.args.prompt = enrichResult.enriched_prompt;
+              } else {
+                input.prompt = enrichResult.enriched_prompt;
+              }
+
+              logEvent("narrative.enriched", {
+                subagentType,
+                narrativeLoaded: enrichResult.narrative_loaded,
+                source: enrichResult.source,
+                cacheHit: enrichResult.cache_hit,
+              });
+            }
+          } catch (error) {
+            // Log but don't fail - graceful degradation
+            console.warn(`[Trinitas] Narrative enrichment failed: ${error.message}`);
+          }
+        }
+
         logEvent("task.invoking", {
           subagentType,
           prompt: (input.args?.prompt || input.prompt || "").substring(0, 100),
+          narrativeEnriched: NARRATIVE_CONFIG.enabled,
         });
       }
 
@@ -436,7 +669,13 @@ export {
   COLLABORATION_MATRIX,
   SHORT_NAME_MAP,
   FULL_MODE_PATTERNS,
+  NARRATIVE_CONFIG,
+  VALID_SUBAGENT_TYPES,
   normalizePersonaId,
   detectFullMode,
   buildFullModeEnforcement,
+  isValidSubagentType,
+  callEnrichSubagentPrompt,
+  resetNarrativeCache,
+  cleanupNarrativeCache,
 };
