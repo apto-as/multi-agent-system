@@ -1,11 +1,11 @@
-# MANDATORY SubAgent Execution Rules v2.4.22
+# MANDATORY SubAgent Execution Rules v2.4.25
 ## Trinitas Multi-Agent Parallel Execution Protocol
 
 ---
-version: "2.4.22"
+version: "2.4.25"
 status: "MANDATORY"
 enforcement: "STRICT"
-last_updated: "2025-12-15"
+last_updated: "2025-12-22"
 ---
 
 ## CRITICAL: This Document Contains MANDATORY Rules
@@ -103,6 +103,60 @@ Task(
 Task(
     subagent_type="athena-conductor",
     prompt="Resource coordination: [task description]"
+)
+```
+
+---
+
+## Rule 2.8: NarrativeAutoLoader Automatic Enrichment (v2.4.25+)
+
+**NEW in v2.4.25**: Persona narratives are now automatically loaded via TMWS.
+
+### Automatic Narrative Enrichment
+
+The client-side hooks (`dynamic_context_loader.py` for Claude Code, `trinitas-orchestration.js` for OpenCode)
+now integrate with TMWS's `enrich_subagent_prompt` MCP tool to automatically inject persona narratives.
+
+**How it works:**
+
+1. When a Task tool is invoked with a `subagent_type`, the hook intercepts the call
+2. The hook calls `mcp__tmws__enrich_subagent_prompt` with:
+   - `subagent_type`: The agent being invoked (e.g., "hera-strategist")
+   - `original_prompt`: The original task prompt
+3. TMWS returns an enriched prompt with the persona's narrative prepended
+4. The enriched prompt is passed to the SubAgent
+
+**Benefits:**
+
+- Consistent persona behavior without manual `load_persona_narrative` calls
+- Narrative caching for performance (cache hits return instantly)
+- Graceful degradation: original prompt used if enrichment fails
+
+### Environment Variables (v2.4.25)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `TMWS_NARRATIVE_ENRICHMENT` | `true` | Enable/disable automatic narrative enrichment |
+| `TMWS_URL` | `http://localhost:6231` | TMWS server URL (localhost only for SSRF protection) |
+| `TMWS_TIMEOUT` | `5000` | Timeout in milliseconds for TMWS calls |
+
+### Security Fixes (v2.4.25)
+
+The following security measures are enforced:
+
+- **SSRF Protection**: TMWS URL validated to localhost only (`127.0.0.1` or `localhost`)
+- **Input Validation**: Maximum prompt length 10KB
+- **Whitelist Validation**: `subagent_type` must match known agent types
+
+### Manual Fallback
+
+If automatic enrichment is disabled or fails, use manual narrative loading:
+
+```python
+# Manual narrative loading (fallback)
+mcp__tmws__load_persona_narrative(
+    persona_name="athena",
+    prefer_evolved=True
 )
 ```
 
@@ -266,5 +320,15 @@ After each Trinitas Full Mode session, verify:
 
 ---
 
-*Trinitas SubAgent Execution Rules v2.4.22*
+## Version History
+
+- **v2.4.25** (2025-12-22): NarrativeAutoLoader integration, security fixes (SSRF, input validation)
+- **v2.4.22** (2025-12-15): Documentation structure optimization
+- **v2.4.20** (2025-12-12): Narrative tools for character consistency
+- **v2.4.19** (2025-12-12): Task assignment guidelines (Issue #91)
+- **v2.4.11** (2025-12-03): Full Mode Detection & SubAgent enforcement
+
+---
+
+*Trinitas SubAgent Execution Rules v2.4.25*
 *Enforcement: MANDATORY | Status: ACTIVE*
