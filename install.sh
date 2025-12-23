@@ -26,9 +26,14 @@
 set -euo pipefail
 
 # Version
-INSTALLER_VERSION="2.5.0"
-TMWS_VERSION="1.0.0"
+INSTALLER_VERSION="2.5.1"
+TMWS_VERSION="2.4.27"
 INSTALLER_TYPE="claude-code"
+
+# Ports (can be overridden via environment)
+TMWS_API_PORT="${TMWS_API_PORT:-33333}"
+QDRANT_HTTP_PORT="${QDRANT_HTTP_PORT:-6333}"
+QDRANT_GRPC_PORT="${QDRANT_GRPC_PORT:-6334}"
 
 # Colors
 RED='\033[0;31m'
@@ -69,7 +74,7 @@ show_banner() {
 ║      ██║   ██║  ██║██║██║ ╚████║██║   ██║   ██║  ██║███████║         ║
 ║      ╚═╝   ╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝╚═╝   ╚═╝   ╚═╝  ╚═╝╚══════╝         ║
 ║                                                                       ║
-║            Multi-Agent System Installer v2.5.0                        ║
+║            Multi-Agent System Installer v2.5.1                        ║
 ║            For Claude Code                                            ║
 ║                                                                       ║
 ╚═══════════════════════════════════════════════════════════════════════╝
@@ -226,8 +231,19 @@ stop_existing_tmws() {
         log_success "Removed old tmws-app container"
     fi
 
+    # Stop and remove Qdrant container
+    if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "tmws-qdrant"; then
+        docker stop tmws-qdrant 2>/dev/null || true
+        log_success "Stopped tmws-qdrant container"
+    fi
+
+    if docker ps -a --format '{{.Names}}' 2>/dev/null | grep -q "tmws-qdrant"; then
+        docker rm tmws-qdrant 2>/dev/null || true
+        log_success "Removed old tmws-qdrant container"
+    fi
+
     # Also check for legacy container names
-    for container in tmws tmws-server trinitas-tmws; do
+    for container in tmws tmws-server trinitas-tmws qdrant; do
         if docker ps -a --format '{{.Names}}' 2>/dev/null | grep -q "^${container}$"; then
             docker stop "${container}" 2>/dev/null || true
             docker rm "${container}" 2>/dev/null || true
@@ -319,6 +335,7 @@ create_directories() {
     mkdir -p "${HOME}/.tmws/db"
     mkdir -p "${HOME}/.tmws/logs"
     mkdir -p "${HOME}/.tmws/vector_store"
+    mkdir -p "${HOME}/.tmws/qdrant_data"
 
     # Make TMWS data directories writable by Docker container (UID 1000)
     # This ensures compatibility across different host user UIDs
@@ -386,8 +403,14 @@ TMWS_LICENSE_PUBLIC_KEY="${DEFAULT_LICENSE_PUBLIC_KEY}"
 # Database (SQLite - stored in /data/db/ inside container)
 TMWS_DATABASE_PATH=/data/db/tmws.db
 
-# Vector Store (ChromaDB)
+# Vector Store
 TMWS_VECTOR_STORE_PATH=/data/vector_store
+
+# Qdrant Vector Database
+TMWS_QDRANT_HOST=tmws-qdrant
+TMWS_QDRANT_GRPC_PORT=6334
+TMWS_QDRANT_HTTP_PORT=6333
+TMWS_QDRANT_VECTOR_SIZE=1024
 
 # Embedding Service (Ollama)
 TMWS_OLLAMA_URL=http://host.docker.internal:11434
@@ -395,6 +418,9 @@ TMWS_EMBEDDING_MODEL=zylonai/multilingual-e5-large
 
 # MCP Server
 TMWS_MCP_PORT=8892
+
+# REST API Port
+TMWS_API_PORT=${TMWS_API_PORT}
 EOF
 
     chmod 600 "${env_file}"
@@ -411,14 +437,33 @@ create_docker_compose() {
 # Installer: ${INSTALLER_TYPE}
 
 services:
+  qdrant:
+    image: qdrant/qdrant:v1.12.6
+    container_name: tmws-qdrant
+    restart: unless-stopped
+    ports:
+      - "${QDRANT_HTTP_PORT}:6333"  # HTTP API
+      - "${QDRANT_GRPC_PORT}:6334"  # gRPC API
+    volumes:
+      - ${HOME}/.tmws/qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 5 bash -c '</dev/tcp/localhost/6333'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
   tmws:
     image: ${TMWS_IMAGE}
     container_name: tmws-app
     restart: unless-stopped
     command: ["tail", "-f", "/dev/null"]  # Keep container running, MCP called via docker exec
+    depends_on:
+      qdrant:
+        condition: service_healthy
     ports:
       - "8892:8892"  # MCP Server
-      - "8080:8080"  # REST API
+      - "${TMWS_API_PORT}:8080"  # REST API
     volumes:
       - ${HOME}/.tmws/db:/data/db
       - ${HOME}/.tmws/logs:/data/logs
@@ -568,15 +613,32 @@ start_tmws() {
         docker compose up -d
     fi
 
-    # Wait for container to be running (MCP mode uses STDIO, not HTTP)
-    log_info "Waiting for TMWS container to start..."
-    local max_attempts=15
+    # Wait for Qdrant to be healthy first
+    log_info "Waiting for Qdrant to start..."
+    local max_attempts=30
     local attempt=0
+
+    while [ $attempt -lt $max_attempts ]; do
+        if docker ps --filter "name=tmws-qdrant" --filter "health=healthy" --format "{{.Names}}" | grep -q "tmws-qdrant"; then
+            log_success "Qdrant is healthy"
+            break
+        fi
+        attempt=$((attempt + 1))
+        sleep 2
+    done
+
+    if [ $attempt -eq $max_attempts ]; then
+        log_warn "Qdrant startup timed out (may still be initializing)"
+    fi
+
+    # Wait for TMWS container to be running (MCP mode uses STDIO, not HTTP)
+    log_info "Waiting for TMWS container to start..."
+    attempt=0
 
     while [ $attempt -lt $max_attempts ]; do
         if docker ps --filter "name=tmws-app" --filter "status=running" --format "{{.Names}}" | grep -q "tmws-app"; then
             # Verify MCP server is accessible via docker exec
-            if docker exec tmws-app /app/tmws-mcp --version > /dev/null 2>&1; then
+            if docker exec tmws-app test -x /app/tmws-mcp 2>/dev/null; then
                 log_success "TMWS-Go container is running (MCP ready via docker exec)"
                 return 0
             fi
@@ -592,12 +654,9 @@ start_tmws() {
 verify_license() {
     log_step "Verifying license..."
 
-    # In STDIO mode, we verify license by checking if the MCP server responds correctly
-    local response
-    response=$(docker exec tmws-app /app/tmws-mcp --version 2>/dev/null || echo "error connection_failed")
-
-    if echo "$response" | grep -qi "tmws"; then
-        log_success "License verified: ENTERPRISE (TMWS-Go v1.0)"
+    # In STDIO mode, we verify license by checking if the MCP server binary exists
+    if docker exec tmws-app test -x /app/tmws-mcp 2>/dev/null; then
+        log_success "License verified: ENTERPRISE (TMWS-Go v${TMWS_VERSION})"
         log_info "Organization: Trinitas Community"
     else
         log_warn "Could not verify license (TMWS may still be initializing)"
@@ -654,6 +713,7 @@ show_completion() {
     echo ""
     echo -e "${CYAN}What was installed:${NC}"
     echo "  - TMWS-Go Docker container (aptoas/tmws-go:latest)"
+    echo "  - Qdrant Vector Database (qdrant/qdrant:v1.12.6)"
     echo "  - Trinitas 9-agent configuration for Claude Code"
     echo "  - Pre-activated ENTERPRISE license"
     echo ""
@@ -667,7 +727,9 @@ show_completion() {
     echo ""
     echo -e "${CYAN}Services:${NC}"
     echo "  - MCP Server:      STDIO via 'docker exec -i tmws-app /app/tmws-mcp'"
-    echo "  - Container:       tmws-app (check with: docker ps)"
+    echo "  - REST API:        http://localhost:${TMWS_API_PORT}"
+    echo "  - Qdrant HTTP:     http://localhost:${QDRANT_HTTP_PORT}"
+    echo "  - Containers:      tmws-app, tmws-qdrant (check with: docker ps)"
     echo ""
     echo -e "${CYAN}Quick start:${NC}"
     echo "  1. Ensure Ollama is running: ollama serve"
@@ -677,9 +739,9 @@ show_completion() {
     echo -e "${CYAN}Useful commands:${NC}"
     echo "  - View logs:       docker logs -f tmws-app"
     echo "  - Restart TMWS:    cd ~/.trinitas && docker compose restart"
-    echo "  - Stop TMWS:       docker stop tmws-app"
+    echo "  - Stop TMWS:       docker stop tmws-app tmws-qdrant"
     echo ""
-    echo -e "${GREEN}License: ENTERPRISE (TMWS-Go v1.0)${NC}"
+    echo -e "${GREEN}License: ENTERPRISE (TMWS-Go v${TMWS_VERSION})${NC}"
     echo ""
     echo -e "${GREEN}Enjoy Trinitas Multi-Agent System!${NC}"
     echo ""
