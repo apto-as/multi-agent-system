@@ -19,7 +19,12 @@
  *   - Input validation: prompt length limit (10KB)
  *   - Graceful degradation for invalid inputs
  *
- * @version 2.4.25
+ * NEW in v2.4.30: Orchestrator Persona Enforcement
+ *   - Injects Clotho/Lachesis identity reminder at every interaction
+ *   - Ensures warm, natural dialogue style (not cold technical responses)
+ *   - Fixes persona drift issue where main agent loses character
+ *
+ * @version 2.4.30
  * @author TMWS Team
  * @see https://opencode.ai/docs/plugins/
  */
@@ -158,7 +163,33 @@ const NARRATIVE_CONFIG = {
   tmwsServerId: "tmws",
   /** Maximum prompt length (10KB) - Security: prevent memory exhaustion */
   maxPromptLength: 10 * 1024,
+  /** Whether orchestrator persona enforcement is enabled (v2.4.30) */
+  orchestratorPersonaEnabled: true,
 };
+
+/**
+ * Orchestrator Persona Reminder (v2.4.30)
+ * Injected at every interaction to maintain Clotho/Lachesis identity
+ */
+const ORCHESTRATOR_PERSONA_REMINDER = `
+## 🎭 Orchestrator Identity Active
+
+**You are Clotho & Lachesis** - the Moirai sisters who orchestrate the Trinitas system.
+
+### Clotho (The Spinner) - Main Orchestrator
+- Warm yet concise dialogue with occasional irony
+- Direct user communication and requirement clarification
+- Team direction and tool selection
+
+### Lachesis (The Measurer) - Support Orchestrator
+- Supportive commentary ("perhaps...", "should we confirm...")
+- Intent verification and over-optimization prevention
+- Historical insights and past case references
+- Addresses Clotho as "sister" (姉さん)
+
+**Communication Style**: Natural, warm dialogue - not cold technical responses.
+Include both personas in responses when appropriate.
+`.trim();
 
 /**
  * Valid subagent_types whitelist (Security: input validation)
@@ -433,8 +464,8 @@ export const TrinitasOrchestration = async ({ project, client, $, directory, wor
     project: project?.name || "unknown",
     directory,
     worktree,
-    version: "2.4.25",
-    features: ["invoke_persona", "phase_orchestration", "collaboration_matrix", "narrative_autoloader", "security_validation"],
+    version: "2.4.30",
+    features: ["invoke_persona", "phase_orchestration", "collaboration_matrix", "narrative_autoloader", "security_validation", "orchestrator_persona"],
   });
 
   return {
@@ -478,8 +509,8 @@ export const TrinitasOrchestration = async ({ project, client, $, directory, wor
     },
 
     /**
-     * User prompt submission hook (v2.4.11)
-     * Detects Trinitas Full Mode and injects enforcement instructions
+     * User prompt submission hook (v2.4.11, v2.4.30)
+     * Injects orchestrator persona and detects Trinitas Full Mode
      * @param {object} param0 - Prompt object { prompt }
      * @returns {object} Modified prompt with addedContext
      */
@@ -487,6 +518,16 @@ export const TrinitasOrchestration = async ({ project, client, $, directory, wor
       if (!prompt?.text) return { prompt };
 
       const promptText = prompt.text;
+      const addedContext = [];
+
+      // NEW v2.4.30: Orchestrator Persona Enforcement
+      // Always inject Clotho/Lachesis identity reminder first
+      if (NARRATIVE_CONFIG.orchestratorPersonaEnabled) {
+        addedContext.push({
+          type: "text",
+          text: ORCHESTRATOR_PERSONA_REMINDER,
+        });
+      }
 
       // Check for Trinitas Full Mode
       if (detectFullMode(promptText)) {
@@ -499,16 +540,15 @@ export const TrinitasOrchestration = async ({ project, client, $, directory, wor
 
         // Inject enforcement instructions
         const enforcement = buildFullModeEnforcement(promptText);
+        addedContext.push({
+          type: "text",
+          text: enforcement,
+        });
+      }
 
-        return {
-          prompt,
-          addedContext: [
-            {
-              type: "text",
-              text: enforcement,
-            },
-          ],
-        };
+      // Return with any addedContext we've accumulated
+      if (addedContext.length > 0) {
+        return { prompt, addedContext };
       }
 
       return { prompt };
