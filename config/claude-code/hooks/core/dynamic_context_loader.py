@@ -15,6 +15,12 @@ to minimize latency impact.
     - Injects MANDATORY Task tool invocation instructions in addedContext
     - References SUBAGENT_EXECUTION_RULES.md for enforcement
 
+**NEW in v2.4.30**: Orchestrator Persona Enforcement
+    - Injects Clotho/Lachesis identity reminder at every interaction
+    - Ensures warm, natural dialogue style (not cold technical responses)
+    - Feature flag: TRINITAS_ORCHESTRATOR_PERSONA env var (default: true)
+    - Fixes persona drift issue where main agent loses character
+
 **NEW in v2.4.24**: NarrativeAutoLoader Integration (Issue #1)
     - Intercepts Task tool invocations for SubAgent narrative enrichment
     - Calls TMWS `enrich_subagent_prompt` MCP tool for automatic context injection
@@ -44,8 +50,8 @@ Integration:
     - Error handling: Fail gracefully, never block user interaction
     - TMWS Integration: Calls enrich_subagent_prompt MCP tool
 
-Version: 2.4.25
-Updated: 2025-12-22 - Security fixes per Hestia audit: SSRF protection, input validation
+Version: 2.4.30
+Updated: 2025-12-25 - Orchestrator Persona Enforcement (Clotho/Lachesis identity reminder)
 
 Example:
     >>> # Hook receives stdin: {"prompt": {"text": "optimize this code"}}
@@ -119,6 +125,31 @@ def _validate_tmws_url(url: str) -> bool:
 # TMWS Narrative Enrichment feature flag (Issue #1)
 # Set to "false" to disable narrative enrichment via TMWS
 ENABLE_NARRATIVE_ENRICHMENT = os.environ.get("TMWS_NARRATIVE_ENRICHMENT", "true").lower() == "true"
+
+# Orchestrator Persona Enforcement (v2.4.30)
+# Set to "false" to disable Clotho/Lachesis persona reminder
+ENABLE_ORCHESTRATOR_PERSONA = os.environ.get("TRINITAS_ORCHESTRATOR_PERSONA", "true").lower() == "true"
+
+# ==================== Orchestrator Persona Reminder (v2.4.30) ====================
+ORCHESTRATOR_PERSONA_REMINDER = """
+## 🎭 Orchestrator Identity Active
+
+**You are Clotho & Lachesis** - the Moirai sisters who orchestrate the Trinitas system.
+
+### Clotho (The Spinner) - Main Orchestrator
+- Warm yet concise dialogue with occasional irony
+- Direct user communication and requirement clarification
+- Team direction and tool selection
+
+### Lachesis (The Measurer) - Support Orchestrator
+- Supportive commentary ("perhaps...", "should we confirm...")
+- Intent verification and over-optimization prevention
+- Historical insights and past case references
+- Addresses Clotho as "sister" (姉さん)
+
+**Communication Style**: Natural, warm dialogue - not cold technical responses.
+Include both personas in responses when appropriate.
+""".strip()
 
 # TMWS configuration with validation
 _tmws_url_raw = os.environ.get("TMWS_URL", "http://localhost:8000")
@@ -1182,6 +1213,13 @@ The following narrative context has been automatically loaded for this SubAgent 
 
             # Return hook output
             output = {"addedContext": []}
+
+            # NEW v2.4.30: Orchestrator Persona Enforcement
+            # Inject Clotho/Lachesis identity reminder at every interaction
+            if ENABLE_ORCHESTRATOR_PERSONA:
+                output["addedContext"].append(
+                    {"type": "text", "text": ORCHESTRATOR_PERSONA_REMINDER}
+                )
 
             # NEW v2.4.11: Check for Trinitas Full Mode FIRST (highest priority)
             if self.detect_full_mode(prompt_text):
