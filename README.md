@@ -1,9 +1,10 @@
 # Trinitas Multi-Agent System
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-2.4.22-blue.svg" alt="Version">
+  <img src="https://img.shields.io/badge/Version-2.4.27-blue.svg" alt="Version">
   <img src="https://img.shields.io/badge/License-ENTERPRISE-green.svg" alt="License">
   <img src="https://img.shields.io/badge/Platform-Ubuntu%20%7C%20macOS%20%7C%20WSL2-lightgrey.svg" alt="Platform">
+  <img src="https://img.shields.io/badge/Backend-TMWS--Go-orange.svg" alt="Backend">
 </p>
 
 **Trinitas** is a sophisticated multi-agent AI system that enhances Claude Code and OpenCode with 11 specialized AI personas (including Clotho & Lachesis orchestrators), persistent memory, and advanced workflow orchestration.
@@ -15,8 +16,8 @@
 - **11 AI Personas**: 2 Orchestrators (Clotho, Lachesis) + 9 Specialists (Athena, Artemis, Hestia, Hera, Eris, Muses, Aphrodite, Metis, Aurora)
 - **Persistent Memory**: TMWS (Trinitas Memory & Workflow System) provides semantic search and cross-session knowledge retention
 - **Phase-Based Execution**: Strategic planning with approval gates ensures quality
-- **42 MCP Tools**: Memory management, verification, skills, agent coordination
-- **Full Functionality**: All features included
+- **140+ MCP Tools**: Memory management, verification, skills, agent coordination
+- **High Performance**: TMWS-Go backend with <500ms startup, ~50MB memory footprint
 - **Upgrade Support**: Automatic backup and seamless upgrade from previous versions
 
 ## Quick Start
@@ -119,7 +120,7 @@ sudo usermod -aG docker $USER
 # Ollama
 curl -fsSL https://ollama.ai/install.sh | sh
 ollama serve &
-ollama pull zylonai/multilingual-e5-large
+ollama pull mxbai-embed-large
 ```
 
 **macOS:**
@@ -130,7 +131,7 @@ brew install --cask docker
 # Ollama
 brew install ollama
 ollama serve &
-ollama pull zylonai/multilingual-e5-large
+ollama pull mxbai-embed-large
 ```
 
 **Windows (WSL2):**
@@ -156,6 +157,27 @@ ollama pull zylonai/multilingual-e5-large
 | `~/.trinitas/` | TMWS configuration and Docker Compose |
 | `~/.config/opencode/` | Agent configs, plugins, and commands |
 | `~/.tmws/` | Database, logs, and vector storage |
+
+## Repository Structure
+
+```
+multi-agent-system/
+├── config/
+│   ├── claude-code/          # Claude Code configurations
+│   │   ├── CLAUDE.md         # Main system config
+│   │   ├── AGENTS.md         # Agent coordination
+│   │   ├── agents/           # 11 agent definitions
+│   │   ├── commands/         # Slash commands
+│   │   └── hooks/            # Extension hooks
+│   └── open-code/            # OpenCode configurations
+│       ├── opencode.md       # Main system config
+│       ├── agent/            # Agent definitions
+│       ├── command/          # Commands
+│       └── plugin/           # JavaScript plugins
+├── install.sh                # Claude Code installer
+├── install-opencode.sh       # OpenCode installer
+└── install-wsl.ps1           # Windows WSL installer
+```
 
 ## Upgrade Support
 
@@ -248,27 +270,6 @@ Phase 4: Documentation (Muses)
 | **Metis** 🔧 | Developer | Implementation & testing |
 | **Aurora** 🌅 | Researcher | Search & context retrieval |
 
-## TMWS-Go Migration
-
-Starting with v2.5.0, Trinitas is transitioning to **TMWS-Go** - a high-performance Go implementation of the Trinitas Memory & Workflow System.
-
-### Key Benefits
-
-| Aspect | Python (Current) | Go (New) |
-|--------|------------------|----------|
-| Startup Time | ~3s | <500ms |
-| Memory Usage | ~200MB | ~50MB |
-| Binary Distribution | Docker required | Single binary option |
-| Concurrency | GIL-limited | Native goroutines |
-
-### Migration Timeline
-
-- **Current**: Python-based TMWS (v2.4.x) - fully supported
-- **Q1 2025**: TMWS-Go beta available for testing
-- **Q2 2025**: TMWS-Go stable release (v2.5.0)
-
-Existing installations will continue to work. Migration tools will be provided for seamless transition.
-
 ## License Information
 
 This distribution includes a **pre-activated 90-day ENTERPRISE license**.
@@ -284,11 +285,11 @@ This distribution includes a **pre-activated 90-day ENTERPRISE license**.
 | Feature | Included |
 |---------|----------|
 | All 11 AI Personas | ✅ |
-| 42 MCP Tools | ✅ |
+| 140+ MCP Tools | ✅ |
 | Semantic Memory | ✅ |
 | Verification System | ✅ |
 | Phase-Based Orchestration | ✅ |
-| TMWS-Go Early Access | ✅ |
+| Self-Learning Patterns | ✅ |
 
 Contact [apto-as](https://github.com/apto-as) for license renewal or support.
 
@@ -317,7 +318,7 @@ curl http://localhost:11434/api/version
 pgrep -a ollama
 
 # Pull required model
-ollama pull zylonai/multilingual-e5-large
+ollama pull mxbai-embed-large
 ```
 
 **Important for SSH/Remote Servers:**
@@ -331,17 +332,12 @@ sudo systemctl start ollama
 
 # Verify it's running
 systemctl status ollama
-
-# Check if auto-start is enabled
-systemctl is-enabled ollama
 ```
-
-> **Note:** The Ollama installer (`curl -fsSL https://ollama.ai/install.sh | sh`) typically registers a systemd service automatically. If not, use `nohup ollama serve > /dev/null 2>&1 &` as an alternative.
 
 ### License Verification
 
 ```bash
-curl http://localhost:8000/api/v1/license/status
+curl http://localhost:33333/health
 ```
 
 ### WSL2 Issues (Windows)
@@ -380,15 +376,15 @@ rm -rf ~/.trinitas ~/.tmws
 │              Claude Code / OpenCode                      │
 │                   (AI Interface)                         │
 └─────────────────────┬───────────────────────────────────┘
-                      │ MCP Protocol
+                      │ MCP Protocol (stdio)
 ┌─────────────────────▼───────────────────────────────────┐
-│                 TMWS Container                           │
+│                 TMWS-Go Container                        │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐     │
 │  │ MCP Server  │  │  REST API   │  │  Services   │     │
-│  │   :8892     │  │   :8000     │  │             │     │
+│  │   (stdio)   │  │   :33333    │  │             │     │
 │  └─────────────┘  └─────────────┘  └─────────────┘     │
 │  ┌─────────────────────────────────────────────────┐   │
-│  │               SQLite + ChromaDB                  │   │
+│  │           SQLite + Qdrant Vector Store          │   │
 │  │           (Memory & Vector Storage)              │   │
 │  └─────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────┘
@@ -396,7 +392,7 @@ rm -rf ~/.trinitas ~/.tmws
 ┌─────────────────────▼───────────────────────────────────┐
 │                    Ollama                                │
 │            (Embedding Generation)                        │
-│         zylonai/multilingual-e5-large                   │
+│              mxbai-embed-large                          │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -406,19 +402,19 @@ This is a proprietary system. For bug reports and feature requests, please conta
 
 ## Version History
 
+- **v2.4.27** (2025-12-24): Config restructuring, obsolete file cleanup, TMWS-Go stable
+- **v2.4.26** (2025-12-23): Docker CGO fix for go-sqlite3
+- **v2.4.25** (2025-12-22): NarrativeAutoLoader security fixes (SSRF, input validation)
 - **v2.4.22** (2025-12-17): MCP startup optimization, Issue #96 fix, Agent source hierarchy fix (#97)
 - **v2.4.20** (2025-12-14): Narrative system for dynamic agent background stories
-- **v2.4.19** (2025-12-13): Orchestrator-First Architecture (Clotho + Lachesis), ChromaDB Extension, Persona Linguistic Calibration
+- **v2.4.19** (2025-12-13): Orchestrator-First Architecture (Clotho + Lachesis)
 - **v2.4.16** (2025-12-05): Tool Search + MCP Hub, Adaptive Ranking, Security Hardening
-- **v2.4.12** (2025-12-03): Option B distribution, OpenCode support, WSL installer, upgrade support
-- **v2.4.8** (2025-12-01): Orchestration layer, 128 tests
-- **v2.4.0** (2025-11-24): Memory management API
-- **v2.3.0** (2025-11-11): Verification-Trust integration
+- **v2.4.12** (2025-12-03): Option B distribution, OpenCode support, WSL installer
 
 ---
 
 <p align="center">
   <strong>Trinitas Multi-Agent System</strong><br>
-  11 Agents • 42 MCP Tools • Semantic Memory<br>
-  <em>Powered by TMWS v2.4.22</em>
+  11 Agents • 140+ MCP Tools • Semantic Memory<br>
+  <em>Powered by TMWS-Go v2.4.27</em>
 </p>

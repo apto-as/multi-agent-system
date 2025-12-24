@@ -4,5 +4,5 @@ __pycache__/
 .backups/
 
 # Proprietary internal files (patent-sensitive content)
-claudecode/.internal/
+config/claude-code/.internal/
 .internal/
