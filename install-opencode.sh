@@ -415,7 +415,7 @@ install_opencode_config() {
     log_step "Installing Trinitas configuration for OpenCode..."
 
     local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd 2>/dev/null || echo "")"
-    local config_src="${script_dir}/opencode"
+    local config_src="${script_dir}/config/open-code"
     local github_base="https://raw.githubusercontent.com/apto-as/multi-agent-system/main"
     local use_github=false
 
@@ -426,25 +426,25 @@ install_opencode_config() {
         config_src=$(mktemp -d -t trinitas-install.XXXXXXXX)
         trap 'rm -rf "${config_src}" 2>/dev/null || true' EXIT
 
-        # Download opencode directory contents
+        # Download config/open-code directory contents
         mkdir -p "${config_src}/agent" "${config_src}/command" "${config_src}/plugin"
 
         # Download main config files
-        curl -fsSL "${github_base}/opencode/opencode.md" -o "${config_src}/opencode.md" 2>/dev/null || true
-        curl -fsSL "${github_base}/opencode/opencode.json" -o "${config_src}/opencode.json" 2>/dev/null || true
-        curl -fsSL "${github_base}/opencode/AGENTS.md" -o "${config_src}/AGENTS.md" 2>/dev/null || true
+        curl -fsSL "${github_base}/config/open-code/opencode.md" -o "${config_src}/opencode.md" 2>/dev/null || true
+        curl -fsSL "${github_base}/config/open-code/opencode.json" -o "${config_src}/opencode.json" 2>/dev/null || true
+        curl -fsSL "${github_base}/config/open-code/AGENTS.md" -o "${config_src}/AGENTS.md" 2>/dev/null || true
 
         # Download agents (11 total: 2 Orchestrators + 9 Specialists)
         for agent in clotho lachesis athena artemis hestia eris hera muses aphrodite metis aurora; do
-            curl -fsSL "${github_base}/opencode/agent/${agent}.md" -o "${config_src}/agent/${agent}.md" 2>/dev/null || true
+            curl -fsSL "${github_base}/config/open-code/agent/${agent}.md" -o "${config_src}/agent/${agent}.md" 2>/dev/null || true
         done
 
         # Download commands
-        curl -fsSL "${github_base}/opencode/command/trinitas.md" -o "${config_src}/command/trinitas.md" 2>/dev/null || true
+        curl -fsSL "${github_base}/config/open-code/command/trinitas.md" -o "${config_src}/command/trinitas.md" 2>/dev/null || true
 
         # Download plugins
-        curl -fsSL "${github_base}/opencode/plugin/trinitas-orchestration.js" -o "${config_src}/plugin/trinitas-orchestration.js" 2>/dev/null || true
-        curl -fsSL "${github_base}/opencode/plugin/trinitas-trigger-processor.js" -o "${config_src}/plugin/trinitas-trigger-processor.js" 2>/dev/null || true
+        curl -fsSL "${github_base}/config/open-code/plugin/trinitas-orchestration.js" -o "${config_src}/plugin/trinitas-orchestration.js" 2>/dev/null || true
+        curl -fsSL "${github_base}/config/open-code/plugin/trinitas-trigger-processor.js" -o "${config_src}/plugin/trinitas-trigger-processor.js" 2>/dev/null || true
     fi
 
     # Copy opencode.md from distribution
@@ -500,8 +500,8 @@ configure_opencode_settings() {
     local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
     # Copy opencode.json from distribution if available
-    if [ -f "${script_dir}/opencode/opencode.json" ]; then
-        cp "${script_dir}/opencode/opencode.json" "${OPENCODE_CONFIG_DIR}/"
+    if [ -f "${script_dir}/config/open-code/opencode.json" ]; then
+        cp "${script_dir}/config/open-code/opencode.json" "${OPENCODE_CONFIG_DIR}/"
         log_success "Copied opencode.json"
     else
         # Fallback: create default configuration (OpenCode schema-compliant)

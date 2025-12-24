@@ -483,7 +483,7 @@ install_claude_config() {
     log_step "Installing Trinitas configuration for Claude Code..."
 
     local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd 2>/dev/null || echo "")"
-    local config_src="${script_dir}/claudecode"
+    local config_src="${script_dir}/config/claude-code"
     local github_base="https://raw.githubusercontent.com/apto-as/multi-agent-system/main"
     local use_github=false
 
@@ -496,28 +496,28 @@ install_claude_config() {
         TRINITAS_TEMP_DIR="${config_src}"
         trap 'rm -rf "${TRINITAS_TEMP_DIR:-}" 2>/dev/null || true' EXIT
 
-        # Download claudecode directory contents
+        # Download config/claude-code directory contents
         mkdir -p "${config_src}/agents" "${config_src}/commands" "${config_src}/hooks/core"
 
         # Download main config files
-        curl -fsSL "${github_base}/claudecode/CLAUDE.md" -o "${config_src}/CLAUDE.md" 2>/dev/null || true
-        curl -fsSL "${github_base}/claudecode/AGENTS.md" -o "${config_src}/AGENTS.md" 2>/dev/null || true
-        curl -fsSL "${github_base}/claudecode/SUBAGENT_EXECUTION_RULES.md" -o "${config_src}/SUBAGENT_EXECUTION_RULES.md" 2>/dev/null || true
+        curl -fsSL "${github_base}/config/claude-code/CLAUDE.md" -o "${config_src}/CLAUDE.md" 2>/dev/null || true
+        curl -fsSL "${github_base}/config/claude-code/AGENTS.md" -o "${config_src}/AGENTS.md" 2>/dev/null || true
+        curl -fsSL "${github_base}/config/claude-code/SUBAGENT_EXECUTION_RULES.md" -o "${config_src}/SUBAGENT_EXECUTION_RULES.md" 2>/dev/null || true
 
         # Download agents (11 total: 2 Orchestrators + 9 Specialists)
         for agent in clotho-orchestrator lachesis-support athena-conductor artemis-optimizer hestia-auditor eris-coordinator hera-strategist muses-documenter aphrodite-designer metis-developer aurora-researcher; do
-            curl -fsSL "${github_base}/claudecode/agents/${agent}.md" -o "${config_src}/agents/${agent}.md" 2>/dev/null || true
+            curl -fsSL "${github_base}/config/claude-code/agents/${agent}.md" -o "${config_src}/agents/${agent}.md" 2>/dev/null || true
         done
 
         # Download commands
         for cmd in trinitas tmws self-introduction status; do
-            curl -fsSL "${github_base}/claudecode/commands/${cmd}.md" -o "${config_src}/commands/${cmd}.md" 2>/dev/null || true
+            curl -fsSL "${github_base}/config/claude-code/commands/${cmd}.md" -o "${config_src}/commands/${cmd}.md" 2>/dev/null || true
         done
 
         # Download hooks
-        curl -fsSL "${github_base}/claudecode/hooks/settings.json" -o "${config_src}/hooks/settings.json" 2>/dev/null || true
+        curl -fsSL "${github_base}/config/claude-code/hooks/settings.json" -o "${config_src}/hooks/settings.json" 2>/dev/null || true
         for hook in dynamic_context_loader protocol_injector; do
-            curl -fsSL "${github_base}/claudecode/hooks/core/${hook}.py" -o "${config_src}/hooks/core/${hook}.py" 2>/dev/null || true
+            curl -fsSL "${github_base}/config/claude-code/hooks/core/${hook}.py" -o "${config_src}/hooks/core/${hook}.py" 2>/dev/null || true
         done
     fi
 
