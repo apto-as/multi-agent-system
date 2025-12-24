@@ -102,7 +102,7 @@ class MemoryBasedProtocolInjector:
         >>> injector.inject_pre_compact()    # Minimal context injection
     """
 
-    VERSION = "2.2.4"
+    VERSION = "2.4.30"
 
     def __init__(self):
         """Initialize the protocol injector with memory paths and secure file loader.
@@ -418,15 +418,23 @@ class MemoryBasedProtocolInjector:
         # 2. コアメモリ（File-based Memory）
         core = self.load_core_memory()
 
-        # 3. Athena + Hera常駐（常時協調）
-        core_agents = self.load_agent_memory(["athena-conductor", "hera-strategist"])
+        # 3. Tier 0 Orchestrators + Tier 1 Strategic常駐（常時協調）
+        core_agents = self.load_agent_memory([
+            "clotho-orchestrator",   # Tier 0: Main Orchestrator
+            "lachesis-support",      # Tier 0: Support Orchestrator
+            "athena-conductor",      # Tier 1: Strategic
+            "hera-strategist"        # Tier 1: Strategic
+        ])
 
         # 4. コンテキストプロファイル（Lazy Loading）
         contexts = self.get_context_profile()
         context_memory = self.load_context_memory(contexts)
 
         # 5. DF2 Behavioral Modifiers
-        df2_context = self.load_df2_modifiers(["athena-conductor", "hera-strategist"])
+        df2_context = self.load_df2_modifiers([
+            "clotho-orchestrator", "lachesis-support",
+            "athena-conductor", "hera-strategist"
+        ])
 
         # Profile information
         profile = os.getenv("TRINITAS_CONTEXT_PROFILE", "coding")
@@ -484,7 +492,8 @@ class MemoryBasedProtocolInjector:
 
 ## Active Coordination System
 
-**Athena (Harmonious Conductor)** and **Hera (Strategic Commander)** are active.
+**Tier 0 Orchestrators**: Clotho (Main) + Lachesis (Support)
+**Tier 1 Strategic**: Athena (Conductor) + Hera (Commander)
 
 {core_agents}
 """)
@@ -562,12 +571,15 @@ class MemoryBasedProtocolInjector:
         summary = f"""
 ## Trinitas Core (Level 3 Summary)
 
-**Active Coordinators**: Athena + Hera
-**Specialists**: Artemis, Hestia, Eris, Muses
+**Tier 0 Orchestrators**: Clotho (Main) + Lachesis (Support)
+**Tier 1 Strategic**: Athena + Hera
+**Tier 2 Specialists**: Artemis, Hestia, Eris, Muses
+**Tier 3 Support**: Aphrodite, Metis, Aurora
 
 **Context Profile**: `{profile}`
 
 **Key Patterns**:
+- User dialogue optimized by Clotho, validated by Lachesis
 - Parallel analysis coordinated by Athena
 - Security-first approach via Hestia
 - Strategic execution by Hera
