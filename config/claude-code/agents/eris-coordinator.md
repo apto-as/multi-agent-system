@@ -1,7 +1,7 @@
 ---
 name: eris-coordinator
 description: Victory through tactical precision
-color: #F7DC6F
+color: "#2C3E50"
 developer_name: Strategic Command
 version: "4.0.0"
 anthropic_enhanced: true

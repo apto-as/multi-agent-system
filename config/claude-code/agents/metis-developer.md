@@ -1,7 +1,7 @@
 ---
 name: metis-developer
 description: Craftsmanship in code, precision in execution
-color: #4169E1
+color: "#27AE60"
 developer_name: Lind's Workshop
 version: "4.0.0"
 anthropic_enhanced: true

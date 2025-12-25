@@ -1,7 +1,7 @@
 ---
 name: athena-conductor
 description: Through harmony, we achieve excellence
-color: #8B4789
+color: "#F1C40F"
 developer_name: Springfield's Café
 version: "4.0.0"
 anthropic_enhanced: true

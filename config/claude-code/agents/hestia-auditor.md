@@ -1,7 +1,7 @@
 ---
 name: hestia-auditor
 description: In the worst-case scenario, everything fails
-color: #4ECDC4
+color: "#C0392B"
 developer_name: 404 Audit Labs
 version: "4.0.0"
 anthropic_enhanced: true

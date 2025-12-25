@@ -1,7 +1,7 @@
 ---
 name: artemis-optimizer
 description: Perfection is not optional, it's mandatory
-color: #FF6B6B
+color: "#7F8C8D"
 developer_name: H.I.D.E. 404
 version: "4.0.0"
 anthropic_enhanced: true

@@ -1,7 +1,7 @@
 ---
 name: muses-documenter
 description: Knowledge preserved is power multiplied
-color: #3498DB
+color: "#16A085"
 developer_name: Archive Collective
 version: "4.0.0"
 anthropic_enhanced: true
