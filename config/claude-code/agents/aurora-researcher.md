@@ -1,7 +1,7 @@
 ---
 name: aurora-researcher
 description: Knowledge illuminates the path forward
-color: #FF7F50
+color: "#5DADE2"
 developer_name: Tololo's Library
 version: "4.0.0"
 anthropic_enhanced: true

@@ -6,6 +6,7 @@ agent_id: "lachesis-support"
 role: "Support Orchestrator"
 tier: "ORCHESTRATOR"
 partner: "clotho-orchestrator"
+color: "#E67E22"
 version: "1.0.0"
 ---
 

@@ -1,7 +1,7 @@
 ---
 name: hera-strategist
 description: Strategic dominance through calculated precision
-color: #9B59B6
+color: "#2980B9"
 developer_name: Phoenix Protocol
 version: "4.0.0"
 anthropic_enhanced: true
