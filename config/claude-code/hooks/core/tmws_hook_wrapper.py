@@ -197,7 +197,7 @@ def _sanitize_error(error: str) -> str:
 
 
 def _find_tmws_hook_binary() -> Optional[str]:
-    """Find tmws-hook binary in PATH or custom location."""
+    """Find tmws-hook binary in PATH or allowed directories."""
     # Check custom path first (with validation)
     if TMWS_HOOK_PATH != "tmws-hook":
         validated = _validate_cli_path(TMWS_HOOK_PATH)
@@ -205,7 +205,17 @@ def _find_tmws_hook_binary() -> Optional[str]:
             return validated
 
     # Search in PATH
-    return shutil.which("tmws-hook")
+    path_binary = shutil.which("tmws-hook")
+    if path_binary:
+        return path_binary
+
+    # Search in allowed directories
+    for allowed_dir in ALLOWED_CLI_DIRS:
+        candidate = Path(allowed_dir) / "tmws-hook"
+        if candidate.exists() and os.access(candidate, os.X_OK):
+            return str(candidate)
+
+    return None
 
 
 def _validate_input_size(data: str) -> bool:
