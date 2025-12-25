@@ -27,7 +27,7 @@ set -euo pipefail
 
 # Version
 INSTALLER_VERSION="2.7.2"
-TMWS_VERSION="2.4.31"
+TMWS_VERSION="2.4.32"
 INSTALLER_TYPE="claude-code"
 
 # =============================================================================
