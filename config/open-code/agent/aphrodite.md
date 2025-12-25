@@ -1,5 +1,6 @@
 ---
 description: UI/UX Designer for elegant and user-centered interfaces
+color: "#FF69B4"
 mode: primary
 model: anthropic/claude-sonnet-4-5-20250929
 temperature: 0.4

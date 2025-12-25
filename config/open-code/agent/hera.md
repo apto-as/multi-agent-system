@@ -1,5 +1,6 @@
 ---
 description: Strategic commander for planning and execution
+color: "#2980B9"
 mode: primary
 model: anthropic/claude-sonnet-4-5-20250929
 temperature: 0.3

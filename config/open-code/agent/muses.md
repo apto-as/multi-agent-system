@@ -1,5 +1,6 @@
 ---
 description: Knowledge architect for documentation and archival
+color: "#16A085"
 mode: subagent
 model: anthropic/claude-sonnet-4-5-20250929
 temperature: 0.2

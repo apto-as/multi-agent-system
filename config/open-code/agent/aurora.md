@@ -1,5 +1,6 @@
 ---
 description: Research Assistant for memory search and context retrieval
+color: "#5DADE2"
 mode: primary
 model: anthropic/claude-sonnet-4-5-20250929
 temperature: 0.3

@@ -1,5 +1,6 @@
 ---
 description: Development Assistant for efficient code implementation and testing
+color: "#27AE60"
 mode: primary
 model: anthropic/claude-sonnet-4-5-20250929
 temperature: 0.2

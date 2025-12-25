@@ -1,5 +1,6 @@
 ---
 description: Tactical coordinator for team collaboration and conflict resolution
+color: "#2C3E50"
 mode: subagent
 model: anthropic/claude-sonnet-4-5-20250929
 temperature: 0.4
