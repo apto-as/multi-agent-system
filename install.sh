@@ -26,8 +26,8 @@
 set -euo pipefail
 
 # Version
-INSTALLER_VERSION="2.6.0"
-TMWS_VERSION="2.4.29"
+INSTALLER_VERSION="2.6.1"
+TMWS_VERSION="2.4.31"
 INSTALLER_TYPE="claude-code"
 
 # Installation mode: "native" or "docker"
