@@ -1,7 +1,7 @@
 # Trinitas Multi-Agent System
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-2.4.27-blue.svg" alt="Version">
+  <img src="https://img.shields.io/badge/Version-2.4.31-blue.svg" alt="Version">
   <img src="https://img.shields.io/badge/License-ENTERPRISE-green.svg" alt="License">
   <img src="https://img.shields.io/badge/Platform-Ubuntu%20%7C%20macOS%20%7C%20WSL2-lightgrey.svg" alt="Platform">
   <img src="https://img.shields.io/badge/Backend-TMWS--Go-orange.svg" alt="Backend">
@@ -27,6 +27,18 @@
 ```bash
 curl -fsSL https://raw.githubusercontent.com/apto-as/multi-agent-system/main/install.sh | bash
 ```
+
+> **Note**: 環境によっては`sudo`が必要な場合があります:
+> ```bash
+> curl -fsSL https://raw.githubusercontent.com/apto-as/multi-agent-system/main/install.sh | sudo bash
+> ```
+
+#### Installation Modes
+
+| Mode | Description | Command |
+|------|-------------|---------|
+| **Native** (default) | Pre-built binaries, no Docker required | `TMWS_INSTALL_MODE=native ./install.sh` |
+| **Docker** | Containerized TMWS | `TMWS_INSTALL_MODE=docker ./install.sh` |
 
 ### For OpenCode (macOS/Linux)
 
@@ -57,13 +69,12 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/apto-as/multi-agent-sy
 
 ## Prerequisites
 
-| Requirement | Version | Claude Code | OpenCode | Notes |
-|-------------|---------|-------------|----------|-------|
-| Docker | 20.10+ | Required | Required | For TMWS |
+| Requirement | Version | Native Mode | Docker Mode | Notes |
+|-------------|---------|-------------|-------------|-------|
+| Docker | 20.10+ | Not required | Required | Only for Docker mode |
 | Git | 2.0+ | Required | Required | For repository management |
 | Ollama | Latest | Required | Required | For embedding generation |
-| Claude Code | Latest | Required | - | Anthropic's CLI |
-| OpenCode | Latest | - | Required | Open-source AI CLI |
+| Claude Code | Latest | Required | Required | Anthropic's CLI |
 
 ### Installing Claude Code
 
@@ -402,6 +413,7 @@ This is a proprietary system. For bug reports and feature requests, please conta
 
 ## Version History
 
+- **v2.4.31** (2025-12-25): Native binary installation mode, GitHub Actions CI/CD
 - **v2.4.27** (2025-12-24): Config restructuring, obsolete file cleanup, TMWS-Go stable
 - **v2.4.26** (2025-12-23): Docker CGO fix for go-sqlite3
 - **v2.4.25** (2025-12-22): NarrativeAutoLoader security fixes (SSRF, input validation)
@@ -416,5 +428,5 @@ This is a proprietary system. For bug reports and feature requests, please conta
 <p align="center">
   <strong>Trinitas Multi-Agent System</strong><br>
   11 Agents • 140+ MCP Tools • Semantic Memory<br>
-  <em>Powered by TMWS-Go v2.4.27</em>
+  <em>Powered by TMWS-Go v2.4.31</em>
 </p>
