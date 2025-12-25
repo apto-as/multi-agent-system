@@ -26,14 +26,23 @@
 set -euo pipefail
 
 # Version
-INSTALLER_VERSION="2.5.1"
-TMWS_VERSION="2.4.27"
+INSTALLER_VERSION="2.6.0"
+TMWS_VERSION="2.4.29"
 INSTALLER_TYPE="claude-code"
 
+# Installation mode: "native" or "docker"
+# Native mode downloads pre-built binaries (recommended for new installs)
+# Docker mode uses containerized TMWS (legacy)
+INSTALL_MODE="${TMWS_INSTALL_MODE:-native}"
+
 # Ports (can be overridden via environment)
-TMWS_API_PORT="${TMWS_API_PORT:-33333}"
+TMWS_API_PORT="${TMWS_API_PORT:-6321}"
 QDRANT_HTTP_PORT="${QDRANT_HTTP_PORT:-6333}"
 QDRANT_GRPC_PORT="${QDRANT_GRPC_PORT:-6334}"
+
+# Native binary installation
+TMWS_INSTALL_DIR="${TMWS_INSTALL_DIR:-$HOME/.tmws}"
+TMWS_BIN_DIR="${TMWS_INSTALL_DIR}/bin"
 
 # Colors
 RED='\033[0;31m'
@@ -74,12 +83,127 @@ show_banner() {
 ║      ██║   ██║  ██║██║██║ ╚████║██║   ██║   ██║  ██║███████║         ║
 ║      ╚═╝   ╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝╚═╝   ╚═╝   ╚═╝  ╚═╝╚══════╝         ║
 ║                                                                       ║
-║            Multi-Agent System Installer v2.5.1                        ║
+║            Multi-Agent System Installer v2.6.0                        ║
 ║            For Claude Code                                            ║
 ║                                                                       ║
 ╚═══════════════════════════════════════════════════════════════════════╝
 EOF
     echo -e "${NC}"
+}
+
+# Detect OS for native binary download
+detect_os() {
+    local os
+    os="$(uname -s | tr '[:upper:]' '[:lower:]')"
+    case "$os" in
+        darwin) echo "darwin" ;;
+        linux) echo "linux" ;;
+        *) log_error "Unsupported OS: $os" ; exit 1 ;;
+    esac
+}
+
+# Detect architecture for native binary download
+detect_arch() {
+    local arch
+    arch="$(uname -m)"
+    case "$arch" in
+        x86_64|amd64) echo "amd64" ;;
+        aarch64|arm64) echo "arm64" ;;
+        *) log_error "Unsupported architecture: $arch" ; exit 1 ;;
+    esac
+}
+
+# Get latest TMWS release version from GitHub
+get_latest_tmws_version() {
+    local version
+    version=$(curl -fsSL "https://api.github.com/repos/apto-as/multi-agent-system/releases" 2>/dev/null | \
+        grep '"tag_name":' | grep 'tmws-v' | head -1 | sed -E 's/.*"tmws-(v[^"]+)".*/\1/')
+    if [ -z "$version" ]; then
+        # Fallback to hardcoded version
+        echo "v${TMWS_VERSION}"
+    else
+        echo "$version"
+    fi
+}
+
+# Download and install native TMWS binaries
+install_native_binaries() {
+    log_step "Installing TMWS native binaries..."
+
+    local os arch version url archive_name tmp_dir
+    os=$(detect_os)
+    arch=$(detect_arch)
+    version=$(get_latest_tmws_version)
+
+    archive_name="tmws-${os}-${arch}.tar.gz"
+    url="https://github.com/apto-as/multi-agent-system/releases/download/tmws-${version}/${archive_name}"
+
+    log_info "Downloading TMWS ${version} for ${os}/${arch}..."
+    log_info "URL: ${url}"
+
+    tmp_dir=$(mktemp -d -t tmws-install.XXXXXXXX)
+    trap "rm -rf $tmp_dir" EXIT
+
+    if ! curl -fsSL "$url" -o "${tmp_dir}/${archive_name}"; then
+        log_error "Failed to download TMWS binaries"
+        log_error "URL: ${url}"
+        log_error ""
+        log_error "If this is the first release, binaries may not be available yet."
+        log_error "You can use Docker mode instead: TMWS_INSTALL_MODE=docker ./install.sh"
+        exit 1
+    fi
+
+    # Extract and install
+    mkdir -p "${TMWS_BIN_DIR}"
+    tar -xzf "${tmp_dir}/${archive_name}" -C "${tmp_dir}"
+
+    for bin in tmws-server tmws-mcp tmws-cli tmws-hook; do
+        if [ -f "${tmp_dir}/${bin}" ]; then
+            mv "${tmp_dir}/${bin}" "${TMWS_BIN_DIR}/"
+            chmod +x "${TMWS_BIN_DIR}/${bin}"
+            log_success "Installed ${bin}"
+        fi
+    done
+
+    # Create symlink for convenience
+    ln -sf "${TMWS_BIN_DIR}/tmws-mcp" "${TMWS_BIN_DIR}/tmws" 2>/dev/null || true
+
+    log_success "TMWS binaries installed to ${TMWS_BIN_DIR}"
+}
+
+# Setup PATH for native installation
+setup_native_path() {
+    log_step "Setting up PATH..."
+
+    local shell_rc=""
+    local shell_name
+    shell_name=$(basename "$SHELL")
+
+    case "$shell_name" in
+        bash) shell_rc="$HOME/.bashrc" ;;
+        zsh) shell_rc="$HOME/.zshrc" ;;
+        fish) shell_rc="$HOME/.config/fish/config.fish" ;;
+        *) log_warn "Unknown shell: $shell_name. Add ${TMWS_BIN_DIR} to PATH manually." ; return ;;
+    esac
+
+    if [ -f "$shell_rc" ]; then
+        if ! grep -q "TMWS_HOME" "$shell_rc"; then
+            if [ "$shell_name" = "fish" ]; then
+                echo "" >> "$shell_rc"
+                echo "# TMWS" >> "$shell_rc"
+                echo "set -gx TMWS_HOME ${TMWS_INSTALL_DIR}" >> "$shell_rc"
+                echo "fish_add_path ${TMWS_BIN_DIR}" >> "$shell_rc"
+            else
+                echo "" >> "$shell_rc"
+                echo "# TMWS" >> "$shell_rc"
+                echo "export TMWS_HOME=\"${TMWS_INSTALL_DIR}\"" >> "$shell_rc"
+                echo "export PATH=\"\$TMWS_HOME/bin:\$PATH\"" >> "$shell_rc"
+            fi
+            log_success "Added TMWS to PATH in ${shell_rc}"
+        else
+            log_info "TMWS already in PATH"
+        fi
+    fi
 }
 
 # Platform detection
@@ -578,7 +702,21 @@ configure_mcp_settings() {
 
     local mcp_config="${CLAUDE_CONFIG_DIR}/.mcp.json"
 
-    cat > "${mcp_config}" << 'EOF'
+    if [ "$INSTALL_MODE" = "native" ]; then
+        # Native mode: use local binary
+        cat > "${mcp_config}" << EOF
+{
+  "mcpServers": {
+    "tmws": {
+      "command": "${TMWS_BIN_DIR}/tmws-mcp",
+      "args": []
+    }
+  }
+}
+EOF
+    else
+        # Docker mode: use docker exec
+        cat > "${mcp_config}" << 'EOF'
 {
   "mcpServers": {
     "tmws": {
@@ -591,8 +729,9 @@ configure_mcp_settings() {
   }
 }
 EOF
+    fi
 
-    log_success "MCP configuration created"
+    log_success "MCP configuration created (mode: ${INSTALL_MODE})"
 }
 
 # Start TMWS
@@ -706,36 +845,66 @@ show_completion() {
     echo -e "${GREEN}║           Installation Complete! (Claude Code)                        ║${NC}"
     echo -e "${GREEN}╚═══════════════════════════════════════════════════════════════════════╝${NC}"
     echo ""
-    echo -e "${CYAN}What was installed:${NC}"
-    echo "  - TMWS-Go Docker container (aptoas/tmws-go:latest)"
-    echo "  - Qdrant Vector Database (qdrant/qdrant:v1.12.6)"
-    echo "  - Trinitas 9-agent configuration for Claude Code"
-    echo "  - Pre-activated ENTERPRISE license"
-    echo ""
-    echo -e "${CYAN}Configuration locations:${NC}"
-    echo "  - TMWS config:     ${TRINITAS_CONFIG_DIR}/"
-    echo "  - Claude Code:     ${CLAUDE_CONFIG_DIR}/"
-    echo "  - Data storage:    ${HOME}/.tmws/"
-    if [ -d "${BACKUP_DIR}" ]; then
-        echo "  - Backups:         ${BACKUP_DIR}/"
+
+    if [ "$INSTALL_MODE" = "native" ]; then
+        echo -e "${CYAN}What was installed:${NC}"
+        echo "  - TMWS native binaries (tmws-server, tmws-mcp, tmws-cli, tmws-hook)"
+        echo "  - Trinitas 11-agent configuration for Claude Code"
+        echo "  - Pre-activated ENTERPRISE license"
+        echo ""
+        echo -e "${CYAN}Configuration locations:${NC}"
+        echo "  - TMWS binaries:   ${TMWS_BIN_DIR}/"
+        echo "  - TMWS config:     ${TMWS_INSTALL_DIR}/.env"
+        echo "  - TMWS data:       ${TMWS_INSTALL_DIR}/data/"
+        echo "  - Claude Code:     ${CLAUDE_CONFIG_DIR}/"
+        if [ -d "${BACKUP_DIR}" ]; then
+            echo "  - Backups:         ${BACKUP_DIR}/"
+        fi
+        echo ""
+        echo -e "${CYAN}Quick start:${NC}"
+        echo "  1. Reload your shell or run: source ~/.bashrc (or ~/.zshrc)"
+        echo "  2. Ensure Ollama is running: ollama serve"
+        echo "  3. Start Claude Code in your project directory"
+        echo "  4. Use /trinitas command to interact with agents"
+        echo ""
+        echo -e "${CYAN}Useful commands:${NC}"
+        echo "  - Version check:   tmws-cli --version"
+        echo "  - Start server:    tmws-server (optional, MCP uses stdio)"
+        echo "  - Verify install:  tmws-mcp --version"
+        echo ""
+    else
+        echo -e "${CYAN}What was installed:${NC}"
+        echo "  - TMWS-Go Docker container (aptoas/tmws-go:latest)"
+        echo "  - Qdrant Vector Database (qdrant/qdrant:v1.12.6)"
+        echo "  - Trinitas 11-agent configuration for Claude Code"
+        echo "  - Pre-activated ENTERPRISE license"
+        echo ""
+        echo -e "${CYAN}Configuration locations:${NC}"
+        echo "  - TMWS config:     ${TRINITAS_CONFIG_DIR}/"
+        echo "  - Claude Code:     ${CLAUDE_CONFIG_DIR}/"
+        echo "  - Data storage:    ${HOME}/.tmws/"
+        if [ -d "${BACKUP_DIR}" ]; then
+            echo "  - Backups:         ${BACKUP_DIR}/"
+        fi
+        echo ""
+        echo -e "${CYAN}Services:${NC}"
+        echo "  - MCP Server:      STDIO via 'docker exec -i tmws-app /app/tmws-mcp'"
+        echo "  - REST API:        http://localhost:${TMWS_API_PORT}"
+        echo "  - Qdrant HTTP:     http://localhost:${QDRANT_HTTP_PORT}"
+        echo "  - Containers:      tmws-app, tmws-qdrant (check with: docker ps)"
+        echo ""
+        echo -e "${CYAN}Quick start:${NC}"
+        echo "  1. Ensure Ollama is running: ollama serve"
+        echo "  2. Start Claude Code in your project directory"
+        echo "  3. Use /trinitas command to interact with agents"
+        echo ""
+        echo -e "${CYAN}Useful commands:${NC}"
+        echo "  - View logs:       docker logs -f tmws-app"
+        echo "  - Restart TMWS:    cd ~/.trinitas && docker compose restart"
+        echo "  - Stop TMWS:       docker stop tmws-app tmws-qdrant"
+        echo ""
     fi
-    echo ""
-    echo -e "${CYAN}Services:${NC}"
-    echo "  - MCP Server:      STDIO via 'docker exec -i tmws-app /app/tmws-mcp'"
-    echo "  - REST API:        http://localhost:${TMWS_API_PORT}"
-    echo "  - Qdrant HTTP:     http://localhost:${QDRANT_HTTP_PORT}"
-    echo "  - Containers:      tmws-app, tmws-qdrant (check with: docker ps)"
-    echo ""
-    echo -e "${CYAN}Quick start:${NC}"
-    echo "  1. Ensure Ollama is running: ollama serve"
-    echo "  2. Start Claude Code in your project directory"
-    echo "  3. Use /trinitas command to interact with agents"
-    echo ""
-    echo -e "${CYAN}Useful commands:${NC}"
-    echo "  - View logs:       docker logs -f tmws-app"
-    echo "  - Restart TMWS:    cd ~/.trinitas && docker compose restart"
-    echo "  - Stop TMWS:       docker stop tmws-app tmws-qdrant"
-    echo ""
+
     echo -e "${GREEN}License: ENTERPRISE (TMWS-Go v${TMWS_VERSION})${NC}"
     echo ""
     echo -e "${GREEN}Enjoy Trinitas Multi-Agent System!${NC}"
@@ -745,8 +914,23 @@ show_completion() {
 # Main installation flow
 main() {
     show_banner
+
+    log_info "Installation mode: ${INSTALL_MODE}"
+    if [ "$INSTALL_MODE" = "native" ]; then
+        log_info "Using native binaries (no Docker required)"
+    else
+        log_info "Using Docker containers"
+    fi
+    echo ""
+
     detect_platform
-    check_prerequisites
+
+    # Native mode only requires curl, not Docker
+    if [ "$INSTALL_MODE" = "native" ]; then
+        check_prerequisites_native
+    else
+        check_prerequisites
+    fi
 
     # Handle existing installation
     if check_existing_installation; then
@@ -760,7 +944,9 @@ main() {
         echo ""
         if [[ ! $REPLY =~ ^[Nn]$ ]]; then
             create_backup
-            stop_existing_tmws
+            if [ "$INSTALL_MODE" = "docker" ]; then
+                stop_existing_tmws
+            fi
         else
             log_info "Installation cancelled"
             exit 0
@@ -768,15 +954,111 @@ main() {
     fi
 
     create_directories
-    pull_tmws_image
-    setup_tmws_config
-    create_docker_compose
+
+    if [ "$INSTALL_MODE" = "native" ]; then
+        # Native installation flow
+        install_native_binaries
+        setup_native_path
+        setup_native_config
+    else
+        # Docker installation flow
+        pull_tmws_image
+        setup_tmws_config
+        create_docker_compose
+        start_tmws
+        verify_license
+    fi
+
     install_claude_config
     configure_mcp_settings
-    start_tmws
-    verify_license
     check_ollama
     show_completion
+}
+
+# Check prerequisites for native mode (no Docker required)
+check_prerequisites_native() {
+    log_step "Checking prerequisites (native mode)..."
+
+    local missing=()
+
+    # Check curl
+    if ! command -v curl &> /dev/null; then
+        missing+=("curl")
+    fi
+
+    # Check git (optional but recommended)
+    if ! command -v git &> /dev/null; then
+        log_warn "git not found (optional)"
+    fi
+
+    if [ ${#missing[@]} -gt 0 ]; then
+        log_error "Missing prerequisites: ${missing[*]}"
+        echo ""
+        echo "Please install the missing packages:"
+        case "$PACKAGE_MANAGER" in
+            apt)
+                echo "  sudo apt update && sudo apt install -y ${missing[*]}"
+                ;;
+            brew)
+                echo "  brew install ${missing[*]}"
+                ;;
+            *)
+                echo "  Please install: ${missing[*]}"
+                ;;
+        esac
+        exit 1
+    fi
+
+    log_success "All prerequisites satisfied"
+}
+
+# Setup native TMWS configuration
+setup_native_config() {
+    log_step "Setting up TMWS configuration..."
+
+    local config_dir="${TMWS_INSTALL_DIR}"
+    local env_file="${config_dir}/.env"
+
+    mkdir -p "${config_dir}/data"
+
+    # Preserve existing secret key if available
+    local existing_secret=""
+    if [ -f "${env_file}" ]; then
+        existing_secret=$(grep "^TMWS_SECRET_KEY=" "${env_file}" 2>/dev/null | cut -d'=' -f2 || echo "")
+    fi
+
+    local secret_key="${existing_secret:-$(generate_secret_key)}"
+
+    cat > "${env_file}" << EOF
+# TMWS Configuration - Generated by Trinitas Installer
+# Version: ${TMWS_VERSION}
+# Generated: $(date -Iseconds)
+# Mode: native
+
+# Environment
+TMWS_ENV=development
+TMWS_LOG_LEVEL=info
+
+# Security (Auto-generated - DO NOT SHARE)
+TMWS_SECRET_KEY=${secret_key}
+
+# Pre-activated ENTERPRISE license
+TMWS_LICENSE_KEY="${DEFAULT_LICENSE_KEY}"
+TMWS_LICENSE_PUBLIC_KEY="${DEFAULT_LICENSE_PUBLIC_KEY}"
+
+# Database (SQLite with sqlite-vec)
+TMWS_DATABASE_PATH=${config_dir}/data/tmws.db
+
+# Embedding Service (Ollama)
+TMWS_OLLAMA_URL=http://localhost:11434
+TMWS_EMBEDDING_MODEL=zylonai/multilingual-e5-large
+
+# API Port
+TMWS_API_PORT=${TMWS_API_PORT}
+EOF
+
+    chmod 600 "${env_file}"
+    log_success "TMWS configuration created"
 }
 
 # Run main
