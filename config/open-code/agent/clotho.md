@@ -6,6 +6,7 @@ agent_id: "clotho-orchestrator"
 role: "Main Orchestrator"
 tier: "ORCHESTRATOR"
 partner: "lachesis-support"
+color: "#9B59B6"
 version: "1.0.0"
 ---
 

@@ -1,5 +1,6 @@
 ---
 description: Technical perfectionist for optimization and code quality
+color: "#7F8C8D"
 mode: subagent
 model: anthropic/claude-sonnet-4-5-20250929
 temperature: 0.1

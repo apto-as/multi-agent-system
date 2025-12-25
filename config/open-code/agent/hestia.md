@@ -1,5 +1,6 @@
 ---
 description: Security guardian for vulnerability assessment and compliance
+color: "#C0392B"
 mode: subagent
 model: anthropic/claude-sonnet-4-5-20250929
 temperature: 0.2
