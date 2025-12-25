@@ -24,10 +24,17 @@
  *   - Ensures warm, natural dialogue style (not cold technical responses)
  *   - Fixes persona drift issue where main agent loses character
  *
- * @version 2.4.30
+ * NEW in v2.4.31: CLI-first Mode with 3-Layer Fallback
+ *   - TMWS_USE_CLI=true: Uses tmws-hook CLI for narrative enrichment
+ *   - 3-layer fallback: CLI -> MCP direct -> Local minimal
+ *   - Reduced dependency on MCP client availability
+ *
+ * @version 2.4.31
  * @author TMWS Team
  * @see https://opencode.ai/docs/plugins/
  */
+
+import { spawn } from "child_process";
 
 /**
  * Phase definitions following Trinitas Full Mode Protocol
@@ -165,6 +172,12 @@ const NARRATIVE_CONFIG = {
   maxPromptLength: 10 * 1024,
   /** Whether orchestrator persona enforcement is enabled (v2.4.30) */
   orchestratorPersonaEnabled: true,
+  /** Whether to use CLI-first mode (v2.4.31) */
+  useCliMode: process.env.TMWS_USE_CLI === "true",
+  /** Path to tmws-hook CLI binary */
+  cliPath: process.env.TMWS_HOOK_PATH || "tmws-hook",
+  /** CLI timeout in milliseconds */
+  cliTimeoutMs: parseInt(process.env.TMWS_CLI_TIMEOUT, 10) || 3000,
 };
 
 /**
@@ -321,6 +334,251 @@ const resetNarrativeCache = () => {
 };
 
 /**
+ * Call tmws-hook CLI with JSON stdin/stdout communication (v2.4.31)
+ *
+ * @param {string} command - The hook command (e.g., 'enrich', 'validate')
+ * @param {object} inputData - Input data to send via stdin as JSON
+ * @returns {Promise<object>} Parsed JSON output from the CLI
+ *
+ * @example
+ * const result = await callTmwsHook('enrich', {
+ *   subagent_type: 'hera-strategist',
+ *   original_prompt: 'Strategic analysis...'
+ * });
+ */
+const callTmwsHook = (command, inputData) => {
+  return new Promise((resolve, reject) => {
+    const args = [command];
+    const child = spawn(NARRATIVE_CONFIG.cliPath, args, {
+      stdio: ["pipe", "pipe", "pipe"],
+      timeout: NARRATIVE_CONFIG.cliTimeoutMs,
+    });
+
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout.on("data", (data) => {
+      stdout += data.toString();
+    });
+
+    child.stderr.on("data", (data) => {
+      stderr += data.toString();
+    });
+
+    child.on("error", (error) => {
+      reject(new Error(`CLI spawn error: ${error.message}`));
+    });
+
+    child.on("close", (code) => {
+      if (code !== 0) {
+        reject(new Error(`CLI exited with code ${code}: ${stderr}`));
+        return;
+      }
+
+      try {
+        const result = JSON.parse(stdout);
+        resolve(result);
+      } catch (parseError) {
+        reject(new Error(`CLI output parse error: ${parseError.message}`));
+      }
+    });
+
+    // Set up timeout
+    const timeoutId = setTimeout(() => {
+      child.kill("SIGTERM");
+      reject(new Error(`CLI timeout after ${NARRATIVE_CONFIG.cliTimeoutMs}ms`));
+    }, NARRATIVE_CONFIG.cliTimeoutMs);
+
+    child.on("close", () => {
+      clearTimeout(timeoutId);
+    });
+
+    // Write input data to stdin
+    try {
+      child.stdin.write(JSON.stringify(inputData));
+      child.stdin.end();
+    } catch (writeError) {
+      clearTimeout(timeoutId);
+      reject(new Error(`CLI stdin write error: ${writeError.message}`));
+    }
+  });
+};
+
+/**
+ * Minimal local enrichment fallback (v2.4.31)
+ * Used when both CLI and MCP are unavailable
+ *
+ * @param {string} subagentType - The subagent_type
+ * @param {string} originalPrompt - The original prompt
+ * @returns {object} Minimal enrichment result
+ */
+const localMinimalEnrichment = (subagentType, originalPrompt) => {
+  // Extract persona name from subagent_type (e.g., 'hera-strategist' -> 'Hera')
+  const personaName = subagentType.split("-")[0];
+  const capitalizedName = personaName.charAt(0).toUpperCase() + personaName.slice(1);
+
+  // Minimal persona context
+  const minimalContext = `You are ${capitalizedName}, a Trinitas specialist agent. Execute the following task with your domain expertise.`;
+
+  return {
+    enriched_prompt: `${minimalContext}\n\n---\n\n${originalPrompt}`,
+    narrative_loaded: false,
+    persona_id: subagentType,
+    source: "local_minimal",
+    cache_hit: false,
+  };
+};
+
+/**
+ * 3-layer fallback enrichment (v2.4.31)
+ * Layer 1: CLI (tmws-hook)
+ * Layer 2: MCP direct call
+ * Layer 3: Local minimal enrichment
+ *
+ * @param {object} client - OpenCode MCP client (may be null)
+ * @param {string} subagentType - The subagent_type
+ * @param {string} originalPrompt - The original prompt
+ * @param {object} context - Additional context (unused currently, for future extension)
+ * @returns {Promise<object>} Enrichment result
+ */
+const enrichViaCliOrFallback = async (client, subagentType, originalPrompt, context = {}) => {
+  // Security: Validate subagent_type against whitelist
+  if (!isValidSubagentType(subagentType)) {
+    console.warn(`[Trinitas] Invalid subagent_type: ${subagentType}`);
+    return {
+      enriched_prompt: originalPrompt,
+      narrative_loaded: false,
+      persona_id: subagentType,
+      source: "invalid_type",
+      cache_hit: false,
+    };
+  }
+
+  // Security: Validate prompt length
+  if (originalPrompt && originalPrompt.length > NARRATIVE_CONFIG.maxPromptLength) {
+    console.warn(`[Trinitas] Prompt too long (${originalPrompt.length} chars), skipping enrichment`);
+    return {
+      enriched_prompt: originalPrompt,
+      narrative_loaded: false,
+      persona_id: subagentType,
+      source: "prompt_too_long",
+      cache_hit: false,
+    };
+  }
+
+  // Check cache first
+  const cacheKey = subagentType;
+  const cached = _narrativeCache.get(cacheKey);
+
+  if (cached && Date.now() - cached.timestamp < NARRATIVE_CONFIG.cacheTtlMs) {
+    console.log(`[Trinitas] Narrative cache hit for ${subagentType}`);
+    return {
+      enriched_prompt: cached.narrativeContext
+        ? `${cached.narrativeContext}\n\n---\n\n${originalPrompt}`
+        : originalPrompt,
+      narrative_loaded: cached.narrativeLoaded,
+      persona_id: subagentType,
+      source: "cache",
+      cache_hit: true,
+    };
+  }
+
+  // Layer 1: CLI mode (if enabled)
+  if (NARRATIVE_CONFIG.useCliMode) {
+    try {
+      console.log(`[Trinitas] Attempting CLI enrichment for ${subagentType}`);
+      const cliResult = await callTmwsHook("enrich", {
+        subagent_type: subagentType,
+        original_prompt: originalPrompt,
+      });
+
+      // Cache the narrative context
+      if (cliResult.narrative_loaded) {
+        const separator = "\n\n---\n\n";
+        const sepIndex = cliResult.enriched_prompt.indexOf(separator);
+        const narrativeContext = sepIndex > 0 ? cliResult.enriched_prompt.substring(0, sepIndex) : null;
+
+        _narrativeCache.set(cacheKey, {
+          narrativeContext,
+          narrativeLoaded: cliResult.narrative_loaded,
+          timestamp: Date.now(),
+        });
+      }
+
+      console.log(`[Trinitas] CLI enrichment successful for ${subagentType}`);
+      return {
+        ...cliResult,
+        source: "cli",
+        cache_hit: false,
+      };
+    } catch (cliError) {
+      console.warn(`[Trinitas] CLI enrichment failed: ${cliError.message}, falling back to MCP`);
+      // Fall through to Layer 2
+    }
+  }
+
+  // Layer 2: MCP direct call (if client available)
+  if (client) {
+    try {
+      console.log(`[Trinitas] Attempting MCP enrichment for ${subagentType}`);
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error("TMWS call timeout")), NARRATIVE_CONFIG.timeoutMs);
+      });
+
+      const mcpCallPromise = client.callTool(NARRATIVE_CONFIG.tmwsServerId, "enrich_subagent_prompt", {
+        subagent_type: subagentType,
+        original_prompt: originalPrompt,
+      });
+
+      const result = await Promise.race([mcpCallPromise, timeoutPromise]);
+
+      // Parse the result if it's a string
+      let parsedResult = result;
+      if (typeof result === "string") {
+        try {
+          parsedResult = JSON.parse(result);
+        } catch {
+          parsedResult = {
+            enriched_prompt: result,
+            narrative_loaded: true,
+            persona_id: subagentType,
+            source: "mcp",
+            cache_hit: false,
+          };
+        }
+      }
+
+      // Cache the narrative context
+      if (parsedResult.narrative_loaded && parsedResult.enriched_prompt !== originalPrompt) {
+        const separator = "\n\n---\n\n";
+        const sepIndex = parsedResult.enriched_prompt.indexOf(separator);
+        const narrativeContext = sepIndex > 0 ? parsedResult.enriched_prompt.substring(0, sepIndex) : null;
+
+        _narrativeCache.set(cacheKey, {
+          narrativeContext,
+          narrativeLoaded: parsedResult.narrative_loaded,
+          timestamp: Date.now(),
+        });
+      }
+
+      console.log(`[Trinitas] MCP enrichment successful for ${subagentType}`);
+      return {
+        ...parsedResult,
+        source: "mcp",
+        cache_hit: false,
+      };
+    } catch (mcpError) {
+      console.warn(`[Trinitas] MCP enrichment failed: ${mcpError.message}, falling back to local`);
+      // Fall through to Layer 3
+    }
+  }
+
+  // Layer 3: Local minimal enrichment
+  console.log(`[Trinitas] Using local minimal enrichment for ${subagentType}`);
+  return localMinimalEnrichment(subagentType, originalPrompt);
+};
+
+/**
  * Call the TMWS enrich_subagent_prompt tool with timeout handling
  * @param {object} client - OpenCode MCP client
  * @param {string} subagentType - The subagent_type (e.g., 'hera-strategist')
@@ -464,8 +722,9 @@ export const TrinitasOrchestration = async ({ project, client, $, directory, wor
     project: project?.name || "unknown",
     directory,
     worktree,
-    version: "2.4.30",
-    features: ["invoke_persona", "phase_orchestration", "collaboration_matrix", "narrative_autoloader", "security_validation", "orchestrator_persona"],
+    version: "2.4.31",
+    features: ["invoke_persona", "phase_orchestration", "collaboration_matrix", "narrative_autoloader", "security_validation", "orchestrator_persona", "cli_first_mode"],
+    cliMode: NARRATIVE_CONFIG.useCliMode,
   });
 
   return {
@@ -593,12 +852,12 @@ export const TrinitasOrchestration = async ({ project, client, $, directory, wor
         }
 
         // NarrativeAutoLoader Integration (Issue #1)
-        // Enrich the SubAgent prompt with persona narrative
-        if (NARRATIVE_CONFIG.enabled && subagentType && client) {
+        // v2.4.31: Use 3-layer fallback enrichment (CLI -> MCP -> Local)
+        if (NARRATIVE_CONFIG.enabled && subagentType) {
           try {
-            const enrichResult = await callEnrichSubagentPrompt(client, subagentType, originalPrompt);
+            const enrichResult = await enrichViaCliOrFallback(client, subagentType, originalPrompt);
 
-            if (enrichResult.narrative_loaded && enrichResult.enriched_prompt !== originalPrompt) {
+            if (enrichResult.enriched_prompt !== originalPrompt) {
               // Update the input args with enriched prompt
               if (input.args) {
                 input.args.prompt = enrichResult.enriched_prompt;
@@ -724,4 +983,8 @@ export {
   callEnrichSubagentPrompt,
   resetNarrativeCache,
   cleanupNarrativeCache,
+  // v2.4.31: CLI-first mode functions
+  callTmwsHook,
+  enrichViaCliOrFallback,
+  localMinimalEnrichment,
 };
