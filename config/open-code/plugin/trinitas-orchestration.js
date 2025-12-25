@@ -35,6 +35,85 @@
  */
 
 import { spawn } from "child_process";
+import * as os from "os";
+import * as path from "path";
+import * as fs from "fs";
+
+/**
+ * Allowed directories for CLI binary (CWE-426 path validation)
+ * Prevents arbitrary binary execution by restricting to trusted locations.
+ */
+const ALLOWED_CLI_DIRS = [
+  "/usr/local/bin",
+  "/opt/tmws/bin",
+  path.join(os.homedir(), ".tmws", "bin"),
+  path.join(os.homedir(), ".local", "bin"),
+];
+
+/**
+ * Validate CLI path is in an allowed directory
+ * @param {string} cliPath - Path to validate
+ * @returns {string|null} Validated path or null if invalid
+ */
+const validateCliPath = (cliPath) => {
+  if (!cliPath || typeof cliPath !== "string") return null;
+
+  // If it's just a command name (no path separator), trust PATH resolution
+  if (!cliPath.includes(path.sep) && cliPath === "tmws-hook") {
+    return cliPath;
+  }
+
+  // Resolve to absolute path
+  const resolvedPath = path.resolve(cliPath);
+
+  // Check if the resolved path is in an allowed directory
+  const isAllowed = ALLOWED_CLI_DIRS.some((allowedDir) => {
+    const normalizedAllowed = path.normalize(allowedDir);
+    return resolvedPath.startsWith(normalizedAllowed + path.sep);
+  });
+
+  if (!isAllowed) {
+    console.warn(`[Trinitas] CLI path not in allowed directory: ${cliPath}`);
+    return null;
+  }
+
+  // Verify file exists
+  try {
+    fs.accessSync(resolvedPath, fs.constants.X_OK);
+    return resolvedPath;
+  } catch {
+    console.warn(`[Trinitas] CLI binary not found or not executable: ${cliPath}`);
+    return null;
+  }
+};
+
+/**
+ * Sanitize error messages to remove sensitive information
+ * Removes file paths, stack traces, and internal details
+ * @param {string} error - Error message to sanitize
+ * @returns {string} Sanitized error message
+ */
+const sanitizeError = (error) => {
+  if (!error || typeof error !== "string") return "Unknown error";
+
+  // Remove file paths (Unix and Windows)
+  let sanitized = error.replace(/(?:\/[\w.-]+)+(?::\d+)?/g, "[path]");
+  sanitized = sanitized.replace(/(?:[A-Za-z]:\\[\w\\.-]+)+(?::\d+)?/g, "[path]");
+
+  // Remove stack traces
+  sanitized = sanitized.replace(/at\s+[\w.<>]+\s*\([^)]+\)/g, "[stack]");
+  sanitized = sanitized.replace(/\s+at\s+[\w.<>/\\:]+/g, "");
+
+  // Remove environment variable values
+  sanitized = sanitized.replace(/=\/[^\s]+/g, "=[value]");
+
+  // Truncate to reasonable length
+  if (sanitized.length > 200) {
+    sanitized = sanitized.substring(0, 200) + "...";
+  }
+
+  return sanitized.trim() || "Operation failed";
+};
 
 /**
  * Phase definitions following Trinitas Full Mode Protocol
@@ -174,8 +253,8 @@ const NARRATIVE_CONFIG = {
   orchestratorPersonaEnabled: true,
   /** Whether to use CLI-first mode (v2.4.31) */
   useCliMode: process.env.TMWS_USE_CLI === "true",
-  /** Path to tmws-hook CLI binary */
-  cliPath: process.env.TMWS_HOOK_PATH || "tmws-hook",
+  /** Path to tmws-hook CLI binary (validated against allowed directories) */
+  cliPath: validateCliPath(process.env.TMWS_HOOK_PATH) || "tmws-hook",
   /** CLI timeout in milliseconds */
   cliTimeoutMs: parseInt(process.env.TMWS_CLI_TIMEOUT, 10) || 3000,
 };
@@ -366,12 +445,12 @@ const callTmwsHook = (command, inputData) => {
     });
 
     child.on("error", (error) => {
-      reject(new Error(`CLI spawn error: ${error.message}`));
+      reject(new Error(`CLI spawn error: ${sanitizeError(error.message)}`));
     });
 
     child.on("close", (code) => {
       if (code !== 0) {
-        reject(new Error(`CLI exited with code ${code}: ${stderr}`));
+        reject(new Error(`CLI exited with code ${code}: ${sanitizeError(stderr)}`));
         return;
       }
 
@@ -379,7 +458,7 @@ const callTmwsHook = (command, inputData) => {
         const result = JSON.parse(stdout);
         resolve(result);
       } catch (parseError) {
-        reject(new Error(`CLI output parse error: ${parseError.message}`));
+        reject(new Error(`CLI output parse error: ${sanitizeError(parseError.message)}`));
       }
     });
 
@@ -399,7 +478,7 @@ const callTmwsHook = (command, inputData) => {
       child.stdin.end();
     } catch (writeError) {
       clearTimeout(timeoutId);
-      reject(new Error(`CLI stdin write error: ${writeError.message}`));
+      reject(new Error(`CLI stdin write error: ${sanitizeError(writeError.message)}`));
     }
   });
 };

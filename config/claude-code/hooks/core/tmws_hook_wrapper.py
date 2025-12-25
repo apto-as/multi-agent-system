@@ -50,8 +50,16 @@ TMWS_USE_CLI = os.environ.get("TMWS_USE_CLI", "false").lower() == "true"
 # Path to tmws-hook binary (can be overridden)
 TMWS_HOOK_PATH = os.environ.get("TMWS_HOOK_PATH", "tmws-hook")
 
-# TMWS server URL for HTTP fallback
-TMWS_URL = os.environ.get("TMWS_URL", "http://localhost:8000")
+# TMWS server URL for HTTP fallback (unified to 6231)
+TMWS_URL = os.environ.get("TMWS_URL", "http://localhost:6231")
+
+# Allowed CLI directories (CWE-426 path validation)
+ALLOWED_CLI_DIRS = frozenset([
+    '/usr/local/bin',
+    '/opt/tmws/bin',
+    str(Path.home() / '.tmws' / 'bin'),
+    str(Path.home() / '.local' / 'bin'),
+])
 
 # Timeout in seconds
 TMWS_TIMEOUT = float(os.environ.get("TMWS_TIMEOUT", "5.0"))
@@ -113,12 +121,88 @@ def _validate_tmws_url(url: str) -> bool:
         return False
 
 
+def _validate_cli_path(cli_path: str) -> Optional[str]:
+    """Validate CLI path is in an allowed directory (CWE-426 mitigation).
+
+    Args:
+        cli_path: Path to CLI binary
+
+    Returns:
+        Validated path or None if invalid
+    """
+    if not cli_path:
+        return None
+
+    # If it's just a command name (no path separator), trust PATH resolution
+    if os.sep not in cli_path and cli_path == "tmws-hook":
+        return cli_path
+
+    # Resolve to absolute path
+    try:
+        resolved = Path(cli_path).resolve()
+    except Exception:
+        return None
+
+    # Check if in allowed directory
+    for allowed_dir in ALLOWED_CLI_DIRS:
+        try:
+            allowed_path = Path(allowed_dir).resolve()
+            if str(resolved).startswith(str(allowed_path) + os.sep):
+                # Verify file exists and is executable
+                if resolved.exists() and os.access(resolved, os.X_OK):
+                    return str(resolved)
+        except Exception:
+            continue
+
+    logger.warning(f"CLI path not in allowed directory: {cli_path}")
+    return None
+
+
+def _sanitize_error(error: str) -> str:
+    """Sanitize error messages to remove sensitive information.
+
+    Removes file paths, stack traces, and internal details.
+
+    Args:
+        error: Error message to sanitize
+
+    Returns:
+        Sanitized error message
+    """
+    import re
+
+    if not error or not isinstance(error, str):
+        return "Unknown error"
+
+    sanitized = error
+
+    # Remove Unix file paths
+    sanitized = re.sub(r'(?:/[\w.-]+)+(?::\d+)?', '[path]', sanitized)
+
+    # Remove Windows file paths
+    sanitized = re.sub(r'(?:[A-Za-z]:\\[\w\\.-]+)+(?::\d+)?', '[path]', sanitized)
+
+    # Remove Python stack trace lines
+    sanitized = re.sub(r'File "[^"]+", line \d+', '[stack]', sanitized)
+    sanitized = re.sub(r'^\s+at\s+.+$', '', sanitized, flags=re.MULTILINE)
+
+    # Remove environment variable values
+    sanitized = re.sub(r'=/[^\s]+', '=[value]', sanitized)
+
+    # Truncate to reasonable length
+    if len(sanitized) > 200:
+        sanitized = sanitized[:200] + "..."
+
+    return sanitized.strip() or "Operation failed"
+
+
 def _find_tmws_hook_binary() -> Optional[str]:
     """Find tmws-hook binary in PATH or custom location."""
-    # Check custom path first
+    # Check custom path first (with validation)
     if TMWS_HOOK_PATH != "tmws-hook":
-        if Path(TMWS_HOOK_PATH).exists():
-            return TMWS_HOOK_PATH
+        validated = _validate_cli_path(TMWS_HOOK_PATH)
+        if validated:
+            return validated
 
     # Search in PATH
     return shutil.which("tmws-hook")
@@ -284,7 +368,7 @@ class TMWSHookWrapper:
                     success=False,
                     data={},
                     source="cli",
-                    error=process.stderr or f"Exit code: {process.returncode}"
+                    error=_sanitize_error(process.stderr) if process.stderr else f"Exit code: {process.returncode}"
                 )
 
             # Parse JSON output
@@ -295,7 +379,7 @@ class TMWSHookWrapper:
                     success=False,
                     data={},
                     source="cli",
-                    error=f"Invalid JSON output: {e}"
+                    error=f"Invalid JSON output: {_sanitize_error(str(e))}"
                 )
 
             return TMWSResult(
@@ -323,7 +407,7 @@ class TMWSHookWrapper:
                 success=False,
                 data={},
                 source="cli",
-                error=str(e)
+                error=_sanitize_error(str(e))
             )
 
     def _call_http(self, command: str, input_data: Dict[str, Any]) -> TMWSResult:
@@ -361,7 +445,7 @@ class TMWSHookWrapper:
                         success=False,
                         data={},
                         source="http",
-                        error=f"HTTP {response.status_code}: {response.text}"
+                        error=f"HTTP {response.status_code}: {_sanitize_error(response.text)}"
                     )
 
                 return TMWSResult(
@@ -382,7 +466,7 @@ class TMWSHookWrapper:
                 success=False,
                 data={},
                 source="http",
-                error=str(e)
+                error=_sanitize_error(str(e))
             )
 
     def _call_local(self, command: str, input_data: Dict[str, Any]) -> TMWSResult:
