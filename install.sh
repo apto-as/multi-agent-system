@@ -26,9 +26,35 @@
 set -euo pipefail
 
 # Version
-INSTALLER_VERSION="2.6.1"
+INSTALLER_VERSION="2.7.0"
 TMWS_VERSION="2.4.31"
 INSTALLER_TYPE="claude-code"
+
+# =============================================================================
+# CRITICAL: Resolve actual user's home directory
+# When running with sudo, $HOME becomes /root which is WRONG.
+# We must install to the actual user's home directory.
+# =============================================================================
+resolve_real_home() {
+    if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
+        # Running via sudo - get the original user's home
+        if command -v getent &> /dev/null; then
+            getent passwd "$SUDO_USER" | cut -d: -f6
+        else
+            eval echo "~$SUDO_USER"
+        fi
+    elif [ "$(id -u)" = "0" ] && [ -z "${SUDO_USER:-}" ]; then
+        # Running as actual root (not via sudo) - warn but continue
+        echo "$HOME"
+    else
+        # Normal user execution
+        echo "$HOME"
+    fi
+}
+
+# Get the real home directory BEFORE any other variable expansion
+REAL_HOME="$(resolve_real_home)"
+REAL_USER="${SUDO_USER:-$(whoami)}"
 
 # Installation mode: "native" or "docker"
 # Native mode downloads pre-built binaries (recommended for new installs)
@@ -40,8 +66,8 @@ TMWS_API_PORT="${TMWS_API_PORT:-6321}"
 QDRANT_HTTP_PORT="${QDRANT_HTTP_PORT:-6333}"
 QDRANT_GRPC_PORT="${QDRANT_GRPC_PORT:-6334}"
 
-# Native binary installation
-TMWS_INSTALL_DIR="${TMWS_INSTALL_DIR:-$HOME/.tmws}"
+# Native binary installation - USE REAL_HOME, not HOME
+TMWS_INSTALL_DIR="${TMWS_INSTALL_DIR:-${REAL_HOME}/.tmws}"
 TMWS_BIN_DIR="${TMWS_INSTALL_DIR}/bin"
 
 # Colors
@@ -53,11 +79,11 @@ CYAN='\033[0;36m'
 MAGENTA='\033[0;35m'
 NC='\033[0m' # No Color
 
-# Configuration
+# Configuration - USE REAL_HOME, not HOME
 TMWS_IMAGE="aptoas/tmws-go:latest"
-TRINITAS_CONFIG_DIR="${HOME}/.trinitas"
-CLAUDE_CONFIG_DIR="${HOME}/.claude"
-BACKUP_DIR="${HOME}/.trinitas-backup"
+TRINITAS_CONFIG_DIR="${REAL_HOME}/.trinitas"
+CLAUDE_CONFIG_DIR="${REAL_HOME}/.claude"
+BACKUP_DIR="${REAL_HOME}/.trinitas-backup"
 
 # Pre-activated ENTERPRISE license (TMWS-Go v1.0)
 DEFAULT_LICENSE_KEY="TMWS-1.0-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJtdWx0aS1hZ2VudC1zeXN0ZW0tdHJpYWwtdjEuMCIsImlzcyI6InRtd3MuYXB0by5haSIsImlhdCI6MTc2NjI0NDc0OSwiZXhwIjoxNzc0MDIwNzQ5LCJuYmYiOjE3NjYyNDQ3NDksImxpZCI6Ijc4OGNlYzE4LWMzYTAtNGI4Ny05ZWM2LWZmOTAyZTAyM2E5YSIsImx0eXBlIjoiZW50ZXJwcmlzZSIsIm9yZyI6IlRyaW5pdGFzIENvbW11bml0eSIsImZlYXR1cmVzIjpbIm1lbW9yeS5iYXNpYyIsIm1lbW9yeS5hZHZhbmNlZCIsImFnZW50LmJhc2ljIiwiYWdlbnQuYWR2YW5jZWQiLCJhZ2VudC50cnVzdCIsInNraWxscy5iYXNpYyIsInNraWxscy5hZHZhbmNlZCIsInBhdHRlcm5zLmxlYXJuaW5nIiwidHJpbml0YXMucm91dGluZyIsInRyaW5pdGFzLm9yY2hlc3RyYXRpb24iLCJtY3AuaHViLmJhc2ljIiwibWNwLmh1Yi5hZHZhbmNlZCIsImxpZmVjeWNsZS5zY2hlZHVsZXIiLCJjb252ZXJzYXRpb24ubG9nZ2luZyIsImVudGVycHJpc2UubXVsdGl0ZW5hbmN5Il0sIm1heF9tZW1vcmllcyI6LTEsIm1heF9hZ2VudHMiOi0xLCJtYXhfc2tpbGxzIjotMSwibWF4X21jcF9zZXJ2ZXJzIjotMX0.Vnrbd857WfMc3dsNJEYMlkSilXEat1n_vc4Z6BKeAnENyEeMydjO3RBMuZ3GutNSy0CnkBvBYsJbN0x_TDxuDQ"
@@ -177,12 +203,19 @@ setup_native_path() {
 
     local shell_rc=""
     local shell_name
-    shell_name=$(basename "$SHELL")
 
+    # Get the real user's shell, not root's shell when using sudo
+    if [ -n "${SUDO_USER:-}" ]; then
+        shell_name=$(getent passwd "$SUDO_USER" 2>/dev/null | cut -d: -f7 | xargs basename 2>/dev/null || echo "bash")
+    else
+        shell_name=$(basename "$SHELL")
+    fi
+
+    # Use REAL_HOME instead of HOME
     case "$shell_name" in
-        bash) shell_rc="$HOME/.bashrc" ;;
-        zsh) shell_rc="$HOME/.zshrc" ;;
-        fish) shell_rc="$HOME/.config/fish/config.fish" ;;
+        bash) shell_rc="${REAL_HOME}/.bashrc" ;;
+        zsh) shell_rc="${REAL_HOME}/.zshrc" ;;
+        fish) shell_rc="${REAL_HOME}/.config/fish/config.fish" ;;
         *) log_warn "Unknown shell: $shell_name. Add ${TMWS_BIN_DIR} to PATH manually." ; return ;;
     esac
 
@@ -203,6 +236,22 @@ setup_native_path() {
         else
             log_info "TMWS already in PATH"
         fi
+    fi
+}
+
+# Fix file ownership when running with sudo
+fix_ownership() {
+    if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
+        log_step "Fixing file ownership for user: ${SUDO_USER}..."
+
+        # Fix ownership of all installed directories
+        for dir in "${TMWS_INSTALL_DIR}" "${TRINITAS_CONFIG_DIR}" "${CLAUDE_CONFIG_DIR}"; do
+            if [ -d "$dir" ]; then
+                chown -R "${SUDO_USER}:$(id -gn "$SUDO_USER" 2>/dev/null || echo "$SUDO_USER")" "$dir" 2>/dev/null || true
+            fi
+        done
+
+        log_success "File ownership fixed"
     fi
 }
 
@@ -252,7 +301,7 @@ check_existing_installation() {
         existing_items+=("~/.claude/ (Trinitas config)")
     fi
 
-    if [ -d "${HOME}/.tmws" ]; then
+    if [ -d "${REAL_HOME}/.tmws" ]; then
         existing=true
         existing_items+=("~/.tmws/ (data)")
     fi
@@ -312,11 +361,11 @@ create_backup() {
     fi
 
     # Backup ~/.tmws (metadata only, not large DB files)
-    if [ -d "${HOME}/.tmws" ]; then
+    if [ -d "${REAL_HOME}/.tmws" ]; then
         mkdir -p "${backup_path}/tmws"
 
         # Copy small config files, skip large DB/vector files
-        find "${HOME}/.tmws" -maxdepth 2 -type f \( -name "*.json" -o -name "*.yaml" -o -name "*.yml" -o -name "*.env" \) \
+        find "${REAL_HOME}/.tmws" -maxdepth 2 -type f \( -name "*.json" -o -name "*.yaml" -o -name "*.yml" -o -name "*.env" \) \
             -exec cp {} "${backup_path}/tmws/" \; 2>/dev/null || true
 
         log_success "Backed up ~/.tmws/ (config only)"
@@ -456,13 +505,13 @@ create_directories() {
     mkdir -p "${CLAUDE_CONFIG_DIR}/agents"
     mkdir -p "${CLAUDE_CONFIG_DIR}/commands"
     mkdir -p "${CLAUDE_CONFIG_DIR}/hooks/core"
-    mkdir -p "${HOME}/.tmws/db"
-    mkdir -p "${HOME}/.tmws/logs"
-    mkdir -p "${HOME}/.tmws/qdrant_data"
+    mkdir -p "${REAL_HOME}/.tmws/db"
+    mkdir -p "${REAL_HOME}/.tmws/logs"
+    mkdir -p "${REAL_HOME}/.tmws/qdrant_data"
 
     # Make TMWS data directories writable by Docker container (UID 1000)
     # This ensures compatibility across different host user UIDs
-    chmod -R 777 "${HOME}/.tmws"
+    chmod -R 777 "${REAL_HOME}/.tmws"
 
     # Record version
     echo "${TMWS_VERSION}" > "${TRINITAS_CONFIG_DIR}/.version"
@@ -565,7 +614,7 @@ services:
       - "${QDRANT_HTTP_PORT}:6333"  # HTTP API
       - "${QDRANT_GRPC_PORT}:6334"  # gRPC API
     volumes:
-      - ${HOME}/.tmws/qdrant_data:/qdrant/storage
+      - ${REAL_HOME}/.tmws/qdrant_data:/qdrant/storage
     healthcheck:
       test: ["CMD-SHELL", "timeout 5 bash -c '</dev/tcp/localhost/6333'"]
       interval: 10s
@@ -585,8 +634,8 @@ services:
       - "8892:8892"  # MCP Server
       - "${TMWS_API_PORT}:8080"  # REST API
     volumes:
-      - ${HOME}/.tmws/db:/data/db
-      - ${HOME}/.tmws/logs:/data/logs
+      - ${REAL_HOME}/.tmws/db:/data/db
+      - ${REAL_HOME}/.tmws/logs:/data/logs
     env_file:
       - .env
     extra_hosts:
@@ -882,7 +931,7 @@ show_completion() {
         echo -e "${CYAN}Configuration locations:${NC}"
         echo "  - TMWS config:     ${TRINITAS_CONFIG_DIR}/"
         echo "  - Claude Code:     ${CLAUDE_CONFIG_DIR}/"
-        echo "  - Data storage:    ${HOME}/.tmws/"
+        echo "  - Data storage:    ${REAL_HOME}/.tmws/"
         if [ -d "${BACKUP_DIR}" ]; then
             echo "  - Backups:         ${BACKUP_DIR}/"
         fi
@@ -914,6 +963,18 @@ show_completion() {
 # Main installation flow
 main() {
     show_banner
+
+    # Warn about sudo usage and show target directory
+    if [ -n "${SUDO_USER:-}" ]; then
+        log_warn "Running with sudo - installing for user: ${SUDO_USER}"
+        log_info "Target home directory: ${REAL_HOME}"
+        echo ""
+    elif [ "$(id -u)" = "0" ]; then
+        log_warn "Running as root user"
+        log_warn "Files will be installed to: ${REAL_HOME}"
+        log_warn "Consider running as a regular user instead"
+        echo ""
+    fi
 
     log_info "Installation mode: ${INSTALL_MODE}"
     if [ "$INSTALL_MODE" = "native" ]; then
@@ -971,6 +1032,10 @@ main() {
 
     install_claude_config
     configure_mcp_settings
+
+    # Fix file ownership when running with sudo
+    fix_ownership
+
     check_ollama
     show_completion
 }
