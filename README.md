@@ -28,10 +28,7 @@
 curl -fsSL https://raw.githubusercontent.com/apto-as/multi-agent-system/main/install.sh | bash
 ```
 
-> **Note**: 環境によっては`sudo`が必要な場合があります:
-> ```bash
-> curl -fsSL https://raw.githubusercontent.com/apto-as/multi-agent-system/main/install.sh | sudo bash
-> ```
+> **Note**: sudoは不要です。ユーザーのホームディレクトリにインストールされます。
 
 #### Installation Modes
 

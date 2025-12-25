@@ -26,14 +26,14 @@
 set -euo pipefail
 
 # Version
-INSTALLER_VERSION="2.7.1"
+INSTALLER_VERSION="2.7.2"
 TMWS_VERSION="2.4.31"
 INSTALLER_TYPE="claude-code"
 
 # =============================================================================
-# CRITICAL: Resolve actual user's home directory
-# When running with sudo, $HOME becomes /root which is WRONG.
-# We must install to the actual user's home directory.
+# Resolve actual user's home directory (backward compatibility)
+# Native mode does NOT require sudo, but if someone runs with sudo anyway,
+# we still install to the correct user's home directory.
 # =============================================================================
 resolve_real_home() {
     if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
@@ -239,12 +239,13 @@ setup_native_path() {
     fi
 }
 
-# Fix file ownership when running with sudo
+# Fix file ownership when running with sudo (backward compatibility)
+# Native mode does NOT require sudo, but if someone uses it anyway,
+# we fix ownership so files are accessible to the user.
 fix_ownership() {
     if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
         log_step "Fixing file ownership for user: ${SUDO_USER}..."
 
-        # Fix ownership of all installed directories
         for dir in "${TMWS_INSTALL_DIR}" "${TRINITAS_CONFIG_DIR}" "${CLAUDE_CONFIG_DIR}"; do
             if [ -d "$dir" ]; then
                 chown -R "${SUDO_USER}:$(id -gn "$SUDO_USER" 2>/dev/null || echo "$SUDO_USER")" "$dir" 2>/dev/null || true
@@ -988,15 +989,15 @@ show_completion() {
 main() {
     show_banner
 
-    # Warn about sudo usage and show target directory
+    # Warn about unnecessary sudo usage
     if [ -n "${SUDO_USER:-}" ]; then
-        log_warn "Running with sudo - installing for user: ${SUDO_USER}"
-        log_info "Target home directory: ${REAL_HOME}"
+        log_warn "sudo is not required for native mode installation"
+        log_info "Installing for user: ${SUDO_USER} (${REAL_HOME})"
         echo ""
     elif [ "$(id -u)" = "0" ]; then
-        log_warn "Running as root user"
-        log_warn "Files will be installed to: ${REAL_HOME}"
-        log_warn "Consider running as a regular user instead"
+        log_warn "Running as root - this is not recommended"
+        log_warn "Native mode installs to user's home directory and does not require root"
+        log_info "Target: ${REAL_HOME}"
         echo ""
     fi
 
