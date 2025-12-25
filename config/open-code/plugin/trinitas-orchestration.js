@@ -25,11 +25,11 @@
  *   - Fixes persona drift issue where main agent loses character
  *
  * NEW in v2.4.31: CLI-first Mode with 3-Layer Fallback
- *   - TMWS_USE_CLI=true: Uses tmws-hook CLI for narrative enrichment
+ *   - CLI-first mode is now DEFAULT (set TMWS_USE_CLI=false to disable)
  *   - 3-layer fallback: CLI -> MCP direct -> Local minimal
  *   - Reduced dependency on MCP client availability
  *
- * @version 2.4.31
+ * @version 2.4.32
  * @author TMWS Team
  * @see https://opencode.ai/docs/plugins/
  */
@@ -251,8 +251,9 @@ const NARRATIVE_CONFIG = {
   maxPromptLength: 10 * 1024,
   /** Whether orchestrator persona enforcement is enabled (v2.4.30) */
   orchestratorPersonaEnabled: true,
-  /** Whether to use CLI-first mode (v2.4.31) */
-  useCliMode: process.env.TMWS_USE_CLI === "true",
+  /** Whether to use CLI-first mode (v2.4.31) - Default: enabled
+   *  Set TMWS_USE_CLI=false to disable CLI and use only HTTP/MCP fallback */
+  useCliMode: process.env.TMWS_USE_CLI !== "false",
   /** Path to tmws-hook CLI binary (validated against allowed directories) */
   cliPath: validateCliPath(process.env.TMWS_HOOK_PATH) || "tmws-hook",
   /** CLI timeout in milliseconds */
