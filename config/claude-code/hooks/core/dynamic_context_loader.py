@@ -29,7 +29,7 @@ to minimize latency impact.
     - Graceful degradation when TMWS unavailable
 
 **NEW in v2.4.31**: CLI Mode with TMWSHookWrapper
-    - Set TMWS_USE_CLI=true to enable CLI-first mode
+    - CLI-first mode is now DEFAULT (set TMWS_USE_CLI=false to disable)
     - 3-tier fallback: tmws-hook binary -> HTTP API -> local minimal
     - Improved performance via Go-based CLI binary
     - Seamless integration with existing httpx implementation
@@ -56,8 +56,8 @@ Integration:
     - Error handling: Fail gracefully, never block user interaction
     - TMWS Integration: Calls enrich_subagent_prompt MCP tool
 
-Version: 2.4.31
-Updated: 2025-12-25 - CLI Mode with TMWSHookWrapper (3-tier fallback)
+Version: 2.4.32
+Updated: 2025-12-25 - CLI Mode now DEFAULT (set TMWS_USE_CLI=false to disable)
 
 Example:
     >>> # Hook receives stdin: {"prompt": {"text": "optimize this code"}}
@@ -141,8 +141,9 @@ def _validate_tmws_url(url: str) -> bool:
 ENABLE_NARRATIVE_ENRICHMENT = os.environ.get("TMWS_NARRATIVE_ENRICHMENT", "true").lower() == "true"
 
 # TMWS CLI Mode (v2.4.31) - Use tmws-hook binary instead of HTTP
-# Set to "true" to enable CLI-first mode with 3-tier fallback
-ENABLE_CLI_MODE = os.environ.get("TMWS_USE_CLI", "false").lower() == "true"
+# Default: CLI-first mode enabled. Set to "false" to disable and use HTTP fallback only.
+# 3-tier fallback: tmws-hook CLI -> HTTP API -> local minimal (when binary unavailable)
+ENABLE_CLI_MODE = os.environ.get("TMWS_USE_CLI", "true").lower() != "false"
 
 # Orchestrator Persona Enforcement (v2.4.30)
 # Set to "false" to disable Clotho/Lachesis persona reminder
