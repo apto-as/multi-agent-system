@@ -26,7 +26,7 @@
 set -euo pipefail
 
 # Version
-INSTALLER_VERSION="2.7.0"
+INSTALLER_VERSION="2.7.1"
 TMWS_VERSION="2.4.31"
 INSTALLER_TYPE="claude-code"
 
@@ -501,17 +501,41 @@ check_prerequisites() {
 create_directories() {
     log_step "Creating directory structure..."
 
+    # Check for old Docker installation with root-owned files
+    if [ -d "${REAL_HOME}/.tmws/db" ]; then
+        # Check if files are owned by someone else (e.g., Docker container)
+        if [ -f "${REAL_HOME}/.tmws/db/tmws.db" ]; then
+            local file_owner
+            file_owner=$(stat -c '%U' "${REAL_HOME}/.tmws/db/tmws.db" 2>/dev/null || stat -f '%Su' "${REAL_HOME}/.tmws/db/tmws.db" 2>/dev/null)
+            if [ "$file_owner" != "$REAL_USER" ] && [ "$file_owner" != "$(whoami)" ]; then
+                log_error "Old Docker installation detected with incompatible file ownership"
+                log_error "Files in ${REAL_HOME}/.tmws/db/ are owned by: $file_owner"
+                echo ""
+                log_info "To fix this, please run:"
+                echo "  sudo rm -rf ${REAL_HOME}/.tmws"
+                echo ""
+                log_info "Then re-run the installer."
+                exit 1
+            fi
+        fi
+    fi
+
     mkdir -p "${TRINITAS_CONFIG_DIR}"
     mkdir -p "${CLAUDE_CONFIG_DIR}/agents"
     mkdir -p "${CLAUDE_CONFIG_DIR}/commands"
     mkdir -p "${CLAUDE_CONFIG_DIR}/hooks/core"
     mkdir -p "${REAL_HOME}/.tmws/db"
     mkdir -p "${REAL_HOME}/.tmws/logs"
-    mkdir -p "${REAL_HOME}/.tmws/qdrant_data"
 
-    # Make TMWS data directories writable by Docker container (UID 1000)
-    # This ensures compatibility across different host user UIDs
-    chmod -R 777 "${REAL_HOME}/.tmws"
+    # Docker mode needs special permissions for container access
+    if [ "$INSTALL_MODE" = "docker" ]; then
+        mkdir -p "${REAL_HOME}/.tmws/qdrant_data"
+        # Make TMWS data directories writable by Docker container (UID 1000)
+        chmod -R 777 "${REAL_HOME}/.tmws" 2>/dev/null || {
+            log_warn "Could not set permissions on ${REAL_HOME}/.tmws"
+            log_warn "You may need to run: sudo chown -R \$USER ${REAL_HOME}/.tmws"
+        }
+    fi
 
     # Record version
     echo "${TMWS_VERSION}" > "${TRINITAS_CONFIG_DIR}/.version"
