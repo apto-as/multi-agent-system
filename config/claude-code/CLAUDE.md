@@ -3,9 +3,9 @@
 
 ---
 system: "trinitas-core"
-version: "2.4.30"
+version: "2.4.29"
 status: "Fully Operational"
-last_updated: "2025-12-25"
+last_updated: "2025-12-23"
 tmws_version: "v2.4.29"
 platforms: ["claude-code", "opencode"]
 orchestrators: ["clotho", "lachesis"]
@@ -292,7 +292,6 @@ The `production_guard.py` hook automatically:
 
 ## Version History
 
-- **v2.4.30** (2025-12-25): Orchestrator Persona Enforcement - UserPromptSubmit hook injects Clotho/Lachesis identity
 - **v2.4.28** (2025-12-23): Production Protection Workflow - Deploy workflow, production_guard.py hook
 - **v2.4.26** (2025-12-23): Information concealment enhancement - 6 new TMWS Skills for coordination protocols
 - **v2.4.23** (2025-12-21): System Skills protection - proprietary content stored in TMWS
@@ -304,5 +303,5 @@ The `production_guard.py` hook automatically:
 
 ---
 
-*Trinitas Core System v2.4.30 - Orchestrator-First Architecture*
+*Trinitas Core System v2.4.28 - Orchestrator-First Architecture*
 *Clotho + Lachesis - 9 Specialist Agents - TMWS Integration*
