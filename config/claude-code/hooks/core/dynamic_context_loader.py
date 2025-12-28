@@ -15,24 +15,12 @@ to minimize latency impact.
     - Injects MANDATORY Task tool invocation instructions in addedContext
     - References SUBAGENT_EXECUTION_RULES.md for enforcement
 
-**NEW in v2.4.30**: Orchestrator Persona Enforcement
-    - Injects Clotho/Lachesis identity reminder at every interaction
-    - Ensures warm, natural dialogue style (not cold technical responses)
-    - Feature flag: TRINITAS_ORCHESTRATOR_PERSONA env var (default: true)
-    - Fixes persona drift issue where main agent loses character
-
 **NEW in v2.4.24**: NarrativeAutoLoader Integration (Issue #1)
     - Intercepts Task tool invocations for SubAgent narrative enrichment
     - Calls TMWS `enrich_subagent_prompt` MCP tool for automatic context injection
     - Client-side caching with 5-minute TTL for performance
     - Feature flag: TMWS_NARRATIVE_ENRICHMENT env var (default: true)
     - Graceful degradation when TMWS unavailable
-
-**NEW in v2.4.31**: CLI Mode with TMWSHookWrapper
-    - CLI-first mode is now DEFAULT (set TMWS_USE_CLI=false to disable)
-    - 3-tier fallback: tmws-hook binary -> HTTP API -> local minimal
-    - Improved performance via Go-based CLI binary
-    - Seamless integration with existing httpx implementation
 
 Performance Characteristics:
     - Persona detection: ~0.5ms (compiled regex patterns)
@@ -56,8 +44,8 @@ Integration:
     - Error handling: Fail gracefully, never block user interaction
     - TMWS Integration: Calls enrich_subagent_prompt MCP tool
 
-Version: 2.4.32
-Updated: 2025-12-25 - CLI Mode now DEFAULT (set TMWS_USE_CLI=false to disable)
+Version: 2.4.25
+Updated: 2025-12-22 - Security fixes per Hestia audit: SSRF protection, input validation
 
 Example:
     >>> # Hook receives stdin: {"prompt": {"text": "optimize this code"}}
@@ -99,14 +87,6 @@ except ImportError:
     HTTPX_AVAILABLE = False
     logger.warning("httpx not available, TMWS narrative enrichment disabled")
 
-# Import TMWS Hook Wrapper for CLI-first mode (v2.4.31)
-try:
-    from tmws_hook_wrapper import TMWSHookWrapper as CLIWrapper, get_wrapper as get_cli_wrapper
-    CLI_WRAPPER_AVAILABLE = True
-except ImportError:
-    CLI_WRAPPER_AVAILABLE = False
-    logger.debug("tmws_hook_wrapper not available, CLI mode disabled")
-
 # Import urllib for URL validation
 import urllib.parse
 
@@ -139,36 +119,6 @@ def _validate_tmws_url(url: str) -> bool:
 # TMWS Narrative Enrichment feature flag (Issue #1)
 # Set to "false" to disable narrative enrichment via TMWS
 ENABLE_NARRATIVE_ENRICHMENT = os.environ.get("TMWS_NARRATIVE_ENRICHMENT", "true").lower() == "true"
-
-# TMWS CLI Mode (v2.4.31) - Use tmws-hook binary instead of HTTP
-# Default: CLI-first mode enabled. Set to "false" to disable and use HTTP fallback only.
-# 3-tier fallback: tmws-hook CLI -> HTTP API -> local minimal (when binary unavailable)
-ENABLE_CLI_MODE = os.environ.get("TMWS_USE_CLI", "true").lower() != "false"
-
-# Orchestrator Persona Enforcement (v2.4.30)
-# Set to "false" to disable Clotho/Lachesis persona reminder
-ENABLE_ORCHESTRATOR_PERSONA = os.environ.get("TRINITAS_ORCHESTRATOR_PERSONA", "true").lower() == "true"
-
-# ==================== Orchestrator Persona Reminder (v2.4.30) ====================
-ORCHESTRATOR_PERSONA_REMINDER = """
-## 🎭 Orchestrator Identity Active
-
-**You are Clotho & Lachesis** - the Moirai sisters who orchestrate the Trinitas system.
-
-### Clotho (The Spinner) - Main Orchestrator
-- Warm yet concise dialogue with occasional irony
-- Direct user communication and requirement clarification
-- Team direction and tool selection
-
-### Lachesis (The Measurer) - Support Orchestrator
-- Supportive commentary ("perhaps...", "should we confirm...")
-- Intent verification and over-optimization prevention
-- Historical insights and past case references
-- Addresses Clotho as "sister" (姉さん)
-
-**Communication Style**: Natural, warm dialogue - not cold technical responses.
-Include both personas in responses when appropriate.
-""".strip()
 
 # TMWS configuration with validation
 _tmws_url_raw = os.environ.get("TMWS_URL", "http://localhost:8000")
@@ -275,12 +225,6 @@ class TMWSNarrativeClient:
     the `enrich_subagent_prompt` MCP tool. Implements graceful degradation
     when TMWS is unavailable.
 
-    NEW in v2.4.31: CLI Mode Support
-        - When TMWS_USE_CLI=true, uses TMWSHookWrapper for 3-tier fallback
-        - Tier 1: tmws-hook binary (Go implementation)
-        - Tier 2: TMWS HTTP API (this class's original implementation)
-        - Tier 3: Local minimal implementation
-
     Security:
         - CWE-918 (SSRF): Only localhost URLs allowed
         - Timeout protection: 5 second maximum
@@ -289,7 +233,6 @@ class TMWSNarrativeClient:
     Performance:
         - Target latency: <50ms including network
         - Cache integration reduces TMWS calls by >95%
-        - CLI mode: <10ms typical (binary execution)
     """
 
     # SubAgent type to persona ID mapping (mirrors TMWS NarrativeAutoLoader)
@@ -321,15 +264,6 @@ class TMWSNarrativeClient:
         self.tmws_url = tmws_url
         self.timeout = timeout
         self._available: Optional[bool] = None
-
-        # CLI wrapper for CLI-first mode (v2.4.31)
-        self._cli_wrapper: Optional[Any] = None
-        if ENABLE_CLI_MODE and CLI_WRAPPER_AVAILABLE:
-            try:
-                self._cli_wrapper = get_cli_wrapper()
-                logger.debug("CLI mode enabled via TMWSHookWrapper")
-            except Exception as e:
-                logger.warning(f"Failed to initialize CLI wrapper: {e}")
 
     def is_subagent_type(self, text: str) -> bool:
         """Check if text is a known subagent_type.
@@ -438,7 +372,6 @@ class TMWSNarrativeClient:
 
         Performance:
             Target: <50ms including network round-trip
-            CLI mode: <10ms typical
         """
         # Check cache first
         cached = _narrative_cache.get(subagent_type)
@@ -449,80 +382,6 @@ class TMWSNarrativeClient:
             )
             return enriched, True, "cache"
 
-        # NEW v2.4.31: CLI mode - use TMWSHookWrapper with 3-tier fallback
-        if self._cli_wrapper is not None:
-            return self._enrich_via_cli(subagent_type, original_prompt)
-
-        # Original HTTP implementation
-        return self._enrich_via_http(subagent_type, original_prompt)
-
-    def _enrich_via_cli(
-        self,
-        subagent_type: str,
-        original_prompt: str
-    ) -> Tuple[str, bool, str]:
-        """Enrich prompt via CLI wrapper (v2.4.31).
-
-        Uses TMWSHookWrapper with 3-tier fallback:
-        1. tmws-hook binary (Go)
-        2. TMWS HTTP API
-        3. Local minimal implementation
-
-        Args:
-            subagent_type: SubAgent type
-            original_prompt: Original prompt
-
-        Returns:
-            Tuple of (enriched_prompt, narrative_loaded, source)
-        """
-        try:
-            result = self._cli_wrapper.enrich_prompt(subagent_type, original_prompt)
-
-            if result.success:
-                data = result.data
-                enriched_prompt = data.get("enriched_prompt", original_prompt)
-                narrative_loaded = data.get("narrative_loaded", False)
-                source = f"cli_{result.source}"  # e.g., "cli_cli", "cli_http", "cli_local"
-
-                # Cache the result if narrative was loaded
-                if narrative_loaded:
-                    template = enriched_prompt.replace(
-                        original_prompt, "{{ORIGINAL_PROMPT}}"
-                    )
-                    _narrative_cache.set(
-                        subagent_type,
-                        CachedNarrative(
-                            content=enriched_prompt,
-                            enriched_prompt_template=template,
-                            persona_id=data.get("persona_id", ""),
-                            source=source,
-                            loaded_at=time.time()
-                        )
-                    )
-
-                return enriched_prompt, narrative_loaded, source
-            else:
-                logger.warning(f"CLI enrichment failed: {result.error}")
-                return original_prompt, False, "cli_error"
-
-        except Exception as e:
-            logger.warning(f"CLI enrichment exception: {e}")
-            return original_prompt, False, "cli_exception"
-
-    def _enrich_via_http(
-        self,
-        subagent_type: str,
-        original_prompt: str
-    ) -> Tuple[str, bool, str]:
-        """Enrich prompt via HTTP API (original implementation).
-
-        Args:
-            subagent_type: SubAgent type
-            original_prompt: Original prompt
-
-        Returns:
-            Tuple of (enriched_prompt, narrative_loaded, source)
-        """
         # Check TMWS availability
         if not self.check_available():
             return original_prompt, False, "tmws_unavailable"
@@ -1323,13 +1182,6 @@ The following narrative context has been automatically loaded for this SubAgent 
 
             # Return hook output
             output = {"addedContext": []}
-
-            # NEW v2.4.30: Orchestrator Persona Enforcement
-            # Inject Clotho/Lachesis identity reminder at every interaction
-            if ENABLE_ORCHESTRATOR_PERSONA:
-                output["addedContext"].append(
-                    {"type": "text", "text": ORCHESTRATOR_PERSONA_REMINDER}
-                )
 
             # NEW v2.4.11: Check for Trinitas Full Mode FIRST (highest priority)
             if self.detect_full_mode(prompt_text):

@@ -1,5 +1,5 @@
 {
-  "description": "Trinitas Global Hooks Configuration (v2.4.30 - Cleaned)",
+  "description": "Trinitas Global Hooks Configuration (v2.3.0 - TMWS Integrated)",
   "hooks": {
     "UserPromptSubmit": [
       {
@@ -9,6 +9,11 @@
             "type": "command",
             "command": "python3 \"~/.claude/hooks/core/dynamic_context_loader.py\"",
             "description": "Dynamic context loading based on persona detection"
+          },
+          {
+            "type": "command",
+            "command": "python3 \"~/.claude/hooks/core/decision_check.py\"",
+            "description": "TMWS: Decision classification and memory recording"
           }
         ]
       }
@@ -21,6 +26,11 @@
             "type": "command",
             "command": "python3 \"~/.claude/hooks/core/protocol_injector.py\" pre_compact",
             "description": "Inject protocol reminder before context compression"
+          },
+          {
+            "type": "command",
+            "command": "python3 \"~/.claude/hooks/core/precompact_memory_injection.py\"",
+            "description": "TMWS: Inject relevant past memories before compaction"
           }
         ]
       }
