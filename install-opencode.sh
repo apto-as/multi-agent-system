@@ -27,7 +27,7 @@ set -euo pipefail
 
 # Version
 INSTALLER_VERSION="2.4.19"
-TMWS_VERSION="2.4.19"
+TMWS_VERSION="2.4.35"
 INSTALLER_TYPE="opencode"
 
 # Colors
