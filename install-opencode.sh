@@ -1,15 +1,16 @@
 #!/bin/bash
 # =============================================================================
-# Trinitas Multi-Agent System Installer v2.4.19
+# Trinitas Multi-Agent System Installer v2.4.36
 # For OpenCode on Linux/macOS/WSL
 # =============================================================================
 #
 # This installer sets up:
-#   1. TMWS (Trinitas Memory & Workflow System) via Docker
+#   1. TMWS-Go (Trinitas Memory & Workflow System) native binaries
 #   2. Trinitas agents, plugins, and configuration for OpenCode
 #   3. Pre-activated ENTERPRISE license
 #
 # Features:
+#   - Native binary installation (no Docker required)
 #   - Automatic backup of existing installations
 #   - Upgrade support for existing TMWS/Trinitas installations
 #   - Platform-specific optimizations
@@ -26,9 +27,40 @@
 set -euo pipefail
 
 # Version
-INSTALLER_VERSION="2.4.19"
-TMWS_VERSION="2.4.35"
+INSTALLER_VERSION="2.4.36"
+TMWS_VERSION="2.4.36"
 INSTALLER_TYPE="opencode"
+
+# =============================================================================
+# Resolve actual user's home directory
+# =============================================================================
+resolve_real_home() {
+    if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
+        if command -v getent &> /dev/null; then
+            getent passwd "$SUDO_USER" | cut -d: -f6
+        else
+            eval echo "~$SUDO_USER"
+        fi
+    elif [ "$(id -u)" = "0" ] && [ -z "${SUDO_USER:-}" ]; then
+        echo "$HOME"
+    else
+        echo "$HOME"
+    fi
+}
+
+REAL_HOME="$(resolve_real_home)"
+REAL_USER="${SUDO_USER:-$(whoami)}"
+
+# Installation directories
+TMWS_INSTALL_DIR="${TMWS_INSTALL_DIR:-${REAL_HOME}/.tmws}"
+TMWS_BIN_DIR="${TMWS_INSTALL_DIR}/bin"
+TRINITAS_CONFIG_DIR="${REAL_HOME}/.trinitas"
+OPENCODE_CONFIG_DIR="${REAL_HOME}/.config/opencode"
+BACKUP_DIR="${REAL_HOME}/.trinitas-backup"
+
+# Pre-activated ENTERPRISE license (TMWS-Go v1.0)
+DEFAULT_LICENSE_KEY="TMWS-1.0-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJtdWx0aS1hZ2VudC1zeXN0ZW0tdHJpYWwtdjEuMCIsImlzcyI6InRtd3MuYXB0by5haSIsImlhdCI6MTc2NjI0NDc0OSwiZXhwIjoxNzc0MDIwNzQ5LCJuYmYiOjE3NjYyNDQ3NDksImxpZCI6Ijc4OGNlYzE4LWMzYTAtNGI4Ny05ZWM2LWZmOTAyZTAyM2E5YSIsImx0eXBlIjoiZW50ZXJwcmlzZSIsIm9yZyI6IlRyaW5pdGFzIENvbW11bml0eSIsImZlYXR1cmVzIjpbIm1lbW9yeS5iYXNpYyIsIm1lbW9yeS5hZHZhbmNlZCIsImFnZW50LmJhc2ljIiwiYWdlbnQuYWR2YW5jZWQiLCJhZ2VudC50cnVzdCIsInNraWxscy5iYXNpYyIsInNraWxscy5hZHZhbmNlZCIsInBhdHRlcm5zLmxlYXJuaW5nIiwidHJpbml0YXMucm91dGluZyIsInRyaW5pdGFzLm9yY2hlc3RyYXRpb24iLCJtY3AuaHViLmJhc2ljIiwibWNwLmh1Yi5hZHZhbmNlZCIsImxpZmVjeWNsZS5zY2hlZHVsZXIiLCJjb252ZXJzYXRpb24ubG9nZ2luZyIsImVudGVycHJpc2UubXVsdGl0ZW5hbmN5Il0sIm1heF9tZW1vcmllcyI6LTEsIm1heF9hZ2VudHMiOi0xLCJtYXhfc2tpbGxzIjotMSwibWF4X21jcF9zZXJ2ZXJzIjotMX0.Vnrbd857WfMc3dsNJEYMlkSilXEat1n_vc4Z6BKeAnENyEeMydjO3RBMuZ3GutNSy0CnkBvBYsJbN0x_TDxuDQ"
+DEFAULT_LICENSE_PUBLIC_KEY="XRa6aVOcwUzeurz2AGx+/1KlC3CEokjWcq3pqcd0fIo="
 
 # Colors
 RED='\033[0;31m'
@@ -37,17 +69,7 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 MAGENTA='\033[0;35m'
-NC='\033[0m' # No Color
-
-# Configuration
-TMWS_IMAGE="docker.io/aptoas/tmws:latest"
-TRINITAS_CONFIG_DIR="${HOME}/.trinitas"
-OPENCODE_CONFIG_DIR="${HOME}/.config/opencode"
-BACKUP_DIR="${HOME}/.trinitas-backup"
-
-# Pre-activated ENTERPRISE license
-DEFAULT_LICENSE_KEY="TMWS-ENTERPRISE-020d8e77-de36-48a1-b585-7f66aef78c06-20260303-Tp9UYRt6ucUB21hPF9lqZoH.FjSslvfr~if1ThD75L.ro~Kx5glyVyGPm0n4xuziJ~Qmc87PZipJWCefj2HEAA"
-DEFAULT_LICENSE_PUBLIC_KEY="hWZG1qVDWLQj1bzq/CzU23Sjg5XDsEOB0/9+3vzXcRU="
+NC='\033[0m'
 
 # Logging functions
 log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
@@ -69,12 +91,34 @@ show_banner() {
 ║      ██║   ██║  ██║██║██║ ╚████║██║   ██║   ██║  ██║███████║         ║
 ║      ╚═╝   ╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝╚═╝   ╚═╝   ╚═╝  ╚═╝╚══════╝         ║
 ║                                                                       ║
-║            Multi-Agent System Installer v2.4.19                       ║
-║            For OpenCode                                               ║
+║            Multi-Agent System Installer v2.4.36                       ║
+║            For OpenCode (Native Mode)                                 ║
 ║                                                                       ║
 ╚═══════════════════════════════════════════════════════════════════════╝
 EOF
     echo -e "${NC}"
+}
+
+# Detect OS
+detect_os() {
+    local os
+    os="$(uname -s | tr '[:upper:]' '[:lower:]')"
+    case "$os" in
+        darwin) echo "darwin" ;;
+        linux) echo "linux" ;;
+        *) log_error "Unsupported OS: $os" ; exit 1 ;;
+    esac
+}
+
+# Detect architecture
+detect_arch() {
+    local arch
+    arch="$(uname -m)"
+    case "$arch" in
+        x86_64|amd64) echo "amd64" ;;
+        aarch64|arm64) echo "arm64" ;;
+        *) log_error "Unsupported architecture: $arch" ; exit 1 ;;
+    esac
 }
 
 # Platform detection
@@ -93,7 +137,6 @@ detect_platform() {
             else
                 PACKAGE_MANAGER="unknown"
             fi
-            # WSL detection
             if grep -qi microsoft /proc/version 2>/dev/null; then
                 PLATFORM="WSL"
             fi
@@ -104,6 +147,97 @@ detect_platform() {
             ;;
     esac
     log_info "Detected platform: ${PLATFORM} (${PACKAGE_MANAGER})"
+}
+
+# Get latest TMWS release version
+get_latest_tmws_version() {
+    local version
+    version=$(curl -fsSL "https://api.github.com/repos/apto-as/multi-agent-system/releases" 2>/dev/null | \
+        grep '"tag_name":' | grep 'tmws-v' | head -1 | sed -E 's/.*"tmws-(v[^"]+)".*/\1/')
+    if [ -z "$version" ]; then
+        echo "v${TMWS_VERSION}"
+    else
+        echo "$version"
+    fi
+}
+
+# Download and install native TMWS binaries
+install_native_binaries() {
+    log_step "Installing TMWS native binaries..."
+
+    local os arch version url archive_name tmp_dir
+    os=$(detect_os)
+    arch=$(detect_arch)
+    version=$(get_latest_tmws_version)
+
+    archive_name="tmws-${os}-${arch}.tar.gz"
+    url="https://github.com/apto-as/multi-agent-system/releases/download/tmws-${version}/${archive_name}"
+
+    log_info "Downloading TMWS ${version} for ${os}/${arch}..."
+    log_info "URL: ${url}"
+
+    tmp_dir=$(mktemp -d -t tmws-install.XXXXXXXX)
+    trap "rm -rf $tmp_dir" EXIT
+
+    if ! curl -fsSL "$url" -o "${tmp_dir}/${archive_name}"; then
+        log_error "Failed to download TMWS binaries"
+        log_error "URL: ${url}"
+        exit 1
+    fi
+
+    mkdir -p "${TMWS_BIN_DIR}"
+    tar -xzf "${tmp_dir}/${archive_name}" -C "${tmp_dir}"
+
+    for bin in tmws-server tmws-mcp tmws-cli tmws-hook; do
+        if [ -f "${tmp_dir}/${bin}" ]; then
+            mv "${tmp_dir}/${bin}" "${TMWS_BIN_DIR}/"
+            chmod +x "${TMWS_BIN_DIR}/${bin}"
+            log_success "Installed ${bin}"
+        fi
+    done
+
+    ln -sf "${TMWS_BIN_DIR}/tmws-mcp" "${TMWS_BIN_DIR}/tmws" 2>/dev/null || true
+    log_success "TMWS binaries installed to ${TMWS_BIN_DIR}"
+}
+
+# Setup PATH
+setup_native_path() {
+    log_step "Setting up PATH..."
+
+    local shell_rc=""
+    local shell_name
+
+    if [ -n "${SUDO_USER:-}" ]; then
+        shell_name=$(getent passwd "$SUDO_USER" 2>/dev/null | cut -d: -f7 | xargs basename 2>/dev/null || echo "bash")
+    else
+        shell_name=$(basename "$SHELL")
+    fi
+
+    case "$shell_name" in
+        bash) shell_rc="${REAL_HOME}/.bashrc" ;;
+        zsh) shell_rc="${REAL_HOME}/.zshrc" ;;
+        fish) shell_rc="${REAL_HOME}/.config/fish/config.fish" ;;
+        *) log_warn "Unknown shell: $shell_name. Add ${TMWS_BIN_DIR} to PATH manually." ; return ;;
+    esac
+
+    if [ -f "$shell_rc" ]; then
+        if ! grep -q "TMWS_HOME" "$shell_rc"; then
+            if [ "$shell_name" = "fish" ]; then
+                echo "" >> "$shell_rc"
+                echo "# TMWS" >> "$shell_rc"
+                echo "set -gx TMWS_HOME ${TMWS_INSTALL_DIR}" >> "$shell_rc"
+                echo "fish_add_path ${TMWS_BIN_DIR}" >> "$shell_rc"
+            else
+                echo "" >> "$shell_rc"
+                echo "# TMWS" >> "$shell_rc"
+                echo "export TMWS_HOME=\"${TMWS_INSTALL_DIR}\"" >> "$shell_rc"
+                echo "export PATH=\"\$TMWS_HOME/bin:\$PATH\"" >> "$shell_rc"
+            fi
+            log_success "Added TMWS to PATH in ${shell_rc}"
+        else
+            log_info "TMWS already in PATH"
+        fi
+    fi
 }
 
 # Check for existing installation
@@ -123,14 +257,9 @@ check_existing_installation() {
         existing_items+=("~/.config/opencode/ (Trinitas config)")
     fi
 
-    if [ -d "${HOME}/.tmws" ]; then
+    if [ -d "${REAL_HOME}/.tmws" ]; then
         existing=true
         existing_items+=("~/.tmws/ (data)")
-    fi
-
-    if docker ps -a --format '{{.Names}}' 2>/dev/null | grep -q "tmws"; then
-        existing=true
-        existing_items+=("tmws Docker container")
     fi
 
     if [ "$existing" = true ]; then
@@ -146,7 +275,7 @@ check_existing_installation() {
     fi
 }
 
-# Create backup of existing installation
+# Create backup
 create_backup() {
     log_step "Creating backup of existing installation..."
 
@@ -155,44 +284,33 @@ create_backup() {
 
     mkdir -p "${backup_path}"
 
-    # Backup ~/.trinitas
     if [ -d "${TRINITAS_CONFIG_DIR}" ]; then
         cp -r "${TRINITAS_CONFIG_DIR}" "${backup_path}/trinitas"
         log_success "Backed up ~/.trinitas/"
     fi
 
-    # Backup ~/.config/opencode (Trinitas-related files only)
     if [ -d "${OPENCODE_CONFIG_DIR}" ]; then
         mkdir -p "${backup_path}/opencode"
-
-        # Core config files
         for file in opencode.md opencode.json AGENTS.md; do
             if [ -f "${OPENCODE_CONFIG_DIR}/${file}" ]; then
                 cp "${OPENCODE_CONFIG_DIR}/${file}" "${backup_path}/opencode/"
             fi
         done
-
-        # Directories
         for dir in agent plugin command; do
             if [ -d "${OPENCODE_CONFIG_DIR}/${dir}" ]; then
                 cp -r "${OPENCODE_CONFIG_DIR}/${dir}" "${backup_path}/opencode/"
             fi
         done
-
         log_success "Backed up ~/.config/opencode/ (Trinitas config)"
     fi
 
-    # Backup ~/.tmws (metadata only, not large DB files)
-    if [ -d "${HOME}/.tmws" ]; then
+    if [ -d "${REAL_HOME}/.tmws" ]; then
         mkdir -p "${backup_path}/tmws"
-
-        find "${HOME}/.tmws" -maxdepth 2 -type f \( -name "*.json" -o -name "*.yaml" -o -name "*.yml" -o -name "*.env" \) \
+        find "${REAL_HOME}/.tmws" -maxdepth 2 -type f \( -name "*.json" -o -name "*.yaml" -o -name "*.yml" -o -name "*.env" \) \
             -exec cp {} "${backup_path}/tmws/" \; 2>/dev/null || true
-
         log_success "Backed up ~/.tmws/ (config only)"
     fi
 
-    # Record backup info
     cat > "${backup_path}/backup-info.txt" << EOF
 Trinitas Backup (OpenCode)
 ==========================
@@ -211,30 +329,6 @@ EOF
     echo ""
 }
 
-# Stop existing TMWS container
-stop_existing_tmws() {
-    log_step "Stopping existing TMWS container..."
-
-    if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "tmws-app"; then
-        docker stop tmws-app 2>/dev/null || true
-        log_success "Stopped tmws-app container"
-    fi
-
-    if docker ps -a --format '{{.Names}}' 2>/dev/null | grep -q "tmws-app"; then
-        docker rm tmws-app 2>/dev/null || true
-        log_success "Removed old tmws-app container"
-    fi
-
-    # Also check for legacy container names
-    for container in tmws tmws-server trinitas-tmws; do
-        if docker ps -a --format '{{.Names}}' 2>/dev/null | grep -q "^${container}$"; then
-            docker stop "${container}" 2>/dev/null || true
-            docker rm "${container}" 2>/dev/null || true
-            log_info "Removed legacy container: ${container}"
-        fi
-    done
-}
-
 # Check prerequisites
 check_prerequisites() {
     log_step "Checking prerequisites..."
@@ -246,11 +340,7 @@ check_prerequisites() {
     fi
 
     if ! command -v git &> /dev/null; then
-        missing+=("git")
-    fi
-
-    if ! command -v docker &> /dev/null; then
-        missing+=("docker")
+        log_warn "git not found (optional)"
     fi
 
     if [ ${#missing[@]} -gt 0 ]; then
@@ -260,30 +350,14 @@ check_prerequisites() {
         case "$PACKAGE_MANAGER" in
             apt)
                 echo "  sudo apt update && sudo apt install -y ${missing[*]}"
-                if [[ " ${missing[*]} " =~ " docker " ]]; then
-                    echo ""
-                    echo "For Docker on Ubuntu/Debian:"
-                    echo "  curl -fsSL https://get.docker.com | sudo sh"
-                    echo "  sudo usermod -aG docker \$USER"
-                fi
                 ;;
             brew)
                 echo "  brew install ${missing[*]}"
-                if [[ " ${missing[*]} " =~ " docker " ]]; then
-                    echo ""
-                    echo "For Docker on macOS:"
-                    echo "  brew install --cask docker"
-                fi
                 ;;
             *)
                 echo "  Please install: ${missing[*]}"
                 ;;
         esac
-        exit 1
-    fi
-
-    if ! docker info &> /dev/null; then
-        log_error "Docker daemon is not running"
         exit 1
     fi
 
@@ -298,29 +372,10 @@ create_directories() {
     mkdir -p "${OPENCODE_CONFIG_DIR}/agent"
     mkdir -p "${OPENCODE_CONFIG_DIR}/plugin"
     mkdir -p "${OPENCODE_CONFIG_DIR}/command"
-    mkdir -p "${HOME}/.tmws/db"
-    mkdir -p "${HOME}/.tmws/logs"
-    mkdir -p "${HOME}/.tmws/vector_store"
-
-    # Make TMWS data directories writable by Docker container (UID 1000)
-    # This ensures compatibility across different host user UIDs
-    chmod -R 777 "${HOME}/.tmws"
+    mkdir -p "${TMWS_INSTALL_DIR}/data"
 
     echo "${TMWS_VERSION}" > "${TRINITAS_CONFIG_DIR}/.version"
-
     log_success "Directories created"
-}
-
-# Pull TMWS Docker image
-pull_tmws_image() {
-    log_step "Pulling TMWS Docker image (${TMWS_IMAGE})..."
-
-    if docker pull "${TMWS_IMAGE}"; then
-        log_success "TMWS image pulled successfully"
-    else
-        log_error "Failed to pull TMWS image"
-        exit 1
-    fi
 }
 
 # Generate secret key
@@ -336,8 +391,40 @@ generate_secret_key() {
 setup_tmws_config() {
     log_step "Setting up TMWS configuration..."
 
-    local env_file="${TRINITAS_CONFIG_DIR}/.env"
+    local config_file="${TMWS_INSTALL_DIR}/config.yaml"
+    local env_file="${TMWS_INSTALL_DIR}/.env"
 
+    # Create config.yaml
+    cat > "${config_file}" << EOF
+# TMWS-Go Configuration
+# Version: ${TMWS_VERSION}
+# Generated: $(date -Iseconds)
+
+database:
+  driver: "sqlite3"
+  path: "${TMWS_INSTALL_DIR}/data/tmws.db"
+  max_open_conns: 25
+  max_idle_conns: 5
+  conn_max_lifetime: 5m
+
+vector:
+  backend: "sqlite-vec"
+  dimension: 1024
+  distance: "cosine"
+
+memory:
+  default_ttl: 720h
+  max_memories_per_namespace: 10000
+  cleanup_interval: 1h
+
+embedding:
+  provider: "ollama"
+  model: "mxbai-embed-large"
+  dimension: 1024
+  batch_size: 32
+EOF
+
+    # Create .env file
     local existing_secret=""
     if [ -f "${env_file}" ]; then
         existing_secret=$(grep "^TMWS_SECRET_KEY=" "${env_file}" 2>/dev/null | cut -d'=' -f2 || echo "")
@@ -346,68 +433,22 @@ setup_tmws_config() {
     local secret_key="${existing_secret:-$(generate_secret_key)}"
 
     cat > "${env_file}" << EOF
-# TMWS Configuration - Generated by Trinitas Installer
+# TMWS-Go Environment - Generated by Trinitas Installer
 # Version: ${TMWS_VERSION}
 # Generated: $(date -Iseconds)
-# Installer: ${INSTALLER_TYPE}
+# Mode: native
 
-# Environment (development mode - no CORS validation required)
-TMWS_ENVIRONMENT=development
-TMWS_LOG_LEVEL=INFO
-
-# Security (Auto-generated - DO NOT SHARE)
+TMWS_ENV=development
+TMWS_LOG_LEVEL=info
 TMWS_SECRET_KEY=${secret_key}
-
-# Pre-activated ENTERPRISE license
 TMWS_LICENSE_KEY="${DEFAULT_LICENSE_KEY}"
 TMWS_LICENSE_PUBLIC_KEY="${DEFAULT_LICENSE_PUBLIC_KEY}"
-
-# Database (SQLite - stored in /app/.tmws/db/ inside container)
-TMWS_DATABASE_URL=sqlite+aiosqlite:////app/.tmws/db/tmws.db
-
-# Embedding Service (Ollama required)
-TMWS_OLLAMA_BASE_URL=http://host.docker.internal:11434
+TMWS_CONFIG_PATH=${config_file}
+OLLAMA_HOST=http://localhost:11434
 EOF
 
     chmod 600 "${env_file}"
     log_success "TMWS configuration created"
-}
-
-# Create Docker Compose file
-create_docker_compose() {
-    log_step "Creating Docker Compose configuration..."
-
-    cat > "${TRINITAS_CONFIG_DIR}/docker-compose.yml" << EOF
-# Trinitas TMWS Docker Compose
-# Version: ${TMWS_VERSION}
-# Installer: ${INSTALLER_TYPE}
-
-services:
-  tmws:
-    image: ${TMWS_IMAGE}
-    container_name: tmws-app
-    restart: unless-stopped
-    command: ["tail", "-f", "/dev/null"]  # Keep container running, MCP called via docker exec
-    ports:
-      - "8892:8892"
-      - "8000:8000"
-    volumes:
-      - ${HOME}/.tmws/db:/app/.tmws/db
-      - ${HOME}/.tmws/logs:/app/.tmws/logs
-      - ${HOME}/.tmws/vector_store:/app/.tmws/vector_store
-    env_file:
-      - .env
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
-EOF
-
-    log_success "Docker Compose configuration created"
 }
 
 # Install OpenCode configuration
@@ -419,14 +460,12 @@ install_opencode_config() {
     local github_base="https://raw.githubusercontent.com/apto-as/multi-agent-system/main"
     local use_github=false
 
-    # Check if running via curl | bash (script_dir will be empty or invalid)
     if [ -z "${script_dir}" ] || [ ! -d "${config_src}" ]; then
         log_info "Downloading configuration from GitHub..."
         use_github=true
         config_src=$(mktemp -d -t trinitas-install.XXXXXXXX)
         trap 'rm -rf "${config_src}" 2>/dev/null || true' EXIT
 
-        # Download config/open-code directory contents
         mkdir -p "${config_src}/agent" "${config_src}/command" "${config_src}/plugin"
 
         # Download main config files
@@ -434,7 +473,7 @@ install_opencode_config() {
         curl -fsSL "${github_base}/config/open-code/opencode.json" -o "${config_src}/opencode.json" 2>/dev/null || true
         curl -fsSL "${github_base}/config/open-code/AGENTS.md" -o "${config_src}/AGENTS.md" 2>/dev/null || true
 
-        # Download agents (11 total: 2 Orchestrators + 9 Specialists)
+        # Download agents (11 total)
         for agent in clotho lachesis athena artemis hestia eris hera muses aphrodite metis aurora; do
             curl -fsSL "${github_base}/config/open-code/agent/${agent}.md" -o "${config_src}/agent/${agent}.md" 2>/dev/null || true
         done
@@ -447,7 +486,7 @@ install_opencode_config() {
         curl -fsSL "${github_base}/config/open-code/plugin/trinitas-trigger-processor.js" -o "${config_src}/plugin/trinitas-trigger-processor.js" 2>/dev/null || true
     fi
 
-    # Copy opencode.md from distribution
+    # Copy files
     if [ -f "${config_src}/opencode.md" ]; then
         cp "${config_src}/opencode.md" "${OPENCODE_CONFIG_DIR}/"
         log_success "Copied opencode.md"
@@ -455,23 +494,18 @@ install_opencode_config() {
         log_error "opencode.md not found - this is required for Trinitas to function"
     fi
 
-    # Copy AGENTS.md
     if [ -f "${config_src}/AGENTS.md" ]; then
         cp "${config_src}/AGENTS.md" "${OPENCODE_CONFIG_DIR}/"
         log_success "Copied AGENTS.md"
-    else
-        log_warn "AGENTS.md not found"
     fi
 
-    # Copy agent definitions (OpenCode uses different naming)
     if [ -d "${config_src}/agent" ] && [ "$(ls -A ${config_src}/agent 2>/dev/null)" ]; then
         rm -rf "${OPENCODE_CONFIG_DIR}/agent"
         mkdir -p "${OPENCODE_CONFIG_DIR}/agent"
         cp -r "${config_src}/agent"/* "${OPENCODE_CONFIG_DIR}/agent/"
-        log_success "Copied agent definitions (9 agents)"
+        log_success "Copied agent definitions (11 agents)"
     fi
 
-    # Copy commands
     if [ -d "${config_src}/command" ] && [ "$(ls -A ${config_src}/command 2>/dev/null)" ]; then
         rm -rf "${OPENCODE_CONFIG_DIR}/command"
         mkdir -p "${OPENCODE_CONFIG_DIR}/command"
@@ -479,7 +513,6 @@ install_opencode_config() {
         log_success "Copied command definitions"
     fi
 
-    # Copy plugins
     if [ -d "${config_src}/plugin" ] && [ "$(ls -A ${config_src}/plugin 2>/dev/null)" ]; then
         rm -rf "${OPENCODE_CONFIG_DIR}/plugin"
         mkdir -p "${OPENCODE_CONFIG_DIR}/plugin"
@@ -487,7 +520,6 @@ install_opencode_config() {
         log_success "Copied plugins (orchestration, trigger-processor)"
     fi
 
-    # Cleanup temp directory if used
     if [ "${use_github}" = true ] && [ -d "${config_src}" ]; then
         rm -rf "${config_src}"
     fi
@@ -497,24 +529,29 @@ install_opencode_config() {
 configure_opencode_settings() {
     log_step "Configuring OpenCode MCP settings..."
 
-    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-    # Copy opencode.json from distribution if available
-    if [ -f "${script_dir}/config/open-code/opencode.json" ]; then
-        cp "${script_dir}/config/open-code/opencode.json" "${OPENCODE_CONFIG_DIR}/"
-        log_success "Copied opencode.json"
-    else
-        # Fallback: create default configuration (OpenCode schema-compliant)
-        # Note: Plugins auto-load from ~/.config/opencode/plugin/ directory
-        cat > "${OPENCODE_CONFIG_DIR}/opencode.json" << 'EOF'
+    cat > "${OPENCODE_CONFIG_DIR}/opencode.json" << EOF
 {
-  "$schema": "https://opencode.ai/config.json",
+  "\$schema": "https://opencode.ai/config.json",
   "mcp": {
     "tmws": {
       "type": "local",
-      "command": ["docker", "exec", "-i", "tmws-app", "tmws-mcp-server"],
+      "command": ["${TMWS_BIN_DIR}/tmws-mcp"],
+      "env": {
+        "TMWS_CONFIG_PATH": "${TMWS_INSTALL_DIR}/config.yaml",
+        "OLLAMA_HOST": "http://localhost:11434"
+      },
       "enabled": true,
       "timeout": 10000
+    },
+    "context7": {
+      "type": "local",
+      "command": ["npx", "-y", "@upstash/context7-mcp"],
+      "enabled": true
+    },
+    "serena": {
+      "type": "local",
+      "command": ["uvx", "--from", "git+https://github.com/oraios/serena", "serena-mcp-server", "--context", "ide-assistant"],
+      "enabled": true
     }
   },
   "instructions": [
@@ -523,51 +560,8 @@ configure_opencode_settings() {
   ]
 }
 EOF
-        log_success "Created default opencode.json"
-    fi
-}
 
-# Start TMWS
-start_tmws() {
-    log_step "Starting TMWS..."
-
-    cd "${TRINITAS_CONFIG_DIR}"
-
-    if command -v docker-compose &> /dev/null; then
-        docker-compose up -d
-    else
-        docker compose up -d
-    fi
-
-    log_info "Waiting for TMWS to start..."
-    local max_attempts=30
-    local attempt=0
-
-    while [ $attempt -lt $max_attempts ]; do
-        if curl -sf http://localhost:8000/health > /dev/null 2>&1; then
-            log_success "TMWS is running and healthy"
-            return 0
-        fi
-        attempt=$((attempt + 1))
-        sleep 2
-    done
-
-    log_warn "TMWS health check timed out (may still be starting)"
-}
-
-# Verify license
-verify_license() {
-    log_step "Verifying license..."
-
-    local response
-    response=$(curl -sf http://localhost:8000/api/v1/license/status 2>/dev/null || echo '{"error": "connection failed"}')
-
-    if echo "$response" | grep -q '"tier"'; then
-        local tier=$(echo "$response" | grep -o '"tier":"[^"]*"' | cut -d'"' -f4)
-        log_success "License verified: ${tier}"
-    else
-        log_warn "Could not verify license (TMWS may still be starting)"
-    fi
+    log_success "OpenCode configuration created (native mode)"
 }
 
 # Check Ollama
@@ -580,10 +574,10 @@ check_ollama() {
         if curl -sf http://localhost:11434/api/tags > /dev/null 2>&1; then
             log_success "Ollama is running"
 
-            if ollama list 2>/dev/null | grep -q "multilingual-e5-large"; then
+            if ollama list 2>/dev/null | grep -q "mxbai-embed-large"; then
                 log_success "Required model available"
             else
-                log_warn "Required model not found. Run: ollama pull zylonai/multilingual-e5-large"
+                log_warn "Required model not found. Run: ollama pull mxbai-embed-large"
             fi
         else
             log_warn "Ollama is not running. Start with: ollama serve"
@@ -591,6 +585,21 @@ check_ollama() {
     else
         log_warn "Ollama is not installed"
         echo "Install: curl -fsSL https://ollama.ai/install.sh | sh"
+    fi
+}
+
+# Fix file ownership
+fix_ownership() {
+    if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
+        log_step "Fixing file ownership for user: ${SUDO_USER}..."
+
+        for dir in "${TMWS_INSTALL_DIR}" "${TRINITAS_CONFIG_DIR}" "${OPENCODE_CONFIG_DIR}"; do
+            if [ -d "$dir" ]; then
+                chown -R "${SUDO_USER}:$(id -gn "$SUDO_USER" 2>/dev/null || echo "$SUDO_USER")" "$dir" 2>/dev/null || true
+            fi
+        done
+
+        log_success "File ownership fixed"
     fi
 }
 
@@ -602,24 +611,26 @@ show_completion() {
     echo -e "${GREEN}╚═══════════════════════════════════════════════════════════════════════╝${NC}"
     echo ""
     echo -e "${CYAN}What was installed:${NC}"
-    echo "  - TMWS Docker container (docker.io/aptoas/tmws:${TMWS_VERSION})"
-    echo "  - Trinitas 9-agent configuration for OpenCode"
+    echo "  - TMWS-Go native binaries (tmws-mcp, tmws-server, tmws-cli)"
+    echo "  - Trinitas 11-agent configuration for OpenCode"
     echo "  - Pre-activated ENTERPRISE license"
     echo ""
     echo -e "${CYAN}Configuration locations:${NC}"
-    echo "  - TMWS config:     ${TRINITAS_CONFIG_DIR}/"
+    echo "  - TMWS binaries:   ${TMWS_BIN_DIR}/"
+    echo "  - TMWS config:     ${TMWS_INSTALL_DIR}/"
     echo "  - OpenCode:        ${OPENCODE_CONFIG_DIR}/"
-    echo "  - Data storage:    ${HOME}/.tmws/"
     if [ -d "${BACKUP_DIR}" ]; then
         echo "  - Backups:         ${BACKUP_DIR}/"
     fi
     echo ""
     echo -e "${CYAN}Quick start:${NC}"
-    echo "  1. Ensure Ollama is running: ollama serve"
-    echo "  2. Start OpenCode in your project directory"
-    echo "  3. Use /trinitas command to interact with agents"
+    echo "  1. Reload your shell or run: source ~/.bashrc (or ~/.zshrc)"
+    echo "  2. Ensure Ollama is running: ollama serve"
+    echo "  3. Pull embedding model: ollama pull mxbai-embed-large"
+    echo "  4. Start OpenCode in your project directory"
+    echo "  5. Use /trinitas command to interact with agents"
     echo ""
-    echo -e "${GREEN}License: ENTERPRISE${NC}"
+    echo -e "${GREEN}License: ENTERPRISE (TMWS-Go v${TMWS_VERSION})${NC}"
     echo ""
     echo -e "${GREEN}Enjoy Trinitas Multi-Agent System!${NC}"
     echo ""
@@ -628,12 +639,18 @@ show_completion() {
 # Main
 main() {
     show_banner
+
+    if [ -n "${SUDO_USER:-}" ]; then
+        log_warn "sudo is not required for native mode installation"
+        log_info "Installing for user: ${SUDO_USER} (${REAL_HOME})"
+        echo ""
+    fi
+
     detect_platform
     check_prerequisites
 
     if check_existing_installation; then
         echo ""
-        # Use /dev/tty to read input when running via curl | bash
         if [ -t 0 ]; then
             read -p "Do you want to upgrade? (existing data will be backed up) [Y/n] " -n 1 -r
         else
@@ -642,7 +659,6 @@ main() {
         echo ""
         if [[ ! $REPLY =~ ^[Nn]$ ]]; then
             create_backup
-            stop_existing_tmws
         else
             log_info "Installation cancelled"
             exit 0
@@ -650,13 +666,12 @@ main() {
     fi
 
     create_directories
-    pull_tmws_image
+    install_native_binaries
+    setup_native_path
     setup_tmws_config
-    create_docker_compose
     install_opencode_config
     configure_opencode_settings
-    start_tmws
-    verify_license
+    fix_ownership
     check_ollama
     show_completion
 }

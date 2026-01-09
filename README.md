@@ -1,7 +1,7 @@
 # Trinitas Multi-Agent System
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-2.4.31-blue.svg" alt="Version">
+  <img src="https://img.shields.io/badge/Version-2.4.32-blue.svg" alt="Version">
   <img src="https://img.shields.io/badge/License-ENTERPRISE-green.svg" alt="License">
   <img src="https://img.shields.io/badge/Platform-Ubuntu%20%7C%20macOS%20%7C%20WSL2-lightgrey.svg" alt="Platform">
   <img src="https://img.shields.io/badge/Backend-TMWS--Go-orange.svg" alt="Backend">
@@ -10,6 +10,102 @@
 **Trinitas** is a sophisticated multi-agent AI system that enhances Claude Code and OpenCode with 11 specialized AI personas (including Clotho & Lachesis orchestrators), persistent memory, and advanced workflow orchestration.
 
 > **詳細な導入手順**: [INSTALLATION_GUIDE.md](docs/INSTALLATION_GUIDE.md) - Linux/macOS 環境向けのステップバイステップガイド
+
+## Quick Setup with `claude mcp add` (Recommended)
+
+The fastest way to get started is using `claude mcp add` to register TMWS-Go as an MCP server at User level:
+
+```bash
+# 1. Create directories
+mkdir -p ~/.tmws/bin ~/.tmws/db
+
+# 2. Download TMWS-Go binary (choose your platform)
+# macOS (Apple Silicon)
+curl -L -o ~/.tmws/bin/tmws-mcp \
+  https://github.com/apto-as/tmws_go/releases/latest/download/tmws-mcp-darwin-arm64
+
+# macOS (Intel)
+curl -L -o ~/.tmws/bin/tmws-mcp \
+  https://github.com/apto-as/tmws_go/releases/latest/download/tmws-mcp-darwin-amd64
+
+# Linux / WSL2 (x86_64)
+curl -L -o ~/.tmws/bin/tmws-mcp \
+  https://github.com/apto-as/tmws_go/releases/latest/download/tmws-mcp-linux-amd64
+
+# 3. Make executable
+chmod +x ~/.tmws/bin/tmws-mcp
+
+# 4. Create config file
+cat > ~/.tmws/config.yaml << 'EOF'
+database:
+  driver: "sqlite3"
+  path: "~/.tmws/db/tmws.db"
+  max_open_conns: 25
+  max_idle_conns: 5
+  conn_max_lifetime: 5m
+
+vector:
+  backend: "sqlite-vec"
+  dimension: 1024
+  distance: "cosine"
+
+memory:
+  default_ttl: 720h
+  max_memories_per_namespace: 10000
+  cleanup_interval: 1h
+
+embedding:
+  provider: "ollama"
+  model: "mxbai-embed-large"
+  dimension: 1024
+  batch_size: 32
+EOF
+
+# 5. Start Ollama (required for embedding)
+ollama serve &
+ollama pull mxbai-embed-large
+
+# 6. Add to Claude Code at User level (with required environment variables)
+# Note: Server name must come BEFORE options
+claude mcp add tmws \
+  -e TMWS_CONFIG_PATH=$HOME/.tmws/config.yaml \
+  -e OLLAMA_HOST=http://localhost:11434 \
+  --scope user \
+  -- $HOME/.tmws/bin/tmws-mcp
+
+# 7. Verify installation
+claude mcp list
+```
+
+> **Note**: User レベルで追加すると、全プロジェクトで TMWS が利用可能になります。
+
+### Alternative: Direct JSON Configuration (Recommended)
+
+If the `claude mcp add` command fails, directly edit `~/.claude.json`:
+
+```json
+{
+  "mcpServers": {
+    "tmws": {
+      "type": "stdio",
+      "command": "/Users/YOUR_USERNAME/.tmws/bin/tmws-mcp",
+      "args": [],
+      "env": {
+        "TMWS_CONFIG_PATH": "/Users/YOUR_USERNAME/.tmws/config.yaml",
+        "OLLAMA_HOST": "http://localhost:11434"
+      }
+    }
+  }
+}
+```
+
+> **Important**: Use absolute paths (no `~` or `$HOME`) in JSON config files.
+
+> **SSH/Remote Servers**: `ollama serve &` will terminate when SSH disconnects. Use `systemctl enable ollama && systemctl start ollama` for persistent operation.
+
+### Agent Configurations (Optional)
+
+For full Trinitas 11-agent experience with personas, use the full installer below. The `claude mcp add` method provides TMWS memory/workflow features only.
 
 ## Features
 
@@ -410,6 +506,7 @@ This is a proprietary system. For bug reports and feature requests, please conta
 
 ## Version History
 
+- **v2.4.32** (2026-01-08): Fixed `claude mcp add` quick setup (env vars, config.yaml), README improvements
 - **v2.4.31** (2025-12-25): Native binary installation mode, GitHub Actions CI/CD
 - **v2.4.27** (2025-12-24): Config restructuring, obsolete file cleanup, TMWS-Go stable
 - **v2.4.26** (2025-12-23): Docker CGO fix for go-sqlite3
@@ -425,5 +522,5 @@ This is a proprietary system. For bug reports and feature requests, please conta
 <p align="center">
   <strong>Trinitas Multi-Agent System</strong><br>
   11 Agents • 140+ MCP Tools • Semantic Memory<br>
-  <em>Powered by TMWS-Go v2.4.31</em>
+  <em>Powered by TMWS-Go v2.4.32</em>
 </p>

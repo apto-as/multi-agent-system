@@ -1,55 +1,55 @@
-# Trinitas Multi-Agent System v2.4.22 導入手順書
+# Trinitas Multi-Agent System v2.4.36 導入手順書
 
 ## 対象環境
 
 | 環境 | OS | 前提条件 |
 |------|----|---------|
-| Linux | Ubuntu 22.04+ / Debian 12+ | conda仮想環境構築済み |
-| macOS | macOS 13+ (Ventura以降) | conda仮想環境構築済み |
+| Linux | Ubuntu 22.04+ / Debian 12+ | Git, curl |
+| macOS | macOS 13+ (Ventura以降) | Git, curl |
+| WSL2 | Windows 10/11 + WSL2 | Ubuntu/Debian in WSL2 |
 
 ## 目次
 
 1. [前提条件の確認](#1-前提条件の確認)
 2. [Claude Code のインストール](#2-claude-code-のインストール)
 3. [Ollama のインストール](#3-ollama-のインストール)
-4. [Docker のインストール](#4-docker-のインストール)
-5. [Trinitas のインストール](#5-trinitas-のインストール)
-6. [動作確認](#6-動作確認)
-7. [トラブルシューティング](#7-トラブルシューティング)
+4. [Trinitas のインストール](#4-trinitas-のインストール)
+5. [動作確認](#5-動作確認)
+6. [トラブルシューティング](#6-トラブルシューティング)
 
 ---
 
 ## 1. 前提条件の確認
 
-### 1.1 conda環境の確認
-
-```bash
-# condaがインストールされていることを確認
-conda --version
-# 出力例: conda 24.x.x
-
-# 現在の環境を確認
-conda info --envs
-```
-
-### 1.2 必要なシステム要件
+### 1.1 必要なシステム要件
 
 | 要件 | 最小スペック | 推奨スペック |
 |------|-------------|-------------|
 | RAM | 8GB | 16GB以上 |
-| ディスク | 20GB空き | 50GB以上空き |
+| ディスク | 10GB空き | 30GB以上空き |
 | CPU | 4コア | 8コア以上 |
 | GPU | 不要 | NVIDIA GPU (オプション) |
 
-### 1.3 ネットワーク要件
+### 1.2 ネットワーク要件
 
 以下のポートが使用されます:
 
 | ポート | 用途 |
 |--------|------|
-| 8000 | TMWS REST API |
-| 8892 | TMWS MCP Server |
+| 33333 | TMWS REST API |
 | 11434 | Ollama API |
+
+### 1.3 必要なツールの確認
+
+```bash
+# Git
+git --version
+# 出力例: git version 2.x.x
+
+# curl
+curl --version
+# 出力例: curl 8.x.x
+```
 
 ---
 
@@ -151,14 +151,14 @@ curl http://localhost:11434/api/version
 ### 3.3 必須モデルのダウンロード
 
 ```bash
-# TMWS が使用する多言語埋め込みモデルをダウンロード
-ollama pull zylonai/multilingual-e5-large
+# TMWS が使用する埋め込みモデルをダウンロード
+ollama pull mxbai-embed-large
 
-# ダウンロード確認（約2GB）
+# ダウンロード確認（約600MB）
 ollama list
 # 出力例:
-# NAME                                    SIZE
-# zylonai/multilingual-e5-large:latest    2.2 GB
+# NAME                       SIZE
+# mxbai-embed-large:latest   669 MB
 ```
 
 ### 3.4 SSH/リモートサーバーでの永続化
@@ -182,67 +182,101 @@ ollama serve
 
 ---
 
-## 4. Docker のインストール
+## 4. Trinitas のインストール
 
-### 4.1 Linux (Ubuntu/Debian)
+### 4.1 クイックセットアップ（`claude mcp add` 推奨）
 
-```bash
-# 公式スクリプトでインストール
-curl -fsSL https://get.docker.com | sudo sh
-
-# 現在のユーザーを docker グループに追加（sudo なしで実行可能に）
-sudo usermod -aG docker $USER
-
-# グループ変更を反映（再ログインまたは以下を実行）
-newgrp docker
-
-# インストール確認
-docker --version
-docker compose version
-
-# Docker が起動しているか確認
-docker info
-```
-
-### 4.2 macOS
+最も簡単なセットアップ方法です:
 
 ```bash
-# Homebrew で Docker Desktop をインストール
-brew install --cask docker
+# 1. ディレクトリ作成
+mkdir -p ~/.tmws/bin ~/.tmws/db
 
-# Docker Desktop を起動（初回は手動起動が必要）
-open -a Docker
+# 2. TMWS-Go バイナリをダウンロード（プラットフォームに合わせて選択）
+# macOS (Apple Silicon)
+curl -L -o ~/.tmws/bin/tmws-mcp \
+  https://github.com/apto-as/tmws_go/releases/latest/download/tmws-mcp-darwin-arm64
 
-# 起動を待つ（約30秒）
-sleep 30
+# macOS (Intel)
+curl -L -o ~/.tmws/bin/tmws-mcp \
+  https://github.com/apto-as/tmws_go/releases/latest/download/tmws-mcp-darwin-amd64
 
-# インストール確認
-docker --version
-docker compose version
+# Linux / WSL2 (x86_64)
+curl -L -o ~/.tmws/bin/tmws-mcp \
+  https://github.com/apto-as/tmws_go/releases/latest/download/tmws-mcp-linux-amd64
+
+# 3. 実行権限を付与
+chmod +x ~/.tmws/bin/tmws-mcp
+
+# 4. 設定ファイルを作成
+cat > ~/.tmws/config.yaml << 'EOF'
+database:
+  driver: "sqlite3"
+  path: "~/.tmws/db/tmws.db"
+  max_open_conns: 25
+  max_idle_conns: 5
+  conn_max_lifetime: 5m
+
+vector:
+  backend: "sqlite-vec"
+  dimension: 1024
+  distance: "cosine"
+
+memory:
+  default_ttl: 720h
+  max_memories_per_namespace: 10000
+  cleanup_interval: 1h
+
+embedding:
+  provider: "ollama"
+  model: "mxbai-embed-large"
+  dimension: 1024
+  batch_size: 32
+EOF
+
+# 5. Claude Code に MCP サーバーとして追加
+# 注意: サーバー名はオプションの前に指定
+claude mcp add tmws \
+  -e TMWS_CONFIG_PATH=$HOME/.tmws/config.yaml \
+  -e OLLAMA_HOST=http://localhost:11434 \
+  --scope user \
+  -- $HOME/.tmws/bin/tmws-mcp
+
+# 6. 確認
+claude mcp list
 ```
 
-### 4.3 Docker 動作確認
+**代替方法: JSON設定ファイルを直接編集（推奨）**
 
-```bash
-# テストコンテナを実行
-docker run --rm hello-world
+`claude mcp add` でエラーが発生する場合、`~/.claude.json` を直接編集:
 
-# 出力に "Hello from Docker!" が含まれていれば成功
+```json
+{
+  "mcpServers": {
+    "tmws": {
+      "type": "stdio",
+      "command": "/Users/YOUR_USERNAME/.tmws/bin/tmws-mcp",
+      "args": [],
+      "env": {
+        "TMWS_CONFIG_PATH": "/Users/YOUR_USERNAME/.tmws/config.yaml",
+        "OLLAMA_HOST": "http://localhost:11434"
+      }
+    }
+  }
+}
 ```
 
----
+> **重要**: JSON設定では `~` や `$HOME` は展開されないため、絶対パスを使用してください。
 
-## 5. Trinitas のインストール
+### 4.2 ワンコマンドインストール（11エージェント完全版）
 
-### 5.1 ワンコマンドインストール
-
-すべての前提条件が満たされていれば、以下の1コマンドでインストール完了:
+11エージェントのペルソナ設定を含む完全インストール:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/apto-as/multi-agent-system/main/install.sh | bash
 ```
 
-### 5.2 手動インストール（詳細確認したい場合）
+### 4.3 手動インストール（詳細確認したい場合）
 
 ```bash
 # リポジトリをクローン
@@ -257,37 +291,16 @@ chmod +x install.sh
 ./install.sh
 ```
 
-### 5.3 インストール中の対話
+### 4.4 インストール後のディレクトリ構成
 
 ```
-🚀 Trinitas Multi-Agent System Installer v2.4.22
-================================================
-
-Checking prerequisites...
-✓ Docker is installed
-✓ Git is installed
-✓ Ollama is running
-✓ Required model is available
-
-Do you want to proceed with installation? [Y/n] Y
-
-Installing TMWS container...
-✓ Container started successfully
-
-Installing Claude Code configuration...
-✓ Agent configurations installed
-✓ MCP server configured
-
-Installation complete!
-```
-
-### 5.4 インストール後のディレクトリ構成
-
-```
-~/.trinitas/              # TMWS Docker Compose 設定
-├── docker-compose.yml
-├── .env
-└── presets/              # MCP プリセット
+~/.tmws/                  # TMWS-Go 設定・データ
+├── bin/
+│   └── tmws-mcp         # TMWS-Go バイナリ
+├── db/
+│   └── tmws.db          # SQLite データベース
+├── config.yaml          # TMWS 設定ファイル
+└── logs/                # ログファイル
 
 ~/.claude/                # Claude Code 設定
 ├── CLAUDE.md            # Clotho + Lachesis 設定
@@ -301,51 +314,33 @@ Installation complete!
 ├── commands/
 │   └── trinitas.md
 └── settings.json        # MCP サーバー設定
-
-~/.tmws/                  # TMWS データ
-├── tmws.db              # SQLite データベース
-├── vector_store/        # ChromaDB ベクトルストア
-└── logs/                # ログファイル
 ```
 
 ---
 
-## 6. 動作確認
+## 5. 動作確認
 
-### 6.1 TMWS コンテナの確認
-
-```bash
-# コンテナ状態確認
-docker ps | grep tmws
-
-# 出力例:
-# abc123  aptoas/tmws:latest  ...  Up 5 minutes  tmws-app
-
-# ログ確認
-docker logs tmws-app | tail -20
-```
-
-### 6.2 MCP 接続テスト
+### 5.1 TMWS プロセスの確認
 
 ```bash
-# MCP サーバーの応答確認（約20-25秒かかる）
+# MCP サーバーが正しく応答するか確認
 echo '{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}' | \
-docker exec -i tmws-app tmws-mcp-server | head -1
+  TMWS_CONFIG_PATH=~/.tmws/config.yaml ~/.tmws/bin/tmws-mcp 2>/dev/null | head -1
 
 # 正常応答例:
 # {"jsonrpc":"2.0","id":0,"result":{"protocolVersion":"2024-11-05",...}}
 ```
 
-### 6.3 REST API 確認
+### 5.2 REST API 確認
 
 ```bash
-# ヘルスチェック
-curl -s http://localhost:8000/health | jq .
+# ヘルスチェック（TMWS-Go は REST API も提供）
+curl -s http://localhost:33333/health | jq .
 
 # 出力例:
 # {
 #   "status": "healthy",
-#   "version": "2.4.22",
+#   "version": "2.4.36",
 #   "components": {
 #     "database": "healthy",
 #     "vector_store": "healthy",
@@ -354,7 +349,7 @@ curl -s http://localhost:8000/health | jq .
 # }
 ```
 
-### 6.4 Claude Code での確認
+### 5.3 Claude Code での確認
 
 ```bash
 # 任意のプロジェクトディレクトリで Claude Code を起動
@@ -368,7 +363,17 @@ claude
 # 「TMWSのメモリに "テスト記憶" を保存して」
 ```
 
-### 6.5 ツール一覧の確認
+### 5.4 MCP 接続一覧
+
+```bash
+# 登録されている MCP サーバーを確認
+claude mcp list
+
+# 出力例:
+# tmws: ~/.tmws/bin/tmws-mcp
+```
+
+### 5.5 ツール一覧の確認
 
 Claude Code 内で:
 
@@ -376,7 +381,7 @@ Claude Code 内で:
 TMWSで利用可能なツールを一覧表示して
 ```
 
-期待される出力（42ツール）:
+期待される出力（140+ ツール）:
 
 ```
 Memory Tools:
@@ -398,39 +403,36 @@ Verification Tools:
 
 ---
 
-## 7. トラブルシューティング
+## 6. トラブルシューティング
 
-### 7.1 Docker 関連
+### 6.1 TMWS バイナリ関連
 
-#### コンテナが起動しない
-
-```bash
-# ログを確認
-docker logs tmws-app
-
-# コンテナを再作成
-cd ~/.trinitas
-docker compose down
-docker compose up -d
-
-# イメージを再取得
-docker compose pull
-docker compose up -d
-```
-
-#### ポートが使用中
+#### バイナリが見つからない
 
 ```bash
-# 8000番ポートを使用しているプロセスを確認
-lsof -i :8000
-# または
-sudo netstat -tlnp | grep 8000
+# バイナリが存在するか確認
+ls -la ~/.tmws/bin/tmws-mcp
 
-# 必要に応じてプロセスを終了
-kill -9 <PID>
+# 実行権限を確認・付与
+chmod +x ~/.tmws/bin/tmws-mcp
+
+# 手動でダウンロードし直す
+curl -L -o ~/.tmws/bin/tmws-mcp \
+  https://github.com/apto-as/tmws_go/releases/latest/download/tmws-mcp-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
+chmod +x ~/.tmws/bin/tmws-mcp
 ```
 
-### 7.2 Ollama 関連
+#### 設定ファイルエラー
+
+```bash
+# 設定ファイルの確認
+cat ~/.tmws/config.yaml
+
+# 環境変数が設定されているか確認
+echo $TMWS_CONFIG_PATH
+```
+
+### 6.2 Ollama 関連
 
 #### Ollama が起動しない
 
@@ -452,10 +454,21 @@ curl http://localhost:11434/api/version
 ollama list
 
 # モデルを再ダウンロード
-ollama pull zylonai/multilingual-e5-large
+ollama pull mxbai-embed-large
 ```
 
-### 7.3 MCP 接続関連
+#### SSH/リモート環境でOllamaが停止する
+
+```bash
+# systemd サービスとして起動（推奨）
+sudo systemctl enable ollama
+sudo systemctl start ollama
+
+# 状態確認
+systemctl status ollama
+```
+
+### 6.3 MCP 接続関連
 
 #### Claude Code が TMWS に接続できない
 
@@ -467,39 +480,25 @@ cat ~/.claude/settings.json
 # {
 #   "mcpServers": {
 #     "tmws": {
-#       "command": "docker",
-#       "args": ["exec", "-i", "tmws-app", "tmws-mcp-server"]
+#       "command": "~/.tmws/bin/tmws-mcp",
+#       "env": {
+#         "TMWS_CONFIG_PATH": "~/.tmws/config.yaml",
+#         "OLLAMA_HOST": "http://localhost:11434"
+#       }
 #     }
 #   }
 # }
 
-# コンテナ名を確認
-docker ps --format '{{.Names}}'
+# claude mcp add で再登録
+claude mcp remove tmws
+claude mcp add tmws \
+  -e TMWS_CONFIG_PATH=$HOME/.tmws/config.yaml \
+  -e OLLAMA_HOST=http://localhost:11434 \
+  --scope user \
+  -- $HOME/.tmws/bin/tmws-mcp
 ```
 
-#### MCP ハンドシェイクがタイムアウト
-
-```bash
-# コンテナ内の初期化ログを確認
-docker logs tmws-app 2>&1 | grep -E "(Started|Phase|MCP)"
-
-# コンテナを再起動
-docker restart tmws-app
-
-# 20-30秒待ってから再接続
-```
-
-### 7.4 パーミッション関連
-
-#### Docker 権限エラー
-
-```bash
-# ユーザーを docker グループに追加
-sudo usermod -aG docker $USER
-
-# ログアウト・ログインするか、以下を実行
-newgrp docker
-```
+### 6.4 パーミッション関連
 
 #### ファイル書き込みエラー
 
@@ -509,6 +508,9 @@ ls -la ~/.tmws
 
 # 権限を修正
 chmod -R 755 ~/.tmws
+
+# データベースファイルの権限
+chmod 644 ~/.tmws/db/tmws.db
 ```
 
 ---
@@ -520,23 +522,28 @@ chmod -R 755 ~/.tmws
 - [ ] Node.js v20+ インストール済み
 - [ ] npm グローバルパスが PATH に含まれている
 - [ ] Claude Code インストール済み (`claude --version`)
-- [ ] Docker インストール済み (`docker --version`)
-- [ ] 現在のユーザーが docker グループに所属
 - [ ] Ollama インストール済み (`curl localhost:11434/api/version`)
 - [ ] Ollama が systemd で起動している
-- [ ] zylonai/multilingual-e5-large モデルがダウンロード済み
-- [ ] Trinitas インストーラー実行済み
-- [ ] tmws-app コンテナが起動中 (`docker ps`)
+- [ ] mxbai-embed-large モデルがダウンロード済み
+- [ ] TMWS-Go バイナリがインストール済み (`~/.tmws/bin/tmws-mcp`)
+- [ ] TMWS 設定ファイルが存在 (`~/.tmws/config.yaml`)
+- [ ] Claude Code に TMWS が登録済み (`claude mcp list`)
 
 ### macOS
 
 - [ ] Node.js インストール済み (`node --version`)
 - [ ] Claude Code インストール済み (`claude --version`)
-- [ ] Docker Desktop インストール済み・起動中
 - [ ] Ollama インストール済み・起動中
-- [ ] zylonai/multilingual-e5-large モデルがダウンロード済み
-- [ ] Trinitas インストーラー実行済み
-- [ ] tmws-app コンテナが起動中
+- [ ] mxbai-embed-large モデルがダウンロード済み
+- [ ] TMWS-Go バイナリがインストール済み
+- [ ] TMWS 設定ファイルが存在
+- [ ] Claude Code に TMWS が登録済み
+
+### WSL2 (Windows)
+
+- [ ] WSL2 が有効化されている (`wsl --status`)
+- [ ] Ubuntu/Debian がインストールされている
+- [ ] 上記 Linux チェックリストを完了
 
 ---
 
@@ -544,9 +551,8 @@ chmod -R 755 ~/.tmws
 
 | コンポーネント | バージョン | 確認コマンド |
 |---------------|-----------|-------------|
-| TMWS | v2.4.22 | `docker logs tmws-app \| head -5` |
-| Docker Image | aptoas/tmws:2.4.22 | `docker images aptoas/tmws` |
-| Ollama Model | multilingual-e5-large | `ollama list` |
+| TMWS-Go | v2.4.36 | `~/.tmws/bin/tmws-mcp --version` |
+| Ollama Model | mxbai-embed-large | `ollama list` |
 | Claude Code | Latest | `claude --version` |
 
 ---
@@ -556,9 +562,10 @@ chmod -R 755 ~/.tmws
 問題が解決しない場合:
 
 1. GitHub Issues: https://github.com/apto-as/multi-agent-system/issues
-2. TMWS Issues: https://github.com/apto-as/tmws/issues
+2. TMWS-Go Issues: https://github.com/apto-as/tmws_go/issues
 
 ---
 
-*Trinitas Multi-Agent System v2.4.22*
-*Last Updated: 2025-12-17*
+*Trinitas Multi-Agent System v2.4.36*
+*Powered by TMWS-Go Native Mode*
+*Last Updated: 2026-01-09*
