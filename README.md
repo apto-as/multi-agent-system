@@ -1,8 +1,7 @@
 # Trinitas Multi-Agent System
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-2.4.32-blue.svg" alt="Version">
-  <img src="https://img.shields.io/badge/License-ENTERPRISE-green.svg" alt="License">
+  <img src="https://img.shields.io/badge/Version-2.4.36-blue.svg" alt="Version">
   <img src="https://img.shields.io/badge/Platform-Ubuntu%20%7C%20macOS%20%7C%20WSL2-lightgrey.svg" alt="Platform">
   <img src="https://img.shields.io/badge/Backend-TMWS--Go-orange.svg" alt="Backend">
 </p>
@@ -374,29 +373,6 @@ Phase 4: Documentation (Muses)
 | **Metis** 🔧 | Developer | Implementation & testing |
 | **Aurora** 🌅 | Researcher | Search & context retrieval |
 
-## License Information
-
-This distribution includes a **pre-activated 90-day ENTERPRISE license**.
-
-| License Detail | Value |
-|----------------|-------|
-| License Type | ENTERPRISE (90-day) |
-| Valid Until | **2026-03-21** |
-| Activation | Pre-activated |
-
-### Included Features
-
-| Feature | Included |
-|---------|----------|
-| All 11 AI Personas | ✅ |
-| 140+ MCP Tools | ✅ |
-| Semantic Memory | ✅ |
-| Verification System | ✅ |
-| Phase-Based Orchestration | ✅ |
-| Self-Learning Patterns | ✅ |
-
-Contact [apto-as](https://github.com/apto-as) for license renewal or support.
-
 ## Troubleshooting
 
 ### Docker Issues
@@ -436,12 +412,6 @@ sudo systemctl start ollama
 
 # Verify it's running
 systemctl status ollama
-```
-
-### License Verification
-
-```bash
-curl http://localhost:33333/health
 ```
 
 ### WSL2 Issues (Windows)
