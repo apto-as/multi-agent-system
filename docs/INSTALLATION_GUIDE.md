@@ -1,4 +1,4 @@
-# Trinitas Multi-Agent System v2.4.36 導入手順書
+# Trinitas Multi-Agent System v2.4.37 導入手順書
 
 ## 対象環境
 
@@ -551,7 +551,7 @@ chmod 644 ~/.tmws/db/tmws.db
 
 | コンポーネント | バージョン | 確認コマンド |
 |---------------|-----------|-------------|
-| TMWS-Go | v2.4.36 | `~/.tmws/bin/tmws-mcp --version` |
+| TMWS-Go | v2.4.37 | `~/.tmws/bin/tmws-mcp --version` |
 | Ollama Model | mxbai-embed-large | `ollama list` |
 | Claude Code | Latest | `claude --version` |
 
@@ -566,6 +566,6 @@ chmod 644 ~/.tmws/db/tmws.db
 
 ---
 
-*Trinitas Multi-Agent System v2.4.36*
+*Trinitas Multi-Agent System v2.4.37*
 *Powered by TMWS-Go Native Mode*
-*Last Updated: 2026-01-09*
+*Last Updated: 2026-01-11*
