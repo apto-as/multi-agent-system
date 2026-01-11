@@ -1,7 +1,7 @@
 # Trinitas Multi-Agent System
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-2.4.36-blue.svg" alt="Version">
+  <img src="https://img.shields.io/badge/Version-2.4.37-blue.svg" alt="Version">
   <img src="https://img.shields.io/badge/Platform-Ubuntu%20%7C%20macOS%20%7C%20WSL2-lightgrey.svg" alt="Platform">
   <img src="https://img.shields.io/badge/Backend-TMWS--Go-orange.svg" alt="Backend">
 </p>
@@ -476,7 +476,8 @@ This is a proprietary system. For bug reports and feature requests, please conta
 
 ## Version History
 
-- **v2.4.32** (2026-01-08): Fixed `claude mcp add` quick setup (env vars, config.yaml), README improvements
+- **v2.4.37** (2026-01-11): Critical fix for MCP server infinite recursion in addTool method
+- **v2.4.36** (2026-01-08): Fixed `claude mcp add` quick setup (env vars, config.yaml), README improvements
 - **v2.4.31** (2025-12-25): Native binary installation mode, GitHub Actions CI/CD
 - **v2.4.27** (2025-12-24): Config restructuring, obsolete file cleanup, TMWS-Go stable
 - **v2.4.26** (2025-12-23): Docker CGO fix for go-sqlite3
@@ -492,5 +493,5 @@ This is a proprietary system. For bug reports and feature requests, please conta
 <p align="center">
   <strong>Trinitas Multi-Agent System</strong><br>
   11 Agents • 140+ MCP Tools • Semantic Memory<br>
-  <em>Powered by TMWS-Go v2.4.32</em>
+  <em>Powered by TMWS-Go v2.4.37</em>
 </p>

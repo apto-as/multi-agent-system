@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# Trinitas Multi-Agent System Installer v2.4.36
+# Trinitas Multi-Agent System Installer v2.4.37
 # For OpenCode on Linux/macOS/WSL
 # =============================================================================
 #
@@ -27,8 +27,8 @@
 set -euo pipefail
 
 # Version
-INSTALLER_VERSION="2.4.36"
-TMWS_VERSION="2.4.36"
+INSTALLER_VERSION="2.4.37"
+TMWS_VERSION="2.4.37"
 INSTALLER_TYPE="opencode"
 
 # =============================================================================
@@ -91,7 +91,7 @@ show_banner() {
 ║      ██║   ██║  ██║██║██║ ╚████║██║   ██║   ██║  ██║███████║         ║
 ║      ╚═╝   ╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝╚═╝   ╚═╝   ╚═╝  ╚═╝╚══════╝         ║
 ║                                                                       ║
-║            Multi-Agent System Installer v2.4.36                       ║
+║            Multi-Agent System Installer v2.4.37                       ║
 ║            For OpenCode (Native Mode)                                 ║
 ║                                                                       ║
 ╚═══════════════════════════════════════════════════════════════════════╝
