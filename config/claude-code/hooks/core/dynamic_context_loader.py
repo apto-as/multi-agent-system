@@ -578,8 +578,8 @@ class DynamicContextLoader:
 
         Args:
             base_path: Optional base directory for resolving relative context file
-                paths. If None, defaults to the detected project root (searched
-                upward from this file for .git or pyproject.toml markers).
+                paths. If None, defaults to trinitas-agents project root at
+                /Users/apto-as/workspace/github.com/apto-as/trinitas-agents.
 
         Example:
             >>> # Use default project root
