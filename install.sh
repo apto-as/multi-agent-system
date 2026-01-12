@@ -26,8 +26,8 @@
 set -euo pipefail
 
 # Version
-INSTALLER_VERSION="2.7.2"
-TMWS_VERSION="2.4.37"
+INSTALLER_VERSION="2.8.0"
+TMWS_VERSION="2.5.0"
 INSTALLER_TYPE="claude-code"
 
 # =============================================================================
@@ -183,16 +183,17 @@ install_native_binaries() {
     mkdir -p "${TMWS_BIN_DIR}"
     tar -xzf "${tmp_dir}/${archive_name}" -C "${tmp_dir}"
 
-    for bin in tmws-server tmws-mcp tmws-cli tmws-hook; do
+    # v2.5.x Unified Binary Architecture
+    # - tmws: TUI + server modes (unified binary)
+    # - tmws-mcp: MCP server for Claude Code
+    # - tmws-hook: Claude Code hook utility
+    for bin in tmws tmws-mcp tmws-hook; do
         if [ -f "${tmp_dir}/${bin}" ]; then
             mv "${tmp_dir}/${bin}" "${TMWS_BIN_DIR}/"
             chmod +x "${TMWS_BIN_DIR}/${bin}"
             log_success "Installed ${bin}"
         fi
     done
-
-    # Create symlink for convenience
-    ln -sf "${TMWS_BIN_DIR}/tmws-mcp" "${TMWS_BIN_DIR}/tmws" 2>/dev/null || true
 
     log_success "TMWS binaries installed to ${TMWS_BIN_DIR}"
 }
@@ -922,7 +923,10 @@ show_completion() {
 
     if [ "$INSTALL_MODE" = "native" ]; then
         echo -e "${CYAN}What was installed:${NC}"
-        echo "  - TMWS native binaries (tmws-server, tmws-mcp, tmws-cli, tmws-hook)"
+        echo "  - TMWS v2.5.x Unified Binary Architecture:"
+        echo "    - tmws: TUI + server modes (unified binary)"
+        echo "    - tmws-mcp: MCP server for Claude Code"
+        echo "    - tmws-hook: Claude Code hook utility"
         echo "  - Trinitas 11-agent configuration for Claude Code"
         echo "  - Pre-activated ENTERPRISE license"
         echo ""
@@ -942,9 +946,9 @@ show_completion() {
         echo "  4. Use /trinitas command to interact with agents"
         echo ""
         echo -e "${CYAN}Useful commands:${NC}"
-        echo "  - Version check:   tmws-cli --version"
-        echo "  - Start server:    tmws-server (optional, MCP uses stdio)"
-        echo "  - Verify install:  tmws-mcp --version"
+        echo "  - Version check:   tmws --version"
+        echo "  - TUI interface:   tmws (interactive TUI)"
+        echo "  - MCP server:      tmws-mcp (used by Claude Code)"
         echo ""
     else
         echo -e "${CYAN}What was installed:${NC}"

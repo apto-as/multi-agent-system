@@ -1,13 +1,25 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "theme": "dracula",
+  "model": "lmstudio/local-model",
+  "provider": {
+    "lmstudio": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "LM Studio (local)",
+      "options": {
+        "baseURL": "http://100.77.224.26:1234/v1"
+      },
+      "models": {
+        "local-model": {
+          "name": "LM Studio Local Model"
+        }
+      }
+    }
+  },
   "mcp": {
     "tmws": {
       "type": "local",
-      "command": ["~/.tmws/bin/tmws-mcp"],
-      "env": {
-        "TMWS_CONFIG_PATH": "~/.tmws/config.yaml",
-        "OLLAMA_HOST": "http://localhost:11434"
-      },
+      "command": ["docker", "exec", "-i", "tmws-app", "tmws-mcp-server"],
       "enabled": true,
       "timeout": 10000
     },
