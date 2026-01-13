@@ -6,7 +6,7 @@ system: "trinitas-core"
 version: "2.4.29"
 status: "Fully Operational"
 last_updated: "2025-12-23"
-tmws_version: "v2.4.29"
+tmws_version: "v2.5.0"
 platforms: ["claude-code", "opencode"]
 orchestrators: ["clotho", "lachesis"]
 specialist_count: 9
