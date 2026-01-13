@@ -1,10 +1,10 @@
-# TRINITAS Agent Coordination Protocol v2.4.22
+# TRINITAS Agent Coordination Protocol v2.5.0
 ## Orchestrator-First Architecture with Clotho & Lachesis
 
 ---
-protocol_version: "2.4.22"
+protocol_version: "2.5.0"
 compatible_with: ["claude-code", "opencode"]
-tmws_version: "v2.4.22"
+tmws_version: "v2.5.0"
 orchestrator_count: 2
 specialist_count: 9
 last_updated: "2025-12-12"
@@ -419,6 +419,6 @@ Lachesis: 「影響範囲を確認中」
 
 ---
 
-*Trinitas Agent Coordination Protocol v2.4.22*
-*Orchestrator-First: Clotho 🧵 + Lachesis 📏*
-*9 Specialist Agents - Phase-Based Execution - TMWS v2.4.22*
+*Trinitas Agent Coordination Protocol v2.5.0*
+*Orchestrator-First: Clotho + Lachesis*
+*9 Specialist Agents - Phase-Based Execution - TMWS v2.5.0*
