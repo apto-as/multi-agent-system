@@ -68,7 +68,23 @@ EOF
 | Windows | `%APPDATA%\Claude\claude_desktop_config.json` |
 | Linux | `~/.config/Claude/claude_desktop_config.json` |
 
-**設定内容 (macOS 例):**
+**最小構成 (推奨):**
+
+```json
+{
+  "mcpServers": {
+    "tmws": {
+      "command": "/Users/YOUR_USERNAME/.tmws/bin/tmws-mcp",
+      "args": [],
+      "env": {}
+    }
+  }
+}
+```
+
+> **Note**: `~/.tmws/config.yaml` は自動検出されます。Ollama もデフォルトで `localhost:11434` を使用します。
+
+**カスタム設定が必要な場合:**
 
 ```json
 {
@@ -77,15 +93,21 @@ EOF
       "command": "/Users/YOUR_USERNAME/.tmws/bin/tmws-mcp",
       "args": [],
       "env": {
-        "TMWS_CONFIG_PATH": "/Users/YOUR_USERNAME/.tmws/config.yaml",
-        "OLLAMA_HOST": "http://localhost:11434"
+        "TMWS_CONFIG_PATH": "/custom/path/config.yaml",
+        "TMWS_OLLAMA_URL": "http://remote-server:11434"
       }
     }
   }
 }
 ```
 
-> **重要**: `~` や `$HOME` は展開されないため、フルパスを使用してください。
+| 環境変数 | デフォルト | 説明 |
+|---------|-----------|------|
+| `TMWS_CONFIG_PATH` | `~/.tmws/config.yaml` を自動検出 | カスタム設定ファイルパス |
+| `TMWS_OLLAMA_URL` | `http://localhost:11434` | Ollama サーバー URL |
+| `TMWS_EMBEDDING_MODEL` | `mxbai-embed-large` | 埋め込みモデル名 |
+
+> **重要**: JSON では `~` や `$HOME` は展開されないため、フルパスを使用してください。
 
 ### Step 4: Ollama をインストール・起動
 

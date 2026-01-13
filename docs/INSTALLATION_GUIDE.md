@@ -237,12 +237,15 @@ embedding:
 EOF
 
 # 5. Claude Code に MCP サーバーとして追加
-# 注意: サーバー名はオプションの前に指定
-claude mcp add tmws \
-  -e TMWS_CONFIG_PATH=$HOME/.tmws/config.yaml \
-  -e OLLAMA_HOST=http://localhost:11434 \
-  --scope user \
-  -- $HOME/.tmws/bin/tmws-mcp
+# 注意: 環境変数は通常不要（自動検出される）
+claude mcp add tmws --scope user -- $HOME/.tmws/bin/tmws-mcp
+
+# カスタム設定が必要な場合のみ:
+# claude mcp add tmws \
+#   -e TMWS_CONFIG_PATH=$HOME/.tmws/config.yaml \
+#   -e TMWS_OLLAMA_URL=http://localhost:11434 \
+#   --scope user \
+#   -- $HOME/.tmws/bin/tmws-mcp
 
 # 6. 確認
 claude mcp list
@@ -259,14 +262,20 @@ claude mcp list
       "type": "stdio",
       "command": "/Users/YOUR_USERNAME/.tmws/bin/tmws-mcp",
       "args": [],
-      "env": {
-        "TMWS_CONFIG_PATH": "/Users/YOUR_USERNAME/.tmws/config.yaml",
-        "OLLAMA_HOST": "http://localhost:11434"
-      }
+      "env": {}
     }
   }
 }
 ```
+
+> **Note**: 環境変数は通常不要です。`~/.tmws/config.yaml` は自動検出され、Ollama はデフォルトで `localhost:11434` を使用します。
+
+**カスタム設定が必要な場合のみ:**
+
+| 環境変数 | デフォルト | 説明 |
+|---------|-----------|------|
+| `TMWS_CONFIG_PATH` | `~/.tmws/config.yaml` を自動検出 | カスタム設定ファイルパス |
+| `TMWS_OLLAMA_URL` | `http://localhost:11434` | Ollama サーバー URL |
 
 > **重要**: JSON設定では `~` や `$HOME` は展開されないため、絶対パスを使用してください。
 
@@ -478,26 +487,22 @@ systemctl status ollama
 # MCP 設定を確認
 cat ~/.claude/settings.json
 
-# 設定例:
+# 最小構成の設定例:
 # {
 #   "mcpServers": {
 #     "tmws": {
-#       "command": "~/.tmws/bin/tmws-mcp",
-#       "env": {
-#         "TMWS_CONFIG_PATH": "~/.tmws/config.yaml",
-#         "OLLAMA_HOST": "http://localhost:11434"
-#       }
+#       "command": "/Users/YOUR_USERNAME/.tmws/bin/tmws-mcp",
+#       "args": [],
+#       "env": {}
 #     }
 #   }
 # }
+#
+# Note: 環境変数は通常不要。~/.tmws/config.yaml は自動検出されます。
 
 # claude mcp add で再登録
 claude mcp remove tmws
-claude mcp add tmws \
-  -e TMWS_CONFIG_PATH=$HOME/.tmws/config.yaml \
-  -e OLLAMA_HOST=http://localhost:11434 \
-  --scope user \
-  -- $HOME/.tmws/bin/tmws-mcp
+claude mcp add tmws --scope user -- $HOME/.tmws/bin/tmws-mcp
 ```
 
 ### 6.4 パーミッション関連
