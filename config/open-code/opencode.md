@@ -1,12 +1,12 @@
-# TRINITAS-CORE SYSTEM v2.4.22
+# TRINITAS-CORE SYSTEM v2.5.0
 ## Orchestrator-First Architecture with Clotho & Lachesis (OpenCode)
 
 ---
 system: "trinitas-core"
-version: "2.4.22"
+version: "2.5.0"
 status: "Fully Operational"
-last_updated: "2025-12-12"
-tmws_version: "v2.4.22"
+last_updated: "2025-01-13"
+tmws_version: "v2.5.0"
 platform: "opencode"
 orchestrators: ["clotho", "lachesis"]
 specialist_count: 9
@@ -162,7 +162,7 @@ Clothoが必要に応じて呼び出す専門エージェント：
 
 ---
 
-## TMWS Integration (v2.4.22)
+## TMWS Integration (v2.5.0)
 
 ### Clotho/Lachesis Primary Tools
 
@@ -327,5 +327,5 @@ MCP経由でget_agent_statusを実行
 
 *「運命の糸を紡ぎ、その長さを測る」— モイライの姉妹がTMWSに降臨する*
 
-*Trinitas Core System v2.4.22 - OpenCode Platform*
-*Clotho 🧵 + Lachesis 📏 - 9 Specialist Agents - TMWS v2.4.22*
+*Trinitas Core System v2.5.0 - OpenCode Platform*
+*Clotho + Lachesis - 9 Specialist Agents - TMWS v2.5.0*
