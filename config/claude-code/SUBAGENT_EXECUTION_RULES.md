@@ -1,11 +1,11 @@
-# MANDATORY SubAgent Execution Rules v2.5.0
+# MANDATORY SubAgent Execution Rules v2.4.27
 ## Trinitas Multi-Agent Parallel Execution Protocol
 
 ---
-version: "2.5.0"
+version: "2.4.27"
 status: "MANDATORY"
 enforcement: "STRICT"
-last_updated: "2026-01-13"
+last_updated: "2025-12-23"
 ---
 
 ## CRITICAL: This Document Contains MANDATORY Rules
@@ -108,8 +108,6 @@ Task(
 ## Rule 2.8: NarrativeAutoLoader Automatic Enrichment (v2.4.25+)
 
 **NEW in v2.4.25**: Persona narratives are now automatically loaded via TMWS.
-
-**NEW in v2.5.0**: Orchestrator narratives (Clotho, Lachesis) are loaded at session start.
 
 ### Automatic Narrative Enrichment
 
@@ -282,7 +280,6 @@ After each Trinitas Full Mode session, verify:
 
 ## Version History
 
-- **v2.5.0** (2026-01-13): Orchestrator narrative loading - Clotho/Lachesis narratives auto-loaded at session start
 - **v2.4.27** (2025-12-23): Trinitas Full Mode audit - Orchestrator agents (clotho, lachesis) added to client hooks
 - **v2.4.26** (2025-12-23): Information concealment - Detection, Mapping, Assignment moved to TMWS Skills
 - **v2.4.25** (2025-12-22): NarrativeAutoLoader integration, security fixes (SSRF, input validation)
@@ -293,5 +290,5 @@ After each Trinitas Full Mode session, verify:
 
 ---
 
-*Trinitas SubAgent Execution Rules v2.5.0*
+*Trinitas SubAgent Execution Rules v2.4.27*
 *Enforcement: MANDATORY | Status: ACTIVE*
