@@ -27,8 +27,8 @@
 set -euo pipefail
 
 # Version
-INSTALLER_VERSION="2.5.5"
-TMWS_VERSION="2.5.5"
+INSTALLER_VERSION="2.5.6"
+TMWS_VERSION="2.5.6"
 INSTALLER_TYPE="opencode"
 
 # =============================================================================
