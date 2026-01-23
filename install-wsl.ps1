@@ -32,8 +32,8 @@ param(
 )
 
 # Version
-$INSTALLER_VERSION = "2.4.19"
-$TMWS_VERSION = "2.4.19"
+$INSTALLER_VERSION = "2.5.5"
+$TMWS_VERSION = "2.5.5"
 
 # Configuration
 $TMWS_IMAGE = "docker.io/aptoas/tmws:latest"
