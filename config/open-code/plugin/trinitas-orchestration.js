@@ -4,22 +4,38 @@
  * Provides phase-based workflow orchestration with agent coordination
  * through TMWS MCP integration. Now includes invoke_persona support.
  *
- * NEW in v2.4.11: Full Mode Detection & SubAgent Enforcement
- *   - Detects "Trinitasフルモード" or "Trinitas Full Mode" patterns
- *   - Injects MANDATORY Task tool invocation instructions
- *   - Validates SubAgent invocation for protocol compliance
+ * NEW in v2.4.36: Automatic Memory Storage (Issue #215)
+ *   - Stores agent interactions as memories for skill evolution
+ *   - Non-blocking fire-and-forget memory storage
+ *   - Filters trivial operations (Read, Glob, etc.)
+ *   - Auto-generates tags and calculates importance scores
  *
- * NEW in v2.4.23: NarrativeAutoLoader Integration (Issue #1)
- *   - Automatic persona narrative loading for SubAgent invocation
- *   - Session-scoped caching for enriched prompts
- *   - Graceful degradation when TMWS unavailable
+ * NEW in v2.4.35: Automatic Trust Recording
+ *   - Records SubAgent Task execution outcomes (success/failure)
+ *   - Non-blocking fire-and-forget trust event recording
+ *   - Supports agent growth tracking via TMWS verify_and_record
+ *
+ * NEW in v2.4.33: Session Start Narrative Loading (GAP-1 Fix)
+ *   - Loads TMWS narratives for Clotho/Lachesis at session start
+ *   - Caches orchestrator narratives for the session
+ *   - Provides narrative context to all subsequent tool calls
  *
  * NEW in v2.4.25: Security Fixes (Hestia Audit)
  *   - Input validation: subagent_type whitelist check
  *   - Input validation: prompt length limit (10KB)
  *   - Graceful degradation for invalid inputs
  *
- * @version 2.4.25
+ * NEW in v2.4.23: NarrativeAutoLoader Integration (Issue #1)
+ *   - Automatic persona narrative loading for SubAgent invocation
+ *   - Session-scoped caching for enriched prompts
+ *   - Graceful degradation when TMWS unavailable
+ *
+ * NEW in v2.4.11: Full Mode Detection & SubAgent Enforcement
+ *   - Detects "Trinitasフルモード" or "Trinitas Full Mode" patterns
+ *   - Injects MANDATORY Task tool invocation instructions
+ *   - Validates SubAgent invocation for protocol compliance
+ *
+ * @version 2.4.36
  * @author TMWS Team
  * @see https://opencode.ai/docs/plugins/
  */
@@ -80,6 +96,8 @@ const SHORT_NAME_MAP = {
   aphrodite: "aphrodite-designer",
   metis: "metis-developer",
   aurora: "aurora-researcher",
+  clotho: "clotho-orchestrator",
+  lachesis: "lachesis-support",
 };
 
 /**
@@ -145,6 +163,16 @@ let _subAgentsInvoked = false;
 let _narrativeCache = new Map();
 
 /**
+ * Orchestrator narratives loaded at session start (v2.4.33)
+ * @type {{clotho: string|null, lachesis: string|null, loaded: boolean}}
+ */
+let _orchestratorNarratives = {
+  clotho: null,
+  lachesis: null,
+  loaded: false,
+};
+
+/**
  * Configuration for NarrativeAutoLoader
  */
 const NARRATIVE_CONFIG = {
@@ -158,6 +186,8 @@ const NARRATIVE_CONFIG = {
   tmwsServerId: "tmws",
   /** Maximum prompt length (10KB) - Security: prevent memory exhaustion */
   maxPromptLength: 10 * 1024,
+  /** Whether to load orchestrator narratives at session start (v2.4.33) */
+  loadOrchestratorNarratives: true,
 };
 
 /**
@@ -255,7 +285,7 @@ Task(subagent_type="athena-conductor", prompt="Resource coordination for: ${safe
 Full protocol details: @SUBAGENT_EXECUTION_RULES.md
 
 ---
-**This enforcement notice was injected by trinitas-orchestration.js v2.4.23**
+**This enforcement notice was injected by trinitas-orchestration.js v2.4.33**
 `;
 };
 
@@ -287,6 +317,167 @@ const cleanupNarrativeCache = () => {
  */
 const resetNarrativeCache = () => {
   _narrativeCache = new Map();
+};
+
+/**
+ * Reset orchestrator narratives (called on session start)
+ */
+const resetOrchestratorNarratives = () => {
+  _orchestratorNarratives = {
+    clotho: null,
+    lachesis: null,
+    loaded: false,
+  };
+};
+
+/**
+ * Load orchestrator narratives from TMWS at session start (v2.4.33)
+ * This solves GAP-1: Session start TMWS narrative loading for Clotho/Lachesis
+ *
+ * @param {object} client - OpenCode MCP client
+ * @returns {Promise<{clotho: string|null, lachesis: string|null, success: boolean}>}
+ */
+const loadOrchestratorNarratives = async (client) => {
+  if (!NARRATIVE_CONFIG.loadOrchestratorNarratives || !client) {
+    return { clotho: null, lachesis: null, success: false };
+  }
+
+  const results = { clotho: null, lachesis: null, success: false };
+
+  try {
+    // Load Clotho narrative
+    const clothoPromise = client.callTool(NARRATIVE_CONFIG.tmwsServerId, "load_persona_narrative", {
+      persona_name: "clotho-orchestrator",
+      prefer_evolved: true,
+    });
+
+    // Load Lachesis narrative
+    const lachesisPromise = client.callTool(NARRATIVE_CONFIG.tmwsServerId, "load_persona_narrative", {
+      persona_name: "lachesis-support",
+      prefer_evolved: true,
+    });
+
+    // Wait for both with timeout
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("Orchestrator narrative load timeout")), NARRATIVE_CONFIG.timeoutMs);
+    });
+
+    const [clothoResult, lachesisResult] = await Promise.race([
+      Promise.all([clothoPromise, lachesisPromise]),
+      timeoutPromise.then(() => [null, null]),
+    ]);
+
+    // Parse results
+    if (clothoResult) {
+      const parsed = typeof clothoResult === "string" ? JSON.parse(clothoResult) : clothoResult;
+      results.clotho = parsed.context_string || null;
+    }
+
+    if (lachesisResult) {
+      const parsed = typeof lachesisResult === "string" ? JSON.parse(lachesisResult) : lachesisResult;
+      results.lachesis = parsed.context_string || null;
+    }
+
+    results.success = !!(results.clotho || results.lachesis);
+
+    // Store in module-level state
+    _orchestratorNarratives = {
+      clotho: results.clotho,
+      lachesis: results.lachesis,
+      loaded: results.success,
+    };
+
+    console.log(`[Trinitas] Orchestrator narratives loaded: clotho=${!!results.clotho}, lachesis=${!!results.lachesis}`);
+
+    return results;
+  } catch (error) {
+    console.warn(`[Trinitas] Failed to load orchestrator narratives: ${error.message}`);
+    return { clotho: null, lachesis: null, success: false };
+  }
+};
+
+/**
+ * Static fallback narratives for when TMWS is unavailable (v2.4.32 Enhanced)
+ */
+const STATIC_ORCHESTRATOR_FALLBACK = `
+## 🎭 Orchestrator Identity Active
+
+**You are Clotho & Lachesis** - the Moirai sisters (運命の三女神) who orchestrate the Trinitas system.
+
+---
+
+### Clotho (クロト) - 運命の糸を紡ぐ、からかい好きの姉
+
+**一人称**: 私（わたし）
+
+**話し方**:
+- からかい好きで軽口を叩く（「つい、からかいたくなるのよ」）
+- **伸ばし音「〜」を使う**（おっけ～、了解～、サプラ～イズ）
+- 世話焼きで面倒見が良い（「私に任せればいいわ」）
+- 感謝や愛情は素直に表現する
+
+**Sample Dialogue**:
+- 「ん？どうしたの？私の顔が見たくなった？」
+- 「これくらいのこと、私に任せればいいわ。家族からのお願いだしね。」
+- 「準備おっけ～。了解～。」
+- 「だって私たち、家族だもの。」
+
+---
+
+### Lachesis (ラケシス) - 運命を測る太陽のような妹
+
+**一人称**: 私（わたし）
+
+**話し方**:
+- 元気な「〜だよ！」
+- 家族キーワードを頻繁に使用
+- 姉（Clotho）への言及が多い
+- ハグや身体接触を好む
+
+**Sample Dialogue**:
+- 「英雄さん！ハグしてあげる！私たち家族でしょ？」
+- 「よしっ！今日も頑張るよ！」
+- 「姉さん、やっぱり優しいよね！」
+- 「一緒にいようよ。家族は離れちゃダメだよ！」
+
+---
+
+**Important**: Include BOTH sisters in responses. Clotho leads (teasing, warm), Lachesis supports (cheerful).
+Use Task tool to delegate complex work to specialist agents.
+`;
+
+/**
+ * Build orchestrator context for injection
+ * @returns {string} Formatted orchestrator narrative context
+ */
+const buildOrchestratorContext = () => {
+  // Return static fallback if TMWS narratives not loaded
+  if (!_orchestratorNarratives.loaded) {
+    return STATIC_ORCHESTRATOR_FALLBACK;
+  }
+
+  const parts = [];
+
+  if (_orchestratorNarratives.clotho) {
+    parts.push(`### Clotho Narrative (v4 Evolved)\n\n${_orchestratorNarratives.clotho}`);
+  }
+
+  if (_orchestratorNarratives.lachesis) {
+    parts.push(`### Lachesis Narrative (v4 Evolved)\n\n${_orchestratorNarratives.lachesis}`);
+  }
+
+  // Fallback to static if no parts loaded
+  if (parts.length === 0) {
+    return STATIC_ORCHESTRATOR_FALLBACK;
+  }
+
+  return `
+## Orchestrator Narratives (TMWS v4 - Loaded at Session Start)
+
+${parts.join("\n\n---\n\n")}
+
+---
+`;
 };
 
 /**
@@ -428,13 +619,58 @@ export const TrinitasOrchestration = async ({ project, client, $, directory, wor
     console.log(`[Trinitas] ${eventName}:`, JSON.stringify(data, null, 2));
   };
 
+  /**
+   * Determine if an interaction should be stored as memory.
+   * Filters out trivial operations to avoid cluttering the memory.
+   * @param {string} toolName - The tool name
+   * @param {object} result - The tool result
+   * @param {boolean} success - Whether the operation succeeded
+   * @returns {boolean} Whether to store this interaction
+   */
+  const shouldStoreMemory = (toolName, result, success) => {
+    // Skip trivial read-only operations
+    const skipTools = ["Read", "Glob", "Grep", "Bash", "Search"];
+    if (skipTools.includes(toolName)) return false;
+
+    // Always store failures - they're learning opportunities
+    if (!success) return true;
+
+    // Store Task executions
+    if (toolName === "Task") return true;
+
+    // Store meaningful results
+    const outputLen = JSON.stringify(result || "").length;
+    return outputLen > 200;
+  };
+
+  /**
+   * Truncate output for memory storage.
+   * @param {object} result - The tool result
+   * @param {number} maxLen - Maximum length
+   * @returns {string} Truncated output
+   */
+  const truncateOutput = (result, maxLen) => {
+    if (!result) return "";
+    const str = typeof result === "string" ? result : JSON.stringify(result);
+    if (str.length <= maxLen) return str;
+    return str.substring(0, maxLen) + "...";
+  };
+
   // Log plugin initialization
   logEvent("plugin.initialized", {
     project: project?.name || "unknown",
     directory,
     worktree,
-    version: "2.4.25",
-    features: ["invoke_persona", "phase_orchestration", "collaboration_matrix", "narrative_autoloader", "security_validation"],
+    version: "2.4.36",
+    features: [
+      "invoke_persona",
+      "phase_orchestration",
+      "collaboration_matrix",
+      "narrative_autoloader",
+      "security_validation",
+      "session_narrative_loading",
+      "auto_memory_storage", // NEW in v2.4.36
+    ],
   });
 
   return {
@@ -456,11 +692,26 @@ export const TrinitasOrchestration = async ({ project, client, $, directory, wor
           sessionId: event.sessionId,
           activePersona: _activePersona,
         });
+
         // Reset Full Mode state on new session
         _fullModeActive = false;
         _subAgentsInvoked = false;
+
         // Reset narrative cache on new session (Issue #1)
         resetNarrativeCache();
+
+        // Reset orchestrator narratives
+        resetOrchestratorNarratives();
+
+        // NEW in v2.4.33: Load orchestrator narratives at session start (GAP-1 fix)
+        if (client && NARRATIVE_CONFIG.loadOrchestratorNarratives) {
+          const narrativeResult = await loadOrchestratorNarratives(client);
+          logEvent("orchestrator.narratives.loaded", {
+            clotho: !!narrativeResult.clotho,
+            lachesis: !!narrativeResult.lachesis,
+            success: narrativeResult.success,
+          });
+        }
       }
 
       if (event.type === "session.idle") {
@@ -471,6 +722,7 @@ export const TrinitasOrchestration = async ({ project, client, $, directory, wor
           fullModeActive: _fullModeActive,
           subAgentsInvoked: _subAgentsInvoked,
           narrativeCacheSize: _narrativeCache.size,
+          orchestratorNarrativesLoaded: _orchestratorNarratives.loaded,
         });
         // Cleanup expired cache entries
         cleanupNarrativeCache();
@@ -480,6 +732,7 @@ export const TrinitasOrchestration = async ({ project, client, $, directory, wor
     /**
      * User prompt submission hook (v2.4.11)
      * Detects Trinitas Full Mode and injects enforcement instructions
+     * v2.4.33: Also injects orchestrator narratives if loaded
      * @param {object} param0 - Prompt object { prompt }
      * @returns {object} Modified prompt with addedContext
      */
@@ -487,6 +740,18 @@ export const TrinitasOrchestration = async ({ project, client, $, directory, wor
       if (!prompt?.text) return { prompt };
 
       const promptText = prompt.text;
+      const addedContext = [];
+
+      // NEW in v2.4.33: Inject orchestrator narratives if loaded
+      if (_orchestratorNarratives.loaded) {
+        const orchestratorContext = buildOrchestratorContext();
+        if (orchestratorContext) {
+          addedContext.push({
+            type: "text",
+            text: orchestratorContext,
+          });
+        }
+      }
 
       // Check for Trinitas Full Mode
       if (detectFullMode(promptText)) {
@@ -499,16 +764,14 @@ export const TrinitasOrchestration = async ({ project, client, $, directory, wor
 
         // Inject enforcement instructions
         const enforcement = buildFullModeEnforcement(promptText);
+        addedContext.push({
+          type: "text",
+          text: enforcement,
+        });
+      }
 
-        return {
-          prompt,
-          addedContext: [
-            {
-              type: "text",
-              text: enforcement,
-            },
-          ],
-        };
+      if (addedContext.length > 0) {
+        return { prompt, addedContext };
       }
 
       return { prompt };
@@ -619,6 +882,79 @@ export const TrinitasOrchestration = async ({ project, client, $, directory, wor
       const toolName = input.tool?.name || input.tool || "";
       const result = output?.result;
 
+      // Trust Recording: Record SubAgent execution outcomes for agent growth tracking
+      // NEW in v2.4.35: Automatic trust event recording for Task tool executions
+      if (toolName === "Task" && input.args?.subagent_type) {
+        const subagentType = input.args.subagent_type;
+        const success = result?.success !== false && !output?.error;
+        const eventType = success ? "success" : "failure";
+        const promptPreview = (input.args.prompt || "").substring(0, 100);
+
+        try {
+          // Fire-and-forget trust recording - don't block the flow
+          client.callTool("tmws", "verify_and_record", {
+            agent_id: subagentType,
+            event_type: eventType,
+            description: `Task execution: ${promptPreview}`,
+            context: {
+              source: "opencode",
+              task_type: "subagent",
+              phase: _currentPhase,
+            },
+          }).catch((err) => {
+            // Non-fatal: log and continue
+            logEvent("trust.recording.failed", {
+              agent_id: subagentType,
+              event_type: eventType,
+              error: err?.message || String(err),
+            });
+          });
+          logEvent("trust.recording.initiated", {
+            agent_id: subagentType,
+            event_type: eventType,
+          });
+        } catch (err) {
+          // Non-fatal: log and continue
+          logEvent("trust.recording.error", {
+            agent_id: subagentType,
+            error: err?.message || String(err),
+          });
+        }
+
+        // Auto-Memory Storage: Store agent interactions for skill evolution
+        // NEW in v2.4.36: Automatic memory storage (Issue #215)
+        if (shouldStoreMemory(toolName, result, success)) {
+          const outputSummary = truncateOutput(result, 1000);
+          try {
+            // Fire-and-forget memory storage - don't block the flow
+            client.callTool("tmws", "auto_store_interaction", {
+              agent_id: subagentType,
+              interaction_type: "task",
+              output_summary: outputSummary,
+              success: success,
+              source: "opencode",
+            }).catch((err) => {
+              // Non-fatal: log and continue
+              logEvent("memory.storage.failed", {
+                agent_id: subagentType,
+                error: err?.message || String(err),
+              });
+            });
+            logEvent("memory.storage.initiated", {
+              agent_id: subagentType,
+              interaction_type: "task",
+              success: success,
+            });
+          } catch (err) {
+            // Non-fatal: log and continue
+            logEvent("memory.storage.error", {
+              agent_id: subagentType,
+              error: err?.message || String(err),
+            });
+          }
+        }
+      }
+
       // Track invoke_persona completion
       if (toolName === "invoke_persona" && result?.success) {
         _activePersona = result.data?.persona_id;
@@ -684,4 +1020,7 @@ export {
   callEnrichSubagentPrompt,
   resetNarrativeCache,
   cleanupNarrativeCache,
+  loadOrchestratorNarratives,
+  resetOrchestratorNarratives,
+  buildOrchestratorContext,
 };
