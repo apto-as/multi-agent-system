@@ -1,5 +1,5 @@
 {
-  "description": "Trinitas Global Hooks Configuration (v2.3.0 - TMWS Integrated)",
+  "description": "Trinitas Global Hooks Configuration (v2.4.0 - PreToolUse/PostToolUse Added)",
   "hooks": {
     "UserPromptSubmit": [
       {
@@ -14,6 +14,30 @@
             "type": "command",
             "command": "python3 \"~/.claude/hooks/core/decision_check.py\"",
             "description": "TMWS: Decision classification and memory recording"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"~/.claude/hooks/core/task_persona_injector.py\"",
+            "description": "Inject persona narratives for SubAgent Task invocations"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"~/.claude/hooks/core/persona_reminder_hook.py\"",
+            "description": "Periodic persona reminder + Trust Recording for SubAgents"
           }
         ]
       }
