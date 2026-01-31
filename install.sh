@@ -1062,6 +1062,9 @@ main() {
     install_claude_config
     configure_mcp_settings
 
+    # Install Python dependencies for hooks
+    install_python_dependencies
+
     # Fix file ownership when running with sudo
     fix_ownership
 
@@ -1104,6 +1107,55 @@ check_prerequisites_native() {
     fi
 
     log_success "All prerequisites satisfied"
+}
+
+# Install Python dependencies (httpx for hooks)
+install_python_dependencies() {
+    log_step "Installing Python dependencies..."
+
+    # Check if Python3 is available
+    if ! command -v python3 &> /dev/null; then
+        log_warn "Python3 not found. Skipping Python dependencies."
+        log_info "Some hooks may not function without Python3 and httpx."
+        return 0
+    fi
+
+    # Check if httpx is already installed
+    if python3 -c "import httpx" 2>/dev/null; then
+        log_success "httpx is already installed"
+        return 0
+    fi
+
+    # Install httpx with --break-system-packages for macOS externally-managed-environment
+    log_info "Installing httpx..."
+
+    local pip_args="--user"
+
+    # Detect if running on macOS or system with externally-managed-environment
+    if [ "$PLATFORM" = "macOS" ] || python3 -c "import sys; sys.exit(0 if 'externally-managed' in str(sys.base_prefix) else 1)" 2>/dev/null; then
+        pip_args="${pip_args} --break-system-packages"
+    fi
+
+    # Try installing httpx
+    if pip3 install ${pip_args} httpx 2>/dev/null; then
+        log_success "httpx installed successfully"
+    elif python3 -m pip install ${pip_args} httpx 2>/dev/null; then
+        log_success "httpx installed successfully (via python3 -m pip)"
+    else
+        log_warn "Failed to install httpx automatically"
+        log_info "Please install manually: pip3 install --user --break-system-packages httpx"
+        return 1
+    fi
+
+    # Verify installation
+    if python3 -c "import httpx" 2>/dev/null; then
+        log_success "httpx installation verified"
+    else
+        log_warn "httpx installation could not be verified"
+        log_info "You may need to restart your shell or check your PYTHONPATH"
+    fi
+
+    return 0
 }
 
 # Setup native TMWS configuration
