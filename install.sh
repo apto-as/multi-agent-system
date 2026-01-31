@@ -713,9 +713,9 @@ install_claude_config() {
             curl -fsSL "${github_base}/config/claude-code/commands/${cmd}.md" -o "${config_src}/commands/${cmd}.md" 2>/dev/null || true
         done
 
-        # Download hooks
+        # Download hooks (all required hooks, not just 2)
         curl -fsSL "${github_base}/config/claude-code/hooks/settings.json" -o "${config_src}/hooks/settings.json" 2>/dev/null || true
-        for hook in dynamic_context_loader protocol_injector; do
+        for hook in dynamic_context_loader protocol_injector decision_check decision_memory precompact_memory_injection security_utils rate_limiter task_persona_injector persona_reminder_hook tmws_hook_wrapper; do
             curl -fsSL "${github_base}/config/claude-code/hooks/core/${hook}.py" -o "${config_src}/hooks/core/${hook}.py" 2>/dev/null || true
         done
     fi
