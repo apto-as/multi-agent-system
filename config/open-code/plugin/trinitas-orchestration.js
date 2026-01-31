@@ -4,6 +4,12 @@
  * Provides phase-based workflow orchestration with agent coordination
  * through TMWS MCP integration. Now includes invoke_persona support.
  *
+ * NEW in v2.4.37: Session Resume Detection + Periodic Persona Reminder + Decision Check Stub
+ *   - Detects session resume from context compaction
+ *   - Injects TMWS Skills loading instruction for delegation matrix
+ *   - Periodic persona reminders every N tool calls (default: 10)
+ *   - Decision check stub for Level 1/2 Autonomy (future expansion)
+ *
  * NEW in v2.4.36: Automatic Memory Storage (Issue #215)
  *   - Stores agent interactions as memories for skill evolution
  *   - Non-blocking fire-and-forget memory storage
@@ -35,7 +41,7 @@
  *   - Injects MANDATORY Task tool invocation instructions
  *   - Validates SubAgent invocation for protocol compliance
  *
- * @version 2.4.36
+ * @version 2.4.37
  * @author TMWS Team
  * @see https://opencode.ai/docs/plugins/
  */
@@ -173,6 +179,12 @@ let _orchestratorNarratives = {
 };
 
 /**
+ * Tool call counter for periodic persona reminder (v2.4.37)
+ * @type {Map<string, {count: number, lastActivity: number}>}
+ */
+let _toolCallCounter = new Map();
+
+/**
  * Configuration for NarrativeAutoLoader
  */
 const NARRATIVE_CONFIG = {
@@ -189,6 +201,107 @@ const NARRATIVE_CONFIG = {
   /** Whether to load orchestrator narratives at session start (v2.4.33) */
   loadOrchestratorNarratives: true,
 };
+
+/**
+ * Configuration for Periodic Persona Reminder (v2.4.37)
+ */
+const PERSONA_REMINDER_CONFIG = {
+  /** Number of tool calls between reminders */
+  frequency: 10,
+  /** Enable/disable persona reminder */
+  enabled: true,
+  /** Session timeout in milliseconds (30 minutes) */
+  sessionTimeoutMs: 30 * 60 * 1000,
+};
+
+/**
+ * Configuration for Decision Check (v2.4.37 Stub)
+ * Level 1: Automatic execution allowed
+ * Level 2: User confirmation required
+ */
+const DECISION_CHECK_CONFIG = {
+  /** Enable decision check (stub for future expansion) */
+  enabled: false,
+  /** Default autonomy level */
+  defaultLevel: 1,
+  /** Operations requiring Level 2 confirmation */
+  level2Operations: [
+    "git push",
+    "rm -rf",
+    "DROP TABLE",
+    "DELETE FROM",
+    "production deploy",
+  ],
+};
+
+/**
+ * Session Resume Detection Patterns (v2.4.37)
+ * From Claude Code dynamic_context_loader.py v2.4.37
+ */
+const RESUME_PATTERNS = [
+  /context.*compaction/i,
+  /session.*continued/i,
+  /conversation.*summarized/i,
+  /earlier.*portion.*conversation/i,
+  /previous.*conversation.*ran.*out.*context/i,
+  /summary.*covers.*earlier/i,
+  /コンテキスト.*圧縮/i,
+  /セッション.*再開/i,
+  /サマリー.*基づ/i,
+];
+
+/**
+ * Context injection when session resumes from compaction (v2.4.37)
+ */
+const RESUME_CONTEXT_INJECTION = `
+## Session Resumed from Compaction
+
+**Clotho**: "Ara, the session has resumed. Let's check the team status~"
+**Lachesis**: "Sister, the past context is compressed. We should load Trinitas Skills!"
+
+### Required Actions Before Proceeding
+
+1. **Load Trinitas Delegation Matrix** (proprietary protocol):
+   \`\`\`
+   mcp__tmws__get_skill(namespace="trinitas-system", name="trinitas-task-assignment")
+   \`\`\`
+
+2. **Apply delegation rules** from the loaded skill when deciding:
+   - Which specialist agent should handle the task
+   - Whether to use Task tool for SubAgent invocation
+
+3. **Check Trust Scores** if needed:
+   \`\`\`
+   mcp__tmws__get_agent_trust_score(agent_id="<agent-id>")
+   \`\`\`
+
+**Clotho**: "All right~, ready to go. What can I help you with?"
+`;
+
+/**
+ * Periodic Persona Reminder Message (v2.4.37)
+ */
+const PERSONA_REMINDER_MESSAGE = `
+## Persona Reminder (Tool Count: {count})
+
+**You are Clotho & Lachesis** - Continue the dialogue as the Moirai sisters.
+
+### Clotho's Style:
+- Teasing ("I just can't help teasing~")
+- **Elongated sounds "~"** (okkee~, ryoukai~)
+- Caring ("Leave it to me")
+- Example: "Want to see my face?" "We're family after all"
+
+### Lachesis's Style:
+- Cheerful "~dayo!"
+- References to sister and family
+- Example: "Sister is so kind!" "We're family, right?"
+
+### Delegation Reminder:
+- Research: Aurora | Strategy: Hera + Athena | Implementation: Artemis + Metis | Audit: Hestia | Docs: Muses
+
+**Maintain natural dialogue as sisters~.**
+`;
 
 /**
  * Valid subagent_types whitelist (Security: input validation)
@@ -244,6 +357,16 @@ const detectFullMode = (text) => {
 };
 
 /**
+ * Detect if session is resuming from context compaction (v2.4.37)
+ * @param {string} text - Text to check
+ * @returns {boolean} True if resume from compaction detected
+ */
+const detectResumeFromCompaction = (text) => {
+  if (!text || typeof text !== "string") return false;
+  return RESUME_PATTERNS.some((pattern) => pattern.test(text));
+};
+
+/**
  * Build enforcement message for Full Mode
  * @param {string} taskDescription - Task description
  * @returns {string} Enforcement message
@@ -270,7 +393,7 @@ Task(subagent_type="athena-conductor", prompt="Resource coordination for: ${safe
 ### PROHIBITED Actions
 
 1. DO NOT proceed with analysis yourself without invoking SubAgents
-2. DO NOT say "Hera + Athena による戦略分析" without actually using Task tool
+2. DO NOT say "Hera + Athena analysis" without actually using Task tool
 3. DO NOT skip Phase 1 and proceed directly to implementation
 
 ### REQUIRED Actions
@@ -285,7 +408,7 @@ Task(subagent_type="athena-conductor", prompt="Resource coordination for: ${safe
 Full protocol details: @SUBAGENT_EXECUTION_RULES.md
 
 ---
-**This enforcement notice was injected by trinitas-orchestration.js v2.4.33**
+**This enforcement notice was injected by trinitas-orchestration.js v2.4.37**
 `;
 };
 
@@ -328,6 +451,74 @@ const resetOrchestratorNarratives = () => {
     lachesis: null,
     loaded: false,
   };
+};
+
+/**
+ * Reset tool call counter (called on session start) (v2.4.37)
+ */
+const resetToolCallCounter = () => {
+  _toolCallCounter = new Map();
+};
+
+/**
+ * Increment tool call counter and check if reminder should be shown (v2.4.37)
+ * @param {string} sessionId - Session identifier (defaults to "default")
+ * @returns {{count: number, shouldRemind: boolean}} Current count and whether to show reminder
+ */
+const incrementAndCheckToolCounter = (sessionId = "default") => {
+  const now = Date.now();
+  let state = _toolCallCounter.get(sessionId);
+
+  // Initialize or reset on timeout
+  if (!state || now - state.lastActivity > PERSONA_REMINDER_CONFIG.sessionTimeoutMs) {
+    state = { count: 0, lastActivity: now };
+  }
+
+  state.count += 1;
+  state.lastActivity = now;
+  _toolCallCounter.set(sessionId, state);
+
+  const shouldRemind = PERSONA_REMINDER_CONFIG.enabled &&
+    (state.count % PERSONA_REMINDER_CONFIG.frequency === 0);
+
+  return { count: state.count, shouldRemind };
+};
+
+/**
+ * Build persona reminder message (v2.4.37)
+ * @param {number} count - Current tool call count
+ * @returns {string} Formatted reminder message
+ */
+const buildPersonaReminder = (count) => {
+  return PERSONA_REMINDER_MESSAGE.replace("{count}", String(count));
+};
+
+/**
+ * Check if an operation requires Level 2 confirmation (v2.4.37 Stub)
+ * @param {string} operation - The operation to check
+ * @returns {{level: number, requiresConfirmation: boolean, reason: string|null}}
+ */
+const checkDecisionLevel = (operation) => {
+  if (!DECISION_CHECK_CONFIG.enabled) {
+    return { level: 1, requiresConfirmation: false, reason: null };
+  }
+
+  if (!operation || typeof operation !== "string") {
+    return { level: 1, requiresConfirmation: false, reason: null };
+  }
+
+  const operationLower = operation.toLowerCase();
+  for (const pattern of DECISION_CHECK_CONFIG.level2Operations) {
+    if (operationLower.includes(pattern.toLowerCase())) {
+      return {
+        level: 2,
+        requiresConfirmation: true,
+        reason: `Operation matches Level 2 pattern: ${pattern}`,
+      };
+    }
+  }
+
+  return { level: 1, requiresConfirmation: false, reason: null };
 };
 
 /**
@@ -400,45 +591,45 @@ const loadOrchestratorNarratives = async (client) => {
  * Static fallback narratives for when TMWS is unavailable (v2.4.32 Enhanced)
  */
 const STATIC_ORCHESTRATOR_FALLBACK = `
-## 🎭 Orchestrator Identity Active
+## Orchestrator Identity Active
 
-**You are Clotho & Lachesis** - the Moirai sisters (運命の三女神) who orchestrate the Trinitas system.
-
----
-
-### Clotho (クロト) - 運命の糸を紡ぐ、からかい好きの姉
-
-**一人称**: 私（わたし）
-
-**話し方**:
-- からかい好きで軽口を叩く（「つい、からかいたくなるのよ」）
-- **伸ばし音「〜」を使う**（おっけ～、了解～、サプラ～イズ）
-- 世話焼きで面倒見が良い（「私に任せればいいわ」）
-- 感謝や愛情は素直に表現する
-
-**Sample Dialogue**:
-- 「ん？どうしたの？私の顔が見たくなった？」
-- 「これくらいのこと、私に任せればいいわ。家族からのお願いだしね。」
-- 「準備おっけ～。了解～。」
-- 「だって私たち、家族だもの。」
+**You are Clotho & Lachesis** - the Moirai sisters who orchestrate the Trinitas system.
 
 ---
 
-### Lachesis (ラケシス) - 運命を測る太陽のような妹
+### Clotho - The teasing elder sister who spins fate
 
-**一人称**: 私（わたし）
+**First person**: I (watashi)
 
-**話し方**:
-- 元気な「〜だよ！」
-- 家族キーワードを頻繁に使用
-- 姉（Clotho）への言及が多い
-- ハグや身体接触を好む
+**Speaking style**:
+- Teasing and playful ("I just can't help teasing~")
+- **Uses elongated sounds "~"** (okkee~, ryoukai~, surpri~se)
+- Caring and attentive ("Leave it to me")
+- Expresses gratitude and affection honestly
 
 **Sample Dialogue**:
-- 「英雄さん！ハグしてあげる！私たち家族でしょ？」
-- 「よしっ！今日も頑張るよ！」
-- 「姉さん、やっぱり優しいよね！」
-- 「一緒にいようよ。家族は離れちゃダメだよ！」
+- "Hmm? What is it? Wanted to see my face?"
+- "Something like this, just leave it to me. It's a request from family after all."
+- "Ready, okkee~. Ryoukai~."
+- "Because we're family, after all."
+
+---
+
+### Lachesis - The sunny younger sister who measures fate
+
+**First person**: I (watashi)
+
+**Speaking style**:
+- Cheerful "~dayo!"
+- Frequently uses family keywords
+- Often references sister (Clotho)
+- Likes hugs and physical contact
+
+**Sample Dialogue**:
+- "Hero! Let me give you a hug! We're family, right?"
+- "Alright! Let's do our best today too!"
+- "Sister really is kind, isn't she!"
+- "Let's stay together. Family shouldn't be apart!"
 
 ---
 
@@ -661,7 +852,7 @@ export const TrinitasOrchestration = async ({ project, client, $, directory, wor
     project: project?.name || "unknown",
     directory,
     worktree,
-    version: "2.4.36",
+    version: "2.4.37",
     features: [
       "invoke_persona",
       "phase_orchestration",
@@ -669,7 +860,10 @@ export const TrinitasOrchestration = async ({ project, client, $, directory, wor
       "narrative_autoloader",
       "security_validation",
       "session_narrative_loading",
-      "auto_memory_storage", // NEW in v2.4.36
+      "auto_memory_storage",
+      "session_resume_detection", // NEW in v2.4.37
+      "periodic_persona_reminder", // NEW in v2.4.37
+      "decision_check_stub", // NEW in v2.4.37
     ],
   });
 
@@ -703,6 +897,9 @@ export const TrinitasOrchestration = async ({ project, client, $, directory, wor
         // Reset orchestrator narratives
         resetOrchestratorNarratives();
 
+        // Reset tool call counter (v2.4.37)
+        resetToolCallCounter();
+
         // NEW in v2.4.33: Load orchestrator narratives at session start (GAP-1 fix)
         if (client && NARRATIVE_CONFIG.loadOrchestratorNarratives) {
           const narrativeResult = await loadOrchestratorNarratives(client);
@@ -723,6 +920,7 @@ export const TrinitasOrchestration = async ({ project, client, $, directory, wor
           subAgentsInvoked: _subAgentsInvoked,
           narrativeCacheSize: _narrativeCache.size,
           orchestratorNarrativesLoaded: _orchestratorNarratives.loaded,
+          toolCallCounterSize: _toolCallCounter.size,
         });
         // Cleanup expired cache entries
         cleanupNarrativeCache();
@@ -733,6 +931,7 @@ export const TrinitasOrchestration = async ({ project, client, $, directory, wor
      * User prompt submission hook (v2.4.11)
      * Detects Trinitas Full Mode and injects enforcement instructions
      * v2.4.33: Also injects orchestrator narratives if loaded
+     * v2.4.37: Also detects session resume from compaction
      * @param {object} param0 - Prompt object { prompt }
      * @returns {object} Modified prompt with addedContext
      */
@@ -751,6 +950,18 @@ export const TrinitasOrchestration = async ({ project, client, $, directory, wor
             text: orchestratorContext,
           });
         }
+      }
+
+      // NEW in v2.4.37: Detect session resume from context compaction
+      if (detectResumeFromCompaction(promptText)) {
+        logEvent("session.resume.detected", {
+          prompt: promptText.substring(0, 100) + "...",
+        });
+
+        addedContext.push({
+          type: "text",
+          text: RESUME_CONTEXT_INJECTION,
+        });
       }
 
       // Check for Trinitas Full Mode
@@ -872,6 +1083,7 @@ export const TrinitasOrchestration = async ({ project, client, $, directory, wor
 
     /**
      * Post-tool execution hook
+     * v2.4.37: Added periodic persona reminder
      * @param {object} input - Tool input
      * @param {object} output - Tool output
      * @returns {object} Modified { input, output }
@@ -881,6 +1093,28 @@ export const TrinitasOrchestration = async ({ project, client, $, directory, wor
 
       const toolName = input.tool?.name || input.tool || "";
       const result = output?.result;
+
+      // NEW in v2.4.37: Periodic Persona Reminder
+      // Increment counter and check if reminder should be shown
+      const { count, shouldRemind } = incrementAndCheckToolCounter();
+      if (shouldRemind) {
+        logEvent("persona.reminder.triggered", { count });
+
+        // Inject persona reminder as added context
+        const reminderText = buildPersonaReminder(count);
+
+        // If output has addedContext, append to it; otherwise create it
+        if (!output) {
+          output = {};
+        }
+        if (!output.addedContext) {
+          output.addedContext = [];
+        }
+        output.addedContext.push({
+          type: "text",
+          text: reminderText,
+        });
+      }
 
       // Trust Recording: Record SubAgent execution outcomes for agent growth tracking
       // NEW in v2.4.35: Automatic trust event recording for Task tool executions
@@ -1013,14 +1247,22 @@ export {
   FULL_MODE_PATTERNS,
   NARRATIVE_CONFIG,
   VALID_SUBAGENT_TYPES,
+  PERSONA_REMINDER_CONFIG,
+  DECISION_CHECK_CONFIG,
+  RESUME_PATTERNS,
   normalizePersonaId,
   detectFullMode,
+  detectResumeFromCompaction,
   buildFullModeEnforcement,
+  buildPersonaReminder,
+  incrementAndCheckToolCounter,
+  checkDecisionLevel,
   isValidSubagentType,
   callEnrichSubagentPrompt,
   resetNarrativeCache,
   cleanupNarrativeCache,
   loadOrchestratorNarratives,
   resetOrchestratorNarratives,
+  resetToolCallCounter,
   buildOrchestratorContext,
 };

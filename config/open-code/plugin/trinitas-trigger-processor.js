@@ -226,7 +226,14 @@ const loadTriggerRegistry = (forceReload = false) => {
     }
 
     const content = readFileSync(TRIGGER_REGISTRY_PATH, "utf8");
-    _triggerRegistry = JSON.parse(content);
+    // Security: Protect against prototype pollution (CWE-1321)
+    _triggerRegistry = JSON.parse(content, (key, value) => {
+      if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+        console.warn(`[TriggerProcessor] Blocked prototype pollution attempt: ${key}`);
+        return undefined;
+      }
+      return value;
+    });
     _registryMtime = currentMtime;
 
     // Reload settings
