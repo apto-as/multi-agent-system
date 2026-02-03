@@ -26,7 +26,7 @@
 set -euo pipefail
 
 # Version
-INSTALLER_VERSION="2.8.0"
+INSTALLER_VERSION="2.8.1"
 TMWS_VERSION="2.5.32"
 INSTALLER_TYPE="claude-code"
 
@@ -872,44 +872,57 @@ verify_license() {
     fi
 }
 
-# Check Ollama
+# Check Ollama and ensure model is available
 check_ollama() {
-    log_step "Checking Ollama installation..."
+    log_step "Checking Ollama setup..."
 
-    if command -v ollama &> /dev/null; then
-        log_success "Ollama is installed"
+    # Ollama should already be installed (checked in prerequisites)
+    log_success "Ollama is installed"
 
-        # Check if running
-        if curl -sf http://localhost:11434/api/tags > /dev/null 2>&1; then
-            log_success "Ollama is running"
-
-            # Check for required model
-            if ollama list 2>/dev/null | grep -q "mxbai-embed-large"; then
-                log_success "Required model (mxbai-embed-large) is available"
-            else
-                log_warn "Required model not found. Installing..."
-                ollama pull mxbai-embed-large || log_warn "Could not pull model automatically"
-            fi
-        else
-            log_warn "Ollama is not running. Start with: ollama serve"
-        fi
+    # Check if running
+    if curl -sf http://localhost:11434/api/tags > /dev/null 2>&1; then
+        log_success "Ollama is running"
     else
-        log_warn "Ollama is not installed"
-        echo ""
-        echo "Ollama is required for semantic search functionality."
-        echo "Install Ollama:"
-        case "$PLATFORM" in
-            macOS)
-                echo "  brew install ollama"
-                ;;
-            Linux|WSL)
-                echo "  curl -fsSL https://ollama.ai/install.sh | sh"
-                ;;
-        esac
-        echo ""
-        echo "Then run:"
-        echo "  ollama serve"
-        echo "  ollama pull mxbai-embed-large"
+        log_info "Starting Ollama..."
+        # Try to start Ollama in background
+        if [ "$PLATFORM" = "macOS" ]; then
+            # On macOS, Ollama app or brew service
+            ollama serve > /dev/null 2>&1 &
+            sleep 2
+        else
+            # On Linux/WSL
+            ollama serve > /dev/null 2>&1 &
+            sleep 2
+        fi
+
+        # Verify it started
+        if curl -sf http://localhost:11434/api/tags > /dev/null 2>&1; then
+            log_success "Ollama started successfully"
+        else
+            log_warn "Could not start Ollama automatically"
+            echo ""
+            echo "Please start Ollama manually in another terminal:"
+            echo "  ollama serve"
+            echo ""
+            echo "Then pull the embedding model:"
+            echo "  ollama pull mxbai-embed-large"
+            return
+        fi
+    fi
+
+    # Check for required model
+    if ollama list 2>/dev/null | grep -q "mxbai-embed-large"; then
+        log_success "Required model (mxbai-embed-large) is available"
+    else
+        log_info "Pulling required embedding model (mxbai-embed-large)..."
+        if ollama pull mxbai-embed-large; then
+            log_success "Model pulled successfully"
+        else
+            log_warn "Could not pull model automatically"
+            echo ""
+            echo "Please pull the model manually:"
+            echo "  ollama pull mxbai-embed-large"
+        fi
     fi
 }
 
@@ -1077,6 +1090,7 @@ check_prerequisites_native() {
     log_step "Checking prerequisites (native mode)..."
 
     local missing=()
+    local ollama_missing=false
 
     # Check curl
     if ! command -v curl &> /dev/null; then
@@ -1086,6 +1100,11 @@ check_prerequisites_native() {
     # Check git (optional but recommended)
     if ! command -v git &> /dev/null; then
         log_warn "git not found (optional)"
+    fi
+
+    # Check Ollama (required for semantic search)
+    if ! command -v ollama &> /dev/null; then
+        ollama_missing=true
     fi
 
     if [ ${#missing[@]} -gt 0 ]; then
@@ -1103,6 +1122,35 @@ check_prerequisites_native() {
                 echo "  Please install: ${missing[*]}"
                 ;;
         esac
+        exit 1
+    fi
+
+    if [ "$ollama_missing" = true ]; then
+        log_error "Ollama is required for TMWS semantic search functionality"
+        echo ""
+        echo -e "${CYAN}Please install Ollama first:${NC}"
+        echo ""
+        case "$PLATFORM" in
+            macOS)
+                echo "  brew install ollama"
+                echo ""
+                echo "Then start Ollama and pull the embedding model:"
+                echo "  ollama serve &"
+                echo "  ollama pull mxbai-embed-large"
+                ;;
+            Linux|WSL)
+                echo "  curl -fsSL https://ollama.ai/install.sh | sh"
+                echo ""
+                echo "Then start Ollama and pull the embedding model:"
+                echo "  ollama serve &"
+                echo "  ollama pull mxbai-embed-large"
+                ;;
+            *)
+                echo "  Visit https://ollama.ai for installation instructions"
+                ;;
+        esac
+        echo ""
+        echo "After installing Ollama, run this installer again."
         exit 1
     fi
 
