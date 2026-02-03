@@ -154,7 +154,15 @@ fi
 if [ "$FORCE" = false ]; then
     echo -e "${YELLOW}This will permanently delete all ${#backups[@]} backup(s) (${total_size}).${NC}"
     echo ""
-    read -p "Are you sure you want to continue? (yes/no): " confirm
+    # Read from /dev/tty to work with curl | bash
+    if [ -t 0 ]; then
+        # Running interactively
+        read -p "Are you sure you want to continue? (yes/no): " confirm
+    else
+        # Running via pipe (curl | bash)
+        exec < /dev/tty
+        read -p "Are you sure you want to continue? (yes/no): " confirm
+    fi
     if [ "$confirm" != "yes" ]; then
         log_info "Cleanup cancelled."
         exit 0

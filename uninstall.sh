@@ -141,7 +141,15 @@ if [ "$FORCE" = false ]; then
     echo "  - Configuration files"
     echo "  - Backup files"
     echo ""
-    read -p "Are you sure you want to continue? (yes/no): " confirm
+    # Read from /dev/tty to work with curl | bash
+    if [ -t 0 ]; then
+        # Running interactively
+        read -p "Are you sure you want to continue? (yes/no): " confirm
+    else
+        # Running via pipe (curl | bash)
+        exec < /dev/tty
+        read -p "Are you sure you want to continue? (yes/no): " confirm
+    fi
     if [ "$confirm" != "yes" ]; then
         log_info "Uninstall cancelled."
         exit 0
