@@ -64,13 +64,8 @@ EOF
 ollama serve &
 ollama pull mxbai-embed-large
 
-# 6. Add to Claude Code at User level (with required environment variables)
-# Note: Server name must come BEFORE options
-claude mcp add tmws \
-  -e TMWS_CONFIG_PATH=$HOME/.tmws/config.yaml \
-  -e OLLAMA_HOST=http://localhost:11434 \
-  --scope user \
-  -- $HOME/.tmws/bin/tmws-mcp
+# 6. Add to Claude Code at User level
+claude mcp add tmws --scope user -- $HOME/.tmws/bin/tmws-mcp
 
 # 7. Verify installation
 claude mcp list
@@ -89,16 +84,13 @@ If the `claude mcp add` command fails, directly edit `~/.claude.json`:
       "type": "stdio",
       "command": "/Users/YOUR_USERNAME/.tmws/bin/tmws-mcp",
       "args": [],
-      "env": {
-        "TMWS_CONFIG_PATH": "/Users/YOUR_USERNAME/.tmws/config.yaml",
-        "OLLAMA_HOST": "http://localhost:11434"
-      }
+      "env": {}
     }
   }
 }
 ```
 
-> **Important**: Use absolute paths (no `~` or `$HOME`) in JSON config files.
+> **Important**: Use absolute paths (no `~` or `$HOME`) in JSON config files. Environment variables are usually not needed as TMWS auto-detects `~/.tmws/config.yaml` and Ollama at `localhost:11434`.
 
 > **SSH/Remote Servers**: `ollama serve &` will terminate when SSH disconnects. Use `systemctl enable ollama && systemctl start ollama` for persistent operation.
 
