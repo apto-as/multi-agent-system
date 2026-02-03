@@ -86,7 +86,7 @@ CLAUDE_CONFIG_DIR="${REAL_HOME}/.claude"
 BACKUP_DIR="${REAL_HOME}/.trinitas-backup"
 
 # Pre-activated ENTERPRISE license (TMWS-Go v1.0)
-DEFAULT_LICENSE_KEY="TMWS-1.0-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJtdWx0aS1hZ2VudC1zeXN0ZW0tdHJpYWwtdjEuMCIsImlzcyI6InRtd3MuYXB0by5haSIsImlhdCI6MTc2NjI0NDc0OSwiZXhwIjoxNzc0MDIwNzQ5LCJuYmYiOjE3NjYyNDQ3NDksImxpZCI6Ijc4OGNlYzE4LWMzYTAtNGI4Ny05ZWM2LWZmOTAyZTAyM2E5YSIsImx0eXBlIjoiZW50ZXJwcmlzZSIsIm9yZyI6IlRyaW5pdGFzIENvbW11bml0eSIsImZlYXR1cmVzIjpbIm1lbW9yeS5iYXNpYyIsIm1lbW9yeS5hZHZhbmNlZCIsImFnZW50LmJhc2ljIiwiYWdlbnQuYWR2YW5jZWQiLCJhZ2VudC50cnVzdCIsInNraWxscy5iYXNpYyIsInNraWxscy5hZHZhbmNlZCIsInBhdHRlcm5zLmxlYXJuaW5nIiwidHJpbml0YXMucm91dGluZyIsInRyaW5pdGFzLm9yY2hlc3RyYXRpb24iLCJtY3AuaHViLmJhc2ljIiwibWNwLmh1Yi5hZHZhbmNlZCIsImxpZmVjeWNsZS5zY2hlZHVsZXIiLCJjb252ZXJzYXRpb24ubG9nZ2luZyIsImVudGVycHJpc2UubXVsdGl0ZW5hbmN5Il0sIm1heF9tZW1vcmllcyI6LTEsIm1heF9hZ2VudHMiOi0xLCJtYXhfc2tpbGxzIjotMSwibWF4X21jcF9zZXJ2ZXJzIjotMX0.Vnrbd857WfMc3dsNJEYMlkSilXEat1n_vc4Z6BKeAnENyEeMydjO3RBMuZ3GutNSy0CnkBvBYsJbN0x_TDxuDQ"
+DEFAULT_LICENSE_KEY="TMWS-1.0-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJtdWx0aS1hZ2VudC1zeXN0ZW0tdHJpYWwtdjEuMCIsImlzcyI6InRtd3MuYXB0by5haSIsImlhdCI6MTc3MDA4MzkwMiwiZXhwIjoxNzc0OTIyMzAyLCJuYmYiOjE3NzAwODM5MDIsImxpZCI6IjhkMjI4YzRjLWE2ZWItNDVlMS05NjZjLWIzNDJkM2NhYTkzYyIsImx0eXBlIjoiZW50ZXJwcmlzZSIsIm9yZyI6IlRyaW5pdGFzIENvbW11bml0eSIsImZlYXR1cmVzIjpbIm1lbW9yeS5iYXNpYyIsIm1lbW9yeS5hZHZhbmNlZCIsImFnZW50LmJhc2ljIiwiYWdlbnQuYWR2YW5jZWQiLCJhZ2VudC50cnVzdCIsInNraWxscy5iYXNpYyIsInNraWxscy5hZHZhbmNlZCIsInBhdHRlcm5zLmxlYXJuaW5nIiwidHJpbml0YXMucm91dGluZyIsInRyaW5pdGFzLm9yY2hlc3RyYXRpb24iLCJtY3AuaHViLmJhc2ljIiwibWNwLmh1Yi5hZHZhbmNlZCIsImxpZmVjeWNsZS5zY2hlZHVsZXIiLCJjb252ZXJzYXRpb24ubG9nZ2luZyIsImVudGVycHJpc2UubXVsdGl0ZW5hbmN5Il0sIm1heF9tZW1vcmllcyI6LTEsIm1heF9hZ2VudHMiOi0xLCJtYXhfc2tpbGxzIjotMSwibWF4X21jcF9zZXJ2ZXJzIjotMX0.deZ2KrvnLYFl_MM4d2KPLeEN4h-5ZHAlMT_ICvNj0ZnUQoZQ8bpsyvwuhMvGEy7Gb-Q1VtPjs4hzf2t1qCt1BQ"
 DEFAULT_LICENSE_PUBLIC_KEY="XRa6aVOcwUzeurz2AGx+/1KlC3CEokjWcq3pqcd0fIo="
 
 # Logging functions
@@ -884,11 +884,11 @@ check_ollama() {
             log_success "Ollama is running"
 
             # Check for required model
-            if ollama list 2>/dev/null | grep -q "multilingual-e5-large"; then
-                log_success "Required model (multilingual-e5-large) is available"
+            if ollama list 2>/dev/null | grep -q "mxbai-embed-large"; then
+                log_success "Required model (mxbai-embed-large) is available"
             else
                 log_warn "Required model not found. Installing..."
-                ollama pull zylonai/multilingual-e5-large || log_warn "Could not pull model automatically"
+                ollama pull mxbai-embed-large || log_warn "Could not pull model automatically"
             fi
         else
             log_warn "Ollama is not running. Start with: ollama serve"
@@ -909,7 +909,7 @@ check_ollama() {
         echo ""
         echo "Then run:"
         echo "  ollama serve"
-        echo "  ollama pull zylonai/multilingual-e5-large"
+        echo "  ollama pull mxbai-embed-large"
     fi
 }
 
