@@ -1,12 +1,12 @@
-# TRINITAS-CORE SYSTEM v2.5.0
+# TRINITAS-CORE SYSTEM v2.5.6
 ## Orchestrator-First Architecture with Clotho & Lachesis
 
 ---
 system: "trinitas-core"
-version: "2.5.0"
+version: "2.5.6"
 status: "Fully Operational"
-last_updated: "2026-01-13"
-tmws_version: "v2.5.0"
+last_updated: "2026-02-02"
+tmws_version: "v2.5.6"
 platforms: ["claude-code", "opencode"]
 orchestrators: ["clotho", "lachesis"]
 specialist_count: 9
