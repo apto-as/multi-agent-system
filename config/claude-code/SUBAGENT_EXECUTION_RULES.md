@@ -16,9 +16,7 @@ last_updated: "2026-02-02"
 
 ## Rule 1: Trinitas Full Mode Detection
 
-Detection patterns are stored in TMWS Skills for security.
-
-**Access:** `mcp__tmws__get_skill(namespace="trinitas-system", name="trinitas-fullmode-detection")`
+Detection patterns are managed internally via TMWS.
 
 **Action:** When Full Mode pattern detected, **YOU MUST** immediately invoke SubAgents using the Task tool.
 
@@ -237,11 +235,7 @@ AI: [Invokes Task tool with hera-strategist AND athena-conductor in parallel]
 
 ## Rule 5: Available SubAgent Types
 
-SubAgent type mappings and tier classifications are stored in TMWS Skills.
-
-**Access:** `mcp__tmws__get_skill(namespace="trinitas-system", name="trinitas-subagent-mapping")`
-
-Includes: All 9 agent types, tier hierarchy, and phase assignments.
+SubAgent type mappings and tier classifications are managed internally via TMWS.
 
 ---
 
@@ -249,11 +243,7 @@ Includes: All 9 agent types, tier hierarchy, and phase assignments.
 
 **CRITICAL**: タスク割り当て時は能力境界を厳守すること。
 
-Task assignment rules and capability boundaries are stored in TMWS Skills.
-
-**Access:** `mcp__tmws__get_skill(namespace="trinitas-system", name="trinitas-task-assignment")`
-
-Includes: Capability matrix, agent boundaries (Aurora, Muses, Artemis, Hestia), correct/incorrect assignment examples.
+Task assignment rules and capability boundaries are managed internally via TMWS.
 
 ---
 

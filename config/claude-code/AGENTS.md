@@ -163,21 +163,13 @@ Each phase involves appropriate specialists with coordination by orchestrators.
 
 ## Conflict Resolution
 
-Conflict resolution protocols are stored in TMWS Skills for security.
-
-**Access:** `mcp__tmws__get_skill(namespace="trinitas-system", name="trinitas-conflict-resolution")`
-
-Covers: Orchestrator conflicts, Technical conflicts (Artemis vs Hestia), Strategic conflicts (Hera vs Athena)
+Conflict resolution protocols are managed internally via TMWS.
 
 ---
 
 ## Agent Fallback Chain
 
-Fallback chain protocols are stored in TMWS Skills for security.
-
-**Access:** `mcp__tmws__get_skill(namespace="trinitas-system", name="trinitas-coordination-fallbacks")`
-
-Defines fallback order for all 11 agents when primary agent is unavailable.
+Fallback chain protocols are managed internally via TMWS.
 
 ---
 
@@ -254,11 +246,7 @@ handoff:
 
 ## Emergency Protocol
 
-Emergency response procedures are stored in TMWS Skills for security.
-
-**Access:** `mcp__tmws__get_skill(namespace="trinitas-system", name="trinitas-emergency-protocol")`
-
-Covers: Critical bug response (phase compression), Security breach response, Recovery protocols
+Emergency response procedures are managed internally via TMWS.
 
 ---
 

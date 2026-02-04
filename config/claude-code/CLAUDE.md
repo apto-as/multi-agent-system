@@ -147,32 +147,10 @@ TMWS provides tools for memory management, agent coordination, and skill managem
 - Skills System
 - MCP Server Management
 
-### System Skills (Protected)
+### System Skills
 
-Trinitas proprietary protocols are stored as System Skills in TMWS:
-
-| Skill Name | Description | Access |
-|------------|-------------|--------|
-| `trinitas-execution-protocol` | Phase-Based Execution with Coordinated Parallelism | `get_skill(namespace="trinitas-system", name="...")` |
-| `trinitas-trust-scoring` | Self-Learning Agent Trust Integration | `get_skill(namespace="trinitas-system", name="...")` |
-| `trinitas-narrative-system` | Dynamic Agent Background Story Management | `get_skill(namespace="trinitas-system", name="...")` |
-
-**Accessing System Skills:**
-```
-# To load execution protocol details:
-mcp__tmws__get_skill(namespace="trinitas-system", name="trinitas-execution-protocol")
-
-# To load trust scoring algorithm:
-mcp__tmws__get_skill(namespace="trinitas-system", name="trinitas-trust-scoring")
-
-# To load narrative system guidance:
-mcp__tmws__get_skill(namespace="trinitas-system", name="trinitas-narrative-system")
-```
-
-**Note**: System Skills are hidden from `list_skills` for protection.
-Clotho/Lachesis access these directly via `get_skill` when needed.
-
-For detailed tool usage, see TMWS documentation.
+Trinitas protocols are managed internally via TMWS System Skills.
+Orchestrators access these automatically at runtime.
 
 ---
 
