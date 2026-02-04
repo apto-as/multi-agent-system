@@ -776,38 +776,10 @@ install_claude_config() {
 # =============================================================================
 # Hook Installation
 # =============================================================================
-# Hooks are included in the repository and copied during installation.
+# Hooks are included in the repository and copied during install_claude_config().
 # They integrate Claude Code with TMWS for persona loading, context
 # injection, and memory management.
 # =============================================================================
-
-# Install hooks from repository config
-install_hooks() {
-    log_step "Installing Trinitas hooks..."
-
-    local hooks_dir="${CLAUDE_CONFIG_DIR}/hooks/core"
-    mkdir -p "${hooks_dir}"
-
-    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd 2>/dev/null || echo "")"
-    local src_dir="${script_dir}/config/claude-code/hooks/core"
-
-    if [ -n "${script_dir}" ] && [ -d "${src_dir}" ]; then
-        # Local clone mode: copy hooks from repository
-        cp "${src_dir}"/*.py "${hooks_dir}/" 2>/dev/null || true
-        find "${hooks_dir}" -type f -name "*.py" -exec chmod 0755 {} \; 2>/dev/null || true
-        local count
-        count=$(find "${hooks_dir}" -name "*.py" -type f 2>/dev/null | wc -l | tr -d ' ')
-        log_success "Installed ${count} hooks to ${hooks_dir}"
-    elif [ -d "${hooks_dir}" ] && ls "${hooks_dir}"/*.py &>/dev/null; then
-        # GitHub download mode: hooks already copied by install_claude_config
-        find "${hooks_dir}" -type f -name "*.py" -exec chmod 0755 {} \; 2>/dev/null || true
-        local count
-        count=$(find "${hooks_dir}" -name "*.py" -type f 2>/dev/null | wc -l | tr -d ' ')
-        log_success "Hooks already installed (${count} hooks in ${hooks_dir})"
-    else
-        log_warn "No hooks found to install"
-    fi
-}
 
 # Configure Claude Code MCP settings
 configure_mcp_settings() {
@@ -1112,9 +1084,6 @@ main() {
 
     install_claude_config
     configure_mcp_settings
-
-    # Install hooks from TMWS (replaces placeholder stubs with real hooks)
-    install_hooks
 
     # Install Python dependencies for hooks
     install_python_dependencies
