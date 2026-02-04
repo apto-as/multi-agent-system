@@ -781,7 +781,7 @@ install_claude_config() {
 #
 # Distribution priority:
 #   1. tmws-hook extract (native binary, preferred)
-#   2. TMWS REST API /api/v1/hooks (running server, Docker or native)
+#   2. TMWS REST API /api/v1/hooks (running server)
 #   3. Placeholder stubs from public repo (fallback, hooks will error at runtime)
 # =============================================================================
 
@@ -845,26 +845,6 @@ install_hooks_from_tmws() {
         fi
     fi
 
-    # --- Strategy 3: Extract from Docker container ---
-    if [ "$hooks_installed" = false ] && [ "$INSTALL_MODE" = "docker" ]; then
-        if docker ps --filter "name=tmws-app" --filter "status=running" --format "{{.Names}}" 2>/dev/null | grep -q "tmws-app"; then
-            log_info "Attempting hook extraction from Docker container..."
-
-            local extract_count=0
-            for hook in ${HOOK_NAMES}; do
-                if docker cp "tmws-app:/app/hooks/${hook}.py" "${hooks_dir}/${hook}.py" 2>/dev/null; then
-                    extract_count=$((extract_count + 1))
-                fi
-            done
-
-            if [ "$extract_count" -gt 0 ]; then
-                hooks_installed=true
-                find "${hooks_dir}" -type f -name "*.py" -exec chmod 0755 {} \; 2>/dev/null || true
-                log_success "Hooks extracted from Docker container (${extract_count} hooks)"
-            fi
-        fi
-    fi
-
     # --- Fallback: Placeholder stubs remain ---
     if [ "$hooks_installed" = false ]; then
         log_warn "Could not obtain hooks from TMWS binary or API"
@@ -872,11 +852,7 @@ install_hooks_from_tmws() {
         log_warn "TMWS is running and hooks are installed."
         echo ""
         log_info "To install hooks after TMWS is running:"
-        if [ "$INSTALL_MODE" = "native" ]; then
-            echo "  tmws-hook extract --output-dir ~/.claude/hooks/core"
-        else
-            echo "  curl http://localhost:${TMWS_API_PORT}/api/v1/hooks/install | bash"
-        fi
+        echo "  tmws-hook extract --output-dir ~/.claude/hooks/core"
         echo ""
     fi
 }

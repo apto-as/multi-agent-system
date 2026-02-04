@@ -2,7 +2,7 @@
   "description": "Trinitas Global Hooks Configuration (v2.5.0 - Hook Distribution via TMWS)",
   "distribution": {
     "note": "Hook scripts in core/ are distributed via TMWS installer, not the public repo",
-    "sources": ["tmws-hook extract", "TMWS REST API", "docker cp"],
+    "sources": ["tmws-hook extract", "TMWS REST API"],
     "fallback": "Placeholder stubs that error with installation instructions"
   },
   "hooks": {
