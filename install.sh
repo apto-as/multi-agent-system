@@ -774,86 +774,29 @@ install_claude_config() {
 }
 
 # =============================================================================
-# Hook Distribution System
+# Hook Installation
 # =============================================================================
-# Hooks contain proprietary logic and are NOT distributed via the public repo.
-# They are bundled inside the TMWS binary and extracted at install time.
-#
-# Distribution priority:
-#   1. tmws-hook extract (native binary, preferred)
-#   2. TMWS REST API /api/v1/hooks (running server)
-#   3. Placeholder stubs from public repo (fallback, hooks will error at runtime)
+# Hooks are included in the repository and copied during installation.
+# They integrate Claude Code with TMWS for persona loading, context
+# injection, and memory management.
 # =============================================================================
 
-# Install hooks from TMWS (binary or API)
-install_hooks_from_tmws() {
-    log_step "Installing Trinitas hooks from TMWS..."
+# Install hooks from repository config
+install_hooks() {
+    log_step "Installing Trinitas hooks..."
 
     local hooks_dir="${CLAUDE_CONFIG_DIR}/hooks/core"
-    local hooks_installed=false
+    mkdir -p "${hooks_dir}"
 
-    local HOOK_NAMES="dynamic_context_loader protocol_injector decision_check decision_memory precompact_memory_injection security_utils rate_limiter task_persona_injector persona_reminder_hook tmws_hook_wrapper"
-
-    # --- Strategy 1: Extract from tmws-hook binary (native mode) ---
-    if [ "$INSTALL_MODE" = "native" ] && [ -x "${TMWS_BIN_DIR}/tmws-hook" ]; then
-        log_info "Attempting hook extraction via tmws-hook binary..."
-
-        if "${TMWS_BIN_DIR}/tmws-hook" extract --output-dir "${hooks_dir}" 2>/dev/null; then
-            # Verify at least one real hook was extracted (not a placeholder)
-            if [ -f "${hooks_dir}/dynamic_context_loader.py" ]; then
-                local first_line
-                first_line=$(head -3 "${hooks_dir}/dynamic_context_loader.py" 2>/dev/null | tail -1)
-                if ! echo "$first_line" | grep -q "Hook not installed"; then
-                    hooks_installed=true
-                    # Set executable permissions
-                    find "${hooks_dir}" -type f -name "*.py" -exec chmod 0755 {} \; 2>/dev/null || true
-                    log_success "Hooks extracted from tmws-hook binary (${hooks_dir})"
-                fi
-            fi
-        fi
-
-        if [ "$hooks_installed" = false ]; then
-            log_info "tmws-hook extract not available (will try API fallback)"
-        fi
-    fi
-
-    # --- Strategy 2: Download from TMWS REST API ---
-    if [ "$hooks_installed" = false ]; then
-        local api_port="${TMWS_API_PORT}"
-        local api_base="http://localhost:${api_port}/api/v1/hooks"
-
-        # Check if TMWS API is reachable
-        if curl -sf "${api_base}/status" > /dev/null 2>&1; then
-            log_info "Downloading hooks from TMWS API (localhost:${api_port})..."
-
-            local download_count=0
-            for hook in ${HOOK_NAMES}; do
-                if curl -fsSL "${api_base}/${hook}.py" -o "${hooks_dir}/${hook}.py" 2>/dev/null; then
-                    download_count=$((download_count + 1))
-                fi
-            done
-
-            if [ "$download_count" -gt 0 ]; then
-                hooks_installed=true
-                find "${hooks_dir}" -type f -name "*.py" -exec chmod 0755 {} \; 2>/dev/null || true
-                log_success "Hooks downloaded from TMWS API (${download_count} hooks)"
-            else
-                log_info "TMWS API did not return hook files"
-            fi
-        else
-            log_info "TMWS API not reachable at localhost:${api_port} (will use fallback)"
-        fi
-    fi
-
-    # --- Fallback: Placeholder stubs remain ---
-    if [ "$hooks_installed" = false ]; then
-        log_warn "Could not obtain hooks from TMWS binary or API"
-        log_warn "Placeholder stubs are installed - hooks will not function until"
-        log_warn "TMWS is running and hooks are installed."
-        echo ""
-        log_info "To install hooks after TMWS is running:"
-        echo "  tmws-hook extract --output-dir ~/.claude/hooks/core"
-        echo ""
+    local src_dir="${SCRIPT_DIR}/config/claude-code/hooks/core"
+    if [ -d "${src_dir}" ]; then
+        cp "${src_dir}"/*.py "${hooks_dir}/" 2>/dev/null || true
+        find "${hooks_dir}" -type f -name "*.py" -exec chmod 0755 {} \; 2>/dev/null || true
+        local count
+        count=$(find "${hooks_dir}" -name "*.py" -type f 2>/dev/null | wc -l | tr -d ' ')
+        log_success "Installed ${count} hooks to ${hooks_dir}"
+    else
+        log_warn "Hook source directory not found: ${src_dir}"
     fi
 }
 
@@ -1162,7 +1105,7 @@ main() {
     configure_mcp_settings
 
     # Install hooks from TMWS (replaces placeholder stubs with real hooks)
-    install_hooks_from_tmws
+    install_hooks
 
     # Install Python dependencies for hooks
     install_python_dependencies

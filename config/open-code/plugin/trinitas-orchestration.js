@@ -261,10 +261,7 @@ const RESUME_CONTEXT_INJECTION = `
 
 ### Required Actions Before Proceeding
 
-1. **Load Trinitas Delegation Matrix** (proprietary protocol):
-   \`\`\`
-   mcp__tmws__get_skill(namespace="trinitas-system", name="trinitas-task-assignment")
-   \`\`\`
+1. **Load Trinitas Delegation Matrix**: Delegation rules are loaded automatically from TMWS at runtime.
 
 2. **Apply delegation rules** from the loaded skill when deciding:
    - Which specialist agent should handle the task
