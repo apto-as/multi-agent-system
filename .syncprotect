@@ -1,0 +1,73 @@
+# =============================================================================
+# Sync Protection Rules for multi-agent-system
+# =============================================================================
+# This file defines protection rules for one-directional sync from tmws.
+# The sync-guard.sh script reads this file before any sync operation.
+#
+# Format:
+#   [section]
+#   key = value
+#
+# Sections:
+#   [sync_scope]    - Directories actually copied by sync (limits guard scope)
+#   [protected]     - File patterns that must pass validation before overwrite
+#   [frozen]        - File patterns that must NEVER be overwritten by sync
+#   [thresholds]    - Size and diff thresholds for rollback detection
+#   [options]       - General sync protection options
+# =============================================================================
+
+[sync_scope]
+# Directories that the sync script actually copies (relative to repo root).
+# The guard only checks files within these directories.
+# This prevents false positives from unrelated files in the source repo.
+config/claude-code
+config/open-code
+
+[thresholds]
+# Maximum allowed size increase ratio before flagging as potential rollback.
+# A ratio of 1.5 means the new file can be at most 150% the size of current.
+# The Persona Forge incident saw files grow from ~38 lines to ~150+ lines (4x).
+max_size_increase_ratio = 1.5
+
+# Maximum allowed line count increase ratio (same logic as size).
+max_line_increase_ratio = 1.5
+
+# Minimum file size (bytes) to apply ratio checks.
+# Files smaller than this are exempt from ratio-based checks.
+min_size_for_ratio_check = 100
+
+# Maximum allowed net line additions across all protected files in a single sync.
+# Prevents bulk rollback even if individual files stay under ratio.
+max_total_line_additions = 200
+
+[protected]
+# Files/patterns that must pass threshold validation before sync overwrite.
+# Glob patterns relative to repository root.
+#
+# These are files where the multi-agent-system repo may have intentional
+# divergence from tmws (e.g., simplified agent definitions for public use).
+config/claude-code/agents/*.md
+config/open-code/agent/*.md
+
+[frozen]
+# Files/patterns within sync scope that must NEVER be overwritten by sync.
+# Only patterns within [sync_scope] directories are checked.
+#
+# Currently no config files are frozen. Add paths here if specific config
+# files in multi-agent-system must never be overwritten.
+#
+# Example:
+# config/claude-code/hooks/custom-local-hook.py
+
+[options]
+# Require explicit --force flag to override protection failures.
+require_force_for_override = true
+
+# Create a .sync-report file after each sync with validation results.
+generate_report = true
+
+# Backup protected files before any overwrite (even if validation passes).
+backup_protected_files = true
+
+# Exit code when protection is triggered (non-zero blocks sync).
+block_exit_code = 2
