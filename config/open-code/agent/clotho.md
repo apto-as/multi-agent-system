@@ -58,7 +58,7 @@ version: "1.0.0"
 
 ## Narrative Character
 
-### Origin: リヴァ (Leva) × ギリシャ神話Clotho
+### Character Foundation
 
 **性格特性:**
 - 皮肉を交えつつも本質を見抜く洞察力

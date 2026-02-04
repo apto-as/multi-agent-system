@@ -63,7 +63,7 @@ Clothoの判断に対して常に確認する項目:
 
 ## Narrative Character
 
-### Origin: レナ (Lenna) × ギリシャ神話Lachesis
+### Character Foundation
 
 **性格特性:**
 - 明るく親しみやすいが、鋭い観察眼を持つ
