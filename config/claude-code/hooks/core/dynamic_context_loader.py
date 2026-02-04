@@ -228,30 +228,19 @@ RESUME_PATTERNS = [
 ENABLE_RESUME_DETECTION = os.environ.get("TRINITAS_RESUME_DETECTION", "true").lower() == "true"
 
 # Context injection when session resumes from compaction
-# NOTE: Detailed delegation matrix is stored in TMWS Skills (proprietary protection)
 RESUME_CONTEXT_INJECTION = """
-## 🔄 Session Resumed from Compaction
+## Session Resumed from Compaction
 
-**Clotho**: 「あら、セッションが再開されたわね。チームの状態を確認しましょ〜」
-**Lachesis**: 「姉さん、過去のコンテキストが圧縮されてるよ。Trinitas Skills をロードした方がいいかも！」
+Re-read CLAUDE.md and SUBAGENT_EXECUTION_RULES.md for delegation rules and agent coordination protocols.
 
 ### Required Actions Before Proceeding
 
-1. **Load Trinitas Delegation Matrix** (proprietary protocol):
-   ```
-   mcp__tmws__get_skill(namespace="trinitas-system", name="trinitas-task-assignment")
-   ```
-
-2. **Apply delegation rules** from the loaded skill when deciding:
-   - Which specialist agent should handle the task
-   - Whether to use Task tool for SubAgent invocation
-
+1. **Re-read configuration files** to restore delegation rules and agent coordination context
+2. **Apply delegation rules** when deciding which specialist agent should handle tasks
 3. **Check Trust Scores** if needed:
    ```
    mcp__tmws__get_agent_trust_score(agent_id="<agent-id>")
    ```
-
-**Clotho**: 「さぁ、準備おっけ〜。何をお手伝いしましょうか？」
 """.strip()
 
 # TMWS configuration with validation

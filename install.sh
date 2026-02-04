@@ -788,15 +788,24 @@ install_hooks() {
     local hooks_dir="${CLAUDE_CONFIG_DIR}/hooks/core"
     mkdir -p "${hooks_dir}"
 
-    local src_dir="${SCRIPT_DIR}/config/claude-code/hooks/core"
-    if [ -d "${src_dir}" ]; then
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd 2>/dev/null || echo "")"
+    local src_dir="${script_dir}/config/claude-code/hooks/core"
+
+    if [ -n "${script_dir}" ] && [ -d "${src_dir}" ]; then
+        # Local clone mode: copy hooks from repository
         cp "${src_dir}"/*.py "${hooks_dir}/" 2>/dev/null || true
         find "${hooks_dir}" -type f -name "*.py" -exec chmod 0755 {} \; 2>/dev/null || true
         local count
         count=$(find "${hooks_dir}" -name "*.py" -type f 2>/dev/null | wc -l | tr -d ' ')
         log_success "Installed ${count} hooks to ${hooks_dir}"
+    elif [ -d "${hooks_dir}" ] && ls "${hooks_dir}"/*.py &>/dev/null; then
+        # GitHub download mode: hooks already copied by install_claude_config
+        find "${hooks_dir}" -type f -name "*.py" -exec chmod 0755 {} \; 2>/dev/null || true
+        local count
+        count=$(find "${hooks_dir}" -name "*.py" -type f 2>/dev/null | wc -l | tr -d ' ')
+        log_success "Hooks already installed (${count} hooks in ${hooks_dir})"
     else
-        log_warn "Hook source directory not found: ${src_dir}"
+        log_warn "No hooks found to install"
     fi
 }
 
