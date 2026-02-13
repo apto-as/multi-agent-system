@@ -1,10 +1,10 @@
-# TRINITAS Agent Coordination Protocol v2.5.6
+# TRINITAS Agent Coordination Protocol v2.6.4
 ## Orchestrator-First Architecture with Clotho & Lachesis
 
 ---
-protocol_version: "2.5.6"
+protocol_version: "2.6.4"
 compatible_with: ["claude-code", "opencode"]
-tmws_version: "v2.5.6"
+tmws_version: "v2.6.4"
 orchestrator_count: 2
 specialist_count: 9
 last_updated: "2026-02-02"

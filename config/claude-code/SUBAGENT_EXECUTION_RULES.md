@@ -1,8 +1,8 @@
-# MANDATORY SubAgent Execution Rules v2.5.6
+# MANDATORY SubAgent Execution Rules v2.6.4
 ## Trinitas Multi-Agent Parallel Execution Protocol
 
 ---
-version: "2.5.6"
+version: "2.6.4"
 status: "MANDATORY"
 enforcement: "STRICT"
 last_updated: "2026-02-02"
