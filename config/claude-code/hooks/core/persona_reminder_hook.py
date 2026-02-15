@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
 """
-PostToolUse Hook: Periodic Persona Reminder for Trinitas Orchestrators v1.2.0
+PostToolUse Hook: Periodic Persona Reminder for Trinitas Orchestrators v1.3.0
 
 Injects periodic reminders about Clotho & Lachesis identity to prevent persona drift.
 This solves the issue where orchestrator personas fade during long conversations.
+
+NEW in v1.3.0: Full SubAgent Output in Auto-Memory
+  - PostToolUse receives tool_response with actual SubAgent output
+  - Stores real execution results instead of prompt preview
+  - Truncation increased from 1000 to 2000 chars (matching TUI parity)
+  - Falls back to prompt preview if tool_response unavailable
 
 NEW in v1.2.0: Automatic Memory Storage (Issue #215)
   - Stores agent interactions as memories for skill evolution
@@ -24,8 +30,8 @@ Configuration (via environment variables):
   TRINITAS_TRUST_RECORDING: Enable/disable trust recording (default: true)
   TRINITAS_AUTO_MEMORY: Enable/disable auto-memory storage (default: true)
 
-Version: 1.2.0
-Updated: 2026-01-24
+Version: 1.3.0
+Updated: 2026-02-15
 """
 
 from __future__ import annotations
@@ -189,9 +195,9 @@ def store_auto_memory(agent_id: str, interaction_type: str, output_summary: str,
 
     try:
         url = f"{TMWS_URL}/api/v1/mcp/call"
-        # Truncate output summary to 1000 chars
-        if len(output_summary) > 1000:
-            output_summary = output_summary[:1000] + "..."
+        # Truncate output summary to 2000 chars (v1.3.0: TUI parity)
+        if len(output_summary) > 2000:
+            output_summary = output_summary[:2000] + "..."
 
         payload = {
             "tool": "auto_store_interaction",
@@ -219,6 +225,60 @@ def store_auto_memory(agent_id: str, interaction_type: str, output_summary: str,
         return False
     except Exception:
         return False
+
+
+def _extract_task_output(stdin_data: dict, fallback: str) -> str:
+    """Extract SubAgent output from PostToolUse tool_response.
+
+    v1.3.0: PostToolUse hooks receive tool_response containing the actual
+    SubAgent result. This extracts the output text, falling back to the
+    prompt preview if unavailable.
+
+    The tool_response for a Task tool contains the subagent's result text.
+    We try multiple possible field names since the format may vary.
+
+    Args:
+        stdin_data: The full hook stdin input (contains tool_name, tool_response, etc.)
+        fallback: Fallback text (prompt preview) if extraction fails
+
+    Returns:
+        The best available output summary (max 2000 chars)
+    """
+    tool_name = stdin_data.get("tool_name", "")
+    if tool_name != "Task":
+        return fallback
+
+    tool_response = stdin_data.get("tool_response", {})
+
+    # tool_response can be a string or a dict
+    if isinstance(tool_response, str):
+        output = tool_response
+    elif isinstance(tool_response, dict):
+        # Try common field names for the subagent output
+        output = (
+            tool_response.get("output", "")
+            or tool_response.get("result", "")
+            or tool_response.get("text", "")
+            or tool_response.get("content", "")
+        )
+        # If still empty, try to serialize the whole response
+        if not output and tool_response:
+            try:
+                output = json.dumps(tool_response, ensure_ascii=False)[:2000]
+            except (TypeError, ValueError):
+                output = ""
+    else:
+        output = str(tool_response) if tool_response else ""
+
+    # Use fallback if extraction yielded nothing
+    if not output or len(output.strip()) < 10:
+        return fallback
+
+    # Truncate to 2000 chars (TUI parity)
+    if len(output) > 2000:
+        output = output[:2000] + "..."
+
+    return output
 
 
 class PersonaReminderState:
@@ -290,31 +350,35 @@ class PersonaReminderHook:
     def __init__(self):
         self.state = PersonaReminderState(SESSION_FILE)
 
-    def process_trust_recording(self) -> None:
+    def process_trust_recording(self, stdin_data: dict) -> None:
         """Process pending trust recording and auto-memory storage for SubAgent invocations.
 
         This reads the pending invocation state stored by task_persona_injector.py
         and records a success event (PostToolUse only runs if tool completed).
         Also stores the interaction as memory for skill evolution (Issue #215).
+
+        v1.3.0: Now extracts tool_response from stdin_data to store actual SubAgent
+        output instead of just the prompt preview. Falls back to prompt preview
+        if tool_response is unavailable.
         """
         pending = read_pending_invocation()
         if not pending:
             return
 
         agent_id = pending.get("subagent_type", "")
-        prompt_preview = pending.get("prompt_preview", "")[:100]
+        prompt_preview = pending.get("prompt_preview", "")[:200]
 
         if agent_id:
             # Record trust event (PostToolUse means tool completed successfully)
             if ENABLE_TRUST_RECORDING:
-                description = f"Task execution: {prompt_preview}"
+                description = f"Task execution: {prompt_preview[:100]}"
                 record_trust_event(agent_id, "success", description)
 
-            # Store auto-memory for skill evolution (v1.2.0)
+            # Store auto-memory for skill evolution (v1.2.0, enhanced v1.3.0)
             if ENABLE_AUTO_MEMORY:
-                # PostToolUse means success; we don't have the full output here,
-                # so we use the prompt preview as the summary
-                store_auto_memory(agent_id, "task", prompt_preview, True)
+                # v1.3.0: Extract actual SubAgent output from tool_response
+                output_summary = _extract_task_output(stdin_data, prompt_preview)
+                store_auto_memory(agent_id, "task", output_summary, True)
 
         # Clear pending state
         clear_pending_invocation()
@@ -324,13 +388,13 @@ class PersonaReminderHook:
         Process hook input and return reminder context if threshold reached.
 
         Args:
-            stdin_data: Hook input from Claude Code (not used for PostToolUse)
+            stdin_data: Hook input from Claude Code (contains tool_name, tool_response, etc.)
 
         Returns:
             Hook output with addedContext if reminder should be shown
         """
-        # Process trust recording first (v1.1.0)
-        self.process_trust_recording()
+        # Process trust recording first (v1.1.0, enhanced v1.3.0 with tool_response)
+        self.process_trust_recording(stdin_data)
 
         if not ENABLE_PERSONA_REMINDER:
             return {"addedContext": []}
