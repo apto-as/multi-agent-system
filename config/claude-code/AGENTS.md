@@ -213,8 +213,8 @@ handoff:
 | Muses | `store_memory`, `search_memories` |
 | Hestia | `verify_and_record`, `get_verification_history` |
 | Artemis | `verify_and_record` |
-| Athena | `get_agent_status`, `get_recommended_agents` |
-| Eris | `create_task`, `get_agent_status` |
+| Athena | `get_agent`, `get_recommended_agents` |
+| Eris | `create_task`, `get_agent` |
 
 ---
 
